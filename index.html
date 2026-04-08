@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Panel de Aprobación · Newsroom</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>Panel de aprobación</h1>
+        <p>Revisión de temas pendientes para guion</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="refreshBtn">Actualizar</button>
+        <button id="settingsBtn" class="secondary">Configuración</button>
+      </div>
+    </header>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="filters">
+      <input id="searchInput" placeholder="Buscar por jugador o tema..." />
+      <select id="countryFilter">
+        <option value="">Todos los países</option>
+      </select>
+      <select id="sourcesFilter">
+        <option value="0">Todas las fuentes</option>
+        <option value="1">1+ fuentes</option>
+        <option value="3">3+ fuentes</option>
+        <option value="5">5+ fuentes</option>
+        <option value="10">10+ fuentes</option>
+      </select>
+    </section>
+
+    <main id="cards" class="cards"></main>
+
+    <dialog id="topicDialog">
+      <article>
+        <header class="dialog-header">
+          <h2 id="dialogTitle">Detalle</h2>
+          <button id="closeDialog" class="secondary">Cerrar</button>
+        </header>
+        <div id="dialogBody"></div>
+      </article>
+    </dialog>
+
+    <dialog id="settingsDialog">
+      <article>
+        <header class="dialog-header">
+          <h2>Configuración</h2>
+          <button id="closeSettings" class="secondary">Cerrar</button>
+        </header>
+        <label>
+          Base URL n8n
+          <input id="baseUrlInput" placeholder="http://localhost:5678" />
+        </label>
+        <label>
+          x-approval-secret (opcional)
+          <input id="secretInput" placeholder="Solo si habilitás secret en n8n" />
+        </label>
+        <button id="saveSettingsBtn">Guardar</button>
+      </article>
+    </dialog>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
