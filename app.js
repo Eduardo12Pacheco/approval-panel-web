@@ -2,11 +2,12 @@ const storageKey = 'approval-panel-settings-v1';
 const sessionKey = 'approval-panel-session-v1';
 
 const AUTH_USER = 'paneladmin';
-const AUTH_PASS = 'Guiones2026!'
+const AUTH_PASS = 'Guiones2026!';
 
 const state = {
   settings: loadSettings(),
   items: [],
+  queue: [],
   selectedCardId: null,
 };
 
@@ -21,6 +22,10 @@ const el = {
   searchInput: document.getElementById('searchInput'),
   countryFilter: document.getElementById('countryFilter'),
   sourcesFilter: document.getElementById('sourcesFilter'),
+  queueMeta: document.getElementById('queueMeta'),
+  queueList: document.getElementById('queueList'),
+  refreshQueueBtn: document.getElementById('refreshQueueBtn'),
+  runQueueBtn: document.getElementById('runQueueBtn'),
   refreshBtn: document.getElementById('refreshBtn'),
   settingsBtn: document.getElementById('settingsBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
@@ -45,7 +50,7 @@ function boot() {
   if (session === 'ok') {
     el.authGate.classList.add('hidden');
     el.appShell.classList.remove('hidden');
-    refreshPending();
+    refreshAll();
     return;
   }
   el.authGate.classList.remove('hidden');
@@ -75,14 +80,16 @@ function bindEvents() {
       el.appShell.classList.remove('hidden');
       el.authPass.value = '';
       toast('Sesión iniciada');
-      refreshPending();
+      refreshAll();
       return;
     }
 
     toast('Usuario o contraseña incorrectos');
   });
 
-  el.refreshBtn.addEventListener('click', refreshPending);
+  el.refreshBtn.addEventListener('click', refreshAll);
+  el.refreshQueueBtn.addEventListener('click', refreshQueue);
+  el.runQueueBtn.addEventListener('click', runQueue);
   el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
   el.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem(sessionKey);
@@ -98,7 +105,7 @@ function bindEvents() {
     });
     el.settingsDialog.close();
     toast('Configuración guardada');
-    refreshPending();
+    refreshAll();
   });
 
   [el.searchInput, el.countryFilter, el.sourcesFilter].forEach((i) => i.addEventListener('input', renderCards));
@@ -107,6 +114,10 @@ function bindEvents() {
 function hydrateSettingsForm() {
   el.baseUrlInput.value = state.settings.baseUrl;
   el.secretInput.value = state.settings.secret;
+}
+
+async function refreshAll() {
+  await Promise.all([refreshPending(), refreshQueue()]);
 }
 
 async function refreshPending() {
@@ -123,6 +134,37 @@ async function refreshPending() {
     console.error(err);
     toast('Error cargando pendientes');
   }
+}
+
+async function refreshQueue() {
+  try {
+    const data = await apiGet('/webhook/approval/queue/v1');
+    state.queue = data.items || [];
+    renderQueue();
+  } catch (err) {
+    console.error(err);
+    toast('Error cargando cola de aprobados');
+  }
+}
+
+function renderQueue() {
+  const queue = state.queue;
+  el.queueMeta.textContent = queue.length
+    ? `${queue.length} tema(s) aprobado(s) esperando generación.`
+    : 'Sin elementos en cola.';
+
+  if (!queue.length) {
+    el.queueList.innerHTML = '';
+    return;
+  }
+
+  el.queueList.innerHTML = queue.map((item) => `
+    <article class="queue-item">
+      <strong>${escapeHtml(item.jugador || 'Sin jugador')}</strong>
+      <div class="meta">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
+      <div class="meta">Fuentes: ${Number(item.cantidad_fuentes || 0)}</div>
+    </article>
+  `).join('');
 }
 
 function renderStats() {
@@ -228,10 +270,27 @@ async function decision(clusterId, action) {
   try {
     await apiPost('/webhook/approval/decision/v1', { cluster_id: clusterId, action });
     toast(`Tema ${action === 'approve' ? 'aprobado' : 'rechazado'}`);
-    await refreshPending();
+    await refreshAll();
   } catch (err) {
     console.error(err);
     toast('Error al registrar decisión');
+  }
+}
+
+async function runQueue() {
+  try {
+    el.runQueueBtn.disabled = true;
+    el.runQueueBtn.textContent = 'Ejecutando...';
+
+    const result = await apiPost('/webhook/approval/run-queue/v1', { max_items: 20 });
+    toast(`Cola ejecutada: ${result.processed || 0} OK · ${result.failed || 0} error(es)`);
+    await refreshAll();
+  } catch (err) {
+    console.error(err);
+    toast('Error ejecutando cola');
+  } finally {
+    el.runQueueBtn.disabled = false;
+    el.runQueueBtn.textContent = 'Ejecutar cola';
   }
 }
 
