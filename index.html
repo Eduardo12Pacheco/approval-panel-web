@@ -7,34 +7,56 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <h1>Panel de aprobación</h1>
-        <p>Revisión de temas pendientes para guion</p>
-      </div>
-      <div class="topbar-actions">
-        <button id="refreshBtn">Actualizar</button>
-        <button id="settingsBtn" class="secondary">Configuración</button>
-      </div>
-    </header>
-
-    <section class="stats" id="stats"></section>
-
-    <section class="filters">
-      <input id="searchInput" placeholder="Buscar por jugador o tema..." />
-      <select id="countryFilter">
-        <option value="">Todos los países</option>
-      </select>
-      <select id="sourcesFilter">
-        <option value="0">Todas las fuentes</option>
-        <option value="1">1+ fuentes</option>
-        <option value="3">3+ fuentes</option>
-        <option value="5">5+ fuentes</option>
-        <option value="10">10+ fuentes</option>
-      </select>
+    <section id="authGate" class="auth-gate">
+      <article class="auth-card">
+        <h1>Ingreso privado</h1>
+        <p>Panel interno de aprobación de guiones.</p>
+        <form id="authForm" class="auth-form">
+          <label>
+            Usuario
+            <input id="authUser" type="text" autocomplete="username" required />
+          </label>
+          <label>
+            Contraseña
+            <input id="authPass" type="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit">Entrar</button>
+        </form>
+        <small>Acceso privado · Newsroom</small>
+      </article>
     </section>
 
-    <main id="cards" class="cards"></main>
+    <div id="appShell" class="hidden">
+      <header class="topbar">
+        <div>
+          <h1>Panel de aprobación</h1>
+          <p>Revisión de temas pendientes para guion</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="refreshBtn">Actualizar</button>
+          <button id="settingsBtn" class="secondary">Configuración</button>
+          <button id="logoutBtn" class="secondary">Salir</button>
+        </div>
+      </header>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="filters">
+        <input id="searchInput" placeholder="Buscar por jugador o tema..." />
+        <select id="countryFilter">
+          <option value="">Todos los países</option>
+        </select>
+        <select id="sourcesFilter">
+          <option value="0">Todas las fuentes</option>
+          <option value="1">1+ fuentes</option>
+          <option value="3">3+ fuentes</option>
+          <option value="5">5+ fuentes</option>
+          <option value="10">10+ fuentes</option>
+        </select>
+      </section>
+
+      <main id="cards" class="cards"></main>
+    </div>
 
     <dialog id="topicDialog">
       <article>

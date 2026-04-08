@@ -1,11 +1,21 @@
 const storageKey = 'approval-panel-settings-v1';
+const sessionKey = 'approval-panel-session-v1';
+
+const AUTH_USER = 'paneladmin';
+const AUTH_PASS = 'Guiones2026!'
 
 const state = {
   settings: loadSettings(),
   items: [],
+  selectedCardId: null,
 };
 
 const el = {
+  authGate: document.getElementById('authGate'),
+  appShell: document.getElementById('appShell'),
+  authForm: document.getElementById('authForm'),
+  authUser: document.getElementById('authUser'),
+  authPass: document.getElementById('authPass'),
   stats: document.getElementById('stats'),
   cards: document.getElementById('cards'),
   searchInput: document.getElementById('searchInput'),
@@ -13,6 +23,7 @@ const el = {
   sourcesFilter: document.getElementById('sourcesFilter'),
   refreshBtn: document.getElementById('refreshBtn'),
   settingsBtn: document.getElementById('settingsBtn'),
+  logoutBtn: document.getElementById('logoutBtn'),
   topicDialog: document.getElementById('topicDialog'),
   dialogTitle: document.getElementById('dialogTitle'),
   dialogBody: document.getElementById('dialogBody'),
@@ -27,7 +38,19 @@ const el = {
 
 bindEvents();
 hydrateSettingsForm();
-refreshPending();
+boot();
+
+function boot() {
+  const session = localStorage.getItem(sessionKey);
+  if (session === 'ok') {
+    el.authGate.classList.add('hidden');
+    el.appShell.classList.remove('hidden');
+    refreshPending();
+    return;
+  }
+  el.authGate.classList.remove('hidden');
+  el.appShell.classList.add('hidden');
+}
 
 function loadSettings() {
   const raw = localStorage.getItem(storageKey);
@@ -41,8 +64,30 @@ function saveSettings(next) {
 }
 
 function bindEvents() {
+  el.authForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const user = el.authUser.value.trim();
+    const pass = el.authPass.value;
+
+    if (user === AUTH_USER && pass === AUTH_PASS) {
+      localStorage.setItem(sessionKey, 'ok');
+      el.authGate.classList.add('hidden');
+      el.appShell.classList.remove('hidden');
+      el.authPass.value = '';
+      toast('Sesión iniciada');
+      refreshPending();
+      return;
+    }
+
+    toast('Usuario o contraseña incorrectos');
+  });
+
   el.refreshBtn.addEventListener('click', refreshPending);
   el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
+  el.logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem(sessionKey);
+    location.reload();
+  });
   el.closeSettings.addEventListener('click', () => el.settingsDialog.close());
   el.closeDialog.addEventListener('click', () => el.topicDialog.close());
 
@@ -118,12 +163,12 @@ function renderCards() {
   }
 
   el.cards.innerHTML = list.map((item) => `
-    <article class="card">
+    <article class="card" data-card-id="${encodeURIComponent(item.cluster_id)}">
       <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
       <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
+      <p class="summary">${escapeHtml(item.resumen_cluster || 'Sin resumen disponible para este tema.')}</p>
       <div>
         <span class="chip">Fuentes: ${Number(item.cantidad_fuentes || 0)}</span>
-        <span class="chip">Estado: ${escapeHtml(item.estado || 'pendiente')}</span>
       </div>
       <div class="card-actions">
         <button class="secondary" data-action="detail" data-id="${encodeURIComponent(item.cluster_id)}">Ver fuentes</button>
@@ -132,6 +177,15 @@ function renderCards() {
       </div>
     </article>
   `).join('');
+
+  el.cards.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('click', async (ev) => {
+      const interactive = ev.target.closest('button, a');
+      if (interactive) return;
+      const id = decodeURIComponent(card.dataset.cardId);
+      await openDetail(id);
+    });
+  });
 
   el.cards.querySelectorAll('button[data-action]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -147,6 +201,7 @@ async function openDetail(clusterId) {
   try {
     const data = await apiGet(`/webhook/approval/topic/v1?cluster_id=${encodeURIComponent(clusterId)}`);
     const item = data.item;
+    state.selectedCardId = clusterId;
     el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
     el.dialogBody.innerHTML = `
       <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
