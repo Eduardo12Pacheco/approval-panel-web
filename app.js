@@ -112,7 +112,10 @@ function hydrateSettingsForm() {
 async function refreshPending() {
   try {
     const data = await apiGet('/webhook/approval/pending/v1');
-    state.items = data.items || [];
+    state.items = (data.items || []).map((item) => ({
+      ...item,
+      resumen_cluster: (item.resumen_cluster ?? item.resumen ?? '').toString(),
+    }));
     renderStats();
     renderCountryFilter();
     renderCards();
@@ -166,7 +169,7 @@ function renderCards() {
     <article class="card" data-card-id="${encodeURIComponent(item.cluster_id)}">
       <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
       <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-      <p class="summary">${escapeHtml(item.resumen_cluster || 'Sin resumen disponible para este tema.')}</p>
+      <p class="summary">${escapeHtml((item.resumen_cluster || '').trim() || 'Sin resumen disponible para este tema.')}</p>
       <div>
         <span class="chip">Fuentes: ${Number(item.cantidad_fuentes || 0)}</span>
       </div>
