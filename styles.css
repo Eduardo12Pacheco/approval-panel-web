@@ -2,15 +2,17 @@
 
 :root {
   color-scheme: dark;
-  --bg: #070b14;
-  --card: #12192b;
-  --card-soft: #0f1524;
-  --muted: #8a94ad;
-  --text: #e8ecf7;
-  --accent: #5e9bff;
-  --ok: #1ec57a;
-  --danger: #f35e5e;
-  --border: #273455;
+  --bg: #1f2229;
+  --card: #232731;
+  --card-soft: #2a2e37;
+  --muted: #b9b2aa;
+  --text: #f2efe8;
+  --accent: #ff6a5b;
+  --ok: #1f3a30;
+  --ok-text: #c8f4de;
+  --danger: #3a2a30;
+  --danger-text: #ffc6ce;
+  --border: #3f4451;
   --shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
@@ -18,10 +20,7 @@
 body {
   margin: 0;
   font-family: Inter, system-ui, Arial, sans-serif;
-  background:
-    radial-gradient(circle at 10% 10%, rgba(94, 155, 255, 0.12), transparent 35%),
-    radial-gradient(circle at 90% 20%, rgba(30, 197, 122, 0.08), transparent 30%),
-    linear-gradient(180deg, #070b14 0%, #0d1321 100%);
+  background: var(--bg);
   color: var(--text);
   padding: 20px 20px 36px;
 }
@@ -42,7 +41,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 14px;
-  background: rgba(18, 25, 43, 0.75);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 18px;
@@ -63,7 +62,7 @@ body {
 
 button, input, select {
   border: 1px solid var(--border);
-  background: #10192b;
+  background: #242832;
   color: var(--text);
   border-radius: 12px;
   padding: 11px 13px;
@@ -71,22 +70,23 @@ button, input, select {
 
 button {
   cursor: pointer;
-  background: linear-gradient(180deg, #74acff 0%, #4c86f5 100%);
+  background: var(--accent);
   border: none;
   font-weight: 700;
   transition: transform .15s ease, filter .15s ease;
+  color: #fff8f5;
 }
 button:hover { transform: translateY(-1px); filter: brightness(1.04); }
 button:active { transform: translateY(0); }
 
-button.secondary { background: #1a2338; border: 1px solid var(--border); font-weight: 600; }
-button.reject { background: linear-gradient(180deg, #ff7f7f 0%, #de4646 100%); }
-button.approve { background: linear-gradient(180deg, #3add95 0%, #19ad6b 100%); }
+button.secondary { background: #2e333e; border: 1px solid #484d5b; font-weight: 600; color: #f1ece4; }
+button.reject { background: var(--danger); border: 1px solid #6b4a56; color: var(--danger-text); }
+button.approve { background: var(--ok); border: 1px solid #2f5b49; color: var(--ok-text); }
 
 input, select { min-width: 220px; }
 
 .filters {
-  background: rgba(18, 25, 43, 0.72);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 14px;
@@ -127,7 +127,7 @@ input, select { min-width: 220px; }
 }
 
 .stat {
-  background: var(--card);
+  background: #2b303a;
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 14px;
@@ -157,7 +157,7 @@ input, select { min-width: 220px; }
 
 .card:hover {
   transform: translateY(-2px);
-  border-color: #3c4f80;
+  border-color: #484d5b;
 }
 
 .meta { color: var(--muted); font-size: .9rem; }
@@ -177,7 +177,7 @@ input, select { min-width: 220px; }
   font-size: .75rem;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #1a2338;
+  background: #2e333e;
   border: 1px solid var(--border);
   margin-right: 6px;
 }
@@ -191,9 +191,9 @@ input, select { min-width: 220px; }
 
 dialog {
   width: min(900px, 92vw);
-  border: 1px solid #334570;
+  border: 1px solid #474d5a;
   border-radius: 18px;
-  background: #111a2c;
+  background: #242830;
   color: var(--text);
   box-shadow: 0 40px 80px rgba(0,0,0,.55);
 }
@@ -226,7 +226,7 @@ dialog article { padding: 4px; }
 }
 
 .source-item a {
-  color: #9dc2ff;
+  color: #e6ded4;
   text-decoration: none;
 }
 
@@ -242,7 +242,7 @@ dialog article { padding: 4px; }
 
 .auth-card {
   width: min(460px, 100%);
-  background: rgba(17, 26, 44, 0.84);
+  background: #232731;
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 24px;
