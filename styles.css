@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
+
 :root {
   color-scheme: dark;
   --bg: #070b14;
@@ -46,7 +48,11 @@ body {
   padding: 18px;
   backdrop-filter: blur(6px);
 }
-.topbar h1 { margin: 0; }
+.topbar h1 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+}
 .topbar p { margin: 6px 0 0; color: var(--muted); }
 
 .topbar-actions, .filters {
@@ -86,34 +92,20 @@ input, select { min-width: 220px; }
   padding: 14px;
 }
 
-.queue-panel {
-  background: rgba(18, 25, 43, 0.72);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 auto 16px;
-}
-
-.queue-panel h2 {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
-}
-
 .queue-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin: 10px 0;
 }
 
 .queue-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-  margin-bottom: 18px;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .queue-item {
@@ -206,6 +198,14 @@ dialog {
   box-shadow: 0 40px 80px rgba(0,0,0,.55);
 }
 
+#queueDialog {
+  width: min(440px, 95vw);
+}
+
+#queueDialog .dialog-header h2 {
+  font-size: 1rem;
+}
+
 dialog::backdrop {
   background: rgba(5, 10, 20, 0.72);
   backdrop-filter: blur(4px);
@@ -249,7 +249,11 @@ dialog article { padding: 4px; }
   box-shadow: var(--shadow);
 }
 
-.auth-card h1 { margin: 0 0 6px; }
+.auth-card h1 {
+  margin: 0 0 6px;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+}
 .auth-card p { color: var(--muted); margin: 0 0 14px; }
 
 .auth-form {
@@ -298,11 +302,6 @@ dialog article { padding: 4px; }
 
   .filters {
     flex-direction: column;
-  }
-
-  .queue-panel {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .queue-actions {

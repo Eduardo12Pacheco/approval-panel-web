@@ -53,23 +53,26 @@
           <option value="5">5+ fuentes</option>
           <option value="10">10+ fuentes</option>
         </select>
+        <button id="openQueueBtn" class="secondary">Abrir cola</button>
       </section>
 
-      <section class="queue-panel">
-        <div>
-          <h2>Cola de aprobados</h2>
-          <p id="queueMeta" class="meta">Sin elementos en cola.</p>
-        </div>
+      <main id="cards" class="cards"></main>
+    </div>
+
+    <dialog id="queueDialog">
+      <article>
+        <header class="dialog-header">
+          <h2>🧾 Cola de aprobados</h2>
+          <button id="closeQueueBtn" class="secondary">Cerrar ✕</button>
+        </header>
+        <p id="queueMeta" class="meta">Sin elementos en cola.</p>
         <div class="queue-actions">
           <button id="refreshQueueBtn" class="secondary">Actualizar cola</button>
           <button id="runQueueBtn">Ejecutar cola</button>
         </div>
-      </section>
-
-      <section id="queueList" class="queue-list"></section>
-
-      <main id="cards" class="cards"></main>
-    </div>
+        <section id="queueList" class="queue-list"></section>
+      </article>
+    </dialog>
 
     <dialog id="topicDialog">
       <article>

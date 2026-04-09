@@ -22,6 +22,9 @@ const el = {
   searchInput: document.getElementById('searchInput'),
   countryFilter: document.getElementById('countryFilter'),
   sourcesFilter: document.getElementById('sourcesFilter'),
+  openQueueBtn: document.getElementById('openQueueBtn'),
+  queueDialog: document.getElementById('queueDialog'),
+  closeQueueBtn: document.getElementById('closeQueueBtn'),
   queueMeta: document.getElementById('queueMeta'),
   queueList: document.getElementById('queueList'),
   refreshQueueBtn: document.getElementById('refreshQueueBtn'),
@@ -88,6 +91,11 @@ function bindEvents() {
   });
 
   el.refreshBtn.addEventListener('click', refreshAll);
+  el.openQueueBtn.addEventListener('click', () => {
+    refreshQueue();
+    el.queueDialog.showModal();
+  });
+  el.closeQueueBtn.addEventListener('click', () => el.queueDialog.close());
   el.refreshQueueBtn.addEventListener('click', refreshQueue);
   el.runQueueBtn.addEventListener('click', runQueue);
   el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
