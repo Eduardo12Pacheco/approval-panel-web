@@ -9,6 +9,8 @@ const state = {
   items: [],
   queue: [],
   selectedCardId: null,
+  selectedTopic: null,
+  deletingSource: false,
 };
 
 const el = {
@@ -117,6 +119,26 @@ function bindEvents() {
   });
 
   [el.searchInput, el.countryFilter, el.sourcesFilter].forEach((i) => i.addEventListener('input', renderCards));
+
+  el.dialogBody.addEventListener('click', async (ev) => {
+    const actionBtn = ev.target.closest('button[data-action]');
+    if (!actionBtn) return;
+
+    const action = actionBtn.dataset.action;
+    if (action === 'open-source') {
+      const encodedUrl = actionBtn.dataset.url || '';
+      const url = decodeURIComponent(encodedUrl);
+      if (!url) return;
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    if (action === 'delete-source') {
+      const index = Number(actionBtn.dataset.index || 0);
+      if (!Number.isInteger(index) || index < 1) return;
+      await removeSourceFromTopic(index);
+    }
+  });
 }
 
 function hydrateSettingsForm() {
@@ -255,22 +277,86 @@ async function openDetail(clusterId) {
     const data = await apiGet(`/webhook/approval/topic/v1?cluster_id=${encodeURIComponent(clusterId)}`);
     const item = data.item;
     state.selectedCardId = clusterId;
-    el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
-    el.dialogBody.innerHTML = `
-      <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
-      <p class="meta">Fuentes detectadas: ${item.sources?.length || 0}</p>
-      ${(item.sources || []).map((s) => `
-        <div class="source-item">
-          <div><strong>${s.index}. ${escapeHtml(s.titular || 'Sin titular')}</strong></div>
-          <div class="meta">${escapeHtml(s.fuente || 'Sin fuente')}</div>
-          <a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">Abrir fuente</a>
-        </div>
-      `).join('')}
-    `;
+    state.selectedTopic = item;
+    renderTopicDetail();
     el.topicDialog.showModal();
   } catch (err) {
     console.error(err);
     toast('No pude abrir el detalle');
+  }
+}
+
+function renderTopicDetail() {
+  const item = state.selectedTopic;
+  if (!item) return;
+
+  el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
+  el.dialogBody.innerHTML = `
+    <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
+    <p class="meta">Fuentes detectadas: ${item.sources?.length || 0}</p>
+    ${(item.sources || []).map((s) => `
+      <div class="source-item">
+        <div class="source-content">
+          <div><strong>${s.index}. ${escapeHtml(s.titular || 'Sin titular')}</strong></div>
+          <div class="meta">${escapeHtml(s.fuente || 'Sin fuente')}</div>
+        </div>
+        <div class="source-actions">
+          <button
+            type="button"
+            class="secondary"
+            data-action="open-source"
+            data-url="${encodeURIComponent(s.url || '')}"
+          >Ver fuente</button>
+          <button
+            type="button"
+            class="reject"
+            data-action="delete-source"
+            data-index="${s.index}"
+            ${state.deletingSource ? 'disabled' : ''}
+          >Eliminar</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+async function removeSourceFromTopic(removeIndex) {
+  if (!state.selectedTopic || !state.selectedTopic.cluster_id) return;
+  if (state.deletingSource) return;
+
+  const confirmDelete = window.confirm('¿Eliminar esta fuente de la noticia?');
+  if (!confirmDelete) return;
+
+  const clusterId = state.selectedTopic.cluster_id;
+  const currentSources = Array.isArray(state.selectedTopic.sources) ? state.selectedTopic.sources : [];
+  const optimistic = currentSources
+    .filter((source) => Number(source.index) !== removeIndex)
+    .map((source, idx) => ({ ...source, index: idx + 1 }));
+
+  state.selectedTopic = {
+    ...state.selectedTopic,
+    sources: optimistic,
+    cantidad_fuentes: optimistic.length,
+  };
+  state.deletingSource = true;
+  renderTopicDetail();
+
+  try {
+    await apiPost('/webhook/approval/sources/v1', {
+      cluster_id: clusterId,
+      remove_index: removeIndex,
+    });
+
+    toast('Fuente eliminada');
+    await refreshPending();
+    await openDetail(clusterId);
+  } catch (err) {
+    console.error(err);
+    toast('Error eliminando fuente');
+    await openDetail(clusterId);
+  } finally {
+    state.deletingSource = false;
+    renderTopicDetail();
   }
 }
 

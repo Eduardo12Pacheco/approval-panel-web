@@ -218,11 +218,31 @@ dialog article { padding: 4px; }
 #dialogBody p { line-height: 1.55; }
 
 .source-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 10px;
   background: var(--card-soft);
+}
+
+.source-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.source-actions button {
+  min-width: 110px;
 }
 
 .source-item a {
@@ -319,5 +339,18 @@ dialog article { padding: 4px; }
 
   .cards {
     grid-template-columns: 1fr;
+  }
+
+  .source-item {
+    flex-direction: column;
+  }
+
+  .source-actions {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .source-actions button {
+    flex: 1;
   }
 }

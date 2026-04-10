@@ -58,6 +58,7 @@ Si la app web y n8n están en dominios distintos, verificá que n8n permita CORS
 - `GET /webhook/approval/pending/v1`
 - `GET /webhook/approval/topic/v1?cluster_id=<id>`
 - `POST /webhook/approval/decision/v1`
+- `POST /webhook/approval/sources/v1` (eliminar/actualizar fuentes del tema)
 
 ## Próximas mejoras sugeridas
 
