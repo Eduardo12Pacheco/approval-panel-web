@@ -26,37 +26,69 @@
       </article>
     </section>
 
-    <div id="appShell" class="hidden">
-      <header class="topbar">
-        <div>
-          <h1>Panel de aprobación</h1>
-          <p>Revisión de temas pendientes para guion</p>
+    <div id="appShell" class="hidden app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <strong>Newsroom</strong>
+          <small>Panel interno</small>
         </div>
-        <div class="topbar-actions">
-          <button id="refreshBtn">Actualizar</button>
+        <nav class="sidebar-nav" id="sidebarNav">
+          <button class="nav-item active" data-view="approval">Panel de aprobación</button>
+          <button class="nav-item" data-view="scripts">Edición de guiones</button>
+        </nav>
+        <div class="sidebar-foot">
           <button id="settingsBtn" class="secondary">Configuración</button>
           <button id="logoutBtn" class="secondary">Salir</button>
         </div>
-      </header>
+      </aside>
 
-      <section class="stats" id="stats"></section>
+      <section class="content">
+        <section id="viewApproval" class="view">
+          <header class="topbar">
+            <div>
+              <h1>Panel de aprobación</h1>
+              <p>Revisión de temas pendientes para guion</p>
+            </div>
+            <div class="topbar-actions">
+              <button id="refreshBtn">Actualizar</button>
+              <button id="openQueueBtn" class="secondary">Abrir cola</button>
+            </div>
+          </header>
 
-      <section class="filters">
-        <input id="searchInput" placeholder="Buscar por jugador o tema..." />
-        <select id="countryFilter">
-          <option value="">Todos los países</option>
-        </select>
-        <select id="sourcesFilter">
-          <option value="0">Todas las fuentes</option>
-          <option value="1">1+ fuentes</option>
-          <option value="3">3+ fuentes</option>
-          <option value="5">5+ fuentes</option>
-          <option value="10">10+ fuentes</option>
-        </select>
-        <button id="openQueueBtn" class="secondary">Abrir cola</button>
+          <section class="stats" id="stats"></section>
+
+          <section class="filters">
+            <input id="searchInput" placeholder="Buscar por jugador o tema..." />
+            <select id="countryFilter">
+              <option value="">Todos los países</option>
+            </select>
+            <select id="sourcesFilter">
+              <option value="0">Todas las fuentes</option>
+              <option value="1">1+ fuentes</option>
+              <option value="3">3+ fuentes</option>
+              <option value="5">5+ fuentes</option>
+              <option value="10">10+ fuentes</option>
+            </select>
+          </section>
+
+          <main id="cards" class="cards"></main>
+        </section>
+
+        <section id="viewScripts" class="view hidden">
+          <header class="topbar">
+            <div>
+              <h1>Edición de guiones</h1>
+              <p>Borradores generados por IA pendientes de revisión y publicación.</p>
+            </div>
+            <div class="topbar-actions">
+              <button id="refreshScriptsBtn">Actualizar borradores</button>
+            </div>
+          </header>
+
+          <section class="stats" id="scriptStats"></section>
+          <main id="scriptCards" class="cards"></main>
+        </section>
       </section>
-
-      <main id="cards" class="cards"></main>
     </div>
 
     <dialog id="queueDialog">
@@ -102,8 +134,46 @@
       </article>
     </dialog>
 
+    <dialog id="scriptEditorDialog">
+      <article>
+        <header class="dialog-header">
+          <h2 id="scriptEditorTitle">Edición de guion</h2>
+          <button id="closeScriptEditor" class="secondary">Cerrar</button>
+        </header>
+        <p id="scriptEditorMeta" class="meta"></p>
+
+        <label class="editor-label">
+          Guion IA (referencia)
+          <textarea id="scriptDraftArea" class="script-area" readonly></textarea>
+        </label>
+
+        <label class="editor-label">
+          Guion editable (se usa para publicar)
+          <textarea id="scriptEditedArea" class="script-area"></textarea>
+        </label>
+
+        <div class="editor-actions">
+          <button id="saveDraftBtn" class="secondary">Guardar cambios</button>
+          <button id="publishDraftBtn" class="approve">Publicar</button>
+        </div>
+      </article>
+    </dialog>
+
+    <dialog id="publishConfirmDialog">
+      <article>
+        <header class="dialog-header">
+          <h2>Confirmar publicación</h2>
+        </header>
+        <p>¿Estás seguro de publicar este guion? Esta acción generará Google Doc + TXT y marcará el estado como <strong>publicado</strong>.</p>
+        <div class="queue-actions">
+          <button id="cancelPublishBtn" class="secondary">Cancelar</button>
+          <button id="confirmPublishBtn" class="approve">Sí, publicar</button>
+        </div>
+      </article>
+    </dialog>
+
     <div id="toast" class="toast"></div>
 
-    <script src="./app.js" type="module"></script>
+    <script src="./js/main.js" type="module"></script>
   </body>
 </html>
