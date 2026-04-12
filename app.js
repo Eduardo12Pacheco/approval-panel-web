@@ -230,6 +230,24 @@ function filteredItems() {
   });
 }
 
+function getEditorialTagLabel(rawTag) {
+  const normalized = (rawTag || '')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_');
+
+  const labels = {
+    elogio_prensa: 'Elogio Prensa',
+    elogio_director_tecnico: 'Elogio Director Técnico',
+    emotividad: 'Emotividad',
+  };
+
+  return labels[normalized] || '';
+}
+
 function renderCards() {
   const list = filteredItems();
   if (!list.length) {
@@ -237,13 +255,20 @@ function renderCards() {
     return;
   }
 
-  el.cards.innerHTML = list.map((item) => `
+  el.cards.innerHTML = list.map((item) => {
+    const tagLabel = getEditorialTagLabel(item.tag_editorial);
+    const tagChip = tagLabel
+      ? `<span class="chip chip--tag">${escapeHtml(tagLabel)}</span>`
+      : '';
+
+    return `
     <article class="card" data-card-id="${encodeURIComponent(item.cluster_id)}">
       <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
       <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
       <p class="summary">${escapeHtml((item.resumen_cluster || '').trim() || 'Sin resumen disponible para este tema.')}</p>
       <div>
         <span class="chip">Fuentes: ${Number(item.cantidad_fuentes || 0)}</span>
+        ${tagChip}
       </div>
       <div class="card-actions">
         <button class="secondary" data-action="detail" data-id="${encodeURIComponent(item.cluster_id)}">Ver fuentes</button>
@@ -251,7 +276,8 @@ function renderCards() {
         <button class="reject" data-action="reject" data-id="${encodeURIComponent(item.cluster_id)}">Rechazar</button>
       </div>
     </article>
-  `).join('');
+  `;
+  }).join('');
 
   el.cards.querySelectorAll('.card').forEach((card) => {
     card.addEventListener('click', async (ev) => {

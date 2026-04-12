@@ -182,6 +182,12 @@ input, select { min-width: 220px; }
   margin-right: 6px;
 }
 
+.chip--tag {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(129, 140, 248, 0.45);
+  color: #dbe4ff;
+}
+
 .card-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 
 .card-actions button {
