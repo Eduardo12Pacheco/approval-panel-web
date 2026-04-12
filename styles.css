@@ -42,9 +42,12 @@ body {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 56px);
-  position: sticky;
+  height: calc(100vh - 40px);
+  position: fixed;
+  left: max(20px, calc((100vw - 1380px) / 2));
   top: 20px;
+  width: 240px;
+  z-index: 20;
 }
 
 .sidebar-brand {
@@ -85,6 +88,7 @@ body {
 
 .content {
   min-width: 0;
+  margin-left: calc(240px + 16px);
 }
 
 .view {
@@ -400,11 +404,16 @@ dialog article { padding: 4px; }
 
   .sidebar {
     position: static;
-    min-height: auto;
+    height: auto;
+    width: auto;
   }
 
   .sidebar-nav {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .content {
+    margin-left: 0;
   }
 
   .topbar {
