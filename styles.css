@@ -391,6 +391,8 @@ dialog article { padding: 4px; }
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 12px;
+  z-index: 99999;
+  pointer-events: none;
   opacity: 0;
   transition: opacity .2s;
 }
