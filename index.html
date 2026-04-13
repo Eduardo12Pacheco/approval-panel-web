@@ -143,19 +143,30 @@
         <p id="scriptEditorMeta" class="meta"></p>
 
         <label class="editor-label">
-          Guion IA (referencia)
-          <textarea id="scriptDraftArea" class="script-area" readonly></textarea>
-        </label>
-
-        <label class="editor-label">
           Guion editable (se usa para publicar)
           <textarea id="scriptEditedArea" class="script-area"></textarea>
         </label>
 
         <div class="editor-actions">
+          <button id="viewOriginalBtn" class="secondary">Ver original</button>
           <button id="saveDraftBtn" class="secondary">Guardar cambios</button>
           <button id="publishDraftBtn" class="approve">Publicar</button>
         </div>
+      </article>
+    </dialog>
+
+    <dialog id="scriptOriginalDialog">
+      <article>
+        <header class="dialog-header">
+          <h2 id="scriptOriginalTitle">Guion IA (referencia)</h2>
+          <button id="closeOriginalDialog" class="secondary">Cerrar</button>
+        </header>
+        <p id="scriptOriginalMeta" class="meta"></p>
+
+        <label class="editor-label">
+          Guion IA (referencia)
+          <textarea id="scriptOriginalArea" class="script-area" readonly></textarea>
+        </label>
       </article>
     </dialog>
 

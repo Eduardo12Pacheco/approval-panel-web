@@ -61,10 +61,15 @@ const el = {
   closeScriptEditor: document.getElementById('closeScriptEditor'),
   scriptEditorTitle: document.getElementById('scriptEditorTitle'),
   scriptEditorMeta: document.getElementById('scriptEditorMeta'),
-  scriptDraftArea: document.getElementById('scriptDraftArea'),
   scriptEditedArea: document.getElementById('scriptEditedArea'),
+  viewOriginalBtn: document.getElementById('viewOriginalBtn'),
   saveDraftBtn: document.getElementById('saveDraftBtn'),
   publishDraftBtn: document.getElementById('publishDraftBtn'),
+  scriptOriginalDialog: document.getElementById('scriptOriginalDialog'),
+  closeOriginalDialog: document.getElementById('closeOriginalDialog'),
+  scriptOriginalTitle: document.getElementById('scriptOriginalTitle'),
+  scriptOriginalMeta: document.getElementById('scriptOriginalMeta'),
+  scriptOriginalArea: document.getElementById('scriptOriginalArea'),
   publishConfirmDialog: document.getElementById('publishConfirmDialog'),
   cancelPublishBtn: document.getElementById('cancelPublishBtn'),
   confirmPublishBtn: document.getElementById('confirmPublishBtn'),
@@ -147,6 +152,16 @@ function bindEvents() {
     state.selectedScript = null;
     el.scriptEditorDialog.close();
   });
+
+  el.viewOriginalBtn.addEventListener('click', () => {
+    if (!state.selectedScript) return;
+    el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${state.selectedScript.tema_principal || 'Sin tema'} (original)`;
+    el.scriptOriginalMeta.textContent = `Estado: ${state.selectedScript.estado || 'borrador_generado'}`;
+    el.scriptOriginalArea.value = (state.selectedScript.guion_draft || '').toString();
+    el.scriptOriginalDialog.showModal();
+  });
+
+  el.closeOriginalDialog.addEventListener('click', () => el.scriptOriginalDialog.close());
 
   el.cancelPublishBtn.addEventListener('click', () => el.publishConfirmDialog.close());
   el.confirmPublishBtn.addEventListener('click', publishSelectedScript);
@@ -472,8 +487,7 @@ async function openScriptEditor(clusterId) {
   }
   state.selectedScript = row;
   el.scriptEditorTitle.textContent = `${row.jugador || 'Sin jugador'} · ${row.tema_principal || 'Sin tema'}`;
-  el.scriptEditorMeta.textContent = `Estado: ${row.estado || 'borrador_generado'} · Cluster: ${row.cluster_id || '-'}`;
-  el.scriptDraftArea.value = (row.guion_draft || '').toString();
+  el.scriptEditorMeta.textContent = `Estado: ${row.estado || 'borrador_generado'}`;
   el.scriptEditedArea.value = (row.guion_editado || row.guion_draft || '').toString();
   el.scriptEditorDialog.showModal();
 }
@@ -499,7 +513,7 @@ async function saveSelectedScript() {
       const refreshed = state.scriptDrafts.find((item) => item.cluster_id === state.selectedScript.cluster_id);
       if (refreshed) state.selectedScript = refreshed;
     }
-    el.scriptEditorMeta.textContent = `Estado: en_revision · Cluster: ${state.selectedScript?.cluster_id || '-'}`;
+    el.scriptEditorMeta.textContent = 'Estado: en_revision';
   } catch (err) {
     console.error(err);
     if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
