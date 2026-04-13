@@ -18,6 +18,8 @@ const state = {
   publishingScript: false,
 };
 
+let toastTimer = null;
+
 const el = {
   authGate: document.getElementById('authGate'),
   appShell: document.getElementById('appShell'),
@@ -657,9 +659,29 @@ async function apiPost(path, payload) {
 }
 
 function toast(message) {
+  if (!el.toast) return;
+
   el.toast.textContent = message;
+
+  if (typeof el.toast.showPopover === 'function') {
+    el.toast.showPopover();
+  }
+
   el.toast.classList.add('show');
-  setTimeout(() => el.toast.classList.remove('show'), 1800);
+
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+  }
+
+  toastTimer = setTimeout(() => {
+    el.toast.classList.remove('show');
+
+    if (typeof el.toast.hidePopover === 'function') {
+      el.toast.hidePopover();
+    }
+
+    toastTimer = null;
+  }, 3000);
 }
 
 function escapeHtml(str) {

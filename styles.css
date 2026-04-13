@@ -396,6 +396,10 @@ dialog article { padding: 4px; }
   opacity: 0;
   transition: opacity .2s;
 }
+
+.toast:popover-open {
+  inset: auto 16px 16px auto;
+}
 .toast.show { opacity: 1; }
 
 @media (max-width: 860px) {
