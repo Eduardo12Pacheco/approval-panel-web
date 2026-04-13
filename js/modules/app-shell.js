@@ -4,6 +4,18 @@ const sessionKey = 'approval-panel-session-v1';
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
 
+function defaultSettings() {
+  return {
+    baseUrl: 'http://localhost:5678',
+    secret: '',
+    ttsBaseUrl: 'http://localhost:8088',
+    ttsApiKey: '',
+    ttsBasicUser: '',
+    ttsBasicPass: '',
+    ttsUserEmail: '',
+  };
+}
+
 const state = {
   settings: loadSettings(),
   items: [],
@@ -16,6 +28,9 @@ const state = {
   selectedScript: null,
   savingScript: false,
   publishingScript: false,
+  audioJobId: null,
+  audioPollingTimer: null,
+  audioRunning: false,
 };
 
 let toastTimer = null;
@@ -48,12 +63,18 @@ const el = {
   settingsDialog: document.getElementById('settingsDialog'),
   baseUrlInput: document.getElementById('baseUrlInput'),
   secretInput: document.getElementById('secretInput'),
+  ttsBaseUrlInput: document.getElementById('ttsBaseUrlInput'),
+  ttsApiKeyInput: document.getElementById('ttsApiKeyInput'),
+  ttsBasicUserInput: document.getElementById('ttsBasicUserInput'),
+  ttsBasicPassInput: document.getElementById('ttsBasicPassInput'),
+  ttsUserEmailInput: document.getElementById('ttsUserEmailInput'),
   saveSettingsBtn: document.getElementById('saveSettingsBtn'),
   closeSettings: document.getElementById('closeSettings'),
   toast: document.getElementById('toast'),
   sidebarNav: document.getElementById('sidebarNav'),
   viewApproval: document.getElementById('viewApproval'),
   viewScripts: document.getElementById('viewScripts'),
+  viewAudio: document.getElementById('viewAudio'),
   refreshScriptsBtn: document.getElementById('refreshScriptsBtn'),
   scriptStats: document.getElementById('scriptStats'),
   scriptCards: document.getElementById('scriptCards'),
@@ -75,6 +96,16 @@ const el = {
   publishConfirmDialog: document.getElementById('publishConfirmDialog'),
   cancelPublishBtn: document.getElementById('cancelPublishBtn'),
   confirmPublishBtn: document.getElementById('confirmPublishBtn'),
+  audioPresetSelect: document.getElementById('audioPresetSelect'),
+  audioTextArea: document.getElementById('audioTextArea'),
+  audioWordCount: document.getElementById('audioWordCount'),
+  audioClearBtn: document.getElementById('audioClearBtn'),
+  audioRunBtn: document.getElementById('audioRunBtn'),
+  audioJobCard: document.getElementById('audioJobCard'),
+  audioJobId: document.getElementById('audioJobId'),
+  audioStatusLine: document.getElementById('audioStatusLine'),
+  audioProgressLine: document.getElementById('audioProgressLine'),
+  audioDownloadBtn: document.getElementById('audioDownloadBtn'),
 };
 
 export function bootApp() {
@@ -98,8 +129,13 @@ function boot() {
 
 function loadSettings() {
   const raw = localStorage.getItem(storageKey);
-  if (!raw) return { baseUrl: 'http://localhost:5678', secret: '' };
-  try { return JSON.parse(raw); } catch { return { baseUrl: 'http://localhost:5678', secret: '' }; }
+  const defaults = defaultSettings();
+  if (!raw) return defaults;
+  try {
+    return { ...defaults, ...JSON.parse(raw) };
+  } catch {
+    return defaults;
+  }
 }
 
 function saveSettings(next) {
@@ -178,10 +214,28 @@ function bindEvents() {
     el.publishConfirmDialog.showModal();
   });
 
+  el.audioTextArea.addEventListener('input', () => {
+    updateWordCounter(el.audioTextArea.value, el.audioWordCount);
+  });
+
+  el.audioClearBtn.addEventListener('click', () => {
+    el.audioTextArea.value = '';
+    updateWordCounter('', el.audioWordCount);
+  });
+
+  el.audioRunBtn.addEventListener('click', runAudioGeneration);
+
+  el.audioDownloadBtn.addEventListener('click', downloadAudioJob);
+
   el.saveSettingsBtn.addEventListener('click', () => {
     saveSettings({
-      baseUrl: el.baseUrlInput.value.trim() || 'http://localhost:5678',
+      baseUrl: el.baseUrlInput.value.trim() || defaultSettings().baseUrl,
       secret: el.secretInput.value.trim(),
+      ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaultSettings().ttsBaseUrl,
+      ttsApiKey: el.ttsApiKeyInput.value.trim(),
+      ttsBasicUser: el.ttsBasicUserInput.value.trim(),
+      ttsBasicPass: el.ttsBasicPassInput.value,
+      ttsUserEmail: el.ttsUserEmailInput.value.trim(),
     });
     el.settingsDialog.close();
     toast('Configuración guardada');
@@ -214,8 +268,11 @@ function bindEvents() {
 function setView(view) {
   state.currentView = view;
   const isApproval = view === 'approval';
+  const isScripts = view === 'scripts';
+  const isAudio = view === 'audio';
   el.viewApproval.classList.toggle('hidden', !isApproval);
-  el.viewScripts.classList.toggle('hidden', isApproval);
+  el.viewScripts.classList.toggle('hidden', !isScripts);
+  el.viewAudio.classList.toggle('hidden', !isAudio);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
@@ -224,6 +281,11 @@ function setView(view) {
 function hydrateSettingsForm() {
   el.baseUrlInput.value = state.settings.baseUrl;
   el.secretInput.value = state.settings.secret;
+  el.ttsBaseUrlInput.value = state.settings.ttsBaseUrl;
+  el.ttsApiKeyInput.value = state.settings.ttsApiKey;
+  el.ttsBasicUserInput.value = state.settings.ttsBasicUser;
+  el.ttsBasicPassInput.value = state.settings.ttsBasicPass;
+  el.ttsUserEmailInput.value = state.settings.ttsUserEmail;
 }
 
 async function refreshAll() {
@@ -266,6 +328,119 @@ async function refreshScriptDrafts() {
   } catch (err) {
     console.error(err);
     toast('Error cargando borradores');
+  }
+}
+
+async function runAudioGeneration() {
+  if (state.audioRunning) return;
+
+  const ttsBaseUrl = (state.settings.ttsBaseUrl || '').trim();
+  const ttsApiKey = (state.settings.ttsApiKey || '').trim();
+  if (!ttsBaseUrl) {
+    toast('Configurá Base URL Audio API antes de ejecutar');
+    return;
+  }
+  if (!ttsApiKey) {
+    toast('Configurá x-api-key Audio API antes de ejecutar');
+    return;
+  }
+
+  const text = el.audioTextArea.value.trim();
+  if (text.length < 20) {
+    toast('El texto es demasiado corto para generar audio');
+    return;
+  }
+
+  const preset = (el.audioPresetSelect.value || 'balanced_default').trim();
+  const requestId = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  try {
+    state.audioRunning = true;
+    el.audioRunBtn.disabled = true;
+    el.audioDownloadBtn.classList.add('hidden');
+
+    const data = await ttsPost('/api/tts/jobs', {
+      text,
+      voice_profile: preset,
+      request_id: requestId,
+      title: 'manual-ui',
+    });
+
+    state.audioJobId = data.job_id;
+    el.audioJobCard.classList.remove('hidden');
+    el.audioJobId.textContent = `Job: ${data.job_id}`;
+    el.audioStatusLine.textContent = `Estado: ${data.status || 'queued'}`;
+    el.audioProgressLine.textContent = 'Progreso: en cola';
+
+    toast('Job enviado. Comienza el procesamiento...');
+    startAudioPolling(data.job_id);
+  } catch (err) {
+    console.error(err);
+    toast(getErrorMessage(err, 'Error enviando job de audio'));
+  } finally {
+    state.audioRunning = false;
+    el.audioRunBtn.disabled = false;
+  }
+}
+
+function startAudioPolling(jobId) {
+  stopAudioPolling();
+
+  const tick = async () => {
+    try {
+      const data = await ttsGet(`/api/tts/jobs/${encodeURIComponent(jobId)}`);
+      const stage = data?.progress?.stage || data?.status || 'queued';
+      el.audioJobCard.classList.remove('hidden');
+      el.audioJobId.textContent = `Job: ${jobId}`;
+      el.audioStatusLine.textContent = `Estado: ${data.status || 'queued'}`;
+      el.audioProgressLine.textContent = `Progreso: ${stage}`;
+
+      if (data.status === 'done') {
+        stopAudioPolling();
+        el.audioDownloadBtn.classList.remove('hidden');
+        toast('Audio listo para descarga');
+      } else if (data.status === 'error' || data.status === 'cancelled') {
+        stopAudioPolling();
+        const msg = data?.error?.message || `El job terminó en estado ${data.status}`;
+        toast(msg);
+      }
+    } catch (err) {
+      console.error(err);
+      stopAudioPolling();
+      toast(getErrorMessage(err, 'Error consultando estado del job'));
+    }
+  };
+
+  tick();
+  state.audioPollingTimer = setInterval(tick, 4000);
+}
+
+function stopAudioPolling() {
+  if (state.audioPollingTimer) {
+    clearInterval(state.audioPollingTimer);
+    state.audioPollingTimer = null;
+  }
+}
+
+async function downloadAudioJob() {
+  if (!state.audioJobId) {
+    toast('No hay job para descargar');
+    return;
+  }
+
+  try {
+    const blob = await ttsGetBlob(`/api/tts/jobs/${encodeURIComponent(state.audioJobId)}/download`);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${state.audioJobId}.wav`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    toast(getErrorMessage(err, 'Error descargando audio'));
   }
 }
 
@@ -678,6 +853,116 @@ async function apiPost(path, payload) {
   }
 
   return data;
+}
+
+async function ttsGet(path) {
+  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
+  const apiKey = (state.settings.ttsApiKey || '').trim();
+  if (!baseUrl || !apiKey) {
+    throw new Error('Configuración de Audio API incompleta');
+  }
+
+  const headers = {
+    'x-api-key': apiKey,
+    Authorization: getTtsBasicAuthHeader(),
+  };
+  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
+  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+
+  const res = await fetch(`${baseUrl}${path}`, { headers });
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { raw };
+  }
+
+  if (!res.ok || data?.error) {
+    const message = data?.error?.message || data?.message || `GET ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function ttsPost(path, payload) {
+  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
+  const apiKey = (state.settings.ttsApiKey || '').trim();
+  if (!baseUrl || !apiKey) {
+    throw new Error('Configuración de Audio API incompleta');
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': apiKey,
+    Authorization: getTtsBasicAuthHeader(),
+  };
+  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
+  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { raw };
+  }
+
+  if (!res.ok || data?.error) {
+    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+async function ttsGetBlob(path) {
+  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
+  const apiKey = (state.settings.ttsApiKey || '').trim();
+  if (!baseUrl || !apiKey) {
+    throw new Error('Configuración de Audio API incompleta');
+  }
+
+  const headers = {
+    'x-api-key': apiKey,
+    Authorization: getTtsBasicAuthHeader(),
+  };
+  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
+  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+
+  const res = await fetch(`${baseUrl}${path}`, { headers });
+  if (!res.ok) {
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+    const message = data?.error?.message || `GET ${path} ${res.status}`;
+    throw new Error(message);
+  }
+  return res.blob();
+}
+
+function getErrorMessage(err, fallback) {
+  const msg = (err?.message || '').toString().trim();
+  return msg || fallback;
+}
+
+function getTtsBasicAuthHeader() {
+  const user = (state.settings.ttsBasicUser || '').trim();
+  const pass = (state.settings.ttsBasicPass || '').toString();
+  if (!user || !pass) {
+    throw new Error('Configurá usuario y contraseña de Audio API');
+  }
+  return `Basic ${btoa(`${user}:${pass}`)}`;
 }
 
 function toast(message) {

@@ -35,6 +35,7 @@
         <nav class="sidebar-nav" id="sidebarNav">
           <button class="nav-item active" data-view="approval">Panel de aprobación</button>
           <button class="nav-item" data-view="scripts">Edición de guiones</button>
+          <button class="nav-item" data-view="audio">Creación de audios</button>
         </nav>
         <div class="sidebar-foot">
           <button id="settingsBtn" class="secondary">Configuración</button>
@@ -88,6 +89,47 @@
           <section class="stats" id="scriptStats"></section>
           <main id="scriptCards" class="cards"></main>
         </section>
+
+        <section id="viewAudio" class="view hidden">
+          <header class="topbar">
+            <div>
+              <h1>Creación de audios</h1>
+              <p>Generá audio con tu voz de referencia fija usando Qwen3-TTS desde la RTX local.</p>
+            </div>
+          </header>
+
+          <section class="audio-panel">
+            <label class="editor-label">
+              Preset de generación
+              <select id="audioPresetSelect">
+                <option value="balanced_default">balanced_default</option>
+                <option value="pelotazo_emotivo">pelotazo_emotivo</option>
+                <option value="pelotazo_informativo">pelotazo_informativo</option>
+              </select>
+            </label>
+
+            <label class="editor-label">
+              Texto para narración
+              <textarea id="audioTextArea" class="script-area" placeholder="Pegá aquí el guion que querés convertir a audio..."></textarea>
+            </label>
+
+            <div class="audio-actions">
+              <p id="audioWordCount" class="meta word-count">Palabras: 0</p>
+              <button id="audioClearBtn" class="secondary">Limpiar</button>
+              <button id="audioRunBtn">Ejecutar</button>
+            </div>
+          </section>
+
+          <section id="audioJobCard" class="audio-job-card hidden">
+            <div class="meta">Job activo</div>
+            <p id="audioJobId" class="topic">Sin job</p>
+            <p id="audioStatusLine" class="meta">Estado: pendiente</p>
+            <p id="audioProgressLine" class="meta">Progreso: -</p>
+            <div class="audio-actions">
+              <button id="audioDownloadBtn" class="approve hidden">Descargar audio</button>
+            </div>
+          </section>
+        </section>
       </section>
     </div>
 
@@ -129,6 +171,26 @@
         <label>
           x-approval-secret (opcional)
           <input id="secretInput" placeholder="Solo si habilitás secret en n8n" />
+        </label>
+        <label>
+          Base URL Audio API
+          <input id="ttsBaseUrlInput" placeholder="http://localhost:8088" />
+        </label>
+        <label>
+          x-api-key Audio API
+          <input id="ttsApiKeyInput" placeholder="Requerido para /api/tts" />
+        </label>
+        <label>
+          Audio API usuario
+          <input id="ttsBasicUserInput" placeholder="Usuario Basic Auth" />
+        </label>
+        <label>
+          Audio API contraseña
+          <input id="ttsBasicPassInput" type="password" placeholder="Contraseña Basic Auth" />
+        </label>
+        <label>
+          x-user-email (solo dev local, opcional)
+          <input id="ttsUserEmailInput" placeholder="tu@email.com" />
         </label>
         <button id="saveSettingsBtn">Guardar</button>
       </article>

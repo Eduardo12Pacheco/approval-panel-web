@@ -370,6 +370,28 @@ dialog article { padding: 4px; }
   margin-top: 12px;
 }
 
+.audio-panel,
+.audio-job-card {
+  margin: 0 auto 18px auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.audio-job-card {
+  background: var(--card-soft);
+}
+
+.audio-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+
 .auth-gate {
   min-height: 100vh;
   display: flex;
@@ -472,6 +494,14 @@ dialog article { padding: 4px; }
   }
 
   .queue-actions button {
+    flex: 1;
+  }
+
+  .audio-actions {
+    width: 100%;
+  }
+
+  .audio-actions button {
     flex: 1;
   }
 
