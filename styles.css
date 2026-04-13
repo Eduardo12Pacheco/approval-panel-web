@@ -356,6 +356,9 @@ dialog article { padding: 4px; }
 .word-count {
   font-weight: 700;
   color: #dbe4ff;
+  margin-right: auto;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .editor-actions {
@@ -363,6 +366,7 @@ dialog article { padding: 4px; }
   gap: 10px;
   justify-content: flex-end;
   flex-wrap: wrap;
+  align-items: center;
   margin-top: 12px;
 }
 
