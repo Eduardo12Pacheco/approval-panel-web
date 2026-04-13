@@ -164,35 +164,59 @@
           <h2>Configuración</h2>
           <button id="closeSettings" class="secondary">Cerrar</button>
         </header>
-        <label>
-          Base URL n8n
-          <input id="baseUrlInput" placeholder="http://localhost:5678" />
-        </label>
-        <label>
-          x-approval-secret (opcional)
-          <input id="secretInput" placeholder="Solo si habilitás secret en n8n" />
-        </label>
-        <label>
-          Base URL Audio API
-          <input id="ttsBaseUrlInput" placeholder="http://localhost:8088" />
-        </label>
-        <label>
-          x-api-key Audio API
-          <input id="ttsApiKeyInput" placeholder="Requerido para /api/tts" />
-        </label>
-        <label>
-          Audio API usuario
-          <input id="ttsBasicUserInput" placeholder="Usuario Basic Auth" />
-        </label>
-        <label>
-          Audio API contraseña
-          <input id="ttsBasicPassInput" type="password" placeholder="Contraseña Basic Auth" />
-        </label>
-        <label>
-          x-user-email (solo dev local, opcional)
-          <input id="ttsUserEmailInput" placeholder="tu@email.com" />
-        </label>
-        <button id="saveSettingsBtn">Guardar</button>
+
+        <p class="meta settings-intro">Configurá conexiones y credenciales. Cada bloque incluye para qué se usa.</p>
+
+        <div class="settings-form">
+          <section class="settings-section">
+            <h3>Panel editorial (n8n)</h3>
+            <p class="meta settings-help">Estos datos se usan para aprobar temas, editar y publicar guiones.</p>
+
+            <label class="settings-field">
+              Base URL n8n
+              <input id="baseUrlInput" placeholder="http://localhost:5678" />
+            </label>
+
+            <label class="settings-field">
+              x-approval-secret (opcional)
+              <input id="secretInput" placeholder="Solo si habilitás secret en n8n" />
+            </label>
+          </section>
+
+          <section class="settings-section">
+            <h3>Creación de audios (TTS)</h3>
+            <p class="meta settings-help">Estos datos protegen la API de audio que ejecuta la RTX local.</p>
+
+            <label class="settings-field">
+              Base URL Audio API
+              <input id="ttsBaseUrlInput" placeholder="http://localhost:8088" />
+            </label>
+
+            <label class="settings-field">
+              x-api-key Audio API
+              <input id="ttsApiKeyInput" placeholder="Requerido para /api/tts" />
+            </label>
+
+            <label class="settings-field">
+              Audio API usuario
+              <input id="ttsBasicUserInput" placeholder="Usuario Basic Auth" />
+            </label>
+
+            <label class="settings-field">
+              Audio API contraseña
+              <input id="ttsBasicPassInput" type="password" placeholder="Contraseña Basic Auth" />
+            </label>
+
+            <label class="settings-field">
+              x-user-email (solo dev local, opcional)
+              <input id="ttsUserEmailInput" placeholder="tu@email.com" />
+            </label>
+          </section>
+        </div>
+
+        <div class="settings-actions">
+          <button id="saveSettingsBtn">Guardar</button>
+        </div>
       </article>
     </dialog>
 

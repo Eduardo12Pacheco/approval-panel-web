@@ -283,6 +283,57 @@ dialog {
   width: min(440px, 95vw);
 }
 
+#settingsDialog {
+  width: min(980px, 95vw);
+}
+
+#settingsDialog article {
+  padding: 8px;
+}
+
+#settingsDialog input {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-intro {
+  margin: 8px 0 14px;
+}
+
+.settings-form {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-section {
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.settings-section h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-help {
+  margin: 6px 0 10px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 #queueDialog .dialog-header h2 {
   font-size: 1rem;
 }
