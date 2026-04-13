@@ -98,36 +98,39 @@
             </div>
           </header>
 
-          <section class="audio-panel">
-            <label class="editor-label">
-              Preset de generación
-              <select id="audioPresetSelect">
-                <option value="balanced_default">balanced_default</option>
-                <option value="pelotazo_emotivo">pelotazo_emotivo</option>
-                <option value="pelotazo_informativo">pelotazo_informativo</option>
-              </select>
-            </label>
+          <section class="audio-layout">
+            <section class="audio-panel audio-panel--main">
+              <label class="editor-label">
+                Preset de generación
+                <select id="audioPresetSelect">
+                  <option value="balanced_default">balanced_default</option>
+                  <option value="pelotazo_emotivo">pelotazo_emotivo</option>
+                  <option value="pelotazo_informativo">pelotazo_informativo</option>
+                </select>
+              </label>
 
-            <label class="editor-label">
-              Texto para narración
-              <textarea id="audioTextArea" class="script-area" placeholder="Pegá aquí el guion que querés convertir a audio..."></textarea>
-            </label>
+              <label class="editor-label">
+                Texto para narración
+                <textarea id="audioTextArea" class="script-area" placeholder="Pegá aquí el guion que querés convertir a audio..."></textarea>
+              </label>
 
-            <div class="audio-actions">
-              <p id="audioWordCount" class="meta word-count">Palabras: 0</p>
-              <button id="audioClearBtn" class="secondary">Limpiar</button>
-              <button id="audioRunBtn">Ejecutar</button>
-            </div>
-          </section>
+              <div class="audio-actions">
+                <p id="audioWordCount" class="meta word-count">Palabras: 0</p>
+                <button id="audioClearBtn" class="secondary">Limpiar</button>
+                <button id="audioRunBtn">Ejecutar</button>
+              </div>
+            </section>
 
-          <section id="audioJobCard" class="audio-job-card hidden">
-            <div class="meta">Job activo</div>
-            <p id="audioJobId" class="topic">Sin job</p>
-            <p id="audioStatusLine" class="meta">Estado: pendiente</p>
-            <p id="audioProgressLine" class="meta">Progreso: -</p>
-            <div class="audio-actions">
-              <button id="audioDownloadBtn" class="approve hidden">Descargar audio</button>
-            </div>
+            <aside class="audio-panel audio-panel--queue">
+              <header class="audio-queue-header">
+                <div>
+                  <h3>Cola de jobs</h3>
+                  <p id="audioQueueMeta" class="meta">Sin jobs todavía.</p>
+                </div>
+              </header>
+
+              <section id="audioQueueList" class="audio-queue-list"></section>
+            </aside>
           </section>
         </section>
       </section>

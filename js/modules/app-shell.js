@@ -34,8 +34,12 @@ const state = {
   audioPollingInFlight: false,
   audioPollingErrorStreak: 0,
   audioStreamController: null,
-  audioTerminalStatus: null,
   audioRunning: false,
+  audioJobs: {},
+  audioJobOrder: [],
+  dismissedAudioJobs: new Set(),
+  audioQueueSyncTimer: null,
+  audioQueueSyncInFlight: false,
 };
 
 let toastTimer = null;
@@ -106,11 +110,8 @@ const el = {
   audioWordCount: document.getElementById('audioWordCount'),
   audioClearBtn: document.getElementById('audioClearBtn'),
   audioRunBtn: document.getElementById('audioRunBtn'),
-  audioJobCard: document.getElementById('audioJobCard'),
-  audioJobId: document.getElementById('audioJobId'),
-  audioStatusLine: document.getElementById('audioStatusLine'),
-  audioProgressLine: document.getElementById('audioProgressLine'),
-  audioDownloadBtn: document.getElementById('audioDownloadBtn'),
+  audioQueueMeta: document.getElementById('audioQueueMeta'),
+  audioQueueList: document.getElementById('audioQueueList'),
 };
 
 export function bootApp() {
@@ -230,7 +231,31 @@ function bindEvents() {
 
   el.audioRunBtn.addEventListener('click', runAudioGeneration);
 
-  el.audioDownloadBtn.addEventListener('click', downloadAudioJob);
+  el.audioQueueList?.addEventListener('click', async (ev) => {
+    const button = ev.target.closest('button[data-action]');
+    if (!button) return;
+
+    const action = button.dataset.action;
+    const jobId = (button.dataset.jobId || '').trim();
+    if (!jobId) return;
+
+    if (action === 'dismiss-audio-job') {
+      state.dismissedAudioJobs.add(jobId);
+      if (jobId === state.audioJobId) {
+        stopAudioTracking();
+        const nextTrack = getLatestTrackedJobId();
+        if (nextTrack) {
+          startAudioTracking(nextTrack);
+        }
+      }
+      renderAudioQueue();
+      return;
+    }
+
+    if (action === 'download-audio-job') {
+      await downloadAudioJob(jobId);
+    }
+  });
 
   el.saveSettingsBtn.addEventListener('click', () => {
     saveSettings({
@@ -282,14 +307,17 @@ function setView(view) {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
 
-  if (
-    isAudio
-    && state.audioJobId
-    && !state.audioTerminalStatus
-    && !state.audioPollingTimer
-    && !state.audioStreamController
-  ) {
-    startAudioTracking(state.audioJobId);
+  if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
+    const nextTrack = getLatestTrackedJobId();
+    if (nextTrack) {
+      startAudioTracking(nextTrack);
+    }
+  }
+
+  if (isAudio) {
+    startAudioQueueSync();
+  } else {
+    stopAudioQueueSync();
   }
 }
 
@@ -371,10 +399,8 @@ async function runAudioGeneration() {
 
   try {
     state.audioRunning = true;
-    state.audioTerminalStatus = null;
     state.audioPollingErrorStreak = 0;
     el.audioRunBtn.disabled = true;
-    el.audioDownloadBtn.classList.add('hidden');
 
     const data = await ttsPost('/api/tts/jobs', {
       text,
@@ -384,10 +410,12 @@ async function runAudioGeneration() {
     });
 
     state.audioJobId = data.job_id;
-    el.audioJobCard.classList.remove('hidden');
-    el.audioJobId.textContent = `Job: ${data.job_id}`;
-    el.audioStatusLine.textContent = `Estado: ${data.status || 'queued'}`;
-    el.audioProgressLine.textContent = 'Progreso: en cola';
+    ensureAudioJob(data.job_id, {
+      status: data.status || 'queued',
+      progress: { stage: 'queued', percent: 0 },
+      created_at: new Date().toISOString(),
+    });
+    renderAudioQueue();
 
     toast('Job enviado. Comienza el procesamiento...');
     startAudioTracking(data.job_id);
@@ -407,37 +435,172 @@ function startAudioTracking(jobId) {
   }
 }
 
-function applyAudioJobStatus(jobId, data) {
+function applyAudioJobStatus(jobId, data, options = {}) {
+  const { stopTrackingOnTerminal = false } = options;
   const status = (data?.status || 'queued').toString().toLowerCase();
   const stage = data?.progress?.stage || status || 'queued';
-  const isTerminal = status === 'done' || status === 'error' || status === 'cancelled';
+  const progressPercent = normalizeProgressPercent(status, data?.progress?.percent, stage);
+  const isTerminal = isTerminalStatus(status);
+  const previousStatus = (state.audioJobs[jobId]?.status || '').toLowerCase();
+  const becameTerminalNow = isTerminal && previousStatus !== status;
 
-  if (state.audioTerminalStatus && !isTerminal) {
-    return { terminal: false, status };
-  }
-
-  el.audioJobCard.classList.remove('hidden');
-  el.audioJobId.textContent = `Job: ${jobId}`;
-  el.audioStatusLine.textContent = `Estado: ${status || 'queued'}`;
-  el.audioProgressLine.textContent = `Progreso: ${stage}`;
+  ensureAudioJob(jobId, {
+    ...data,
+    status,
+    progress: {
+      ...(data?.progress || {}),
+      stage,
+      percent: progressPercent,
+    },
+  });
+  renderAudioQueue();
 
   if (status === 'done') {
-    state.audioTerminalStatus = 'done';
-    stopAudioTracking();
-    el.audioDownloadBtn.classList.remove('hidden');
-    toast('Audio listo para descarga');
+    if (stopTrackingOnTerminal && jobId === state.audioJobId) {
+      stopAudioTracking();
+    }
+    if (becameTerminalNow) {
+      toast('Audio listo para descarga');
+    }
     return { terminal: true, status };
   }
 
   if (status === 'error' || status === 'cancelled') {
-    state.audioTerminalStatus = status;
-    stopAudioTracking();
-    const msg = data?.error?.message || `El job terminó en estado ${status}`;
-    toast(msg);
+    if (stopTrackingOnTerminal && jobId === state.audioJobId) {
+      stopAudioTracking();
+    }
+    if (becameTerminalNow) {
+      const msg = data?.error?.message || `El job terminó en estado ${status}`;
+      toast(msg);
+    }
     return { terminal: true, status };
   }
 
   return { terminal: false, status };
+}
+
+function ensureAudioJob(jobId, payload = {}) {
+  const previous = state.audioJobs[jobId] || { job_id: jobId, status: 'queued', progress: { stage: 'queued', percent: 0 } };
+  const next = {
+    ...previous,
+    ...payload,
+    job_id: jobId,
+  };
+  if (!next.progress) {
+    next.progress = { stage: next.status || 'queued', percent: 0 };
+  }
+  if (typeof next.progress.percent !== 'number') {
+    next.progress.percent = normalizeProgressPercent(next.status, next.progress.percent, next.progress.stage);
+  }
+  state.audioJobs[jobId] = next;
+  if (!state.audioJobOrder.includes(jobId)) {
+    state.audioJobOrder.unshift(jobId);
+  }
+  state.dismissedAudioJobs.delete(jobId);
+}
+
+function getLatestTrackedJobId() {
+  for (const jobId of state.audioJobOrder) {
+    if (state.dismissedAudioJobs.has(jobId)) continue;
+    const status = (state.audioJobs[jobId]?.status || '').toLowerCase();
+    if (!isTerminalStatus(status)) return jobId;
+  }
+  return state.audioJobOrder.find((jobId) => !state.dismissedAudioJobs.has(jobId)) || null;
+}
+
+function normalizeProgressPercent(status, rawPercent, stage) {
+  if (typeof rawPercent === 'number' && Number.isFinite(rawPercent)) {
+    return Math.max(0, Math.min(100, Math.round(rawPercent)));
+  }
+
+  const normalizedStatus = (status || '').toLowerCase();
+  if (normalizedStatus === 'done') return 100;
+  if (normalizedStatus === 'error' || normalizedStatus === 'cancelled') return 0;
+  if (normalizedStatus === 'queued') return 0;
+
+  const normalizedStage = (stage || '').toLowerCase();
+  if (normalizedStage.includes('loading')) return 10;
+  if (normalizedStage.includes('reference')) return 20;
+  if (normalizedStage.includes('synthesizing')) return 55;
+  return 30;
+}
+
+function isTerminalStatus(status) {
+  const value = (status || '').toLowerCase();
+  return value === 'done' || value === 'error' || value === 'cancelled';
+}
+
+function getAudioStatusLabel(status) {
+  const value = (status || '').toLowerCase();
+  if (value === 'done') return 'Completado';
+  if (value === 'error' || value === 'cancelled') return 'Falló';
+  if (value === 'queued') return 'En cola';
+  return 'Procesando';
+}
+
+function getAudioStatusClass(status) {
+  const value = (status || '').toLowerCase();
+  if (value === 'done') return 'audio-status-pill--done';
+  if (value === 'error' || value === 'cancelled') return 'audio-status-pill--error';
+  return 'audio-status-pill--processing';
+}
+
+function renderAudioQueue() {
+  if (!el.audioQueueList || !el.audioQueueMeta) return;
+
+  const visibleJobs = state.audioJobOrder
+    .filter((jobId) => !state.dismissedAudioJobs.has(jobId))
+    .map((jobId) => state.audioJobs[jobId])
+    .filter(Boolean);
+
+  if (!visibleJobs.length) {
+    el.audioQueueMeta.textContent = 'Sin jobs todavía.';
+    el.audioQueueList.innerHTML = '<p class="meta">Cuando ejecutes audios, aparecerán acá.</p>';
+    return;
+  }
+
+  const queuedCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'queued').length;
+  const runningCount = visibleJobs.filter((j) => {
+    const status = (j.status || '').toLowerCase();
+    return status !== 'queued' && !isTerminalStatus(status);
+  }).length;
+  const doneCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'done').length;
+  el.audioQueueMeta.textContent = `${visibleJobs.length} job(s) · En cola ${queuedCount} · Procesando ${runningCount} · Completados ${doneCount}`;
+
+  el.audioQueueList.innerHTML = visibleJobs.map((job) => {
+    const status = (job.status || 'queued').toLowerCase();
+    const percent = normalizeProgressPercent(status, job?.progress?.percent, job?.progress?.stage);
+    const statusLabel = getAudioStatusLabel(status);
+    const statusClass = getAudioStatusClass(status);
+    const progressClass = status === 'done'
+      ? 'audio-progress-fill--done'
+      : (status === 'error' || status === 'cancelled')
+        ? 'audio-progress-fill--error'
+        : 'audio-progress-fill--processing';
+    const canDownload = status === 'done';
+
+    return `
+      <article class="audio-queue-card" data-job-id="${job.job_id}">
+        <header class="audio-queue-card-header">
+          <p class="audio-queue-card-title">Job: ${escapeHtml(job.job_id)}</p>
+          <button class="audio-card-close" data-action="dismiss-audio-job" data-job-id="${job.job_id}" title="Ocultar job">×</button>
+        </header>
+
+        <span class="audio-status-pill ${statusClass}">${statusLabel}</span>
+
+        <p class="audio-progress-meta">Progreso ${percent}%</p>
+        <div class="audio-progress-track">
+          <div class="audio-progress-fill ${progressClass}" style="width:${percent}%"></div>
+        </div>
+
+        <div class="audio-queue-actions">
+          ${canDownload
+            ? `<button class="approve" data-action="download-audio-job" data-job-id="${job.job_id}">Descargar audio</button>`
+            : ''}
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 function startAudioStatusStream(jobId) {
@@ -502,7 +665,7 @@ function startAudioStatusStream(jobId) {
           if (parsed.event === 'status') {
             try {
               const payload = JSON.parse(parsed.data || '{}');
-              const result = applyAudioJobStatus(jobId, payload);
+              const result = applyAudioJobStatus(jobId, payload, { stopTrackingOnTerminal: true });
               if (!result.terminal) {
                 state.audioPollingErrorStreak = 0;
               }
@@ -522,13 +685,15 @@ function startAudioStatusStream(jobId) {
         }
       }
 
-      if (!state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+      const currentTracked = state.audioJobs[jobId];
+      if (!isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
         shouldFallbackToPolling = true;
       }
     } catch (err) {
       if (!controller.signal.aborted) {
         console.error(err);
-        if (!state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+        const currentTracked = state.audioJobs[jobId];
+        if (!isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
           shouldFallbackToPolling = true;
         }
       }
@@ -537,7 +702,8 @@ function startAudioStatusStream(jobId) {
         state.audioStreamController = null;
       }
 
-      if (shouldFallbackToPolling && !state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+      const currentTracked = state.audioJobs[jobId];
+      if (shouldFallbackToPolling && !isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
         startAudioPolling(jobId);
       }
     }
@@ -584,7 +750,7 @@ function startAudioPolling(jobId) {
       const data = await ttsGet(`/api/tts/jobs/${encodeURIComponent(jobId)}`);
       if (state.audioPollingToken !== pollingToken) return;
 
-      const result = applyAudioJobStatus(jobId, data);
+      const result = applyAudioJobStatus(jobId, data, { stopTrackingOnTerminal: true });
       state.audioPollingErrorStreak = 0;
 
       if (result.terminal) {
@@ -628,22 +794,91 @@ function stopAudioStatusStream() {
 
 function stopAudioTracking() {
   state.audioPollingToken = null;
+  state.audioJobId = null;
   stopAudioPolling();
   stopAudioStatusStream();
 }
 
-async function downloadAudioJob() {
-  if (!state.audioJobId) {
+function startAudioQueueSync() {
+  if (state.audioQueueSyncTimer) return;
+
+  const tick = async () => {
+    if (state.audioQueueSyncInFlight) return;
+    state.audioQueueSyncInFlight = true;
+    try {
+      await syncAudioQueueStatuses();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      state.audioQueueSyncInFlight = false;
+    }
+  };
+
+  void tick();
+  state.audioQueueSyncTimer = setInterval(() => {
+    void tick();
+  }, 6000);
+}
+
+function stopAudioQueueSync() {
+  if (state.audioQueueSyncTimer) {
+    clearInterval(state.audioQueueSyncTimer);
+    state.audioQueueSyncTimer = null;
+  }
+  state.audioQueueSyncInFlight = false;
+}
+
+async function syncAudioQueueStatuses() {
+  const targetJobIds = state.audioJobOrder.filter((jobId) => !state.dismissedAudioJobs.has(jobId));
+  if (!targetJobIds.length) return;
+
+  const checks = await Promise.all(targetJobIds.map(async (jobId) => {
+    try {
+      const data = await ttsGet(`/api/tts/jobs/${encodeURIComponent(jobId)}`);
+      return { jobId, data, ok: true };
+    } catch (err) {
+      return { jobId, err, ok: false };
+    }
+  }));
+
+  let hasChanges = false;
+  for (const row of checks) {
+    if (!row.ok) continue;
+    const before = state.audioJobs[row.jobId];
+    const beforeJson = before ? JSON.stringify(before) : '';
+    applyAudioJobStatus(row.jobId, row.data);
+    const after = state.audioJobs[row.jobId];
+    const afterJson = after ? JSON.stringify(after) : '';
+    if (beforeJson !== afterJson) {
+      hasChanges = true;
+    }
+  }
+
+  if (!hasChanges) {
+    renderAudioQueue();
+  }
+}
+
+async function downloadAudioJob(jobId = null) {
+  const targetJobId = (jobId || state.audioJobId || '').trim();
+  if (!targetJobId) {
     toast('No hay job para descargar');
     return;
   }
 
+  const knownJob = state.audioJobs[targetJobId];
+  const knownStatus = (knownJob?.status || '').toLowerCase();
+  if (knownStatus && knownStatus !== 'done') {
+    toast('Ese job todavía no está listo para descarga');
+    return;
+  }
+
   try {
-    const blob = await ttsGetBlob(`/api/tts/jobs/${encodeURIComponent(state.audioJobId)}/download`);
+    const blob = await ttsGetBlob(`/api/tts/jobs/${encodeURIComponent(targetJobId)}/download`);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${state.audioJobId}.wav`;
+    link.download = `${targetJobId}.wav`;
     document.body.appendChild(link);
     link.click();
     link.remove();
