@@ -406,9 +406,9 @@ function renderScriptCards() {
   }).join('');
 
   el.scriptCards.querySelectorAll('button[data-action="edit-script"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const id = decodeURIComponent(btn.dataset.id);
-      openScriptEditor(id);
+      await openScriptEditor(id);
     });
   });
 }
@@ -461,10 +461,11 @@ function renderTopicDetail() {
   `;
 }
 
-function openScriptEditor(clusterId) {
+async function openScriptEditor(clusterId) {
+  await refreshScriptDrafts();
   const row = state.scriptDrafts.find((item) => (item.cluster_id || '').toString() === clusterId);
   if (!row) {
-    toast('No encontré ese borrador');
+    toast('Ese borrador ya no existe o cambió. Actualizá la lista.');
     return;
   }
   state.selectedScript = row;
@@ -499,6 +500,12 @@ async function saveSelectedScript() {
     el.scriptEditorMeta.textContent = `Estado: en_revision · Cluster: ${state.selectedScript?.cluster_id || '-'}`;
   } catch (err) {
     console.error(err);
+    if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
+      toast('El borrador cambió o ya no existe. Actualizá la lista.');
+      await refreshScriptDrafts();
+      el.scriptEditorDialog.close();
+      return;
+    }
     toast('Error guardando cambios');
   } finally {
     state.savingScript = false;
@@ -531,6 +538,13 @@ async function publishSelectedScript() {
     await refreshScriptDrafts();
   } catch (err) {
     console.error(err);
+    if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
+      toast('El borrador cambió o ya no existe. Actualizá la lista.');
+      await refreshScriptDrafts();
+      el.publishConfirmDialog.close();
+      el.scriptEditorDialog.close();
+      return;
+    }
     toast('Error publicando guion');
   } finally {
     state.publishingScript = false;
@@ -621,8 +635,25 @@ async function apiPost(path, payload) {
     headers,
     body: JSON.stringify(payload),
   });
-  if (!res.ok) throw new Error(`POST ${path} ${res.status}`);
-  return res.json();
+  const raw = await res.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { raw };
+  }
+
+  if (!res.ok) {
+    const message = data?.message || data?.error || `POST ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  if (data?.error || data?.status === 'error') {
+    const message = data?.message || data?.error || `POST ${path} failed`;
+    throw new Error(message);
+  }
+
+  return data;
 }
 
 function toast(message) {
