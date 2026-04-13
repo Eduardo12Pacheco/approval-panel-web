@@ -33,6 +33,7 @@ const state = {
   audioPollingToken: null,
   audioPollingInFlight: false,
   audioPollingErrorStreak: 0,
+  audioStreamController: null,
   audioTerminalStatus: null,
   audioRunning: false,
 };
@@ -281,8 +282,14 @@ function setView(view) {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
 
-  if (isAudio && state.audioJobId && !state.audioTerminalStatus && !state.audioPollingTimer) {
-    startAudioPolling(state.audioJobId);
+  if (
+    isAudio
+    && state.audioJobId
+    && !state.audioTerminalStatus
+    && !state.audioPollingTimer
+    && !state.audioStreamController
+  ) {
+    startAudioTracking(state.audioJobId);
   }
 }
 
@@ -383,7 +390,7 @@ async function runAudioGeneration() {
     el.audioProgressLine.textContent = 'Progreso: en cola';
 
     toast('Job enviado. Comienza el procesamiento...');
-    startAudioPolling(data.job_id);
+    startAudioTracking(data.job_id);
   } catch (err) {
     console.error(err);
     toast(getErrorMessage(err, 'Error enviando job de audio'));
@@ -391,6 +398,172 @@ async function runAudioGeneration() {
     state.audioRunning = false;
     el.audioRunBtn.disabled = false;
   }
+}
+
+function startAudioTracking(jobId) {
+  const streamStarted = startAudioStatusStream(jobId);
+  if (!streamStarted) {
+    startAudioPolling(jobId);
+  }
+}
+
+function applyAudioJobStatus(jobId, data) {
+  const status = (data?.status || 'queued').toString().toLowerCase();
+  const stage = data?.progress?.stage || status || 'queued';
+  const isTerminal = status === 'done' || status === 'error' || status === 'cancelled';
+
+  if (state.audioTerminalStatus && !isTerminal) {
+    return { terminal: false, status };
+  }
+
+  el.audioJobCard.classList.remove('hidden');
+  el.audioJobId.textContent = `Job: ${jobId}`;
+  el.audioStatusLine.textContent = `Estado: ${status || 'queued'}`;
+  el.audioProgressLine.textContent = `Progreso: ${stage}`;
+
+  if (status === 'done') {
+    state.audioTerminalStatus = 'done';
+    stopAudioTracking();
+    el.audioDownloadBtn.classList.remove('hidden');
+    toast('Audio listo para descarga');
+    return { terminal: true, status };
+  }
+
+  if (status === 'error' || status === 'cancelled') {
+    state.audioTerminalStatus = status;
+    stopAudioTracking();
+    const msg = data?.error?.message || `El job terminó en estado ${status}`;
+    toast(msg);
+    return { terminal: true, status };
+  }
+
+  return { terminal: false, status };
+}
+
+function startAudioStatusStream(jobId) {
+  if (typeof AbortController === 'undefined') return false;
+
+  stopAudioTracking();
+  state.audioJobId = jobId;
+  state.audioPollingErrorStreak = 0;
+
+  const trackingToken = `${jobId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  state.audioPollingToken = trackingToken;
+
+  const controller = new AbortController();
+  state.audioStreamController = controller;
+
+  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
+  if (!baseUrl) {
+    state.audioStreamController = null;
+    return false;
+  }
+
+  let headers;
+  try {
+    headers = buildTtsHeaders();
+  } catch {
+    state.audioStreamController = null;
+    return false;
+  }
+
+  const url = `${baseUrl}/api/tts/jobs/${encodeURIComponent(jobId)}/events`;
+
+  (async () => {
+    let shouldFallbackToPolling = false;
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      if (!res.ok || !res.body) {
+        shouldFallbackToPolling = true;
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while (state.audioPollingToken === trackingToken) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split(/\r?\n\r?\n/);
+        buffer = chunks.pop() || '';
+
+        for (const chunk of chunks) {
+          const parsed = parseSseEventChunk(chunk);
+          if (!parsed) continue;
+
+          if (parsed.event === 'status') {
+            try {
+              const payload = JSON.parse(parsed.data || '{}');
+              const result = applyAudioJobStatus(jobId, payload);
+              if (!result.terminal) {
+                state.audioPollingErrorStreak = 0;
+              }
+            } catch {
+              // ignorar evento mal formado
+            }
+          } else if (parsed.event === 'error') {
+            try {
+              const payload = JSON.parse(parsed.data || '{}');
+              const msg = payload?.message || 'Error en stream de estado';
+              toast(msg);
+            } catch {
+              toast('Error en stream de estado');
+            }
+            shouldFallbackToPolling = true;
+          }
+        }
+      }
+
+      if (!state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+        shouldFallbackToPolling = true;
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.error(err);
+        if (!state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+          shouldFallbackToPolling = true;
+        }
+      }
+    } finally {
+      if (state.audioStreamController === controller) {
+        state.audioStreamController = null;
+      }
+
+      if (shouldFallbackToPolling && !state.audioTerminalStatus && state.audioPollingToken === trackingToken) {
+        startAudioPolling(jobId);
+      }
+    }
+  })();
+
+  return true;
+}
+
+function parseSseEventChunk(chunk) {
+  const lines = (chunk || '').split(/\r?\n/);
+  let event = 'message';
+  const dataParts = [];
+
+  for (const line of lines) {
+    if (!line || line.startsWith(':')) continue;
+    if (line.startsWith('event:')) {
+      event = line.slice('event:'.length).trim() || 'message';
+      continue;
+    }
+    if (line.startsWith('data:')) {
+      dataParts.push(line.slice('data:'.length).trim());
+    }
+  }
+
+  if (!dataParts.length && event === 'message') return null;
+  return { event, data: dataParts.join('\n') };
 }
 
 function startAudioPolling(jobId) {
@@ -411,30 +584,11 @@ function startAudioPolling(jobId) {
       const data = await ttsGet(`/api/tts/jobs/${encodeURIComponent(jobId)}`);
       if (state.audioPollingToken !== pollingToken) return;
 
-      const status = (data?.status || 'queued').toString().toLowerCase();
-      const stage = data?.progress?.stage || status || 'queued';
-      const isTerminal = status === 'done' || status === 'error' || status === 'cancelled';
-
-      if (state.audioTerminalStatus && !isTerminal) {
-        return;
-      }
-
-      el.audioJobCard.classList.remove('hidden');
-      el.audioJobId.textContent = `Job: ${jobId}`;
-      el.audioStatusLine.textContent = `Estado: ${status || 'queued'}`;
-      el.audioProgressLine.textContent = `Progreso: ${stage}`;
+      const result = applyAudioJobStatus(jobId, data);
       state.audioPollingErrorStreak = 0;
 
-      if (status === 'done') {
-        state.audioTerminalStatus = 'done';
-        stopAudioPolling();
-        el.audioDownloadBtn.classList.remove('hidden');
-        toast('Audio listo para descarga');
-      } else if (status === 'error' || status === 'cancelled') {
-        state.audioTerminalStatus = status;
-        stopAudioPolling();
-        const msg = data?.error?.message || `El job terminó en estado ${status}`;
-        toast(msg);
+      if (result.terminal) {
+        return;
       }
     } catch (err) {
       if (state.audioPollingToken !== pollingToken) return;
@@ -458,12 +612,24 @@ function startAudioPolling(jobId) {
 }
 
 function stopAudioPolling() {
-  state.audioPollingToken = null;
   state.audioPollingInFlight = false;
   if (state.audioPollingTimer) {
     clearInterval(state.audioPollingTimer);
     state.audioPollingTimer = null;
   }
+}
+
+function stopAudioStatusStream() {
+  if (state.audioStreamController) {
+    state.audioStreamController.abort();
+    state.audioStreamController = null;
+  }
+}
+
+function stopAudioTracking() {
+  state.audioPollingToken = null;
+  stopAudioPolling();
+  stopAudioStatusStream();
 }
 
 async function downloadAudioJob() {
@@ -901,17 +1067,11 @@ async function apiPost(path, payload) {
 
 async function ttsGet(path) {
   const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  const apiKey = (state.settings.ttsApiKey || '').trim();
-  if (!baseUrl || !apiKey) {
+  if (!baseUrl) {
     throw new Error('Configuración de Audio API incompleta');
   }
 
-  const headers = {
-    'x-api-key': apiKey,
-    Authorization: getTtsBasicAuthHeader(),
-  };
-  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
-  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+  const headers = buildTtsHeaders();
 
   const res = await fetch(`${baseUrl}${path}`, { headers });
   const raw = await res.text();
@@ -932,18 +1092,11 @@ async function ttsGet(path) {
 
 async function ttsPost(path, payload) {
   const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  const apiKey = (state.settings.ttsApiKey || '').trim();
-  if (!baseUrl || !apiKey) {
+  if (!baseUrl) {
     throw new Error('Configuración de Audio API incompleta');
   }
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'x-api-key': apiKey,
-    Authorization: getTtsBasicAuthHeader(),
-  };
-  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
-  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+  const headers = buildTtsHeaders('application/json');
 
   const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
@@ -969,17 +1122,11 @@ async function ttsPost(path, payload) {
 
 async function ttsGetBlob(path) {
   const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  const apiKey = (state.settings.ttsApiKey || '').trim();
-  if (!baseUrl || !apiKey) {
+  if (!baseUrl) {
     throw new Error('Configuración de Audio API incompleta');
   }
 
-  const headers = {
-    'x-api-key': apiKey,
-    Authorization: getTtsBasicAuthHeader(),
-  };
-  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
-  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+  const headers = buildTtsHeaders();
 
   const res = await fetch(`${baseUrl}${path}`, { headers });
   if (!res.ok) {
@@ -998,6 +1145,27 @@ async function ttsGetBlob(path) {
 function getErrorMessage(err, fallback) {
   const msg = (err?.message || '').toString().trim();
   return msg || fallback;
+}
+
+function buildTtsHeaders(contentType = null) {
+  const apiKey = (state.settings.ttsApiKey || '').trim();
+  if (!apiKey) {
+    throw new Error('Configuración de Audio API incompleta');
+  }
+
+  const headers = {
+    'x-api-key': apiKey,
+    Authorization: getTtsBasicAuthHeader(),
+  };
+
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+
+  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
+  if (devUserEmail) headers['x-user-email'] = devUserEmail;
+
+  return headers;
 }
 
 function getTtsBasicAuthHeader() {
