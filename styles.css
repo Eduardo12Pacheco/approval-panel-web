@@ -270,6 +270,15 @@ dialog {
   width: min(1080px, 92vw);
 }
 
+#scriptOriginalDialog {
+  width: min(1080px, 92vw);
+}
+
+#scriptEditorDialog .script-area,
+#scriptOriginalDialog .script-area {
+  min-height: 270px;
+}
+
 #queueDialog {
   width: min(440px, 95vw);
 }
