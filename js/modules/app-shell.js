@@ -61,6 +61,7 @@ const el = {
   closeScriptEditor: document.getElementById('closeScriptEditor'),
   scriptEditorTitle: document.getElementById('scriptEditorTitle'),
   scriptEditorMeta: document.getElementById('scriptEditorMeta'),
+  scriptEditedWordCount: document.getElementById('scriptEditedWordCount'),
   scriptEditedArea: document.getElementById('scriptEditedArea'),
   viewOriginalBtn: document.getElementById('viewOriginalBtn'),
   saveDraftBtn: document.getElementById('saveDraftBtn'),
@@ -69,6 +70,7 @@ const el = {
   closeOriginalDialog: document.getElementById('closeOriginalDialog'),
   scriptOriginalTitle: document.getElementById('scriptOriginalTitle'),
   scriptOriginalMeta: document.getElementById('scriptOriginalMeta'),
+  scriptOriginalWordCount: document.getElementById('scriptOriginalWordCount'),
   scriptOriginalArea: document.getElementById('scriptOriginalArea'),
   publishConfirmDialog: document.getElementById('publishConfirmDialog'),
   cancelPublishBtn: document.getElementById('cancelPublishBtn'),
@@ -153,11 +155,16 @@ function bindEvents() {
     el.scriptEditorDialog.close();
   });
 
+  el.scriptEditedArea.addEventListener('input', () => {
+    updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
+  });
+
   el.viewOriginalBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
     el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${state.selectedScript.tema_principal || 'Sin tema'} (original)`;
     el.scriptOriginalMeta.textContent = `Estado: ${state.selectedScript.estado || 'borrador_generado'}`;
     el.scriptOriginalArea.value = (state.selectedScript.guion_draft || '').toString();
+    updateWordCounter(el.scriptOriginalArea.value, el.scriptOriginalWordCount);
     el.scriptOriginalDialog.showModal();
   });
 
@@ -489,6 +496,7 @@ async function openScriptEditor(clusterId) {
   el.scriptEditorTitle.textContent = `${row.jugador || 'Sin jugador'} · ${row.tema_principal || 'Sin tema'}`;
   el.scriptEditorMeta.textContent = `Estado: ${row.estado || 'borrador_generado'}`;
   el.scriptEditedArea.value = (row.guion_editado || row.guion_draft || '').toString();
+  updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
   el.scriptEditorDialog.showModal();
 }
 
@@ -696,6 +704,13 @@ function toast(message) {
 
     toastTimer = null;
   }, 3000);
+}
+
+function updateWordCounter(text, targetEl) {
+  if (!targetEl) return;
+  const words = (text || '').trim().match(/\S+/g);
+  const count = words ? words.length : 0;
+  targetEl.textContent = `Palabras: ${count}`;
 }
 
 function escapeHtml(str) {

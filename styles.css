@@ -276,7 +276,7 @@ dialog {
 
 #scriptEditorDialog .script-area,
 #scriptOriginalDialog .script-area {
-  min-height: 405px;
+  min-height: 500px;
 }
 
 #queueDialog {
@@ -349,7 +349,13 @@ dialog article { padding: 4px; }
   padding: 12px;
   resize: vertical;
   line-height: 1.45;
+  font-size: 1.10rem;
   font-family: Inter, system-ui, Arial, sans-serif;
+}
+
+.word-count {
+  font-weight: 700;
+  color: #dbe4ff;
 }
 
 .editor-actions {
