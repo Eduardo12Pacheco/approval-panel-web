@@ -30,6 +30,10 @@ const state = {
   publishingScript: false,
   audioJobId: null,
   audioPollingTimer: null,
+  audioPollingToken: null,
+  audioPollingInFlight: false,
+  audioPollingErrorStreak: 0,
+  audioTerminalStatus: null,
   audioRunning: false,
 };
 
@@ -276,6 +280,10 @@ function setView(view) {
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
+
+  if (isAudio && state.audioJobId && !state.audioTerminalStatus && !state.audioPollingTimer) {
+    startAudioPolling(state.audioJobId);
+  }
 }
 
 function hydrateSettingsForm() {
@@ -356,6 +364,8 @@ async function runAudioGeneration() {
 
   try {
     state.audioRunning = true;
+    state.audioTerminalStatus = null;
+    state.audioPollingErrorStreak = 0;
     el.audioRunBtn.disabled = true;
     el.audioDownloadBtn.classList.add('hidden');
 
@@ -385,37 +395,71 @@ async function runAudioGeneration() {
 
 function startAudioPolling(jobId) {
   stopAudioPolling();
+  state.audioJobId = jobId;
+  state.audioPollingErrorStreak = 0;
+  state.audioPollingInFlight = false;
+
+  const pollingToken = `${jobId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  state.audioPollingToken = pollingToken;
 
   const tick = async () => {
+    if (state.audioPollingToken !== pollingToken) return;
+    if (state.audioPollingInFlight) return;
+    state.audioPollingInFlight = true;
+
     try {
       const data = await ttsGet(`/api/tts/jobs/${encodeURIComponent(jobId)}`);
-      const stage = data?.progress?.stage || data?.status || 'queued';
+      if (state.audioPollingToken !== pollingToken) return;
+
+      const status = (data?.status || 'queued').toString().toLowerCase();
+      const stage = data?.progress?.stage || status || 'queued';
+      const isTerminal = status === 'done' || status === 'error' || status === 'cancelled';
+
+      if (state.audioTerminalStatus && !isTerminal) {
+        return;
+      }
+
       el.audioJobCard.classList.remove('hidden');
       el.audioJobId.textContent = `Job: ${jobId}`;
-      el.audioStatusLine.textContent = `Estado: ${data.status || 'queued'}`;
+      el.audioStatusLine.textContent = `Estado: ${status || 'queued'}`;
       el.audioProgressLine.textContent = `Progreso: ${stage}`;
+      state.audioPollingErrorStreak = 0;
 
-      if (data.status === 'done') {
+      if (status === 'done') {
+        state.audioTerminalStatus = 'done';
         stopAudioPolling();
         el.audioDownloadBtn.classList.remove('hidden');
         toast('Audio listo para descarga');
-      } else if (data.status === 'error' || data.status === 'cancelled') {
+      } else if (status === 'error' || status === 'cancelled') {
+        state.audioTerminalStatus = status;
         stopAudioPolling();
-        const msg = data?.error?.message || `El job terminó en estado ${data.status}`;
+        const msg = data?.error?.message || `El job terminó en estado ${status}`;
         toast(msg);
       }
     } catch (err) {
+      if (state.audioPollingToken !== pollingToken) return;
+
       console.error(err);
-      stopAudioPolling();
-      toast(getErrorMessage(err, 'Error consultando estado del job'));
+      state.audioPollingErrorStreak += 1;
+
+      if (state.audioPollingErrorStreak >= 3) {
+        stopAudioPolling();
+        toast(getErrorMessage(err, 'No se pudo consultar estado del job (3 intentos fallidos)'));
+      }
+    } finally {
+      state.audioPollingInFlight = false;
     }
   };
 
-  tick();
-  state.audioPollingTimer = setInterval(tick, 4000);
+  void tick();
+  state.audioPollingTimer = setInterval(() => {
+    void tick();
+  }, 4000);
 }
 
 function stopAudioPolling() {
+  state.audioPollingToken = null;
+  state.audioPollingInFlight = false;
   if (state.audioPollingTimer) {
     clearInterval(state.audioPollingTimer);
     state.audioPollingTimer = null;
