@@ -986,11 +986,10 @@ function renderCards() {
       : '';
 
     return `
-    <article class="card" data-card-id="${encodeURIComponent(item.cluster_id)}">
+    <article class="card card--approval" data-card-id="${encodeURIComponent(item.cluster_id)}">
       <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
       <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-      <p class="summary">${escapeHtml((item.resumen_cluster || '').trim() || 'Sin resumen disponible para este tema.')}</p>
-      <div>
+      <div class="card-meta-row">
         <span class="chip">Fuentes: ${Number(item.cantidad_fuentes || 0)}</span>
         ${tagChip}
       </div>
