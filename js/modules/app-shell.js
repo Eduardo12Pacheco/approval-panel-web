@@ -13,6 +13,7 @@ import {
   createSubtitlesWorkflowMachine,
   getAlignmentButtonState,
   getSubtitlesActionPolicy,
+  getSubtitlesPhaseSectionVisibility,
   shouldRunAutosave,
   shouldRunStatusPolling,
 } from './subtitles-workflow.mjs';
@@ -77,6 +78,8 @@ const state = {
     renderJobId: null,
     analyzeStatus: null,
     renderStatus: null,
+    analyzeProgressPct: null,
+    renderProgressPct: null,
     snapshotVersion: 0,
     dirty: false,
     changeVersion: 0,
@@ -163,8 +166,17 @@ const el = {
   audioQueueMeta: document.getElementById('audioQueueMeta'),
   audioQueueList: document.getElementById('audioQueueList'),
   subtitlePhaseBar: document.getElementById('subtitlePhaseBar'),
+  subtitlePhaseUpload: document.getElementById('subtitlePhaseUpload'),
+  subtitlePhaseProcessing: document.getElementById('subtitlePhaseProcessing'),
+  subtitlePhaseEdition: document.getElementById('subtitlePhaseEdition'),
+  subtitlePhaseDone: document.getElementById('subtitlePhaseDone'),
   subtitleUploadInput: document.getElementById('subtitleUploadInput'),
   subtitleUploadMeta: document.getElementById('subtitleUploadMeta'),
+  subtitleProcessingIcon: document.getElementById('subtitleProcessingIcon'),
+  subtitleProcessingTitle: document.getElementById('subtitleProcessingTitle'),
+  subtitleProcessingMessage: document.getElementById('subtitleProcessingMessage'),
+  subtitleProgressFill: document.getElementById('subtitleProgressFill'),
+  subtitleProgressPercent: document.getElementById('subtitleProgressPercent'),
   subtitleRowsBody: document.getElementById('subtitleRowsBody'),
   subtitleSaveBtn: document.getElementById('subtitleSaveBtn'),
   subtitleReadyBtn: document.getElementById('subtitleReadyBtn'),
@@ -569,18 +581,130 @@ function transitionSubtitlesPhase(nextPhase) {
     toast(`Transición inválida: ${current} → ${nextPhase}`);
     return false;
   }
-  updateSubtitleButtonsByPhase();
-  renderSubtitlesPhaseBar();
-  syncSubtitleAutosaveTimer();
+  renderSubtitlesWorkflow();
   return true;
 }
 
 function renderSubtitlesWorkflow() {
   renderSubtitlesPhaseBar();
+  renderSubtitlesPhaseSections();
+  renderSubtitleProcessingCard();
   renderSubtitlesTable();
   updateSubtitleUploadMeta();
   updateSubtitleButtonsByPhase();
   syncSubtitleAutosaveTimer();
+}
+
+function renderSubtitlesPhaseSections() {
+  const current = state.subtitles.machine.getPhase();
+  const visibility = getSubtitlesPhaseSectionVisibility(current);
+  el.subtitlePhaseUpload?.classList.toggle('hidden', !visibility.showUpload);
+  el.subtitlePhaseProcessing?.classList.toggle('hidden', !visibility.showProcessing);
+  el.subtitlePhaseEdition?.classList.toggle('hidden', !visibility.showEdition);
+  el.subtitlePhaseDone?.classList.toggle('hidden', !visibility.showDone);
+}
+
+function renderSubtitleProcessingCard() {
+  const phase = state.subtitles.machine.getPhase();
+  const details = getSubtitleProcessingDetails(phase);
+
+  if (el.subtitleProcessingIcon) {
+    el.subtitleProcessingIcon.textContent = details.icon;
+  }
+  if (el.subtitleProcessingTitle) {
+    el.subtitleProcessingTitle.textContent = details.title;
+  }
+  if (el.subtitleProcessingMessage) {
+    el.subtitleProcessingMessage.textContent = details.message;
+  }
+
+  const percent = details.percent;
+  if (el.subtitleProgressFill) {
+    el.subtitleProgressFill.style.width = `${percent}%`;
+    const progressbar = el.subtitleProgressFill.closest('[role="progressbar"]');
+    progressbar?.setAttribute('aria-valuenow', `${percent}`);
+  }
+  if (el.subtitleProgressPercent) {
+    el.subtitleProgressPercent.textContent = `${percent}%`;
+  }
+}
+
+function getSubtitleProcessingDetails(phase) {
+  if (phase === 'Procesando video') {
+    const status = state.subtitles.renderStatus;
+    const percent = resolveSubtitleProgressPercent(state.subtitles.renderProgressPct, status);
+    return {
+      icon: '🎬',
+      title: 'Procesando video',
+      message: buildSubtitleProcessingMessage(status, 'Estamos renderizando el video final…'),
+      percent,
+    };
+  }
+
+  const status = state.subtitles.analyzeStatus;
+  const percent = resolveSubtitleProgressPercent(state.subtitles.analyzeProgressPct, status);
+  return {
+    icon: '🎧',
+    title: 'Procesando audio',
+    message: buildSubtitleProcessingMessage(status, 'Estamos analizando el audio…'),
+    percent,
+  };
+}
+
+function buildSubtitleProcessingMessage(status, fallback) {
+  const normalized = (status || '').toString().trim();
+  if (!normalized) return fallback;
+  const prettyStatus = normalized.replace(/[_-]+/g, ' ');
+  return `${fallback} Estado: ${prettyStatus}.`;
+}
+
+function resolveSubtitleProgressPercent(rawProgress, status) {
+  const parsed = Number(rawProgress);
+  if (Number.isFinite(parsed)) {
+    return clampProgressPercent(parsed);
+  }
+
+  const normalizedStatus = (status || '').toString().trim().toLowerCase();
+  if (normalizedStatus === 'succeeded') return 100;
+  if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') return 0;
+  return 0;
+}
+
+function clampProgressPercent(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function extractSubtitleProgressPercent(statusPayload) {
+  const directCandidates = [
+    statusPayload?.progress_percent,
+    statusPayload?.progress_pct,
+    statusPayload?.progress,
+    statusPayload?.percent,
+  ];
+
+  for (const candidate of directCandidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return clampProgressPercent(parsed <= 1 ? parsed * 100 : parsed);
+    }
+  }
+
+  const nestedCandidates = [
+    statusPayload?.progress?.percent,
+    statusPayload?.progress?.pct,
+    statusPayload?.metrics?.progress_percent,
+    statusPayload?.metrics?.progress,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return clampProgressPercent(parsed <= 1 ? parsed * 100 : parsed);
+    }
+  }
+
+  return null;
 }
 
 function renderSubtitlesPhaseBar() {
@@ -649,6 +773,8 @@ function resetSubtitlesRunState() {
   state.subtitles.renderJobId = null;
   state.subtitles.analyzeStatus = null;
   state.subtitles.renderStatus = null;
+  state.subtitles.analyzeProgressPct = null;
+  state.subtitles.renderProgressPct = null;
   state.subtitles.snapshotVersion = 0;
   state.subtitles.dirty = false;
   state.subtitles.changeVersion = 0;
@@ -709,6 +835,7 @@ async function pollSubtitleStatus(kind, jobId) {
 
     if (kind === 'analyze') {
       state.subtitles.analyzeStatus = nextStatus;
+      state.subtitles.analyzeProgressPct = extractSubtitleProgressPercent(status);
       if (Number.isInteger(status?.snapshot_version)) {
         state.subtitles.snapshotVersion = Number(status.snapshot_version);
         state.subtitles.saveQueue.setAckVersion(state.subtitles.snapshotVersion);
@@ -726,6 +853,7 @@ async function pollSubtitleStatus(kind, jobId) {
       }
     } else {
       state.subtitles.renderStatus = nextStatus;
+      state.subtitles.renderProgressPct = extractSubtitleProgressPercent(status);
       if (nextStatus === 'succeeded') {
         transitionSubtitlesPhase('Terminado');
         stopSubtitlePolling();
@@ -740,6 +868,7 @@ async function pollSubtitleStatus(kind, jobId) {
     console.error(err);
   } finally {
     state.subtitles.pollingInFlight = false;
+    renderSubtitleProcessingCard();
     updateSubtitleButtonsByPhase();
     updateSubtitleUploadMeta();
   }

@@ -154,50 +154,78 @@
             </ol>
           </section>
 
-          <section class="audio-panel subtitle-upload-panel">
-            <label class="editor-label">
-              Audio de entrada (.wav/.mp3)
-              <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
-            </label>
-            <p id="subtitleUploadMeta" class="meta">Esperando archivo.</p>
-          </section>
+          <section class="subtitle-flow" id="subtitleFlowContainer">
+            <section id="subtitlePhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
+              <article class="audio-panel subtitle-centered-card subtitle-upload-card">
+                <h3>Carga</h3>
+                <p class="meta">Subí el audio para iniciar el análisis automático.</p>
+                <label class="editor-label subtitle-upload-dropzone">
+                  Audio de entrada (.wav/.mp3)
+                  <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
+                </label>
+                <p id="subtitleUploadMeta" class="meta">Esperando archivo.</p>
+              </article>
+            </section>
 
-          <section class="audio-panel">
-            <h3>Tabla de edición</h3>
+            <section id="subtitlePhaseProcessing" class="subtitle-phase-section subtitle-phase-section--centered hidden">
+              <article class="audio-panel subtitle-centered-card subtitle-processing-card">
+                <div id="subtitleProcessingIcon" class="subtitle-phase-icon" aria-hidden="true">⏳</div>
+                <h3 id="subtitleProcessingTitle">Procesando audio</h3>
+                <p id="subtitleProcessingMessage" class="meta">Estamos analizando tu archivo…</p>
+                <div class="subtitle-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <div id="subtitleProgressFill" class="subtitle-progress-fill" style="width: 0%"></div>
+                </div>
+                <p id="subtitleProgressPercent" class="subtitle-progress-percent">0%</p>
+              </article>
+            </section>
 
-            <datalist id="subtitleSizePresets">
-              <option value="36"></option>
-              <option value="42"></option>
-              <option value="48"></option>
-            </datalist>
+            <section id="subtitlePhaseEdition" class="subtitle-phase-section hidden">
+              <article class="audio-panel">
+                <h3>Tabla de edición</h3>
 
-            <datalist id="subtitleColorPresets">
-              <option value="#FFFFFF"></option>
-              <option value="#FACC15"></option>
-              <option value="#60A5FA"></option>
-            </datalist>
+                <datalist id="subtitleSizePresets">
+                  <option value="36"></option>
+                  <option value="42"></option>
+                  <option value="48"></option>
+                </datalist>
 
-            <div class="subtitle-table-scroll">
-              <table class="subtitle-table" id="subtitleRowsTable">
-                <thead>
-                  <tr>
-                    <th>start</th>
-                    <th>end</th>
-                    <th>Frase</th>
-                    <th>Tamaño</th>
-                    <th>Color</th>
-                    <th>Alineación</th>
-                  </tr>
-                </thead>
-                <tbody id="subtitleRowsBody"></tbody>
-              </table>
-            </div>
+                <datalist id="subtitleColorPresets">
+                  <option value="#FFFFFF"></option>
+                  <option value="#FACC15"></option>
+                  <option value="#60A5FA"></option>
+                </datalist>
 
-            <div class="audio-actions">
-              <button id="subtitleSaveBtn" class="secondary">Guardar cambios</button>
-              <button id="subtitleReadyBtn" class="approve">Listo</button>
-              <button id="subtitleDownloadBtn">Descargar video</button>
-            </div>
+                <div class="subtitle-table-scroll">
+                  <table class="subtitle-table" id="subtitleRowsTable">
+                    <thead>
+                      <tr>
+                        <th>start</th>
+                        <th>end</th>
+                        <th>Frase</th>
+                        <th>Tamaño</th>
+                        <th>Color</th>
+                        <th>Alineación</th>
+                      </tr>
+                    </thead>
+                    <tbody id="subtitleRowsBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="audio-actions">
+                  <button id="subtitleSaveBtn" class="secondary">Guardar cambios</button>
+                  <button id="subtitleReadyBtn" class="approve">Listo</button>
+                </div>
+              </article>
+            </section>
+
+            <section id="subtitlePhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
+              <article class="audio-panel subtitle-centered-card subtitle-success-card">
+                <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">✅</div>
+                <h3>Terminado</h3>
+                <p class="meta">Tu video ya está listo. Descargalo manualmente cuando quieras.</p>
+                <button id="subtitleDownloadBtn">Descargar video</button>
+              </article>
+            </section>
           </section>
         </section>
       </section>

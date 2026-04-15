@@ -168,6 +168,15 @@ export function getSubtitlesActionPolicy(phase) {
   };
 }
 
+export function getSubtitlesPhaseSectionVisibility(phase) {
+  return {
+    showUpload: phase === 'Carga',
+    showProcessing: phase === 'Procesando audio' || phase === 'Procesando video',
+    showEdition: phase === 'Edicion',
+    showDone: phase === 'Terminado',
+  };
+}
+
 export function createSaveActionPlan({ phase, analysisJobId, snapshotVersion }) {
   if (phase !== 'Edicion') {
     return { allowed: false, reason: 'save_requires_edicion_phase' };

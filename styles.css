@@ -684,7 +684,7 @@ dialog article { padding: 4px; }
 .subtitle-phase-bar {
   list-style: none;
   padding: 0;
-  margin: 0;
+   margin: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
@@ -710,6 +710,103 @@ dialog article { padding: 4px; }
   border-color: #5f7e72;
   background: #2b3f37;
   color: #b7d3c5;
+}
+
+.subtitle-flow {
+  margin-top: 16px;
+  min-height: calc(100vh - 260px);
+}
+
+.subtitle-phase-section {
+  display: block;
+}
+
+.subtitle-phase-section--centered {
+  min-height: calc(100vh - 320px);
+  display: grid;
+  place-items: center;
+}
+
+.subtitle-centered-card {
+  width: min(560px, 100%);
+  text-align: center;
+  background: #252a34;
+  border-color: #41495a;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.35);
+}
+
+.subtitle-centered-card h3 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.subtitle-centered-card .meta {
+  margin: 10px 0 0;
+}
+
+.subtitle-upload-card {
+  display: grid;
+  gap: 12px;
+}
+
+.subtitle-upload-dropzone {
+  margin: 8px 0 0;
+  border: 1px dashed #5a677f;
+  border-radius: 14px;
+  padding: 20px;
+  background: #1f2430;
+}
+
+.subtitle-upload-dropzone input {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.subtitle-processing-card,
+.subtitle-success-card {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.subtitle-phase-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.9rem;
+  background: #2e3748;
+  border: 1px solid #4e5d75;
+}
+
+.subtitle-phase-icon--success {
+  background: #1f3a30;
+  border-color: #2f5b49;
+}
+
+.subtitle-progress-track {
+  width: min(420px, 100%);
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid #455472;
+  background: #1a2231;
+  overflow: hidden;
+}
+
+.subtitle-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3f8cff, #5db8ff);
+  transition: width 0.25s ease;
+}
+
+.subtitle-progress-percent {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #dce8ff;
 }
 
 .subtitle-table-scroll {
@@ -818,6 +915,23 @@ dialog article { padding: 4px; }
 
   .audio-actions button {
     flex: 1;
+  }
+
+  .subtitle-flow {
+    min-height: auto;
+  }
+
+  .subtitle-phase-section--centered {
+    min-height: auto;
+    place-items: stretch;
+  }
+
+  .subtitle-centered-card {
+    width: 100%;
+  }
+
+  .subtitle-phase-bar {
+    grid-template-columns: 1fr;
   }
 
   input, select {
