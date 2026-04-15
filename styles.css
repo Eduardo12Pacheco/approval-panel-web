@@ -681,6 +681,77 @@ dialog article { padding: 4px; }
 }
 .toast.show { opacity: 1; }
 
+.subtitle-phase-bar {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.subtitle-phase-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  background: #2b303a;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.subtitle-phase-item.active {
+  border-color: #88d6b4;
+  background: #234535;
+  color: #d7f7e8;
+}
+
+.subtitle-phase-item.done {
+  border-color: #5f7e72;
+  background: #2b3f37;
+  color: #b7d3c5;
+}
+
+.subtitle-table-scroll {
+  overflow: auto;
+}
+
+.subtitle-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+.subtitle-table th,
+.subtitle-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.subtitle-table textarea {
+  width: 100%;
+  min-height: 82px;
+}
+
+.subtitle-align-group {
+  display: flex;
+  gap: 8px;
+}
+
+.subtitle-align-group .selected-green {
+  background: #1f3a30;
+  border: 1px solid #2f5b49;
+  color: #c8f4de;
+}
+
+.subtitle-align-group .muted {
+  background: #2e333e;
+  border: 1px solid #484d5b;
+  color: #b9b2aa;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     display: block;

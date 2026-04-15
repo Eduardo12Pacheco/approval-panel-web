@@ -36,6 +36,7 @@
           <button class="nav-item active" data-view="approval">Panel de aprobación</button>
           <button class="nav-item" data-view="scripts">Edición de guiones</button>
           <button class="nav-item" data-view="audio">Creación de audios</button>
+          <button class="nav-item" data-view="subtitulos">Subtitulos Automaticos</button>
         </nav>
         <div class="sidebar-foot">
           <button id="settingsBtn" class="secondary">Configuración</button>
@@ -131,6 +132,72 @@
 
               <section id="audioQueueList" class="audio-queue-list"></section>
             </aside>
+          </section>
+        </section>
+
+        <section id="viewSubtitulos" class="view hidden">
+          <header class="topbar">
+            <div>
+              <h1>Subtitulos Automaticos</h1>
+              <p>Flujo guiado de 5 fases para revisar subtítulos antes del render final.</p>
+            </div>
+          </header>
+
+          <section class="audio-panel">
+            <h3>Fases</h3>
+            <ol id="subtitlePhaseBar" class="subtitle-phase-bar">
+              <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
+              <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
+              <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
+              <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
+              <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
+            </ol>
+          </section>
+
+          <section class="audio-panel subtitle-upload-panel">
+            <label class="editor-label">
+              Audio de entrada (.wav/.mp3)
+              <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
+            </label>
+            <p id="subtitleUploadMeta" class="meta">Esperando archivo.</p>
+          </section>
+
+          <section class="audio-panel">
+            <h3>Tabla de edición</h3>
+
+            <datalist id="subtitleSizePresets">
+              <option value="36"></option>
+              <option value="42"></option>
+              <option value="48"></option>
+            </datalist>
+
+            <datalist id="subtitleColorPresets">
+              <option value="#FFFFFF"></option>
+              <option value="#FACC15"></option>
+              <option value="#60A5FA"></option>
+            </datalist>
+
+            <div class="subtitle-table-scroll">
+              <table class="subtitle-table" id="subtitleRowsTable">
+                <thead>
+                  <tr>
+                    <th>start</th>
+                    <th>end</th>
+                    <th>Frase</th>
+                    <th>Tamaño</th>
+                    <th>Color</th>
+                    <th>Alineación</th>
+                  </tr>
+                </thead>
+                <tbody id="subtitleRowsBody"></tbody>
+              </table>
+            </div>
+
+            <div class="audio-actions">
+              <button id="subtitleSaveBtn" class="secondary">Guardar cambios</button>
+              <button id="subtitleReadyBtn" class="approve">Listo</button>
+              <button id="subtitleDownloadBtn">Descargar video</button>
+            </div>
           </section>
         </section>
       </section>
