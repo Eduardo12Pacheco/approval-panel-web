@@ -165,27 +165,27 @@
                 </label>
                 <div class="subtitle-source-language">
                   <p class="subtitle-source-language-title">Idioma origen</p>
-                  <div id="subtitleSourceLanguagePicker" class="subtitle-lang-picker" role="radiogroup" aria-label="Idioma origen para análisis de subtítulos">
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="auto" role="radio" aria-checked="true">Detectar automáticamente</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="es" role="radio" aria-checked="false">Español</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="en" role="radio" aria-checked="false">Inglés</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="fr" role="radio" aria-checked="false">Francés</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="pt" role="radio" aria-checked="false">Portugués</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="de" role="radio" aria-checked="false">Alemán</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="it" role="radio" aria-checked="false">Italiano</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="nl" role="radio" aria-checked="false">Neerlandés</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="ca" role="radio" aria-checked="false">Catalán</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="pap" role="radio" aria-checked="false">Papiamento</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="ko" role="radio" aria-checked="false">Coreano</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="ar" role="radio" aria-checked="false">Árabe</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="ber" role="radio" aria-checked="false">Bereber</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="cs" role="radio" aria-checked="false">Checo</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="gd" role="radio" aria-checked="false">Gaélico escocés</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="tr" role="radio" aria-checked="false">Turco</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="tzm" role="radio" aria-checked="false">Tamazight (Tzm)</button>
-                    <button type="button" class="subtitle-lang-chip" data-source-lang="uz" role="radio" aria-checked="false">Uzbeko</button>
-                  </div>
-                  <p class="meta">Idioma destino fijo: español (<code>target_language=es</code>).</p>
+                  <select id="subtitleSourceLanguagePicker" class="subtitle-lang-select" aria-label="Idioma origen para análisis de subtítulos">
+                    <option value="auto">Detectar automáticamente</option>
+                    <option value="es">Español</option>
+                    <option value="en">Inglés</option>
+                    <option value="fr">Francés</option>
+                    <option value="pt">Portugués</option>
+                    <option value="de">Alemán</option>
+                    <option value="it">Italiano</option>
+                    <option value="nl">Neerlandés</option>
+                    <option value="ca">Catalán</option>
+                    <option value="pap">Papiamento</option>
+                    <option value="ko">Coreano</option>
+                    <option value="ar">Árabe</option>
+                    <option value="ber">Amazigh / Bereber</option>
+                    <option value="cs">Checo</option>
+                    <option value="gd">Gaélico escocés</option>
+                    <option value="tr">Turco</option>
+                    <option value="tzm">Tamazight (Tzm)</option>
+                    <option value="uz">Uzbeko</option>
+                  </select>
+                  <p id="subtitleSourceLanguageEngineHint" class="meta subtitle-source-engine-hint"></p>
                 </div>
               </article>
             </section>

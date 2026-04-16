@@ -98,6 +98,30 @@ const state = {
 
 let toastTimer = null;
 
+const SUBTITLE_SOURCE_LANGUAGE_ALLOWED = new Set([
+  'auto',
+  'es',
+  'en',
+  'fr',
+  'pt',
+  'de',
+  'it',
+  'nl',
+  'ca',
+  'pap',
+  'ko',
+  'ar',
+  'ber',
+  'cs',
+  'gd',
+  'tr',
+  'tzm',
+  'uz',
+]);
+
+const SUBTITLE_MARIAN_LANGS = new Set(['en', 'fr', 'de', 'it', 'nl', 'ca', 'pap', 'ko', 'ar', 'ber']);
+const SUBTITLE_FALLBACK_LANGS = new Set(['pt', 'cs', 'gd', 'tr', 'tzm', 'uz']);
+
 const el = {
   authGate: document.getElementById('authGate'),
   appShell: document.getElementById('appShell'),
@@ -170,6 +194,7 @@ const el = {
   subtitlePhaseBar: document.getElementById('subtitlePhaseBar'),
   subtitlePhaseUpload: document.getElementById('subtitlePhaseUpload'),
   subtitleSourceLanguagePicker: document.getElementById('subtitleSourceLanguagePicker'),
+  subtitleSourceLanguageEngineHint: document.getElementById('subtitleSourceLanguageEngineHint'),
   subtitleAnalyzeMeta: document.getElementById('subtitleAnalyzeMeta'),
   subtitleMetaRequested: document.getElementById('subtitleMetaRequested'),
   subtitleMetaEffective: document.getElementById('subtitleMetaEffective'),
@@ -311,7 +336,7 @@ function bindEvents() {
   el.audioRunBtn.addEventListener('click', runAudioGeneration);
 
   el.subtitleUploadInput?.addEventListener('change', onSubtitleUploadSelected);
-  el.subtitleSourceLanguagePicker?.addEventListener('click', onSubtitleSourceLanguageClicked);
+  el.subtitleSourceLanguagePicker?.addEventListener('change', onSubtitleSourceLanguageChanged);
   el.subtitleSaveBtn?.addEventListener('click', onSubtitleSaveClicked);
   el.subtitleReadyBtn?.addEventListener('click', onSubtitleReadyClicked);
   el.subtitleDownloadBtn?.addEventListener('click', onSubtitleDownloadClicked);
@@ -588,32 +613,9 @@ function onSubtitleTableClick(ev) {
   patchSubtitleRow(rowId, { align });
 }
 
-function onSubtitleSourceLanguageClicked(ev) {
-  const button = ev.target.closest('button[data-source-lang]');
-  if (!button) return;
-
-  const requestedLanguage = (button.dataset.sourceLang || 'auto').toString().trim().toLowerCase();
-  const allowed = new Set([
-    'auto',
-    'es',
-    'en',
-    'fr',
-    'pt',
-    'de',
-    'it',
-    'nl',
-    'ca',
-    'pap',
-    'ko',
-    'ar',
-    'ber',
-    'cs',
-    'gd',
-    'tr',
-    'tzm',
-    'uz',
-  ]);
-  if (!allowed.has(requestedLanguage)) return;
+function onSubtitleSourceLanguageChanged(ev) {
+  const requestedLanguage = (ev.target?.value || 'auto').toString().trim().toLowerCase();
+  if (!SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(requestedLanguage)) return;
 
   state.subtitles.sourceLanguage = requestedLanguage;
   renderSubtitleSourceLanguagePicker();
@@ -657,12 +659,28 @@ function renderSubtitlesWorkflow() {
 function renderSubtitleSourceLanguagePicker() {
   if (!el.subtitleSourceLanguagePicker) return;
   const selected = (state.subtitles.sourceLanguage || 'auto').toString().toLowerCase();
-  el.subtitleSourceLanguagePicker.querySelectorAll('[data-source-lang]').forEach((node) => {
-    const lang = (node.dataset.sourceLang || '').toString().toLowerCase();
-    const isSelected = lang === selected;
-    node.classList.toggle('is-active', isSelected);
-    node.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-  });
+  el.subtitleSourceLanguagePicker.value = SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(selected) ? selected : 'auto';
+
+  if (el.subtitleSourceLanguageEngineHint) {
+    el.subtitleSourceLanguageEngineHint.textContent = describeSubtitleTranslationEngine(selected);
+  }
+}
+
+function describeSubtitleTranslationEngine(language) {
+  const normalized = (language || 'auto').toString().trim().toLowerCase();
+  if (normalized === 'auto') {
+    return 'Detecta automáticamente. Si el idioma detectado tiene Marian, usa Marian; si no, usa fallback Facebook M2M100.';
+  }
+  if (normalized === 'es') {
+    return 'Este idioma no requiere traducción: se usa bypass (audio ya en español).';
+  }
+  if (SUBTITLE_MARIAN_LANGS.has(normalized)) {
+    return 'Este idioma usa Marian (Helsinki OPUS-MT).';
+  }
+  if (SUBTITLE_FALLBACK_LANGS.has(normalized)) {
+    return 'Este idioma usa fallback Facebook M2M100.';
+  }
+  return 'Este idioma usa fallback Facebook M2M100.';
 }
 
 function renderSubtitleAnalyzeMeta() {

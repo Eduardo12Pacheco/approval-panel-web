@@ -776,6 +776,24 @@ dialog article { padding: 4px; }
   margin-bottom: 10px;
 }
 
+.subtitle-lang-select {
+  width: 100%;
+  min-width: 0;
+  background: #2c3444;
+  border: 1px solid #4d5b76;
+  color: #d8e0f3;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.subtitle-source-engine-hint {
+  margin: 0;
+  color: #b8c5df;
+}
+
 .subtitle-lang-chip {
   background: #2c3444;
   border: 1px solid #4d5b76;
