@@ -91,6 +91,8 @@ const state = {
       initialAckVersion: 0,
       persist: persistSubtitleSnapshotRequest,
     }),
+    sourceLanguage: 'auto',
+    analyzeMetadata: createEmptySubtitleAnalyzeMetadata(),
   },
 };
 
@@ -167,6 +169,13 @@ const el = {
   audioQueueList: document.getElementById('audioQueueList'),
   subtitlePhaseBar: document.getElementById('subtitlePhaseBar'),
   subtitlePhaseUpload: document.getElementById('subtitlePhaseUpload'),
+  subtitleSourceLanguagePicker: document.getElementById('subtitleSourceLanguagePicker'),
+  subtitleAnalyzeMeta: document.getElementById('subtitleAnalyzeMeta'),
+  subtitleMetaRequested: document.getElementById('subtitleMetaRequested'),
+  subtitleMetaEffective: document.getElementById('subtitleMetaEffective'),
+  subtitleMetaDetected: document.getElementById('subtitleMetaDetected'),
+  subtitleMetaAsrModel: document.getElementById('subtitleMetaAsrModel'),
+  subtitleMetaMtModel: document.getElementById('subtitleMetaMtModel'),
   subtitlePhaseProcessing: document.getElementById('subtitlePhaseProcessing'),
   subtitlePhaseEdition: document.getElementById('subtitlePhaseEdition'),
   subtitlePhaseDone: document.getElementById('subtitlePhaseDone'),
@@ -302,6 +311,7 @@ function bindEvents() {
   el.audioRunBtn.addEventListener('click', runAudioGeneration);
 
   el.subtitleUploadInput?.addEventListener('change', onSubtitleUploadSelected);
+  el.subtitleSourceLanguagePicker?.addEventListener('click', onSubtitleSourceLanguageClicked);
   el.subtitleSaveBtn?.addEventListener('click', onSubtitleSaveClicked);
   el.subtitleReadyBtn?.addEventListener('click', onSubtitleReadyClicked);
   el.subtitleDownloadBtn?.addEventListener('click', onSubtitleDownloadClicked);
@@ -578,6 +588,18 @@ function onSubtitleTableClick(ev) {
   patchSubtitleRow(rowId, { align });
 }
 
+function onSubtitleSourceLanguageClicked(ev) {
+  const button = ev.target.closest('button[data-source-lang]');
+  if (!button) return;
+
+  const requestedLanguage = (button.dataset.sourceLang || 'auto').toString().trim().toLowerCase();
+  const allowed = new Set(['auto', 'es', 'en', 'fr', 'pt', 'de']);
+  if (!allowed.has(requestedLanguage)) return;
+
+  state.subtitles.sourceLanguage = requestedLanguage;
+  renderSubtitleSourceLanguagePicker();
+}
+
 function patchSubtitleRow(rowId, patch) {
   state.subtitles.rows = state.subtitles.rows.map((row) => {
     if (row.id !== rowId) return row;
@@ -604,11 +626,44 @@ function transitionSubtitlesPhase(nextPhase) {
 function renderSubtitlesWorkflow() {
   renderSubtitlesPhaseBar();
   renderSubtitlesPhaseSections();
+  renderSubtitleSourceLanguagePicker();
+  renderSubtitleAnalyzeMeta();
   renderSubtitleProcessingCard();
   renderSubtitlesTable();
   updateSubtitleUploadMeta();
   updateSubtitleButtonsByPhase();
   syncSubtitleAutosaveTimer();
+}
+
+function renderSubtitleSourceLanguagePicker() {
+  if (!el.subtitleSourceLanguagePicker) return;
+  const selected = (state.subtitles.sourceLanguage || 'auto').toString().toLowerCase();
+  el.subtitleSourceLanguagePicker.querySelectorAll('[data-source-lang]').forEach((node) => {
+    const lang = (node.dataset.sourceLang || '').toString().toLowerCase();
+    const isSelected = lang === selected;
+    node.classList.toggle('is-active', isSelected);
+    node.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+  });
+}
+
+function renderSubtitleAnalyzeMeta() {
+  if (!el.subtitleAnalyzeMeta) return;
+
+  const metadata = state.subtitles.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
+  const requested = normalizeSubtitleMetaValue(metadata.sourceLanguageRequested);
+  const effective = normalizeSubtitleMetaValue(metadata.sourceLanguageEffective);
+  const detected = normalizeSubtitleMetaValue(metadata.detectedLanguage);
+  const asrModel = normalizeSubtitleMetaValue(metadata.asrModel);
+  const mtModel = normalizeSubtitleMetaValue(metadata.mtModel);
+
+  if (el.subtitleMetaRequested) el.subtitleMetaRequested.textContent = requested;
+  if (el.subtitleMetaEffective) el.subtitleMetaEffective.textContent = effective;
+  if (el.subtitleMetaDetected) el.subtitleMetaDetected.textContent = detected;
+  if (el.subtitleMetaAsrModel) el.subtitleMetaAsrModel.textContent = asrModel;
+  if (el.subtitleMetaMtModel) el.subtitleMetaMtModel.textContent = mtModel;
+
+  const hasAnyMetadata = [requested, effective, detected, asrModel, mtModel].some((value) => value !== '—');
+  el.subtitleAnalyzeMeta.classList.toggle('hidden', !hasAnyMetadata);
 }
 
 function renderSubtitlesPhaseSections() {
@@ -798,11 +853,13 @@ function resetSubtitlesRunState() {
   state.subtitles.changeVersion = 0;
   state.subtitles.savedVersion = 0;
   state.subtitles.saveQueue.setAckVersion(0);
+  state.subtitles.analyzeMetadata = createEmptySubtitleAnalyzeMetadata();
 }
 
 async function startSubtitleAnalyze(file) {
   const form = new FormData();
   form.append('file', file);
+  form.append('source_language', state.subtitles.sourceLanguage || 'auto');
   form.append('target_language', 'es');
   form.append('request_id', `sub-analyze-${Date.now()}`);
   form.append('user_email', resolveSubtitlesUserEmail());
@@ -815,6 +872,7 @@ async function startSubtitleAnalyze(file) {
 
   state.subtitles.analysisJobId = analyzeJobId;
   state.subtitles.analyzeStatus = (response?.status || 'queued').toString();
+  applySubtitleAnalyzeMetadata(response, { source_language_requested: state.subtitles.sourceLanguage || 'auto' });
   transitionSubtitlesPhase('Procesando audio');
   startSubtitlePolling({ kind: 'analyze', jobId: analyzeJobId });
 }
@@ -854,6 +912,7 @@ async function pollSubtitleStatus(kind, jobId) {
     if (kind === 'analyze') {
       state.subtitles.analyzeStatus = nextStatus;
       state.subtitles.analyzeProgressPct = extractSubtitleProgressPercent(status);
+      applySubtitleAnalyzeMetadata(status);
       if (Number.isInteger(status?.snapshot_version)) {
         state.subtitles.snapshotVersion = Number(status.snapshot_version);
         state.subtitles.saveQueue.setAckVersion(state.subtitles.snapshotVersion);
@@ -886,6 +945,7 @@ async function pollSubtitleStatus(kind, jobId) {
     console.error(err);
   } finally {
     state.subtitles.pollingInFlight = false;
+    renderSubtitleAnalyzeMeta();
     renderSubtitleProcessingCard();
     updateSubtitleButtonsByPhase();
     updateSubtitleUploadMeta();
@@ -969,7 +1029,10 @@ function collectCurrentSubtitlesSnapshot() {
       segment_id: row.id || `segment-${index + 1}`,
       start_ms: parseSubtitleTimeToMs(row.start),
       end_ms: parseSubtitleTimeToMs(row.end),
+      source_text: row.sourceText,
+      translated_text_es: row.phrase,
       translated_text: row.phrase,
+      text: row.phrase,
       style: {
         font_size: row.size,
         color: row.color,
@@ -985,7 +1048,8 @@ function mapSnapshotToRows(snapshotJson) {
     id: (segment?.segment_id || `row-${index + 1}`).toString(),
     start: formatSubtitleDisplayTime(segment?.start ?? segment?.start_ms ?? '00:00.00'),
     end: formatSubtitleDisplayTime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
-    phrase: (segment?.translated_text || segment?.text || '').toString(),
+    sourceText: (segment?.source_text || '').toString(),
+    phrase: (segment?.translated_text_es || segment?.translated_text || segment?.text || '').toString(),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
     align: (segment?.style?.align || 'left').toString(),
@@ -1033,6 +1097,71 @@ function formatSubtitleDisplayTime(rawValue) {
 function resolveSubtitlesUserEmail() {
   const configured = (state.settings.ttsUserEmail || '').trim();
   return configured || 'reviewer@example.com';
+}
+
+function createEmptySubtitleAnalyzeMetadata() {
+  return {
+    sourceLanguageRequested: null,
+    sourceLanguageEffective: null,
+    detectedLanguage: null,
+    asrModel: null,
+    mtModel: null,
+  };
+}
+
+function applySubtitleAnalyzeMetadata(payload, fallback = null) {
+  const extracted = extractSubtitleAnalyzeMetadata(payload);
+  const fallbackExtracted = extractSubtitleAnalyzeMetadata(fallback);
+  const current = state.subtitles.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
+  state.subtitles.analyzeMetadata = {
+    sourceLanguageRequested: extracted.sourceLanguageRequested || fallbackExtracted.sourceLanguageRequested || current.sourceLanguageRequested,
+    sourceLanguageEffective: extracted.sourceLanguageEffective || fallbackExtracted.sourceLanguageEffective || current.sourceLanguageEffective,
+    detectedLanguage: extracted.detectedLanguage || fallbackExtracted.detectedLanguage || current.detectedLanguage,
+    asrModel: extracted.asrModel || fallbackExtracted.asrModel || current.asrModel,
+    mtModel: extracted.mtModel || fallbackExtracted.mtModel || current.mtModel,
+  };
+}
+
+function extractSubtitleAnalyzeMetadata(payload) {
+  const metadata = payload?.metadata || payload?.analysis_metadata || payload?.analyze_metadata || null;
+  return {
+    sourceLanguageRequested: normalizeSubtitleMetaValueForState(
+      payload?.source_language_requested,
+      metadata?.source_language_requested,
+    ),
+    sourceLanguageEffective: normalizeSubtitleMetaValueForState(
+      payload?.source_language_effective,
+      metadata?.source_language_effective,
+    ),
+    detectedLanguage: normalizeSubtitleMetaValueForState(
+      payload?.detected_language,
+      metadata?.detected_language,
+    ),
+    asrModel: normalizeSubtitleMetaValueForState(
+      payload?.asr_model,
+      metadata?.asr_model,
+    ),
+    mtModel: normalizeSubtitleMetaValueForState(
+      payload?.mt_model,
+      metadata?.mt_model,
+    ),
+  };
+}
+
+function normalizeSubtitleMetaValueForState(...candidates) {
+  for (const candidate of candidates) {
+    if (candidate == null) continue;
+    const text = candidate.toString().trim();
+    if (!text) continue;
+    return text;
+  }
+  return null;
+}
+
+function normalizeSubtitleMetaValue(value) {
+  if (value == null) return '—';
+  const text = value.toString().trim();
+  return text || '—';
 }
 
 async function persistSubtitleSnapshotRequest(payload) {

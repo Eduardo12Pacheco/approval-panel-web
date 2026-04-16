@@ -163,7 +163,30 @@
                   <div class="subtitle-upload-cta-title">Agregar Audio</div>
                   <div class="subtitle-upload-cta-sub">Arrastrá un archivo o hacé click para subir</div>
                 </label>
+                <div class="subtitle-source-language">
+                  <p class="subtitle-source-language-title">Idioma origen</p>
+                  <div id="subtitleSourceLanguagePicker" class="subtitle-lang-picker" role="radiogroup" aria-label="Idioma origen para análisis de subtítulos">
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="auto" role="radio" aria-checked="true">Detectar automáticamente</button>
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="es" role="radio" aria-checked="false">Español</button>
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="en" role="radio" aria-checked="false">Inglés</button>
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="fr" role="radio" aria-checked="false">Francés</button>
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="pt" role="radio" aria-checked="false">Portugués</button>
+                    <button type="button" class="subtitle-lang-chip" data-source-lang="de" role="radio" aria-checked="false">Alemán</button>
+                  </div>
+                  <p class="meta">Idioma destino fijo: español (<code>target_language=es</code>).</p>
+                </div>
               </article>
+            </section>
+
+            <section id="subtitleAnalyzeMeta" class="audio-panel subtitle-meta-card hidden">
+              <h3>Metadata del análisis</h3>
+              <div class="subtitle-meta-grid">
+                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_requested</span><strong id="subtitleMetaRequested">—</strong></div>
+                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_effective</span><strong id="subtitleMetaEffective">—</strong></div>
+                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">detected_language</span><strong id="subtitleMetaDetected">—</strong></div>
+                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">asr_model</span><strong id="subtitleMetaAsrModel">—</strong></div>
+                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">mt_model</span><strong id="subtitleMetaMtModel">—</strong></div>
+              </div>
             </section>
 
             <section id="subtitlePhaseProcessing" class="subtitle-phase-section subtitle-phase-section--centered hidden">
