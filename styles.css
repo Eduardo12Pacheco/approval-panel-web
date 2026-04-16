@@ -847,7 +847,8 @@ dialog article { padding: 4px; }
 .subtitle-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 920px;
+  min-width: 980px;
+  table-layout: fixed;
 }
 
 .subtitle-table th,
@@ -860,7 +861,31 @@ dialog article { padding: 4px; }
 
 .subtitle-table textarea {
   width: 100%;
-  min-height: 82px;
+  min-height: 70px;
+}
+
+.subtitle-table th:nth-child(1),
+.subtitle-table td:nth-child(1),
+.subtitle-table th:nth-child(2),
+.subtitle-table td:nth-child(2) {
+  width: 110px;
+}
+
+.subtitle-table th:nth-child(3),
+.subtitle-table td:nth-child(3) {
+  width: 44%;
+}
+
+.subtitle-table th:nth-child(4),
+.subtitle-table td:nth-child(4),
+.subtitle-table th:nth-child(5),
+.subtitle-table td:nth-child(5) {
+  width: 160px;
+}
+
+.subtitle-table th:nth-child(6),
+.subtitle-table td:nth-child(6) {
+  width: 190px;
 }
 
 .subtitle-align-group {

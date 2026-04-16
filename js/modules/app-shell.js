@@ -739,10 +739,12 @@ function renderSubtitlesTable() {
 
   el.subtitleRowsBody.innerHTML = state.subtitles.rows.map((row) => {
     const alignment = getAlignmentButtonState(row.align);
+    const startDisplay = formatSubtitleDisplayTime(row.start);
+    const endDisplay = formatSubtitleDisplayTime(row.end);
     return `
       <tr>
-        <td><input value="${escapeHtml(row.start)}" readonly /></td>
-        <td><input value="${escapeHtml(row.end)}" readonly /></td>
+        <td><input value="${escapeHtml(startDisplay)}" readonly /></td>
+        <td><input value="${escapeHtml(endDisplay)}" readonly /></td>
         <td><textarea data-row-id="${row.id}" data-field="phrase">${escapeHtml(row.phrase)}</textarea></td>
         <td><input data-row-id="${row.id}" data-field="size" list="subtitleSizePresets" value="${escapeHtml(row.size)}" /></td>
         <td><input data-row-id="${row.id}" data-field="color" list="subtitleColorPresets" value="${escapeHtml(row.color)}" /></td>
@@ -965,8 +967,8 @@ function collectCurrentSubtitlesSnapshot() {
   return {
     segments: state.subtitles.rows.map((row, index) => ({
       segment_id: row.id || `segment-${index + 1}`,
-      start: row.start,
-      end: row.end,
+      start_ms: parseSubtitleTimeToMs(row.start),
+      end_ms: parseSubtitleTimeToMs(row.end),
       translated_text: row.phrase,
       style: {
         font_size: row.size,
@@ -981,13 +983,51 @@ function mapSnapshotToRows(snapshotJson) {
   const segments = Array.isArray(snapshotJson?.segments) ? snapshotJson.segments : [];
   return segments.map((segment, index) => createEmptySubtitleRow({
     id: (segment?.segment_id || `row-${index + 1}`).toString(),
-    start: (segment?.start || segment?.start_ms || '00:00:00.000').toString(),
-    end: (segment?.end || segment?.end_ms || '00:00:02.000').toString(),
+    start: formatSubtitleDisplayTime(segment?.start ?? segment?.start_ms ?? '00:00.00'),
+    end: formatSubtitleDisplayTime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
     phrase: (segment?.translated_text || segment?.text || '').toString(),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
     align: (segment?.style?.align || 'left').toString(),
   }));
+}
+
+function parseSubtitleTimeToMs(rawValue) {
+  const value = (rawValue ?? '').toString().trim();
+  if (!value) return 0;
+
+  if (/^\d+(\.\d+)?$/.test(value)) {
+    return Math.max(0, Math.round(Number(value)));
+  }
+
+  const mmssMatch = value.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$/);
+  if (mmssMatch) {
+    const minutes = Number(mmssMatch[1]);
+    const seconds = Number(mmssMatch[2]);
+    const decimals = (mmssMatch[3] || '0').padEnd(3, '0').slice(0, 3);
+    const millis = Number(decimals);
+    return Math.max(0, minutes * 60000 + seconds * 1000 + millis);
+  }
+
+  const hhmmssMatch = value.match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
+  if (hhmmssMatch) {
+    const hours = Number(hhmmssMatch[1]);
+    const minutes = Number(hhmmssMatch[2]);
+    const seconds = Number(hhmmssMatch[3]);
+    const decimals = (hhmmssMatch[4] || '0').padEnd(3, '0').slice(0, 3);
+    const millis = Number(decimals);
+    return Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000 + millis);
+  }
+
+  return 0;
+}
+
+function formatSubtitleDisplayTime(rawValue) {
+  const totalMs = parseSubtitleTimeToMs(rawValue);
+  const minutes = Math.floor(totalMs / 60000);
+  const seconds = Math.floor((totalMs % 60000) / 1000);
+  const centiseconds = Math.floor((totalMs % 1000) / 10);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
 }
 
 function resolveSubtitlesUserEmail() {
