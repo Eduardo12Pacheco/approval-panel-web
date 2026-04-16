@@ -593,7 +593,26 @@ function onSubtitleSourceLanguageClicked(ev) {
   if (!button) return;
 
   const requestedLanguage = (button.dataset.sourceLang || 'auto').toString().trim().toLowerCase();
-  const allowed = new Set(['auto', 'es', 'en', 'fr', 'pt', 'de']);
+  const allowed = new Set([
+    'auto',
+    'es',
+    'en',
+    'fr',
+    'pt',
+    'de',
+    'it',
+    'nl',
+    'ca',
+    'pap',
+    'ko',
+    'ar',
+    'ber',
+    'cs',
+    'gd',
+    'tr',
+    'tzm',
+    'uz',
+  ]);
   if (!allowed.has(requestedLanguage)) return;
 
   state.subtitles.sourceLanguage = requestedLanguage;
