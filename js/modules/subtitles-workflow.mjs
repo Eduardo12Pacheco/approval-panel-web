@@ -10,7 +10,8 @@ export const SUBTITLES_POLL_INTERVAL_MS = 2000;
 export const SUBTITLES_AUTOSAVE_INTERVAL_MS = 5000;
 
 export const SUBTITLE_SIZE_PRESETS = Object.freeze(['36', '42', '48']);
-export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FACC15', '#60A5FA']);
+export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2']);
+export const SUBTITLE_FONT_PRESETS = Object.freeze(['Khand Bold', 'Oswald', 'League Gothic', 'Impact', 'Anton']);
 
 const ALLOWED_TRANSITIONS = Object.freeze({
   Carga: ['Procesando audio'],
@@ -50,9 +51,11 @@ export function createEmptySubtitleRow(seed = {}) {
     id: (seed.id || '').toString(),
     start: (seed.start || '00:00:00.000').toString(),
     end: (seed.end || '00:00:02.000').toString(),
+    sourceText: (seed.sourceText || '').toString(),
     phrase: (seed.phrase || '').toString(),
     size: sanitizePreset((seed.size || SUBTITLE_SIZE_PRESETS[0]).toString(), SUBTITLE_SIZE_PRESETS, SUBTITLE_SIZE_PRESETS[0]),
     color: sanitizePreset((seed.color || SUBTITLE_COLOR_PRESETS[0]).toString(), SUBTITLE_COLOR_PRESETS, SUBTITLE_COLOR_PRESETS[0]),
+    fontFamily: sanitizePreset((seed.fontFamily || SUBTITLE_FONT_PRESETS[0]).toString(), SUBTITLE_FONT_PRESETS, SUBTITLE_FONT_PRESETS[0]),
     align: normalizeAlignment(seed.align),
   };
 }
@@ -68,6 +71,9 @@ export function applySubtitleRowPatch(row, patch = {}) {
     color: patch.color != null
       ? sanitizePreset(patch.color.toString(), SUBTITLE_COLOR_PRESETS, safeRow.color)
       : safeRow.color,
+    fontFamily: patch.fontFamily != null
+      ? sanitizePreset(patch.fontFamily.toString(), SUBTITLE_FONT_PRESETS, safeRow.fontFamily)
+      : safeRow.fontFamily,
     align: patch.align != null ? normalizeAlignment(patch.align, safeRow.align) : safeRow.align,
   };
 }

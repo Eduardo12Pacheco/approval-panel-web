@@ -3,6 +3,7 @@ import {
   SUBTITLES_POLL_INTERVAL_MS,
   SUBTITLES_PHASES,
   SUBTITLE_COLOR_PRESETS,
+  SUBTITLE_FONT_PRESETS,
   SUBTITLE_SIZE_PRESETS,
   applySubtitleRowPatch,
   createDownloadActionPlan,
@@ -600,6 +601,10 @@ function onSubtitleTableInput(ev) {
   }
   if (target.dataset.field === 'color') {
     patchSubtitleRow(rowId, { color: target.value });
+    return;
+  }
+  if (target.dataset.field === 'fontFamily') {
+    patchSubtitleRow(rowId, { fontFamily: target.value });
   }
 }
 
@@ -833,22 +838,34 @@ function renderSubtitlesTable() {
   if (!el.subtitleRowsBody) return;
 
   const sizeOptions = SUBTITLE_SIZE_PRESETS;
-  const colorOptions = SUBTITLE_COLOR_PRESETS;
+  const fontOptions = SUBTITLE_FONT_PRESETS;
+  const colorOptions = [
+    { value: '#FFFFFF', label: 'Blanco' },
+    { value: '#FFF000', label: 'Amarillo' },
+    { value: '#00FF5A', label: 'Verde' },
+    { value: '#0CC3F2', label: 'Celeste' },
+  ];
 
   el.subtitleRowsBody.innerHTML = state.subtitles.rows.map((row) => {
     const alignment = getAlignmentButtonState(row.align);
     const startDisplay = formatSubtitleDisplayTime(row.start);
     const endDisplay = formatSubtitleDisplayTime(row.end);
     const sizeSelectOptions = renderSubtitleSelectOptions(sizeOptions, row.size);
+    const fontSelectOptions = renderSubtitleSelectOptions(fontOptions, row.fontFamily);
     const colorSelectOptions = renderSubtitleSelectOptions(colorOptions, row.color);
     return `
       <tr>
         <td><span class="subtitle-time-pill">${escapeHtml(startDisplay)}</span></td>
         <td><span class="subtitle-time-pill">${escapeHtml(endDisplay)}</span></td>
-        <td><textarea data-row-id="${row.id}" data-field="phrase">${escapeHtml(row.phrase)}</textarea></td>
+        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};">${escapeHtml(row.phrase)}</textarea></td>
         <td>
           <select data-row-id="${row.id}" data-field="size">
             ${sizeSelectOptions}
+          </select>
+        </td>
+        <td>
+          <select data-row-id="${row.id}" data-field="fontFamily">
+            ${fontSelectOptions}
           </select>
         </td>
         <td>
@@ -870,11 +887,24 @@ function renderSubtitlesTable() {
 
 function renderSubtitleSelectOptions(options, selectedValue) {
   const selected = (selectedValue || '').toString();
-  return options
-    .map((value) => {
-      const text = value.toString();
-      const isSelected = text === selected;
-      return `<option value="${escapeHtml(text)}"${isSelected ? ' selected' : ''}>${escapeHtml(text)}</option>`;
+  const normalized = options.map((option) => {
+    if (typeof option === 'string') {
+      return { value: option, label: option };
+    }
+    return {
+      value: (option?.value || '').toString(),
+      label: (option?.label || option?.value || '').toString(),
+    };
+  });
+
+  if (selected && !normalized.some((option) => option.value === selected)) {
+    normalized.push({ value: selected, label: selected });
+  }
+
+  return normalized
+    .map((option) => {
+      const isSelected = option.value === selected;
+      return `<option value="${escapeHtml(option.value)}"${isSelected ? ' selected' : ''}>${escapeHtml(option.label)}</option>`;
     })
     .join('');
 }
@@ -1099,6 +1129,7 @@ function collectCurrentSubtitlesSnapshot() {
       text: row.phrase,
       style: {
         font_size: row.size,
+        font_family: row.fontFamily,
         color: row.color,
         align: row.align,
       },
@@ -1115,6 +1146,7 @@ function mapSnapshotToRows(snapshotJson) {
     sourceText: (segment?.source_text || '').toString(),
     phrase: (segment?.translated_text_es || segment?.translated_text || segment?.text || '').toString(),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
+    fontFamily: (segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0]).toString(),
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
     align: (segment?.style?.align || 'left').toString(),
   }));
