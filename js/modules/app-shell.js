@@ -500,6 +500,22 @@ async function onSubtitleReadyClicked() {
 
     state.subtitles.renderJobId = renderJobId;
     state.subtitles.renderStatus = (renderResponse?.status || 'queued').toString();
+    state.subtitles.renderProgressPct = extractSubtitleProgressPercent(renderResponse);
+
+    if (state.subtitles.renderStatus === 'succeeded') {
+      state.subtitles.renderProgressPct = 100;
+      stopSubtitlePolling();
+      transitionSubtitlesPhase('Terminado');
+      toast('Render terminado');
+      return;
+    }
+
+    if (state.subtitles.renderStatus === 'failed') {
+      const errorMessage = renderResponse?.error?.message || 'El render falló';
+      toast(errorMessage);
+      return;
+    }
+
     transitionSubtitlesPhase('Procesando video');
     startSubtitlePolling({ kind: 'render', jobId: renderJobId });
     toast('Render iniciado');

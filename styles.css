@@ -684,7 +684,7 @@ dialog article { padding: 4px; }
 .subtitle-phase-bar {
   list-style: none;
   padding: 0;
-   margin: 0;
+  margin: 0;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
@@ -753,13 +753,40 @@ dialog article { padding: 4px; }
   margin: 8px 0 0;
   border: 1px dashed #5a677f;
   border-radius: 14px;
-  padding: 20px;
-  background: #1f2430;
+  padding: 30px 20px;
+  background: #1a2231;
+  min-height: 220px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
 }
 
 .subtitle-upload-dropzone input {
-  width: 100%;
-  margin-top: 8px;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.subtitle-upload-cta-icon {
+  font-size: 3rem;
+  line-height: 1;
+  color: #6fe3b2;
+  font-weight: 300;
+}
+
+.subtitle-upload-cta-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #f1f5ff;
+}
+
+.subtitle-upload-cta-sub {
+  color: #b7bfd3;
+  font-size: 0.95rem;
 }
 
 .subtitle-processing-card,

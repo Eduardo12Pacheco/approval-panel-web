@@ -143,25 +143,16 @@
             </div>
           </header>
 
-          <section class="audio-panel">
-            <h3>Fases</h3>
-            <ol id="subtitlePhaseBar" class="subtitle-phase-bar">
-              <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
-              <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
-              <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
-              <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
-              <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
-            </ol>
-          </section>
-
           <section class="subtitle-flow" id="subtitleFlowContainer">
             <section id="subtitlePhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
               <article class="audio-panel subtitle-centered-card subtitle-upload-card">
                 <h3>Carga</h3>
                 <p class="meta">Subí el audio para iniciar el análisis automático.</p>
-                <label class="editor-label subtitle-upload-dropzone">
-                  Audio de entrada (.wav/.mp3)
+                <label class="subtitle-upload-dropzone" for="subtitleUploadInput">
                   <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
+                  <div class="subtitle-upload-cta-icon" aria-hidden="true">＋</div>
+                  <div class="subtitle-upload-cta-title">Agregar Audio</div>
+                  <div class="subtitle-upload-cta-sub">Arrastrá un archivo o hacé click para subir</div>
                 </label>
                 <p id="subtitleUploadMeta" class="meta">Esperando archivo.</p>
               </article>
