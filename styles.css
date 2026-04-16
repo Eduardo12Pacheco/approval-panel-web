@@ -749,6 +749,10 @@ dialog article { padding: 4px; }
   gap: 12px;
 }
 
+.subtitle-upload-stage {
+  width: min(560px, 100%);
+}
+
 .subtitle-upload-dropzone {
   margin: 8px 0 0;
   border: 1px dashed #5a677f;
@@ -772,7 +776,7 @@ dialog article { padding: 4px; }
 }
 
 .subtitle-upload-cta-icon {
-  font-size: 3rem;
+  font-size: 5rem;
   line-height: 1;
   color: #6fe3b2;
   font-weight: 300;
