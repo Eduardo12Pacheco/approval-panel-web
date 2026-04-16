@@ -28,7 +28,7 @@ body {
 .hidden { display: none !important; }
 
 .app-shell {
-  max-width: 1380px;
+  max-width: none;
   margin: 0 auto;
   display: block;
 }
@@ -937,7 +937,7 @@ dialog article { padding: 4px; }
 .subtitle-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 980px;
+  min-width: 920px;
   table-layout: fixed;
 }
 
@@ -954,11 +954,36 @@ dialog article { padding: 4px; }
   min-height: 70px;
 }
 
+.subtitle-table input,
+.subtitle-table select,
+.subtitle-table textarea {
+  min-width: 0;
+}
+
+.subtitle-table select {
+  width: 100%;
+  padding: 8px 10px;
+}
+
+.subtitle-time-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  border: 1px solid #4a566e;
+  background: #242d3d;
+  color: #e2ecff;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .subtitle-table th:nth-child(1),
 .subtitle-table td:nth-child(1),
 .subtitle-table th:nth-child(2),
 .subtitle-table td:nth-child(2) {
-  width: 110px;
+  width: 98px;
 }
 
 .subtitle-table th:nth-child(3),
@@ -970,7 +995,7 @@ dialog article { padding: 4px; }
 .subtitle-table td:nth-child(4),
 .subtitle-table th:nth-child(5),
 .subtitle-table td:nth-child(5) {
-  width: 160px;
+  width: 150px;
 }
 
 .subtitle-table th:nth-child(6),

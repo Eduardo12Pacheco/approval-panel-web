@@ -591,7 +591,7 @@ function onSubtitleTableInput(ev) {
   if (!rowId) return;
 
   if (target.dataset.field === 'phrase') {
-    patchSubtitleRow(rowId, { phrase: target.value });
+    patchSubtitleRow(rowId, { phrase: target.value }, { rerender: false });
     return;
   }
   if (target.dataset.field === 'size') {
@@ -621,14 +621,17 @@ function onSubtitleSourceLanguageChanged(ev) {
   renderSubtitleSourceLanguagePicker();
 }
 
-function patchSubtitleRow(rowId, patch) {
+function patchSubtitleRow(rowId, patch, options = {}) {
+  const rerender = options.rerender !== false;
   state.subtitles.rows = state.subtitles.rows.map((row) => {
     if (row.id !== rowId) return row;
     return applySubtitleRowPatch(row, patch);
   });
   state.subtitles.changeVersion += 1;
   state.subtitles.dirty = true;
-  renderSubtitlesTable();
+  if (rerender) {
+    renderSubtitlesTable();
+  }
   updateSubtitleButtonsByPhase();
   syncSubtitleAutosaveTimer();
 }
@@ -829,17 +832,30 @@ function renderSubtitlesPhaseBar() {
 function renderSubtitlesTable() {
   if (!el.subtitleRowsBody) return;
 
+  const sizeOptions = SUBTITLE_SIZE_PRESETS;
+  const colorOptions = SUBTITLE_COLOR_PRESETS;
+
   el.subtitleRowsBody.innerHTML = state.subtitles.rows.map((row) => {
     const alignment = getAlignmentButtonState(row.align);
     const startDisplay = formatSubtitleDisplayTime(row.start);
     const endDisplay = formatSubtitleDisplayTime(row.end);
+    const sizeSelectOptions = renderSubtitleSelectOptions(sizeOptions, row.size);
+    const colorSelectOptions = renderSubtitleSelectOptions(colorOptions, row.color);
     return `
       <tr>
-        <td><input value="${escapeHtml(startDisplay)}" readonly /></td>
-        <td><input value="${escapeHtml(endDisplay)}" readonly /></td>
+        <td><span class="subtitle-time-pill">${escapeHtml(startDisplay)}</span></td>
+        <td><span class="subtitle-time-pill">${escapeHtml(endDisplay)}</span></td>
         <td><textarea data-row-id="${row.id}" data-field="phrase">${escapeHtml(row.phrase)}</textarea></td>
-        <td><input data-row-id="${row.id}" data-field="size" list="subtitleSizePresets" value="${escapeHtml(row.size)}" /></td>
-        <td><input data-row-id="${row.id}" data-field="color" list="subtitleColorPresets" value="${escapeHtml(row.color)}" /></td>
+        <td>
+          <select data-row-id="${row.id}" data-field="size">
+            ${sizeSelectOptions}
+          </select>
+        </td>
+        <td>
+          <select data-row-id="${row.id}" data-field="color">
+            ${colorSelectOptions}
+          </select>
+        </td>
         <td>
           <div class="subtitle-align-group">
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-pressed="${alignment.left.selected}">Izq</button>
@@ -850,6 +866,17 @@ function renderSubtitlesTable() {
       </tr>
     `;
   }).join('');
+}
+
+function renderSubtitleSelectOptions(options, selectedValue) {
+  const selected = (selectedValue || '').toString();
+  return options
+    .map((value) => {
+      const text = value.toString();
+      const isSelected = text === selected;
+      return `<option value="${escapeHtml(text)}"${isSelected ? ' selected' : ''}>${escapeHtml(text)}</option>`;
+    })
+    .join('');
 }
 
 function updateSubtitleUploadMeta() {
