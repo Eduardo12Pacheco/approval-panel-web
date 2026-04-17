@@ -1,156 +1,151 @@
 # Approval Panel Web
 
-Panel web interno para operación editorial en modo estático (HTML/CSS/JS), con bootstrap modular y contratos de paridad definidos para refactors seguros.
+Panel interno editorial en **HTML/CSS/JS vanilla**.
+Este repositorio quedó organizado por capas y features, manteniendo la regla principal:
 
-## Alcance de este change set
+> **Paridad 1:1**: no cambiar funcionalidades ni apariencia para el usuario.
 
-Este cambio está enfocado en **estructura y mantenibilidad**:
+---
 
-- Orden y delimitación de `index.html` para legibilidad.
-- Redistribución de reglas CSS por capas (`layout`, `components`, `features`, `responsive`).
-- Reescritura de documentación técnica.
+## 1) Cómo arranca la app (entrypoints reales)
 
-Declaración contractual: **sin cambios de features, API ni UX**.
+1. `index.html`
+2. `js/main.js` (bootstrap mínimo)
+3. `js/modules/composition-root.js` (ensambla dependencias)
+4. `js/modules/app-shell.js` (orquesta UI + integra features)
 
-## Arquitectura
+En estilos:
 
-### Bootstrap y composición
+1. `styles.css` (**import-only**)
+2. Imports ordenados a `styles/*` (tokens → base → layout → components → features → responsive)
 
-1. `js/main.js` inicia la aplicación.
-2. `js/modules/composition-root.js` construye dependencias.
-3. `js/modules/app-shell.js` conecta vistas y handlers de UI.
-4. Módulos de feature ejecutan flujos de negocio:
-   - `features/approval`
-   - `features/scripts`
-   - `features/audio`
-   - `features/subtitles`
+---
 
-### Contratos de UI
+## 2) Dónde está cada cosa
 
-- `index.html` define el contrato de IDs consumido por:
-  - `js/modules/shared/dom/selectors.js`
-  - `js/modules/__checks__/parity-checklist.js`
-- `#authGate` y `#appShell` son fronteras de sesión y shell.
-- Las vistas `#viewApproval`, `#viewScripts`, `#viewAudio`, `#viewSubtitulos` son límites funcionales estables.
+### Núcleo (`js/modules/core`)
+- `auth/session-gate.js` → sesión/login y estado de autenticación.
+- `state/app-store.js` → configuración persistida (localStorage).
+- `bootstrap.js` → wiring de eventos base.
+- `http/approval-api.js` y `http/tts-api.js` → clientes API.
+- `ui/*` → utilidades UI puras (`toast`, `word-count`, `escape-html`).
 
-## Mapa de carpetas
+### Features (`js/modules/features`)
+- `approval/index.js` → flujo panel de aprobación.
+- `scripts/index.js` → edición/publicación de guiones.
+- `audio/index.js` + `audio/runtime/*` → generación audio, tracking/polling y helpers.
+- `subtitles/index.js` + `subtitles/runtime/*` → flujo subtítulos, controladores, servicios y helpers.
+
+### Shared
+- `shared/dom/selectors.js` → contrato de selectores/IDs del DOM.
+
+### Checks de paridad (`js/modules/__checks__`)
+- `parity-checklist.js` → guardrails de contratos (DOM/bootstrap/imports).
+- `runtime-ui-parity-replay.js` → replay de paridad de flujos.
+- `dependency-boundary-validator.js` → límites de dependencias.
+- `rollback-scope-validator.js` → validaciones de rollback por slice.
+- `css-computed-style-parity.js` → paridad de estilos computados en selectores protegidos.
+
+### Legacy (archivado, no runtime)
+- `js/legacy/app.js` → **archivo histórico**.
+  - No participa del arranque actual.
+  - Se conserva por trazabilidad/rollback.
+
+---
+
+## 3) Estructura de carpetas actual
 
 ```text
 approval-panel-web/
 ├─ index.html
-├─ styles.css
+├─ styles.css                      # import-only, orden de cascada contractual
 ├─ styles/
 │  ├─ tokens.css
 │  ├─ base.css
 │  ├─ layout.css
+│  ├─ responsive.css
 │  ├─ components/
 │  │  ├─ buttons.css
 │  │  ├─ dialogs.css
 │  │  ├─ cards.css
 │  │  ├─ forms.css
 │  │  └─ toast.css
-│  ├─ features/
-│  │  ├─ approval.css
-│  │  ├─ scripts.css
-│  │  ├─ audio.css
-│  │  ├─ subtitles.css
-│  │  └─ auth.css
-│  └─ responsive.css
+│  └─ features/
+│     ├─ approval.css
+│     ├─ scripts.css
+│     ├─ audio.css
+│     ├─ subtitles.css
+│     └─ auth.css
 ├─ js/
 │  ├─ main.js
+│  ├─ legacy/
+│  │  └─ app.js                    # archivado
 │  └─ modules/
 │     ├─ composition-root.js
 │     ├─ app-shell.js
+│     ├─ subtitles-workflow.mjs
 │     ├─ core/
 │     ├─ features/
+│     ├─ shared/
 │     └─ __checks__/
 ├─ docs/parity/
 │  ├─ contract-matrix.md
 │  └─ style-guards.md
-└─ tests/
-   ├─ test_phase5_css_split_parity.py
-   ├─ test_phase6_runtime_parity_and_boundaries.py
-   └─ test_phase7_runtime_ui_replay_and_rollback.py
+├─ tests/
+│  ├─ test_phase5_css_split_parity.py
+│  ├─ test_phase6_runtime_parity_and_boundaries.py
+│  ├─ test_phase7_runtime_ui_replay_and_rollback.py
+│  ├─ test_phase8_html_css_readme_structure_refactor.py
+│  └─ test_phase9_appshell_decomposition_archive_legacy.py
+└─ openspec/
+   └─ changes/                     # artifacts SDD de cambios ejecutados
 ```
 
-## Guardrails de paridad
+---
 
-### 1) Contrato DOM (NO negociar)
+## 4) Contratos que NO se tocan
 
-- No renombrar ni eliminar IDs contractuales (`authGate`, `appShell`, `authForm`, `sidebarNav`, etc.).
-- No romper referencias usadas por `parity-checklist` ni por `selectors.js`.
+1. **DOM contract**
+   - No renombrar/eliminar IDs usados por `selectors.js` y `parity-checklist.js`.
 
-### 2) Frontera de bootstrap
+2. **Bootstrap contract**
+   - `index.html -> js/main.js -> composition-root.js -> app-shell.js`.
 
-- `js/main.js` debe conservar:
-  - import de `./modules/composition-root.js`
-  - ejecución de `bootCompositionRoot`
+3. **CSS contract**
+   - `styles.css` se mantiene import-only.
+   - El orden de imports define la cascada (no alterar sin pruebas de paridad).
 
-### 3) Contrato de `styles.css`
+4. **Parity contract**
+   - Cualquier refactor debe pasar checks y tests de paridad antes de promoverse.
 
-- `styles.css` es **import-only**.
-- El orden de imports es contrato de cascada y no se altera sin evidencia de paridad.
+---
 
-### 4) Guardas de estilo y runtime
+## 5) Cómo validar que no rompiste nada
 
-Mantener paridad en selectores protegidos (`.sidebar`, `.topbar`, `.card`, `.audio-queue-card`, `.subtitle-phase-bar`) y en flujos protegidos definidos por los checks de runtime.
-
-## Workflow seguro por slices
-
-Aplicar cambios por lotes acotados, con promoción solo si hay paridad verde.
-
-### Slice A — HTML readability
-
-- Cambios permitidos: delimitadores/comentarios y orden visual interno.
-- Cambios prohibidos: mutar IDs/clases contractuales o frontera de bootstrap.
-- Rollback: revertir solo `index.html`.
-
-### Slice B1 — Layout + Responsive
-
-- Mover reglas de layout a `styles/layout.css`.
-- Mover media query a `styles/responsive.css`.
-- Limpiar de `styles/base.css` únicamente lo migrado.
-- Rollback: revertir `layout.css`, `responsive.css` y diff de `base.css`.
-
-### Slice B2 — Components
-
-- Distribuir reglas en `styles/components/*`.
-- Mantener selectores y especificidad efectiva.
-- Rollback: revertir `styles/components/*` y diff correspondiente en `base.css`.
-
-### Slice B3 — Features
-
-- Distribuir reglas en `styles/features/*` por dominio funcional.
-- Rollback: revertir `styles/features/*` y último diff en `base.css`.
-
-### Slice C — README técnico
-
-- Documentación en español, alineada a arquitectura actual.
-- Sin claims de funcionalidades nuevas.
-- Rollback: revertir solo `README.md`.
-
-## Verificación de paridad
-
-Ejecutar desde `approval-panel-web/`:
+Desde `approval-panel-web/`:
 
 ```bash
 pytest tests/test_phase5_css_split_parity.py
 pytest tests/test_phase6_runtime_parity_and_boundaries.py
 pytest tests/test_phase7_runtime_ui_replay_and_rollback.py
+pytest tests/test_phase8_html_css_readme_structure_refactor.py
+pytest tests/test_phase9_appshell_decomposition_archive_legacy.py
 ```
 
-Para cambios estructurales de este set, también:
+Si querés corrida completa:
 
 ```bash
-pytest tests/test_phase8_html_css_readme_structure_refactor.py
+pytest
 ```
 
-## Operación local
+---
 
-Para servir estático:
+## 6) Levantar local
 
 ```bash
 python -m http.server 8080
 ```
 
-Abrir `http://localhost:8080/approval-panel-web/`.
+Abrir:
+
+`http://localhost:8080/approval-panel-web/`
