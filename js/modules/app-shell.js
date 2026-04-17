@@ -2,6 +2,7 @@ import {
   SUBTITLES_AUTOSAVE_INTERVAL_MS,
   SUBTITLES_POLL_INTERVAL_MS,
   SUBTITLES_PHASES,
+  SUBTITLES_RENDER_WATCHDOG_MS,
   SUBTITLE_COLOR_PRESETS,
   SUBTITLE_FONT_PRESETS,
   SUBTITLE_SIZE_PRESETS,
@@ -15,6 +16,7 @@ import {
   getAlignmentButtonState,
   getSubtitlesActionPolicy,
   getSubtitlesPhaseSectionVisibility,
+  shouldFailRenderByWatchdog,
   shouldRunAutosave,
   shouldRunStatusPolling,
 } from './subtitles-workflow.mjs';
@@ -83,6 +85,8 @@ const state = {
     renderProgressPct: null,
     renderArtifactReady: false,
     renderFailureReason: null,
+    renderProcessingStartedAtMs: null,
+    renderTerminalRefreshDone: false,
     audioDurationMs: null,
     snapshotVersion: 0,
     dirty: false,
@@ -549,6 +553,8 @@ async function onSubtitleReadyClicked() {
     state.subtitles.renderProgressPct = extractSubtitleProgressPercent(renderResponse);
     state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
     state.subtitles.renderFailureReason = null;
+    state.subtitles.renderProcessingStartedAtMs = Date.now();
+    state.subtitles.renderTerminalRefreshDone = false;
 
     if (state.subtitles.renderStatus === 'succeeded') {
       state.subtitles.renderProgressPct = 100;
@@ -988,6 +994,8 @@ function resetSubtitlesRunState() {
   state.subtitles.renderProgressPct = null;
   state.subtitles.renderArtifactReady = false;
   state.subtitles.renderFailureReason = null;
+  state.subtitles.renderProcessingStartedAtMs = null;
+  state.subtitles.renderTerminalRefreshDone = false;
   state.subtitles.audioDurationMs = null;
   state.subtitles.snapshotVersion = 0;
   state.subtitles.dirty = false;
@@ -1037,9 +1045,35 @@ async function pollSubtitleStatus(kind, jobId) {
   if (state.subtitles.pollingInFlight) return;
   const phase = state.subtitles.machine.getPhase();
   const jobStatus = kind === 'render' ? state.subtitles.renderStatus : state.subtitles.analyzeStatus;
-  if (!shouldRunStatusPolling({ phase, jobStatus })) {
+  if (kind === 'render' && shouldFailRenderByWatchdog({
+    phase,
+    jobStatus,
+    processingStartedAtMs: state.subtitles.renderProcessingStartedAtMs,
+    nowMs: Date.now(),
+    watchdogMs: SUBTITLES_RENDER_WATCHDOG_MS,
+  })) {
     stopSubtitlePolling();
+    state.subtitles.renderStatus = 'failed';
+    state.subtitles.renderArtifactReady = false;
+    state.subtitles.renderFailureReason = 'render_watchdog_timeout';
+    transitionSubtitlesPhase('Terminado');
+    renderSubtitleDoneCard();
+    __emitToast('render_watchdog_timeout');
+    updateSubtitleButtonsByPhase();
     return;
+  }
+
+  const allowTerminalRefresh = kind === 'render'
+    && (jobStatus || '').toString().trim().toLowerCase() === 'succeeded'
+    && !state.subtitles.renderArtifactReady
+    && !state.subtitles.renderTerminalRefreshDone;
+  if (!shouldRunStatusPolling({ phase, jobStatus })) {
+    if (allowTerminalRefresh) {
+      state.subtitles.renderTerminalRefreshDone = true;
+    } else {
+      stopSubtitlePolling();
+      return;
+    }
   }
 
   state.subtitles.pollingInFlight = true;
@@ -1073,10 +1107,19 @@ async function pollSubtitleStatus(kind, jobId) {
       state.subtitles.renderStatus = nextStatus;
       state.subtitles.renderProgressPct = extractSubtitleProgressPercent(status);
       state.subtitles.renderArtifactReady = Boolean(status?.artifact?.ready);
+      if (nextStatus === 'processing' || nextStatus === 'queued' || nextStatus === 'running') {
+        if (!Number.isFinite(Number(state.subtitles.renderProcessingStartedAtMs))) {
+          state.subtitles.renderProcessingStartedAtMs = Date.now();
+        }
+      }
       if (nextStatus === 'succeeded') {
         transitionSubtitlesPhase('Terminado');
-        stopSubtitlePolling();
         renderSubtitleDoneCard();
+        if (state.subtitles.renderArtifactReady) {
+          stopSubtitlePolling();
+        } else {
+          // Keep one terminal refresh cycle available when artifact isn't ready yet.
+        }
       }
       if (nextStatus === 'failed') {
         stopSubtitlePolling();
@@ -1086,11 +1129,25 @@ async function pollSubtitleStatus(kind, jobId) {
         renderSubtitleDoneCard();
         __emitToast(errorMessage);
       }
+
+      const terminalSucceededReady = (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded'
+        && state.subtitles.renderArtifactReady;
+      if (terminalSucceededReady) {
+        stopSubtitlePolling();
+      }
     }
   } catch (err) {
     console.error(err);
   } finally {
     state.subtitles.pollingInFlight = false;
+    const terminalReady = kind === 'render'
+      && state.subtitles.machine.getPhase() === 'Terminado'
+      && (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded'
+      && state.subtitles.renderArtifactReady;
+    if (terminalReady && state.subtitles.pollingTimer) {
+      clearInterval(state.subtitles.pollingTimer);
+      state.subtitles.pollingTimer = null;
+    }
     renderSubtitleAnalyzeMeta();
     renderSubtitleProcessingCard();
     updateSubtitleButtonsByPhase();
@@ -2382,6 +2439,8 @@ function getSubtitlesStateForTesting() {
     renderProgressPct: state.subtitles.renderProgressPct,
     renderArtifactReady: state.subtitles.renderArtifactReady,
     renderFailureReason: state.subtitles.renderFailureReason,
+    renderProcessingStartedAtMs: state.subtitles.renderProcessingStartedAtMs,
+    renderTerminalRefreshDone: state.subtitles.renderTerminalRefreshDone,
     pollingTimer: state.subtitles.pollingTimer,
     pollingInFlight: state.subtitles.pollingInFlight,
   };
@@ -2396,6 +2455,8 @@ function setSubtitlesStateForTesting(patch = {}) {
     'renderProgressPct',
     'renderArtifactReady',
     'renderFailureReason',
+    'renderProcessingStartedAtMs',
+    'renderTerminalRefreshDone',
     'pollingTimer',
     'pollingInFlight',
   ];

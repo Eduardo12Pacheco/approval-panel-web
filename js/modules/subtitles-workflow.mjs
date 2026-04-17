@@ -8,6 +8,7 @@ export const SUBTITLES_PHASES = Object.freeze([
 
 export const SUBTITLES_POLL_INTERVAL_MS = 2000;
 export const SUBTITLES_AUTOSAVE_INTERVAL_MS = 5000;
+export const SUBTITLES_RENDER_WATCHDOG_MS = 300000;
 
 export const SUBTITLE_SIZE_PRESETS = Object.freeze(['36', '42', '48']);
 export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2']);
@@ -99,6 +100,20 @@ export function shouldRunStatusPolling({ phase, jobStatus }) {
 
 export function shouldRunAutosave({ phase, dirty }) {
   return phase === 'Edicion' && Boolean(dirty);
+}
+
+export function shouldFailRenderByWatchdog({
+  phase,
+  jobStatus,
+  processingStartedAtMs,
+  nowMs = Date.now(),
+  watchdogMs = SUBTITLES_RENDER_WATCHDOG_MS,
+}) {
+  if (!shouldRunStatusPolling({ phase, jobStatus })) return false;
+  const started = Number(processingStartedAtMs);
+  if (!Number.isFinite(started) || started <= 0) return false;
+  const elapsed = Number(nowMs) - started;
+  return elapsed >= Number(watchdogMs);
 }
 
 export function createSnapshotSaveQueue({ initialAckVersion = 0, persist }) {
