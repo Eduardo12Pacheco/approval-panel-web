@@ -81,6 +81,8 @@ const state = {
     renderStatus: null,
     analyzeProgressPct: null,
     renderProgressPct: null,
+    renderArtifactReady: false,
+    renderFailureReason: null,
     snapshotVersion: 0,
     dirty: false,
     changeVersion: 0,
@@ -95,6 +97,11 @@ const state = {
     sourceLanguage: 'auto',
     analyzeMetadata: createEmptySubtitleAnalyzeMetadata(),
   },
+};
+
+const __testOverrides = {
+  ttsGet: null,
+  toast: null,
 };
 
 let toastTimer = null;
@@ -216,6 +223,8 @@ const el = {
   subtitleSaveBtn: document.getElementById('subtitleSaveBtn'),
   subtitleReadyBtn: document.getElementById('subtitleReadyBtn'),
   subtitleDownloadBtn: document.getElementById('subtitleDownloadBtn'),
+  subtitleDoneTitle: document.getElementById('subtitleDoneTitle'),
+  subtitleDoneMessage: document.getElementById('subtitleDoneMessage'),
 };
 
 export function bootApp() {
@@ -537,17 +546,25 @@ async function onSubtitleReadyClicked() {
     state.subtitles.renderJobId = renderJobId;
     state.subtitles.renderStatus = (renderResponse?.status || 'queued').toString();
     state.subtitles.renderProgressPct = extractSubtitleProgressPercent(renderResponse);
+    state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
+    state.subtitles.renderFailureReason = null;
 
     if (state.subtitles.renderStatus === 'succeeded') {
       state.subtitles.renderProgressPct = 100;
+      state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
       stopSubtitlePolling();
       transitionSubtitlesPhase('Terminado');
+      renderSubtitleDoneCard();
       toast('Render terminado');
       return;
     }
 
     if (state.subtitles.renderStatus === 'failed') {
       const errorMessage = renderResponse?.error?.message || 'El render falló';
+      state.subtitles.renderFailureReason = errorMessage;
+      state.subtitles.renderArtifactReady = false;
+      transitionSubtitlesPhase('Terminado');
+      renderSubtitleDoneCard();
       toast(errorMessage);
       return;
     }
@@ -658,10 +675,33 @@ function renderSubtitlesWorkflow() {
   renderSubtitleSourceLanguagePicker();
   renderSubtitleAnalyzeMeta();
   renderSubtitleProcessingCard();
+  renderSubtitleDoneCard();
   renderSubtitlesTable();
   updateSubtitleUploadMeta();
   updateSubtitleButtonsByPhase();
   syncSubtitleAutosaveTimer();
+}
+
+function renderSubtitleDoneCard() {
+  const status = (state.subtitles.renderStatus || '').toString().trim().toLowerCase();
+  const isSucceeded = status === 'succeeded';
+  const isFailed = status === 'failed';
+
+  if (el.subtitleDoneTitle) {
+    el.subtitleDoneTitle.textContent = isSucceeded ? 'Video listo' : 'Render fallido';
+  }
+
+  if (el.subtitleDoneMessage) {
+    if (isSucceeded) {
+      el.subtitleDoneMessage.textContent = state.subtitles.renderArtifactReady
+        ? 'Tu video ya está listo. Descargalo manualmente cuando quieras.'
+        : 'Render terminado, esperando disponibilidad del archivo final.';
+    } else if (isFailed) {
+      el.subtitleDoneMessage.textContent = state.subtitles.renderFailureReason || 'El render terminó con error. Revisá el motivo y reintentá.';
+    } else {
+      el.subtitleDoneMessage.textContent = 'Estado final de render.';
+    }
+  }
 }
 
 function renderSubtitleSourceLanguagePicker() {
@@ -925,11 +965,14 @@ function updateSubtitleUploadMeta() {
 function updateSubtitleButtonsByPhase() {
   const current = state.subtitles.machine.getPhase();
   const policy = getSubtitlesActionPolicy(current);
+  const renderSucceeded = (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded';
   if (el.subtitleSaveBtn) el.subtitleSaveBtn.disabled = !policy.canSave || !state.subtitles.dirty;
   if (el.subtitleReadyBtn) {
     el.subtitleReadyBtn.disabled = !policy.canReady || !state.subtitles.analysisJobId || state.subtitles.snapshotVersion < 1;
   }
-  if (el.subtitleDownloadBtn) el.subtitleDownloadBtn.disabled = !policy.canDownload || !state.subtitles.renderJobId;
+  if (el.subtitleDownloadBtn) {
+    el.subtitleDownloadBtn.disabled = !policy.canDownload || !state.subtitles.renderJobId || !renderSucceeded || !state.subtitles.renderArtifactReady;
+  }
 }
 
 function resetSubtitlesRunState() {
@@ -942,6 +985,8 @@ function resetSubtitlesRunState() {
   state.subtitles.renderStatus = null;
   state.subtitles.analyzeProgressPct = null;
   state.subtitles.renderProgressPct = null;
+  state.subtitles.renderArtifactReady = false;
+  state.subtitles.renderFailureReason = null;
   state.subtitles.snapshotVersion = 0;
   state.subtitles.dirty = false;
   state.subtitles.changeVersion = 0;
@@ -1000,7 +1045,7 @@ async function pollSubtitleStatus(kind, jobId) {
     const path = kind === 'render'
       ? `/api/subtitles/render/${jobId}`
       : `/api/subtitles/analyze/${jobId}`;
-    const status = await ttsGet(path);
+    const status = await __resolveTtsGet()(path);
     const nextStatus = (status?.status || '').toString();
 
     if (kind === 'analyze') {
@@ -1020,19 +1065,24 @@ async function pollSubtitleStatus(kind, jobId) {
       if (nextStatus === 'failed') {
         stopSubtitlePolling();
         const errorMessage = status?.error?.message || 'El análisis falló';
-        toast(errorMessage);
+        __emitToast(errorMessage);
       }
     } else {
       state.subtitles.renderStatus = nextStatus;
       state.subtitles.renderProgressPct = extractSubtitleProgressPercent(status);
+      state.subtitles.renderArtifactReady = Boolean(status?.artifact?.ready);
       if (nextStatus === 'succeeded') {
         transitionSubtitlesPhase('Terminado');
         stopSubtitlePolling();
+        renderSubtitleDoneCard();
       }
       if (nextStatus === 'failed') {
         stopSubtitlePolling();
         const errorMessage = status?.error?.message || 'El render falló';
-        toast(errorMessage);
+        state.subtitles.renderFailureReason = errorMessage;
+        transitionSubtitlesPhase('Terminado');
+        renderSubtitleDoneCard();
+        __emitToast(errorMessage);
       }
     }
   } catch (err) {
@@ -2262,13 +2312,98 @@ async function ttsGet(path) {
     data = { raw };
   }
 
-  if (!res.ok || data?.error) {
+  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
+  if (!res.ok) {
+    const message = data?.error?.message || data?.message || `GET ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  if (data?.error && businessStatus !== 'failed') {
     const message = data?.error?.message || data?.message || `GET ${path} ${res.status}`;
     throw new Error(message);
   }
 
   return data;
 }
+
+function __resolveTtsGet() {
+  return __testOverrides.ttsGet || ttsGet;
+}
+
+function __emitToast(message) {
+  const mock = __testOverrides.toast;
+  if (typeof mock === 'function') {
+    mock(message);
+    return;
+  }
+  toast(message);
+}
+
+function getSubtitlesStateForTesting() {
+  return {
+    phase: state.subtitles.machine.getPhase(),
+    analysisJobId: state.subtitles.analysisJobId,
+    renderJobId: state.subtitles.renderJobId,
+    analyzeStatus: state.subtitles.analyzeStatus,
+    renderStatus: state.subtitles.renderStatus,
+    renderProgressPct: state.subtitles.renderProgressPct,
+    renderArtifactReady: state.subtitles.renderArtifactReady,
+    renderFailureReason: state.subtitles.renderFailureReason,
+    pollingTimer: state.subtitles.pollingTimer,
+    pollingInFlight: state.subtitles.pollingInFlight,
+  };
+}
+
+function setSubtitlesStateForTesting(patch = {}) {
+  const allowed = [
+    'analysisJobId',
+    'renderJobId',
+    'analyzeStatus',
+    'renderStatus',
+    'renderProgressPct',
+    'renderArtifactReady',
+    'renderFailureReason',
+    'pollingTimer',
+    'pollingInFlight',
+  ];
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+      state.subtitles[key] = patch[key];
+    }
+  }
+}
+
+function setSubtitlesPhaseForTesting(phase) {
+  state.subtitles.machine = createSubtitlesWorkflowMachine(phase);
+}
+
+function resetSubtitlesForTesting() {
+  resetSubtitlesRunState();
+}
+
+function setTtsGetMock(mock) {
+  __testOverrides.ttsGet = typeof mock === 'function' ? mock : null;
+}
+
+function setToastMock(mock) {
+  __testOverrides.toast = typeof mock === 'function' ? mock : null;
+}
+
+function clearMocksForTesting() {
+  __testOverrides.ttsGet = null;
+  __testOverrides.toast = null;
+}
+
+export const __testHooks = {
+  pollSubtitleStatusForTesting: pollSubtitleStatus,
+  getSubtitlesStateForTesting,
+  setSubtitlesStateForTesting,
+  setSubtitlesPhaseForTesting,
+  resetSubtitlesForTesting,
+  setTtsGetMock,
+  setToastMock,
+  clearMocksForTesting,
+};
 
 async function ttsPost(path, payload) {
   const baseUrl = (state.settings.ttsBaseUrl || '').trim();
@@ -2292,7 +2427,13 @@ async function ttsPost(path, payload) {
     data = { raw };
   }
 
-  if (!res.ok || data?.error) {
+  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
+  if (!res.ok) {
+    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  if (data?.error && businessStatus !== 'failed') {
     const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
     throw new Error(message);
   }
@@ -2322,7 +2463,13 @@ async function ttsPostForm(path, formData) {
     data = { raw };
   }
 
-  if (!res.ok || data?.error) {
+  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
+  if (!res.ok) {
+    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
+    throw new Error(message);
+  }
+
+  if (data?.error && businessStatus !== 'failed') {
     const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
     throw new Error(message);
   }
