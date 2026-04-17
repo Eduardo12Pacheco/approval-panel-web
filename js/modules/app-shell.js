@@ -83,6 +83,7 @@ const state = {
     renderProgressPct: null,
     renderArtifactReady: false,
     renderFailureReason: null,
+    audioDurationMs: null,
     snapshotVersion: 0,
     dirty: false,
     changeVersion: 0,
@@ -987,6 +988,7 @@ function resetSubtitlesRunState() {
   state.subtitles.renderProgressPct = null;
   state.subtitles.renderArtifactReady = false;
   state.subtitles.renderFailureReason = null;
+  state.subtitles.audioDurationMs = null;
   state.subtitles.snapshotVersion = 0;
   state.subtitles.dirty = false;
   state.subtitles.changeVersion = 0;
@@ -1104,10 +1106,21 @@ async function hydrateSubtitlesFromLatestSnapshot() {
     state.subtitles.snapshotVersion = snapshotVersion;
     state.subtitles.saveQueue.setAckVersion(snapshotVersion);
 
+    const latestAudioDuration = Number(latest?.snapshot_json?.audio_duration_ms || 0);
+    state.subtitles.audioDurationMs = Number.isFinite(latestAudioDuration) && latestAudioDuration > 0
+      ? Math.round(latestAudioDuration)
+      : null;
+
     const rows = mapSnapshotToRows(latest?.snapshot_json);
     if (rows.length > 0) {
       state.subtitles.rows = rows;
     }
+
+    if (!state.subtitles.audioDurationMs || state.subtitles.audioDurationMs <= 0) {
+      const derived = deriveAudioDurationFromRows();
+      state.subtitles.audioDurationMs = derived > 0 ? derived : null;
+    }
+
     state.subtitles.savedVersion = state.subtitles.changeVersion;
     state.subtitles.dirty = false;
   } catch {
@@ -1168,7 +1181,9 @@ async function enqueueSubtitleSave(saveMode) {
 }
 
 function collectCurrentSubtitlesSnapshot() {
+  const audioDurationMs = resolveCurrentSnapshotAudioDurationMs();
   return {
+    audio_duration_ms: audioDurationMs,
     segments: state.subtitles.rows.map((row, index) => ({
       segment_id: row.id || `segment-${index + 1}`,
       start_ms: parseSubtitleTimeToMs(row.start),
@@ -1200,6 +1215,24 @@ function mapSnapshotToRows(snapshotJson) {
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
     align: (segment?.style?.align || 'left').toString(),
   }));
+}
+
+function deriveAudioDurationFromRows() {
+  if (!Array.isArray(state.subtitles.rows) || state.subtitles.rows.length === 0) return 0;
+  let maxEndMs = 0;
+  for (const row of state.subtitles.rows) {
+    const endMs = parseSubtitleTimeToMs(row?.end);
+    if (Number.isFinite(endMs) && endMs > maxEndMs) {
+      maxEndMs = endMs;
+    }
+  }
+  return Math.max(0, Math.round(maxEndMs));
+}
+
+function resolveCurrentSnapshotAudioDurationMs() {
+  const declared = Number(state.subtitles.audioDurationMs || 0);
+  const timeline = deriveAudioDurationFromRows();
+  return Math.max(0, Math.round(Math.max(declared, timeline)));
 }
 
 function parseSubtitleTimeToMs(rawValue) {
