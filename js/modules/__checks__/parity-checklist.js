@@ -19,6 +19,8 @@ export const REQUIRED_SELECTOR_IDS = [
 
 const COMPOSITION_ROOT_IMPORT_PATH = './modules/composition-root.js';
 const COMPOSITION_ROOT_BOOT_FN = 'bootCompositionRoot';
+const APP_SHELL_IMPORT_PATH = './app-shell.js';
+const APP_SHELL_BOOT_FN = 'bootApp';
 
 function assertSelectorContracts(indexHtmlSource, failures) {
   for (const selectorId of REQUIRED_SELECTOR_IDS) {
@@ -37,11 +39,21 @@ function assertBootstrapBoundary(mainJsSource, failures) {
   }
 }
 
-export function runParityChecklist({ indexHtmlSource, mainJsSource }) {
+function assertCompositionRootBoundary(compositionRootSource, failures) {
+  if (!compositionRootSource.includes(APP_SHELL_IMPORT_PATH)) {
+    failures.push(`composition-root.js must import ${APP_SHELL_IMPORT_PATH}`);
+  }
+  if (!compositionRootSource.includes(APP_SHELL_BOOT_FN)) {
+    failures.push(`composition-root.js must call ${APP_SHELL_BOOT_FN}`);
+  }
+}
+
+export function runParityChecklist({ indexHtmlSource, mainJsSource, compositionRootSource }) {
   const failures = [];
 
   assertSelectorContracts(indexHtmlSource || '', failures);
   assertBootstrapBoundary(mainJsSource || '', failures);
+  assertCompositionRootBoundary(compositionRootSource || '', failures);
 
   return {
     pass: failures.length === 0,

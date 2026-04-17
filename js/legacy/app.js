@@ -1,3 +1,4 @@
+/* LEGACY ARCHIVE - non-runtime */
 const storageKey = 'approval-panel-settings-v1';
 const sessionKey = 'approval-panel-session-v1';
 

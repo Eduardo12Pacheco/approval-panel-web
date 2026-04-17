@@ -42,6 +42,8 @@ import { createApprovalFeature } from './features/approval/index.js';
 import { createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createSubtitlesFeature } from './features/subtitles/index.js';
+import { createAudioRuntime } from './features/audio/runtime/index.js';
+import { createSubtitlesRuntime } from './features/subtitles/runtime/index.js';
 import { getDomSelectors } from './shared/dom/selectors.js';
 
 const storageKey = 'approval-panel-settings-v1';
@@ -197,12 +199,8 @@ const ttsApi = createTtsApiClient({
   btoaImpl: btoa,
 });
 
-const audioFeature = createAudioFeature({
-  api: ttsApi,
-  store,
-  ui: { toast },
-  selectors: el,
-  handlers: {
+const audioRuntime = createAudioRuntime({
+  hooks: {
     runAudioGeneration,
     startAudioTracking,
     applyAudioJobStatus,
@@ -218,12 +216,8 @@ const audioFeature = createAudioFeature({
   },
 });
 
-const subtitlesFeature = createSubtitlesFeature({
-  api: ttsApi,
-  store,
-  ui: { toast },
-  selectors: el,
-  handlers: {
+const subtitlesRuntime = createSubtitlesRuntime({
+  hooks: {
     onUploadSelected: onSubtitleUploadSelected,
     onSourceLanguageChanged: onSubtitleSourceLanguageChanged,
     onSaveClicked: onSubtitleSaveClicked,
@@ -233,6 +227,26 @@ const subtitlesFeature = createSubtitlesFeature({
     onTableClick: onSubtitleTableClick,
     pollStatus: pollSubtitleStatus,
     renderWorkflow: renderSubtitlesWorkflow,
+  },
+});
+
+const audioFeature = createAudioFeature({
+  api: ttsApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  handlers: {
+    ...audioRuntime,
+  },
+});
+
+const subtitlesFeature = createSubtitlesFeature({
+  api: ttsApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  handlers: {
+    ...subtitlesRuntime,
   },
 });
 
