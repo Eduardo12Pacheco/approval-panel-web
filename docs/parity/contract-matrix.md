@@ -23,6 +23,7 @@ For each checkpoint replay, UI states and network contract columns MUST match th
 
 | Protected Scenario | Runtime Evidence Type | Drift Detected By |
 |---|---|---|
+| CSS guarded selectors keep computed-style contract across split layers (`.sidebar`, `.topbar`, `.card`, `.audio-queue-card`, `.subtitle-phase-bar`) | Node-executed computed-style parity snapshot (import-order aware) | `tests/test_phase5_css_split_parity.py::test_executable_computed_style_parity_evidence_exists_for_guarded_selectors` + `tests/test_phase5_css_split_parity.py::test_computed_style_parity_snapshot_covers_multiple_guarded_selectors` |
 | Approval decision POST preserves URL/method/header/body | Node-executed API client behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_approval_api_runtime_contract_headers_payload_and_error_paths` |
 | Approval API rejects HTTP error and business-error payloads | Node-executed negative behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_approval_api_runtime_contract_headers_payload_and_error_paths` |
 | TTS API preserves `x-api-key` + `Authorization` + optional `x-user-email` | Node-executed API client behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_tts_api_runtime_contract_headers_and_negative_auth_paths` |

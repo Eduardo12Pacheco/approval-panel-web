@@ -1,1 +1,108 @@
-/* Slice-6 responsive layer placeholder to preserve import order parity. */
+@media (max-width: 860px) {
+  .app-shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    width: auto;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .topbar-actions button {
+    flex: 1;
+    min-width: 110px;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .queue-actions {
+    width: 100%;
+  }
+
+  .queue-actions button {
+    flex: 1;
+  }
+
+  .audio-actions {
+    width: 100%;
+  }
+
+  .audio-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .audio-panel--main,
+  .audio-panel--queue {
+    min-height: auto;
+    max-height: none;
+  }
+
+  .audio-actions button {
+    flex: 1;
+  }
+
+  .subtitle-flow {
+    min-height: auto;
+  }
+
+  .subtitle-phase-section--centered {
+    min-height: auto;
+    place-items: stretch;
+  }
+
+  .subtitle-centered-card {
+    width: 100%;
+  }
+
+  .subtitle-phase-bar {
+    grid-template-columns: 1fr;
+  }
+
+  input,
+  select {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .source-item {
+    flex-direction: column;
+  }
+
+  .source-actions {
+    width: 100%;
+    flex-direction: row;
+  }
+
+  .source-actions button {
+    flex: 1;
+  }
+}

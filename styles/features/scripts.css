@@ -1,1 +1,12 @@
-/* Slice-6 feature layer placeholder: scripts. */
+#scriptEditorDialog {
+  width: min(1080px, 92vw);
+}
+
+#scriptOriginalDialog {
+  width: min(1080px, 92vw);
+}
+
+#scriptEditorDialog .script-area,
+#scriptOriginalDialog .script-area {
+  min-height: 500px;
+}

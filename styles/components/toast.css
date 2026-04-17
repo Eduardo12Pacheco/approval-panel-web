@@ -1,1 +1,21 @@
-/* Slice-6 component layer placeholder: toast. */
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: #111a2a;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  z-index: 99999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.toast:popover-open {
+  inset: auto 16px 16px auto;
+}
+
+.toast.show {
+  opacity: 1;
+}

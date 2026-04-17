@@ -1,1 +1,86 @@
-/* Slice-6 component layer placeholder: dialogs. */
+dialog {
+  width: min(900px, 92vw);
+  border: 1px solid #474d5a;
+  border-radius: 18px;
+  background: #242830;
+  color: var(--text);
+  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
+}
+
+#queueDialog {
+  width: min(440px, 95vw);
+}
+
+#queueDialog .dialog-header h2 {
+  font-size: 1rem;
+}
+
+#settingsDialog {
+  width: min(980px, 95vw);
+}
+
+#settingsDialog article {
+  padding: 8px;
+}
+
+#settingsDialog input {
+  width: 100%;
+  min-width: 0;
+}
+
+dialog::backdrop {
+  background: rgba(5, 10, 20, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+dialog article {
+  padding: 4px;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#dialogBody p {
+  line-height: 1.55;
+}
+
+.settings-intro {
+  margin: 8px 0 14px;
+}
+
+.settings-form {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-section {
+  background: var(--card-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.settings-section h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-help {
+  margin: 6px 0 10px;
+}
+
+.settings-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
