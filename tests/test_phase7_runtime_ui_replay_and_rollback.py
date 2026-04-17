@@ -4,6 +4,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_MATRIX_PATH = ROOT / "docs" / "parity" / "contract-matrix.md"
+APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
+SUBTITLES_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
+SUBTITLES_RUNTIME_CONTROLLERS_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "controllers.js"
+AUDIO_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "audio" / "runtime" / "services.js"
+AUDIO_RUNTIME_CONTROLLERS_PATH = ROOT / "js" / "modules" / "features" / "audio" / "runtime" / "controllers.js"
 
 
 def _run_node(script: str):
@@ -110,3 +115,22 @@ if (!mutated.violations.some((v) => v.from === 'features/audio' && v.to === 'fea
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_runtime_ui_replay_guardrails_expect_pure_helpers_to_live_in_runtime_services():
+    app_shell_source = APP_SHELL_PATH.read_text(encoding="utf-8")
+    subtitles_services_source = SUBTITLES_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
+    subtitles_controllers_source = SUBTITLES_RUNTIME_CONTROLLERS_PATH.read_text(encoding="utf-8")
+    audio_services_source = AUDIO_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
+    audio_controllers_source = AUDIO_RUNTIME_CONTROLLERS_PATH.read_text(encoding="utf-8")
+
+    assert "extractSubtitleProgressPercentRuntime" in subtitles_services_source
+    assert "extractSubtitleAnalyzeMetadataRuntime" in subtitles_services_source
+    assert "extractSubtitleProgressPercentRuntime" in subtitles_controllers_source
+
+    assert "normalizeAudioProgressPercent" in audio_services_source
+    assert "getAudioStatusLabelRuntime" in audio_services_source
+    assert "normalizeAudioProgressPercent" in audio_controllers_source
+
+    assert "normalizeAudioProgressPercent" in app_shell_source
+    assert "extractSubtitleProgressPercentRuntime" in app_shell_source

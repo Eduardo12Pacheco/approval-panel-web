@@ -143,6 +143,31 @@ def test_subtitles_and_audio_runtime_modules_exist_and_app_shell_delegates_to_th
     assert "createAudioRuntime" in app_shell_source
 
 
+def test_phase9_structure_guardrails_expect_runtime_pure_helper_locations_after_decomposition():
+    app_shell_source = APP_SHELL_PATH.read_text(encoding="utf-8")
+    subtitles_services_source = (SUBTITLES_RUNTIME_DIR / "services.js").read_text(encoding="utf-8")
+    subtitles_controllers_source = (SUBTITLES_RUNTIME_DIR / "controllers.js").read_text(encoding="utf-8")
+    audio_services_source = (AUDIO_RUNTIME_DIR / "services.js").read_text(encoding="utf-8")
+    audio_controllers_source = (AUDIO_RUNTIME_DIR / "controllers.js").read_text(encoding="utf-8")
+
+    assert "extractSubtitleProgressPercentRuntime" in subtitles_services_source
+    assert "resolveSubtitleProgressPercentRuntime" in subtitles_services_source
+    assert "normalizeSubtitleMetaValueForStateRuntime" in subtitles_services_source
+    assert "extractSubtitleAnalyzeMetadataRuntime" in subtitles_services_source
+    assert "describeSubtitleTranslationEngineRuntime" in subtitles_services_source
+    assert "formatSubtitleDisplayTimeRuntime" in subtitles_services_source
+    assert "extractSubtitleProgressPercentRuntime" in subtitles_controllers_source
+
+    assert "normalizeAudioProgressPercent" in audio_services_source
+    assert "isTerminalAudioStatus" in audio_services_source
+    assert "getAudioStatusLabelRuntime" in audio_services_source
+    assert "getAudioStatusClassRuntime" in audio_services_source
+    assert "normalizeAudioProgressPercent" in audio_controllers_source
+
+    assert "normalizeAudioProgressPercent" in app_shell_source
+    assert "extractSubtitleProgressPercentRuntime" in app_shell_source
+
+
 def test_legacy_app_js_is_archived_with_marker_and_root_file_removed():
     assert not ROOT_APP_JS_PATH.exists(), "Root approval-panel-web/app.js must be archived, not left in runtime root"
     assert LEGACY_APP_JS_PATH.exists(), "Legacy app.js must exist at js/legacy/app.js"

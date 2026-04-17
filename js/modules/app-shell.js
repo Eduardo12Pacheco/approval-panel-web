@@ -42,8 +42,24 @@ import { createApprovalFeature } from './features/approval/index.js';
 import { createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createSubtitlesFeature } from './features/subtitles/index.js';
-import { createAudioRuntime } from './features/audio/runtime/index.js';
-import { createSubtitlesRuntime } from './features/subtitles/runtime/index.js';
+import {
+  createAudioRuntime,
+  getAudioStatusClassRuntime,
+  getAudioStatusLabelRuntime,
+  isTerminalAudioStatus,
+  normalizeAudioProgressPercent,
+} from './features/audio/runtime/index.js';
+import {
+  buildSubtitleProcessingMessageRuntime,
+  createSubtitlesRuntime,
+  describeSubtitleTranslationEngineRuntime,
+  extractSubtitleAnalyzeMetadataRuntime,
+  extractSubtitleProgressPercentRuntime,
+  formatSubtitleDisplayTimeRuntime,
+  normalizeSubtitleMetaValueForStateRuntime,
+  parseSubtitleTimeToMsRuntime,
+  resolveSubtitleProgressPercentRuntime,
+} from './features/subtitles/runtime/index.js';
 import { getDomSelectors } from './shared/dom/selectors.js';
 
 const storageKey = 'approval-panel-settings-v1';
@@ -524,7 +540,7 @@ async function onSubtitleReadyClicked() {
 
     state.subtitles.renderJobId = renderJobId;
     state.subtitles.renderStatus = (renderResponse?.status || 'queued').toString();
-    state.subtitles.renderProgressPct = extractSubtitleProgressPercent(renderResponse);
+    state.subtitles.renderProgressPct = extractSubtitleProgressPercentRuntime(renderResponse);
     state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
     state.subtitles.renderFailureReason = null;
     state.subtitles.renderProcessingStartedAtMs = Date.now();
@@ -691,25 +707,12 @@ function renderSubtitleSourceLanguagePicker() {
   el.subtitleSourceLanguagePicker.value = SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(selected) ? selected : 'auto';
 
   if (el.subtitleSourceLanguageEngineHint) {
-    el.subtitleSourceLanguageEngineHint.textContent = describeSubtitleTranslationEngine(selected);
+    el.subtitleSourceLanguageEngineHint.textContent = describeSubtitleTranslationEngineRuntime(
+      selected,
+      SUBTITLE_MARIAN_LANGS,
+      SUBTITLE_FALLBACK_LANGS,
+    );
   }
-}
-
-function describeSubtitleTranslationEngine(language) {
-  const normalized = (language || 'auto').toString().trim().toLowerCase();
-  if (normalized === 'auto') {
-    return 'Detecta automáticamente. Si el idioma detectado tiene Marian, usa Marian; si no, usa fallback Facebook M2M100.';
-  }
-  if (normalized === 'es') {
-    return 'Este idioma no requiere traducción: se usa bypass (audio ya en español).';
-  }
-  if (SUBTITLE_MARIAN_LANGS.has(normalized)) {
-    return 'Este idioma usa Marian (Helsinki OPUS-MT).';
-  }
-  if (SUBTITLE_FALLBACK_LANGS.has(normalized)) {
-    return 'Este idioma usa fallback Facebook M2M100.';
-  }
-  return 'Este idioma usa fallback Facebook M2M100.';
 }
 
 function renderSubtitleAnalyzeMeta() {
@@ -769,80 +772,25 @@ function renderSubtitleProcessingCard() {
 function getSubtitleProcessingDetails(phase) {
   if (phase === 'Procesando video') {
     const status = state.subtitles.renderStatus;
-    const percent = resolveSubtitleProgressPercent(state.subtitles.renderProgressPct, status);
+    const percent = resolveSubtitleProgressPercentRuntime(state.subtitles.renderProgressPct, status);
     return {
       icon: '🎬',
       title: 'Procesando video',
-      message: buildSubtitleProcessingMessage(status, 'Estamos renderizando el video final…'),
+      message: buildSubtitleProcessingMessageRuntime(status, 'Estamos renderizando el video final…'),
       percent,
     };
   }
 
   const status = state.subtitles.analyzeStatus;
-  const percent = resolveSubtitleProgressPercent(state.subtitles.analyzeProgressPct, status);
+  const percent = resolveSubtitleProgressPercentRuntime(state.subtitles.analyzeProgressPct, status);
   return {
     icon: '🎧',
     title: 'Procesando audio',
-    message: buildSubtitleProcessingMessage(status, 'Estamos analizando el audio…'),
+    message: buildSubtitleProcessingMessageRuntime(status, 'Estamos analizando el audio…'),
     percent,
   };
 }
 
-function buildSubtitleProcessingMessage(status, fallback) {
-  const normalized = (status || '').toString().trim();
-  if (!normalized) return fallback;
-  const prettyStatus = normalized.replace(/[_-]+/g, ' ');
-  return `${fallback} Estado: ${prettyStatus}.`;
-}
-
-function resolveSubtitleProgressPercent(rawProgress, status) {
-  const parsed = Number(rawProgress);
-  if (Number.isFinite(parsed)) {
-    return clampProgressPercent(parsed);
-  }
-
-  const normalizedStatus = (status || '').toString().trim().toLowerCase();
-  if (normalizedStatus === 'succeeded') return 100;
-  if (normalizedStatus === 'failed' || normalizedStatus === 'cancelled') return 0;
-  return 0;
-}
-
-function clampProgressPercent(value) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function extractSubtitleProgressPercent(statusPayload) {
-  const directCandidates = [
-    statusPayload?.progress_percent,
-    statusPayload?.progress_pct,
-    statusPayload?.progress,
-    statusPayload?.percent,
-  ];
-
-  for (const candidate of directCandidates) {
-    const parsed = Number(candidate);
-    if (Number.isFinite(parsed)) {
-      return clampProgressPercent(parsed <= 1 ? parsed * 100 : parsed);
-    }
-  }
-
-  const nestedCandidates = [
-    statusPayload?.progress?.percent,
-    statusPayload?.progress?.pct,
-    statusPayload?.metrics?.progress_percent,
-    statusPayload?.metrics?.progress,
-  ];
-
-  for (const candidate of nestedCandidates) {
-    const parsed = Number(candidate);
-    if (Number.isFinite(parsed)) {
-      return clampProgressPercent(parsed <= 1 ? parsed * 100 : parsed);
-    }
-  }
-
-  return null;
-}
 
 function renderSubtitlesPhaseBar() {
   const current = state.subtitles.machine.getPhase();
@@ -869,8 +817,8 @@ function renderSubtitlesTable() {
 
   el.subtitleRowsBody.innerHTML = state.subtitles.rows.map((row) => {
     const alignment = getAlignmentButtonState(row.align);
-    const startDisplay = formatSubtitleDisplayTime(row.start);
-    const endDisplay = formatSubtitleDisplayTime(row.end);
+    const startDisplay = formatSubtitleDisplayTimeRuntime(row.start);
+    const endDisplay = formatSubtitleDisplayTimeRuntime(row.end);
     const sizeSelectOptions = renderSubtitleSelectOptions(sizeOptions, row.size);
     const fontSelectOptions = renderSubtitleSelectOptions(fontOptions, row.fontFamily);
     const colorSelectOptions = renderSubtitleSelectOptions(colorOptions, row.color);
@@ -1060,7 +1008,7 @@ async function pollSubtitleStatus(kind, jobId) {
 
     if (kind === 'analyze') {
       state.subtitles.analyzeStatus = nextStatus;
-      state.subtitles.analyzeProgressPct = extractSubtitleProgressPercent(status);
+      state.subtitles.analyzeProgressPct = extractSubtitleProgressPercentRuntime(status);
       applySubtitleAnalyzeMetadata(status);
       if (Number.isInteger(status?.snapshot_version)) {
         state.subtitles.snapshotVersion = Number(status.snapshot_version);
@@ -1079,7 +1027,7 @@ async function pollSubtitleStatus(kind, jobId) {
       }
     } else {
       state.subtitles.renderStatus = nextStatus;
-      state.subtitles.renderProgressPct = extractSubtitleProgressPercent(status);
+      state.subtitles.renderProgressPct = extractSubtitleProgressPercentRuntime(status);
       state.subtitles.renderArtifactReady = Boolean(status?.artifact?.ready);
       if (nextStatus === 'processing' || nextStatus === 'queued' || nextStatus === 'running') {
         if (!Number.isFinite(Number(state.subtitles.renderProcessingStartedAtMs))) {
@@ -1217,8 +1165,8 @@ function collectCurrentSubtitlesSnapshot() {
     audio_duration_ms: audioDurationMs,
     segments: state.subtitles.rows.map((row, index) => ({
       segment_id: row.id || `segment-${index + 1}`,
-      start_ms: parseSubtitleTimeToMs(row.start),
-      end_ms: parseSubtitleTimeToMs(row.end),
+      start_ms: parseSubtitleTimeToMsRuntime(row.start),
+      end_ms: parseSubtitleTimeToMsRuntime(row.end),
       source_text: row.sourceText,
       translated_text_es: row.phrase,
       translated_text: row.phrase,
@@ -1237,8 +1185,8 @@ function mapSnapshotToRows(snapshotJson) {
   const segments = Array.isArray(snapshotJson?.segments) ? snapshotJson.segments : [];
   return segments.map((segment, index) => createEmptySubtitleRow({
     id: (segment?.segment_id || `row-${index + 1}`).toString(),
-    start: formatSubtitleDisplayTime(segment?.start ?? segment?.start_ms ?? '00:00.00'),
-    end: formatSubtitleDisplayTime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
+    start: formatSubtitleDisplayTimeRuntime(segment?.start ?? segment?.start_ms ?? '00:00.00'),
+    end: formatSubtitleDisplayTimeRuntime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
     sourceText: (segment?.source_text || '').toString(),
     phrase: (segment?.translated_text_es || segment?.translated_text || segment?.text || '').toString(),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
@@ -1252,7 +1200,7 @@ function deriveAudioDurationFromRows() {
   if (!Array.isArray(state.subtitles.rows) || state.subtitles.rows.length === 0) return 0;
   let maxEndMs = 0;
   for (const row of state.subtitles.rows) {
-    const endMs = parseSubtitleTimeToMs(row?.end);
+    const endMs = parseSubtitleTimeToMsRuntime(row?.end);
     if (Number.isFinite(endMs) && endMs > maxEndMs) {
       maxEndMs = endMs;
     }
@@ -1264,44 +1212,6 @@ function resolveCurrentSnapshotAudioDurationMs() {
   const declared = Number(state.subtitles.audioDurationMs || 0);
   const timeline = deriveAudioDurationFromRows();
   return Math.max(0, Math.round(Math.max(declared, timeline)));
-}
-
-function parseSubtitleTimeToMs(rawValue) {
-  const value = (rawValue ?? '').toString().trim();
-  if (!value) return 0;
-
-  if (/^\d+(\.\d+)?$/.test(value)) {
-    return Math.max(0, Math.round(Number(value)));
-  }
-
-  const mmssMatch = value.match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$/);
-  if (mmssMatch) {
-    const minutes = Number(mmssMatch[1]);
-    const seconds = Number(mmssMatch[2]);
-    const decimals = (mmssMatch[3] || '0').padEnd(3, '0').slice(0, 3);
-    const millis = Number(decimals);
-    return Math.max(0, minutes * 60000 + seconds * 1000 + millis);
-  }
-
-  const hhmmssMatch = value.match(/^(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/);
-  if (hhmmssMatch) {
-    const hours = Number(hhmmssMatch[1]);
-    const minutes = Number(hhmmssMatch[2]);
-    const seconds = Number(hhmmssMatch[3]);
-    const decimals = (hhmmssMatch[4] || '0').padEnd(3, '0').slice(0, 3);
-    const millis = Number(decimals);
-    return Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000 + millis);
-  }
-
-  return 0;
-}
-
-function formatSubtitleDisplayTime(rawValue) {
-  const totalMs = parseSubtitleTimeToMs(rawValue);
-  const minutes = Math.floor(totalMs / 60000);
-  const seconds = Math.floor((totalMs % 60000) / 1000);
-  const centiseconds = Math.floor((totalMs % 1000) / 10);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
 }
 
 function resolveSubtitlesUserEmail() {
@@ -1320,8 +1230,8 @@ function createEmptySubtitleAnalyzeMetadata() {
 }
 
 function applySubtitleAnalyzeMetadata(payload, fallback = null) {
-  const extracted = extractSubtitleAnalyzeMetadata(payload);
-  const fallbackExtracted = extractSubtitleAnalyzeMetadata(fallback);
+  const extracted = extractSubtitleAnalyzeMetadataRuntime(payload);
+  const fallbackExtracted = extractSubtitleAnalyzeMetadataRuntime(fallback);
   const current = state.subtitles.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
   state.subtitles.analyzeMetadata = {
     sourceLanguageRequested: extracted.sourceLanguageRequested || fallbackExtracted.sourceLanguageRequested || current.sourceLanguageRequested,
@@ -1330,42 +1240,6 @@ function applySubtitleAnalyzeMetadata(payload, fallback = null) {
     asrModel: extracted.asrModel || fallbackExtracted.asrModel || current.asrModel,
     mtModel: extracted.mtModel || fallbackExtracted.mtModel || current.mtModel,
   };
-}
-
-function extractSubtitleAnalyzeMetadata(payload) {
-  const metadata = payload?.metadata || payload?.analysis_metadata || payload?.analyze_metadata || null;
-  return {
-    sourceLanguageRequested: normalizeSubtitleMetaValueForState(
-      payload?.source_language_requested,
-      metadata?.source_language_requested,
-    ),
-    sourceLanguageEffective: normalizeSubtitleMetaValueForState(
-      payload?.source_language_effective,
-      metadata?.source_language_effective,
-    ),
-    detectedLanguage: normalizeSubtitleMetaValueForState(
-      payload?.detected_language,
-      metadata?.detected_language,
-    ),
-    asrModel: normalizeSubtitleMetaValueForState(
-      payload?.asr_model,
-      metadata?.asr_model,
-    ),
-    mtModel: normalizeSubtitleMetaValueForState(
-      payload?.mt_model,
-      metadata?.mt_model,
-    ),
-  };
-}
-
-function normalizeSubtitleMetaValueForState(...candidates) {
-  for (const candidate of candidates) {
-    if (candidate == null) continue;
-    const text = candidate.toString().trim();
-    if (!text) continue;
-    return text;
-  }
-  return null;
 }
 
 function normalizeSubtitleMetaValue(value) {
@@ -1466,8 +1340,8 @@ function applyAudioJobStatus(jobId, data, options = {}) {
   const { stopTrackingOnTerminal = false } = options;
   const status = (data?.status || 'queued').toString().toLowerCase();
   const stage = data?.progress?.stage || status || 'queued';
-  const progressPercent = normalizeProgressPercent(status, data?.progress?.percent, stage);
-  const isTerminal = isTerminalStatus(status);
+  const progressPercent = normalizeAudioProgressPercent(status, data?.progress?.percent, stage);
+  const isTerminal = isTerminalAudioStatus(status);
   const previousStatus = (state.audioJobs[jobId]?.status || '').toLowerCase();
   const becameTerminalNow = isTerminal && previousStatus !== status;
 
@@ -1517,7 +1391,7 @@ function ensureAudioJob(jobId, payload = {}) {
     next.progress = { stage: next.status || 'queued', percent: 0 };
   }
   if (typeof next.progress.percent !== 'number') {
-    next.progress.percent = normalizeProgressPercent(next.status, next.progress.percent, next.progress.stage);
+    next.progress.percent = normalizeAudioProgressPercent(next.status, next.progress.percent, next.progress.stage);
   }
   state.audioJobs[jobId] = next;
   if (!state.audioJobOrder.includes(jobId)) {
@@ -1530,7 +1404,7 @@ function getLatestTrackedJobId() {
   for (const jobId of state.audioJobOrder) {
     if (state.dismissedAudioJobs.has(jobId)) continue;
     const status = (state.audioJobs[jobId]?.status || '').toLowerCase();
-    if (!isTerminalStatus(status)) return jobId;
+    if (!isTerminalAudioStatus(status)) return jobId;
   }
   return state.audioJobOrder.find((jobId) => !state.dismissedAudioJobs.has(jobId)) || null;
 }
@@ -1545,43 +1419,6 @@ function dismissAudioJob(jobId) {
     }
   }
   renderAudioQueue();
-}
-
-function normalizeProgressPercent(status, rawPercent, stage) {
-  if (typeof rawPercent === 'number' && Number.isFinite(rawPercent)) {
-    return Math.max(0, Math.min(100, Math.round(rawPercent)));
-  }
-
-  const normalizedStatus = (status || '').toLowerCase();
-  if (normalizedStatus === 'done') return 100;
-  if (normalizedStatus === 'error' || normalizedStatus === 'cancelled') return 0;
-  if (normalizedStatus === 'queued') return 0;
-
-  const normalizedStage = (stage || '').toLowerCase();
-  if (normalizedStage.includes('loading')) return 10;
-  if (normalizedStage.includes('reference')) return 20;
-  if (normalizedStage.includes('synthesizing')) return 55;
-  return 30;
-}
-
-function isTerminalStatus(status) {
-  const value = (status || '').toLowerCase();
-  return value === 'done' || value === 'error' || value === 'cancelled';
-}
-
-function getAudioStatusLabel(status) {
-  const value = (status || '').toLowerCase();
-  if (value === 'done') return 'Completado';
-  if (value === 'error' || value === 'cancelled') return 'Falló';
-  if (value === 'queued') return 'En cola';
-  return 'Procesando';
-}
-
-function getAudioStatusClass(status) {
-  const value = (status || '').toLowerCase();
-  if (value === 'done') return 'audio-status-pill--done';
-  if (value === 'error' || value === 'cancelled') return 'audio-status-pill--error';
-  return 'audio-status-pill--processing';
 }
 
 function renderAudioQueue() {
@@ -1601,16 +1438,16 @@ function renderAudioQueue() {
   const queuedCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'queued').length;
   const runningCount = visibleJobs.filter((j) => {
     const status = (j.status || '').toLowerCase();
-    return status !== 'queued' && !isTerminalStatus(status);
+    return status !== 'queued' && !isTerminalAudioStatus(status);
   }).length;
   const doneCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'done').length;
   el.audioQueueMeta.textContent = `${visibleJobs.length} job(s) · En cola ${queuedCount} · Procesando ${runningCount} · Completados ${doneCount}`;
 
   el.audioQueueList.innerHTML = visibleJobs.map((job) => {
     const status = (job.status || 'queued').toLowerCase();
-    const percent = normalizeProgressPercent(status, job?.progress?.percent, job?.progress?.stage);
-    const statusLabel = getAudioStatusLabel(status);
-    const statusClass = getAudioStatusClass(status);
+    const percent = normalizeAudioProgressPercent(status, job?.progress?.percent, job?.progress?.stage);
+    const statusLabel = getAudioStatusLabelRuntime(status);
+    const statusClass = getAudioStatusClassRuntime(status);
     const progressClass = status === 'done'
       ? 'audio-progress-fill--done'
       : (status === 'error' || status === 'cancelled')
@@ -1725,14 +1562,14 @@ function startAudioStatusStream(jobId) {
       }
 
       const currentTracked = state.audioJobs[jobId];
-      if (!isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
+      if (!isTerminalAudioStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
         shouldFallbackToPolling = true;
       }
     } catch (err) {
       if (!controller.signal.aborted) {
         console.error(err);
         const currentTracked = state.audioJobs[jobId];
-        if (!isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
+        if (!isTerminalAudioStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
           shouldFallbackToPolling = true;
         }
       }
@@ -1742,7 +1579,7 @@ function startAudioStatusStream(jobId) {
       }
 
       const currentTracked = state.audioJobs[jobId];
-      if (shouldFallbackToPolling && !isTerminalStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
+      if (shouldFallbackToPolling && !isTerminalAudioStatus(currentTracked?.status) && state.audioPollingToken === trackingToken) {
         startAudioPolling(jobId);
       }
     }

@@ -4,6 +4,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_MATRIX_PATH = ROOT / "docs" / "parity" / "contract-matrix.md"
+MAIN_JS_PATH = ROOT / "js" / "main.js"
+COMPOSITION_ROOT_PATH = ROOT / "js" / "modules" / "composition-root.js"
 
 
 def _run_node(script: str):
@@ -146,3 +148,58 @@ def test_forbidden_cross_feature_import_boundaries_are_enforced():
         source = (ROOT / relative_path).read_text(encoding="utf-8")
         for token in forbidden_imports:
             assert token not in source, f"Forbidden cross-feature dependency found: {relative_path} -> {token}"
+
+
+def test_bootstrap_boundary_invariance_and_runtime_helper_delegation_contract():
+    main_source = MAIN_JS_PATH.read_text(encoding="utf-8")
+    composition_source = COMPOSITION_ROOT_PATH.read_text(encoding="utf-8")
+    app_shell_source = (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")
+    parity_checklist_source = (ROOT / "js" / "modules" / "__checks__" / "parity-checklist.js").read_text(encoding="utf-8")
+
+    assert "./modules/composition-root.js" in main_source
+    assert "./app-shell.js" in composition_source
+    assert "bootApp" in composition_source
+
+    # RED guardrail for this change-set: pure helper mapping must be delegated out of app-shell.
+    assert "normalizeAudioProgressPercent" in app_shell_source
+    assert "extractSubtitleProgressPercentRuntime" in app_shell_source
+    assert "normalizeAudioProgressPercent" in parity_checklist_source
+    assert "extractSubtitleProgressPercentRuntime" in parity_checklist_source
+
+
+def test_parity_checklist_enforces_runtime_helper_import_boundaries_in_app_shell():
+    script = r"""
+import { runParityChecklist } from './js/modules/__checks__/parity-checklist.js';
+
+const baseline = runParityChecklist({
+  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody>',
+  mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
+  compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
+  appShellSource: "import { normalizeAudioProgressPercent } from './features/audio/runtime/index.js'; import { extractSubtitleProgressPercentRuntime } from './features/subtitles/runtime/index.js';",
+});
+
+if (!baseline.pass) {
+  throw new Error(`expected baseline parity-checklist pass, got ${JSON.stringify(baseline.failures)}`);
+}
+
+const mutated = runParityChecklist({
+  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody>',
+  mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
+  compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
+  appShellSource: "import { createAudioRuntime } from './features/audio/runtime/index.js'; import { createSubtitlesRuntime } from './features/subtitles/runtime/index.js';",
+});
+
+if (mutated.pass) {
+  throw new Error('expected parity-checklist failure when runtime pure-helper imports drift');
+}
+
+if (!mutated.failures.some((f) => String(f).includes('normalizeAudioProgressPercent'))) {
+  throw new Error(`expected missing audio helper import violation, got ${JSON.stringify(mutated.failures)}`);
+}
+
+if (!mutated.failures.some((f) => String(f).includes('extractSubtitleProgressPercentRuntime'))) {
+  throw new Error(`expected missing subtitles helper import violation, got ${JSON.stringify(mutated.failures)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

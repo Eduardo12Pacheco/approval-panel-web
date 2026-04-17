@@ -21,6 +21,8 @@ const COMPOSITION_ROOT_IMPORT_PATH = './modules/composition-root.js';
 const COMPOSITION_ROOT_BOOT_FN = 'bootCompositionRoot';
 const APP_SHELL_IMPORT_PATH = './app-shell.js';
 const APP_SHELL_BOOT_FN = 'bootApp';
+const AUDIO_RUNTIME_HELPER_IMPORT_TOKEN = 'normalizeAudioProgressPercent';
+const SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN = 'extractSubtitleProgressPercentRuntime';
 
 function assertSelectorContracts(indexHtmlSource, failures) {
   for (const selectorId of REQUIRED_SELECTOR_IDS) {
@@ -48,12 +50,22 @@ function assertCompositionRootBoundary(compositionRootSource, failures) {
   }
 }
 
-export function runParityChecklist({ indexHtmlSource, mainJsSource, compositionRootSource }) {
+function assertAppShellRuntimeHelperBoundary(appShellSource, failures) {
+  if (!appShellSource.includes(AUDIO_RUNTIME_HELPER_IMPORT_TOKEN)) {
+    failures.push(`app-shell.js must import ${AUDIO_RUNTIME_HELPER_IMPORT_TOKEN} from audio runtime`);
+  }
+  if (!appShellSource.includes(SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN)) {
+    failures.push(`app-shell.js must import ${SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN} from subtitles runtime`);
+  }
+}
+
+export function runParityChecklist({ indexHtmlSource, mainJsSource, compositionRootSource, appShellSource }) {
   const failures = [];
 
   assertSelectorContracts(indexHtmlSource || '', failures);
   assertBootstrapBoundary(mainJsSource || '', failures);
   assertCompositionRootBoundary(compositionRootSource || '', failures);
+  assertAppShellRuntimeHelperBoundary(appShellSource || '', failures);
 
   return {
     pass: failures.length === 0,
