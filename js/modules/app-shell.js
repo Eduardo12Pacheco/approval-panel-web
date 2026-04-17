@@ -20,6 +20,29 @@ import {
   shouldRunAutosave,
   shouldRunStatusPolling,
 } from './subtitles-workflow.mjs';
+import { renderToast } from './core/ui/toast.js';
+import { escapeHtmlCore } from './core/ui/escape-html.js';
+import { updateWordCounterCore } from './core/ui/word-count.js';
+import {
+  defaultSettingsFactory,
+  hydrateSettingsFormValues,
+  loadSettingsFromStorage,
+  saveSettingsToStorage,
+} from './core/state/app-store.js';
+import {
+  clearSessionStatus,
+  isValidCredentials,
+  persistSessionStatus,
+  readSessionStatus,
+} from './core/auth/session-gate.js';
+import { bindCoreEvents } from './core/bootstrap.js';
+import { createApprovalApiClient } from './core/http/approval-api.js';
+import { createTtsApiClient } from './core/http/tts-api.js';
+import { createApprovalFeature } from './features/approval/index.js';
+import { createScriptsFeature } from './features/scripts/index.js';
+import { createAudioFeature } from './features/audio/index.js';
+import { createSubtitlesFeature } from './features/subtitles/index.js';
+import { getDomSelectors } from './shared/dom/selectors.js';
 
 const storageKey = 'approval-panel-settings-v1';
 const sessionKey = 'approval-panel-session-v1';
@@ -28,15 +51,7 @@ const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
 
 function defaultSettings() {
-  return {
-    baseUrl: 'http://localhost:5678',
-    secret: '',
-    ttsBaseUrl: 'http://localhost:8088',
-    ttsApiKey: '',
-    ttsBasicUser: '',
-    ttsBasicPass: '',
-    ttsUserEmail: '',
-  };
+  return defaultSettingsFactory();
 }
 
 const state = {
@@ -135,104 +150,97 @@ const SUBTITLE_SOURCE_LANGUAGE_ALLOWED = new Set([
 const SUBTITLE_MARIAN_LANGS = new Set(['en', 'fr', 'de', 'it', 'nl', 'ca', 'pap', 'ko', 'ar', 'ber']);
 const SUBTITLE_FALLBACK_LANGS = new Set(['pt', 'cs', 'gd', 'tr', 'tzm', 'uz']);
 
-const el = {
-  authGate: document.getElementById('authGate'),
-  appShell: document.getElementById('appShell'),
-  authForm: document.getElementById('authForm'),
-  authUser: document.getElementById('authUser'),
-  authPass: document.getElementById('authPass'),
-  stats: document.getElementById('stats'),
-  cards: document.getElementById('cards'),
-  searchInput: document.getElementById('searchInput'),
-  countryFilter: document.getElementById('countryFilter'),
-  sourcesFilter: document.getElementById('sourcesFilter'),
-  openQueueBtn: document.getElementById('openQueueBtn'),
-  queueDialog: document.getElementById('queueDialog'),
-  closeQueueBtn: document.getElementById('closeQueueBtn'),
-  queueMeta: document.getElementById('queueMeta'),
-  queueList: document.getElementById('queueList'),
-  refreshQueueBtn: document.getElementById('refreshQueueBtn'),
-  runQueueBtn: document.getElementById('runQueueBtn'),
-  refreshBtn: document.getElementById('refreshBtn'),
-  settingsBtn: document.getElementById('settingsBtn'),
-  logoutBtn: document.getElementById('logoutBtn'),
-  topicDialog: document.getElementById('topicDialog'),
-  dialogTitle: document.getElementById('dialogTitle'),
-  dialogBody: document.getElementById('dialogBody'),
-  closeDialog: document.getElementById('closeDialog'),
-  settingsDialog: document.getElementById('settingsDialog'),
-  baseUrlInput: document.getElementById('baseUrlInput'),
-  secretInput: document.getElementById('secretInput'),
-  ttsBaseUrlInput: document.getElementById('ttsBaseUrlInput'),
-  ttsApiKeyInput: document.getElementById('ttsApiKeyInput'),
-  ttsBasicUserInput: document.getElementById('ttsBasicUserInput'),
-  ttsBasicPassInput: document.getElementById('ttsBasicPassInput'),
-  ttsUserEmailInput: document.getElementById('ttsUserEmailInput'),
-  saveSettingsBtn: document.getElementById('saveSettingsBtn'),
-  closeSettings: document.getElementById('closeSettings'),
-  toast: document.getElementById('toast'),
-  sidebarNav: document.getElementById('sidebarNav'),
-  viewApproval: document.getElementById('viewApproval'),
-  viewScripts: document.getElementById('viewScripts'),
-  viewAudio: document.getElementById('viewAudio'),
-  viewSubtitulos: document.getElementById('viewSubtitulos'),
-  refreshScriptsBtn: document.getElementById('refreshScriptsBtn'),
-  scriptStats: document.getElementById('scriptStats'),
-  scriptCards: document.getElementById('scriptCards'),
-  scriptEditorDialog: document.getElementById('scriptEditorDialog'),
-  closeScriptEditor: document.getElementById('closeScriptEditor'),
-  scriptEditorTitle: document.getElementById('scriptEditorTitle'),
-  scriptEditorMeta: document.getElementById('scriptEditorMeta'),
-  scriptEditedWordCount: document.getElementById('scriptEditedWordCount'),
-  scriptEditedArea: document.getElementById('scriptEditedArea'),
-  viewOriginalBtn: document.getElementById('viewOriginalBtn'),
-  saveDraftBtn: document.getElementById('saveDraftBtn'),
-  publishDraftBtn: document.getElementById('publishDraftBtn'),
-  scriptOriginalDialog: document.getElementById('scriptOriginalDialog'),
-  closeOriginalDialog: document.getElementById('closeOriginalDialog'),
-  scriptOriginalTitle: document.getElementById('scriptOriginalTitle'),
-  scriptOriginalMeta: document.getElementById('scriptOriginalMeta'),
-  scriptOriginalWordCount: document.getElementById('scriptOriginalWordCount'),
-  scriptOriginalArea: document.getElementById('scriptOriginalArea'),
-  publishConfirmDialog: document.getElementById('publishConfirmDialog'),
-  cancelPublishBtn: document.getElementById('cancelPublishBtn'),
-  confirmPublishBtn: document.getElementById('confirmPublishBtn'),
-  audioPresetSelect: document.getElementById('audioPresetSelect'),
-  audioTextArea: document.getElementById('audioTextArea'),
-  audioWordCount: document.getElementById('audioWordCount'),
-  audioClearBtn: document.getElementById('audioClearBtn'),
-  audioRunBtn: document.getElementById('audioRunBtn'),
-  audioQueueMeta: document.getElementById('audioQueueMeta'),
-  audioQueueList: document.getElementById('audioQueueList'),
-  subtitlePhaseBar: document.getElementById('subtitlePhaseBar'),
-  subtitlePhaseUpload: document.getElementById('subtitlePhaseUpload'),
-  subtitleSourceLanguagePicker: document.getElementById('subtitleSourceLanguagePicker'),
-  subtitleSourceLanguageEngineHint: document.getElementById('subtitleSourceLanguageEngineHint'),
-  subtitleAnalyzeMeta: document.getElementById('subtitleAnalyzeMeta'),
-  subtitleMetaRequested: document.getElementById('subtitleMetaRequested'),
-  subtitleMetaEffective: document.getElementById('subtitleMetaEffective'),
-  subtitleMetaDetected: document.getElementById('subtitleMetaDetected'),
-  subtitleMetaAsrModel: document.getElementById('subtitleMetaAsrModel'),
-  subtitleMetaMtModel: document.getElementById('subtitleMetaMtModel'),
-  subtitlePhaseProcessing: document.getElementById('subtitlePhaseProcessing'),
-  subtitlePhaseEdition: document.getElementById('subtitlePhaseEdition'),
-  subtitlePhaseDone: document.getElementById('subtitlePhaseDone'),
-  subtitleUploadInput: document.getElementById('subtitleUploadInput'),
-  subtitleUploadMeta: document.getElementById('subtitleUploadMeta'),
-  subtitleProcessingIcon: document.getElementById('subtitleProcessingIcon'),
-  subtitleProcessingTitle: document.getElementById('subtitleProcessingTitle'),
-  subtitleProcessingMessage: document.getElementById('subtitleProcessingMessage'),
-  subtitleProgressFill: document.getElementById('subtitleProgressFill'),
-  subtitleProgressPercent: document.getElementById('subtitleProgressPercent'),
-  subtitleRowsBody: document.getElementById('subtitleRowsBody'),
-  subtitleSaveBtn: document.getElementById('subtitleSaveBtn'),
-  subtitleReadyBtn: document.getElementById('subtitleReadyBtn'),
-  subtitleDownloadBtn: document.getElementById('subtitleDownloadBtn'),
-  subtitleDoneTitle: document.getElementById('subtitleDoneTitle'),
-  subtitleDoneMessage: document.getElementById('subtitleDoneMessage'),
+const el = getDomSelectors(document);
+
+const store = {
+  getState: () => state,
 };
 
+const approvalApi = createApprovalApiClient({
+  getSettings: () => state.settings,
+  fetchImpl: fetch,
+});
+
+const approvalFeature = createApprovalFeature({
+  api: approvalApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  callbacks: {
+    renderStats,
+    renderCountryFilter,
+    renderCards,
+    renderQueue,
+    renderTopicDetail,
+    confirmDelete: (message) => window.confirm(message),
+  },
+  helpers: {
+    getErrorMessage,
+  },
+});
+
+const scriptsFeature = createScriptsFeature({
+  api: approvalApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  callbacks: {
+    renderScriptStats,
+    renderScriptCards,
+    updateWordCounter,
+  },
+});
+
+const ttsApi = createTtsApiClient({
+  getSettings: () => state.settings,
+  fetchImpl: fetch,
+  btoaImpl: btoa,
+});
+
+const audioFeature = createAudioFeature({
+  api: ttsApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  handlers: {
+    runAudioGeneration,
+    startAudioTracking,
+    applyAudioJobStatus,
+    startAudioStatusStream,
+    startAudioPolling,
+    stopAudioTracking,
+    startAudioQueueSync,
+    stopAudioQueueSync,
+    syncAudioQueueStatuses,
+    renderAudioQueue,
+    downloadAudioJob,
+    dismissAudioJob,
+  },
+});
+
+const subtitlesFeature = createSubtitlesFeature({
+  api: ttsApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  handlers: {
+    onUploadSelected: onSubtitleUploadSelected,
+    onSourceLanguageChanged: onSubtitleSourceLanguageChanged,
+    onSaveClicked: onSubtitleSaveClicked,
+    onReadyClicked: onSubtitleReadyClicked,
+    onDownloadClicked: onSubtitleDownloadClicked,
+    onTableInput: onSubtitleTableInput,
+    onTableClick: onSubtitleTableClick,
+    pollStatus: pollSubtitleStatus,
+    renderWorkflow: renderSubtitlesWorkflow,
+  },
+});
+
 export function bootApp() {
+  bootCompatibilityShell();
+}
+
+export function bootCompatibilityShell() {
   bindEvents();
   hydrateSettingsForm();
   renderSubtitlesWorkflow();
@@ -240,7 +248,7 @@ export function bootApp() {
 }
 
 function boot() {
-  const session = localStorage.getItem(sessionKey);
+  const session = readSessionStatus({ storage: localStorage, sessionKey });
   if (session === 'ok') {
     el.authGate.classList.add('hidden');
     el.appShell.classList.remove('hidden');
@@ -253,63 +261,40 @@ function boot() {
 }
 
 function loadSettings() {
-  const raw = localStorage.getItem(storageKey);
-  const defaults = defaultSettings();
-  if (!raw) return defaults;
-  try {
-    return { ...defaults, ...JSON.parse(raw) };
-  } catch {
-    return defaults;
-  }
+  return loadSettingsFromStorage({
+    storage: localStorage,
+    storageKey,
+    defaultsFactory: defaultSettings,
+  });
 }
 
 function saveSettings(next) {
-  state.settings = next;
-  localStorage.setItem(storageKey, JSON.stringify(next));
+  state.settings = saveSettingsToStorage({
+    storage: localStorage,
+    storageKey,
+    nextSettings: next,
+  });
 }
 
 function bindEvents() {
-  el.authForm.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const user = el.authUser.value.trim();
-    const pass = el.authPass.value;
-
-    if (user === AUTH_USER && pass === AUTH_PASS) {
-      localStorage.setItem(sessionKey, 'ok');
-      el.authGate.classList.add('hidden');
-      el.appShell.classList.remove('hidden');
-      el.authPass.value = '';
-      setView('approval');
-      toast('Sesión iniciada');
-      refreshAll();
-      return;
-    }
-
-    toast('Usuario o contraseña incorrectos');
+  bindCoreEvents({
+    el,
+    authUser: AUTH_USER,
+    authPass: AUTH_PASS,
+    isValidCredentials,
+    persistSessionStatus: () => persistSessionStatus({ storage: localStorage, sessionKey }),
+    clearSessionStatus: () => clearSessionStatus({ storage: localStorage, sessionKey }),
+    setView,
+    refreshAll,
+    refreshScripts: refreshScriptDrafts,
+    refreshQueue,
+    runQueue,
+    saveSettings,
+    defaultSettings,
+    toast,
+    renderCards,
+    reloadPage: () => location.reload(),
   });
-
-  el.sidebarNav.addEventListener('click', (ev) => {
-    const btn = ev.target.closest('.nav-item[data-view]');
-    if (!btn) return;
-    setView(btn.dataset.view);
-  });
-
-  el.refreshBtn.addEventListener('click', refreshAll);
-  el.refreshScriptsBtn.addEventListener('click', refreshScriptDrafts);
-  el.openQueueBtn.addEventListener('click', () => {
-    refreshQueue();
-    el.queueDialog.showModal();
-  });
-  el.closeQueueBtn.addEventListener('click', () => el.queueDialog.close());
-  el.refreshQueueBtn.addEventListener('click', refreshQueue);
-  el.runQueueBtn.addEventListener('click', runQueue);
-  el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
-  el.logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem(sessionKey);
-    location.reload();
-  });
-  el.closeSettings.addEventListener('click', () => el.settingsDialog.close());
-  el.closeDialog.addEventListener('click', () => el.topicDialog.close());
 
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
@@ -348,16 +333,16 @@ function bindEvents() {
     updateWordCounter('', el.audioWordCount);
   });
 
-  el.audioRunBtn.addEventListener('click', runAudioGeneration);
+  el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
 
-  el.subtitleUploadInput?.addEventListener('change', onSubtitleUploadSelected);
-  el.subtitleSourceLanguagePicker?.addEventListener('change', onSubtitleSourceLanguageChanged);
-  el.subtitleSaveBtn?.addEventListener('click', onSubtitleSaveClicked);
-  el.subtitleReadyBtn?.addEventListener('click', onSubtitleReadyClicked);
-  el.subtitleDownloadBtn?.addEventListener('click', onSubtitleDownloadClicked);
-  el.subtitleRowsBody?.addEventListener('input', onSubtitleTableInput);
-  el.subtitleRowsBody?.addEventListener('change', onSubtitleTableInput);
-  el.subtitleRowsBody?.addEventListener('click', onSubtitleTableClick);
+  el.subtitleUploadInput?.addEventListener('change', subtitlesFeature.onUploadSelected);
+  el.subtitleSourceLanguagePicker?.addEventListener('change', subtitlesFeature.onSourceLanguageChanged);
+  el.subtitleSaveBtn?.addEventListener('click', subtitlesFeature.onSaveClicked);
+  el.subtitleReadyBtn?.addEventListener('click', subtitlesFeature.onReadyClicked);
+  el.subtitleDownloadBtn?.addEventListener('click', subtitlesFeature.onDownloadClicked);
+  el.subtitleRowsBody?.addEventListener('input', subtitlesFeature.onTableInput);
+  el.subtitleRowsBody?.addEventListener('change', subtitlesFeature.onTableInput);
+  el.subtitleRowsBody?.addEventListener('click', subtitlesFeature.onTableClick);
 
   el.audioQueueList?.addEventListener('click', async (ev) => {
     const button = ev.target.closest('button[data-action]');
@@ -368,39 +353,14 @@ function bindEvents() {
     if (!jobId) return;
 
     if (action === 'dismiss-audio-job') {
-      state.dismissedAudioJobs.add(jobId);
-      if (jobId === state.audioJobId) {
-        stopAudioTracking();
-        const nextTrack = getLatestTrackedJobId();
-        if (nextTrack) {
-          startAudioTracking(nextTrack);
-        }
-      }
-      renderAudioQueue();
+      audioFeature.dismissAudioJob(jobId);
       return;
     }
 
     if (action === 'download-audio-job') {
-      await downloadAudioJob(jobId);
+      await audioFeature.downloadAudioJob(jobId);
     }
   });
-
-  el.saveSettingsBtn.addEventListener('click', () => {
-    saveSettings({
-      baseUrl: el.baseUrlInput.value.trim() || defaultSettings().baseUrl,
-      secret: el.secretInput.value.trim(),
-      ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaultSettings().ttsBaseUrl,
-      ttsApiKey: el.ttsApiKeyInput.value.trim(),
-      ttsBasicUser: el.ttsBasicUserInput.value.trim(),
-      ttsBasicPass: el.ttsBasicPassInput.value,
-      ttsUserEmail: el.ttsUserEmailInput.value.trim(),
-    });
-    el.settingsDialog.close();
-    toast('Configuración guardada');
-    refreshAll();
-  });
-
-  [el.searchInput, el.countryFilter, el.sourcesFilter].forEach((i) => i.addEventListener('input', renderCards));
 
   el.dialogBody.addEventListener('click', async (ev) => {
     const actionBtn = ev.target.closest('button[data-action]');
@@ -440,14 +400,14 @@ function setView(view) {
   if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
     const nextTrack = getLatestTrackedJobId();
     if (nextTrack) {
-      startAudioTracking(nextTrack);
+      audioFeature.startAudioTracking(nextTrack);
     }
   }
 
   if (isAudio) {
-    startAudioQueueSync();
+    audioFeature.startAudioQueueSync();
   } else {
-    stopAudioQueueSync();
+    audioFeature.stopAudioQueueSync();
   }
 
   if (isSubtitulos) {
@@ -1408,13 +1368,7 @@ async function persistSubtitleSnapshotRequest(payload) {
 }
 
 function hydrateSettingsForm() {
-  el.baseUrlInput.value = state.settings.baseUrl;
-  el.secretInput.value = state.settings.secret;
-  el.ttsBaseUrlInput.value = state.settings.ttsBaseUrl;
-  el.ttsApiKeyInput.value = state.settings.ttsApiKey;
-  el.ttsBasicUserInput.value = state.settings.ttsBasicUser;
-  el.ttsBasicPassInput.value = state.settings.ttsBasicPass;
-  el.ttsUserEmailInput.value = state.settings.ttsUserEmail;
+  hydrateSettingsFormValues({ el, settings: state.settings });
 }
 
 async function refreshAll() {
@@ -1422,42 +1376,15 @@ async function refreshAll() {
 }
 
 async function refreshPending() {
-  try {
-    const data = await apiGet('/webhook/approval/pending/v1');
-    state.items = (data.items || []).map((item) => ({
-      ...item,
-      resumen_cluster: (item.resumen_cluster ?? item.resumen ?? '').toString(),
-    }));
-    renderStats();
-    renderCountryFilter();
-    renderCards();
-  } catch (err) {
-    console.error(err);
-    toast('Error cargando pendientes');
-  }
+  await approvalFeature.refreshPending();
 }
 
 async function refreshQueue() {
-  try {
-    const data = await apiGet('/webhook/approval/queue/v1');
-    state.queue = data.items || [];
-    renderQueue();
-  } catch (err) {
-    console.error(err);
-    toast('Error cargando cola de aprobados');
-  }
+  await approvalFeature.refreshQueue();
 }
 
 async function refreshScriptDrafts() {
-  try {
-    const data = await apiGet('/webhook/mvp-script-drafts-pending-v1');
-    state.scriptDrafts = data.drafts || [];
-    renderScriptStats();
-    renderScriptCards();
-  } catch (err) {
-    console.error(err);
-    toast('Error cargando borradores');
-  }
+  await scriptsFeature.refreshScriptDrafts();
 }
 
 async function runAudioGeneration() {
@@ -1594,6 +1521,18 @@ function getLatestTrackedJobId() {
   return state.audioJobOrder.find((jobId) => !state.dismissedAudioJobs.has(jobId)) || null;
 }
 
+function dismissAudioJob(jobId) {
+  state.dismissedAudioJobs.add(jobId);
+  if (jobId === state.audioJobId) {
+    stopAudioTracking();
+    const nextTrack = getLatestTrackedJobId();
+    if (nextTrack) {
+      startAudioTracking(nextTrack);
+    }
+  }
+  renderAudioQueue();
+}
+
 function normalizeProgressPercent(status, rawPercent, stage) {
   if (typeof rawPercent === 'number' && Number.isFinite(rawPercent)) {
     return Math.max(0, Math.min(100, Math.round(rawPercent)));
@@ -1710,7 +1649,7 @@ function startAudioStatusStream(jobId) {
 
   let headers;
   try {
-    headers = buildTtsHeaders();
+    headers = ttsApi.buildTtsHeaders();
   } catch {
     state.audioStreamController = null;
     return false;
@@ -2143,17 +2082,7 @@ function renderScriptCards() {
 }
 
 async function openDetail(clusterId) {
-  try {
-    const data = await apiGet(`/webhook/approval/topic/v1?cluster_id=${encodeURIComponent(clusterId)}`);
-    const item = data.item;
-    state.selectedCardId = clusterId;
-    state.selectedTopic = item;
-    renderTopicDetail();
-    el.topicDialog.showModal();
-  } catch (err) {
-    console.error(err);
-    toast('No pude abrir el detalle');
-  }
+  await approvalFeature.openDetail(clusterId);
 }
 
 function renderTopicDetail() {
@@ -2191,229 +2120,31 @@ function renderTopicDetail() {
 }
 
 async function openScriptEditor(clusterId) {
-  await refreshScriptDrafts();
-  const row = state.scriptDrafts.find((item) => (item.cluster_id || '').toString() === clusterId);
-  if (!row) {
-    toast('Ese borrador ya no existe o cambió. Actualizá la lista.');
-    return;
-  }
-  state.selectedScript = row;
-  el.scriptEditorTitle.textContent = `${row.jugador || 'Sin jugador'} · ${row.tema_principal || 'Sin tema'}`;
-  el.scriptEditorMeta.textContent = `Estado: ${row.estado || 'borrador_generado'}`;
-  el.scriptEditedArea.value = (row.guion_editado || row.guion_draft || '').toString();
-  updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
-  el.scriptEditorDialog.showModal();
+  await scriptsFeature.openScriptEditor(clusterId);
 }
 
 async function saveSelectedScript() {
-  if (!state.selectedScript || state.savingScript) return;
-  const edited = el.scriptEditedArea.value.trim();
-  if (edited.length < 20) {
-    toast('El guion editado es demasiado corto');
-    return;
-  }
-
-  try {
-    state.savingScript = true;
-    el.saveDraftBtn.disabled = true;
-    await apiPost('/webhook/mvp-script-draft-save-v1', {
-      cluster_id: state.selectedScript.cluster_id,
-      guion_editado: edited,
-    });
-    toast('Cambios guardados');
-    await refreshScriptDrafts();
-    if (state.selectedScript?.cluster_id) {
-      const refreshed = state.scriptDrafts.find((item) => item.cluster_id === state.selectedScript.cluster_id);
-      if (refreshed) state.selectedScript = refreshed;
-    }
-    el.scriptEditorMeta.textContent = 'Estado: en_revision';
-  } catch (err) {
-    console.error(err);
-    if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
-      toast('El borrador cambió o ya no existe. Actualizá la lista.');
-      await refreshScriptDrafts();
-      el.scriptEditorDialog.close();
-      return;
-    }
-    toast('Error guardando cambios');
-  } finally {
-    state.savingScript = false;
-    el.saveDraftBtn.disabled = false;
-  }
+  await scriptsFeature.saveSelectedScript();
 }
 
 async function publishSelectedScript() {
-  if (!state.selectedScript || state.publishingScript) return;
-  const edited = el.scriptEditedArea.value.trim();
-  if (edited.length < 20) {
-    toast('Guardá un guion válido antes de publicar');
-    return;
-  }
-
-  try {
-    state.publishingScript = true;
-    el.confirmPublishBtn.disabled = true;
-    await apiPost('/webhook/mvp-script-draft-save-v1', {
-      cluster_id: state.selectedScript.cluster_id,
-      guion_editado: edited,
-    });
-    await apiPost('/webhook/mvp-script-publish-v1', {
-      cluster_id: state.selectedScript.cluster_id,
-    });
-    el.publishConfirmDialog.close();
-    el.scriptEditorDialog.close();
-    state.selectedScript = null;
-    toast('Guion publicado correctamente');
-    await refreshScriptDrafts();
-  } catch (err) {
-    console.error(err);
-    if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
-      toast('El borrador cambió o ya no existe. Actualizá la lista.');
-      await refreshScriptDrafts();
-      el.publishConfirmDialog.close();
-      el.scriptEditorDialog.close();
-      return;
-    }
-    toast('Error publicando guion');
-  } finally {
-    state.publishingScript = false;
-    el.confirmPublishBtn.disabled = false;
-  }
+  await scriptsFeature.publishSelectedScript();
 }
 
 async function removeSourceFromTopic(removeIndex) {
-  if (!state.selectedTopic || !state.selectedTopic.cluster_id) return;
-  if (state.deletingSource) return;
-
-  const confirmDelete = window.confirm('¿Eliminar esta fuente de la noticia?');
-  if (!confirmDelete) return;
-
-  const clusterId = state.selectedTopic.cluster_id;
-  const currentSources = Array.isArray(state.selectedTopic.sources) ? state.selectedTopic.sources : [];
-  const optimistic = currentSources
-    .filter((source) => Number(source.index) !== removeIndex)
-    .map((source, idx) => ({ ...source, index: idx + 1 }));
-
-  state.selectedTopic = {
-    ...state.selectedTopic,
-    sources: optimistic,
-    cantidad_fuentes: optimistic.length,
-  };
-  state.deletingSource = true;
-  renderTopicDetail();
-
-  try {
-    await apiPost('/webhook/approval/sources/v1', {
-      cluster_id: clusterId,
-      remove_index: removeIndex,
-    });
-
-    toast('Fuente eliminada');
-    await refreshPending();
-    await openDetail(clusterId);
-  } catch (err) {
-    console.error(err);
-    toast('Error eliminando fuente');
-    await openDetail(clusterId);
-  } finally {
-    state.deletingSource = false;
-    renderTopicDetail();
-  }
+  await approvalFeature.removeSourceFromTopic(removeIndex);
 }
 
 async function decision(clusterId, action) {
-  try {
-    await apiPost('/webhook/approval/decision/v1', { cluster_id: clusterId, action });
-    toast(`Tema ${action === 'approve' ? 'aprobado' : 'rechazado'}`);
-    await refreshAll();
-  } catch (err) {
-    console.error(err);
-    toast('Error al registrar decisión');
-  }
+  await approvalFeature.decision(clusterId, action, refreshAll);
 }
 
 async function runQueue() {
-  try {
-    el.runQueueBtn.disabled = true;
-    el.runQueueBtn.textContent = 'Ejecutando...';
-
-    const result = await apiPost('/webhook/approval/run-queue/v1', { max_items: 20 });
-    toast(`Cola ejecutada: ${result.processed || 0} OK · ${result.failed || 0} error(es)`);
-    await refreshAll();
-  } catch (err) {
-    console.error(err);
-    toast('Error ejecutando cola');
-  } finally {
-    el.runQueueBtn.disabled = false;
-    el.runQueueBtn.textContent = 'Ejecutar cola';
-  }
-}
-
-async function apiGet(path) {
-  const res = await fetch(`${state.settings.baseUrl}${path}`);
-  if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
-  return res.json();
-}
-
-async function apiPost(path, payload) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (state.settings.secret) headers['x-approval-secret'] = state.settings.secret;
-
-  const res = await fetch(`${state.settings.baseUrl}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const raw = await res.text();
-  let data = {};
-  try {
-    data = raw ? JSON.parse(raw) : {};
-  } catch {
-    data = { raw };
-  }
-
-  if (!res.ok) {
-    const message = data?.message || data?.error || `POST ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  if (data?.error || data?.status === 'error') {
-    const message = data?.message || data?.error || `POST ${path} failed`;
-    throw new Error(message);
-  }
-
-  return data;
+  await approvalFeature.runQueue(refreshAll);
 }
 
 async function ttsGet(path) {
-  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  if (!baseUrl) {
-    throw new Error('Configuración de Audio API incompleta');
-  }
-
-  const headers = buildTtsHeaders();
-
-  const res = await fetch(`${baseUrl}${path}`, { headers });
-  const raw = await res.text();
-  let data = {};
-  try {
-    data = raw ? JSON.parse(raw) : {};
-  } catch {
-    data = { raw };
-  }
-
-  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
-  if (!res.ok) {
-    const message = data?.error?.message || data?.message || `GET ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  if (data?.error && businessStatus !== 'failed') {
-    const message = data?.error?.message || data?.message || `GET ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  return data;
+  return ttsApi.get(path);
 }
 
 function __resolveTtsGet() {
@@ -2500,97 +2231,15 @@ export const __testHooks = {
 };
 
 async function ttsPost(path, payload) {
-  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  if (!baseUrl) {
-    throw new Error('Configuración de Audio API incompleta');
-  }
-
-  const headers = buildTtsHeaders('application/json');
-
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  const raw = await res.text();
-  let data = {};
-  try {
-    data = raw ? JSON.parse(raw) : {};
-  } catch {
-    data = { raw };
-  }
-
-  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
-  if (!res.ok) {
-    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  if (data?.error && businessStatus !== 'failed') {
-    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  return data;
+  return ttsApi.post(path, payload);
 }
 
 async function ttsPostForm(path, formData) {
-  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  if (!baseUrl) {
-    throw new Error('Configuración de Audio API incompleta');
-  }
-
-  const headers = buildTtsHeaders();
-
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
-
-  const raw = await res.text();
-  let data = {};
-  try {
-    data = raw ? JSON.parse(raw) : {};
-  } catch {
-    data = { raw };
-  }
-
-  const businessStatus = (data?.status || '').toString().trim().toLowerCase();
-  if (!res.ok) {
-    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  if (data?.error && businessStatus !== 'failed') {
-    const message = data?.error?.message || data?.message || `POST ${path} ${res.status}`;
-    throw new Error(message);
-  }
-
-  return data;
+  return ttsApi.postForm(path, formData);
 }
 
 async function ttsGetBlob(path) {
-  const baseUrl = (state.settings.ttsBaseUrl || '').trim();
-  if (!baseUrl) {
-    throw new Error('Configuración de Audio API incompleta');
-  }
-
-  const headers = buildTtsHeaders();
-
-  const res = await fetch(`${baseUrl}${path}`, { headers });
-  if (!res.ok) {
-    let data = null;
-    try {
-      data = await res.json();
-    } catch {
-      data = null;
-    }
-    const message = data?.error?.message || `GET ${path} ${res.status}`;
-    throw new Error(message);
-  }
-  return res.blob();
+  return ttsApi.getBlob(path);
 }
 
 function downloadBlob(blob, filename) {
@@ -2609,74 +2258,21 @@ function getErrorMessage(err, fallback) {
   return msg || fallback;
 }
 
-function buildTtsHeaders(contentType = null) {
-  const apiKey = (state.settings.ttsApiKey || '').trim();
-  if (!apiKey) {
-    throw new Error('Configuración de Audio API incompleta');
-  }
-
-  const headers = {
-    'x-api-key': apiKey,
-    Authorization: getTtsBasicAuthHeader(),
-  };
-
-  if (contentType) {
-    headers['Content-Type'] = contentType;
-  }
-
-  const devUserEmail = (state.settings.ttsUserEmail || '').trim();
-  if (devUserEmail) headers['x-user-email'] = devUserEmail;
-
-  return headers;
-}
-
-function getTtsBasicAuthHeader() {
-  const user = (state.settings.ttsBasicUser || '').trim();
-  const pass = (state.settings.ttsBasicPass || '').toString();
-  if (!user || !pass) {
-    throw new Error('Configurá usuario y contraseña de Audio API');
-  }
-  return `Basic ${btoa(`${user}:${pass}`)}`;
-}
-
 function toast(message) {
   if (!el.toast) return;
 
-  el.toast.textContent = message;
-
-  if (typeof el.toast.showPopover === 'function') {
-    el.toast.showPopover();
-  }
-
-  el.toast.classList.add('show');
-
-  if (toastTimer) {
-    clearTimeout(toastTimer);
-  }
-
-  toastTimer = setTimeout(() => {
-    el.toast.classList.remove('show');
-
-    if (typeof el.toast.hidePopover === 'function') {
-      el.toast.hidePopover();
-    }
-
-    toastTimer = null;
-  }, 3000);
+  toastTimer = renderToast({
+    toastEl: el.toast,
+    message,
+    existingTimer: toastTimer,
+    durationMs: 3000,
+  });
 }
 
 function updateWordCounter(text, targetEl) {
-  if (!targetEl) return;
-  const words = (text || '').trim().match(/\S+/g);
-  const count = words ? words.length : 0;
-  targetEl.textContent = `Palabras: ${count}`;
+  updateWordCounterCore(text, targetEl);
 }
 
 function escapeHtml(str) {
-  return (str || '').toString()
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+  return escapeHtmlCore(str);
 }

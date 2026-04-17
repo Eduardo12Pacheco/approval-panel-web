@@ -1,3 +1,3 @@
-import { bootApp } from './modules/app-shell.js';
+import { bootCompositionRoot } from './modules/composition-root.js';
 
-bootApp();
+bootCompositionRoot();
