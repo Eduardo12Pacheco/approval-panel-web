@@ -45,7 +45,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     }
   }
 
-  async function removeSourceFromTopic(removeIndex) {
+  async function removeSourceFromTopic(sourceToRemove) {
     const state = store.getState();
     if (!state.selectedTopic || !state.selectedTopic.cluster_id) return;
     if (state.deletingSource) return;
@@ -54,9 +54,14 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     if (!confirmed) return;
 
     const clusterId = state.selectedTopic.cluster_id;
+    const idNoticia = (sourceToRemove?.id_noticia || '').toString().trim();
+    const removeIndex = Number(sourceToRemove?.index || 0);
     const currentSources = Array.isArray(state.selectedTopic.sources) ? state.selectedTopic.sources : [];
     const optimistic = currentSources
-      .filter((source) => Number(source.index) !== removeIndex)
+      .filter((source) => {
+        if (idNoticia) return (source.id_noticia || '').toString() !== idNoticia;
+        return Number(source.index) !== removeIndex;
+      })
       .map((source, idx) => ({ ...source, index: idx + 1 }));
 
     state.selectedTopic = {
@@ -69,8 +74,10 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
 
     try {
       await api.post('/webhook/approval/sources/v1', {
+        id_noticia: idNoticia,
         cluster_id: clusterId,
-        remove_index: removeIndex,
+        estado_revision: 'descartada',
+        reason: 'fuente_descartada_desde_panel',
       });
       ui.toast('Fuente eliminada');
       await refreshPending();
@@ -82,6 +89,32 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     } finally {
       state.deletingSource = false;
       renderTopicDetail();
+    }
+  }
+
+  async function approveSourceFromTopic(source) {
+    const state = store.getState();
+    const idNoticia = (source?.id_noticia || '').toString().trim();
+    const clusterId = (state.selectedTopic?.cluster_id || '').toString().trim();
+
+    if (!idNoticia) {
+      ui.toast('Esta fuente no tiene id_noticia. Actualizá clusters y volvé a intentar.');
+      return;
+    }
+
+    try {
+      await api.post('/webhook/approval/decision/v1', {
+        id_noticia: idNoticia,
+        cluster_id: clusterId,
+        action: 'approve',
+      });
+      ui.toast('Noticia aprobada y encolada para guion');
+      await refreshPending();
+      await refreshQueue();
+      await openDetail(clusterId);
+    } catch (err) {
+      console.error(err);
+      ui.toast(getErrorMessage(err, 'Error aprobando noticia'));
     }
   }
 
@@ -117,6 +150,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     refreshQueue,
     openDetail,
     removeSourceFromTopic,
+    approveSourceFromTopic,
     decision,
     runQueue,
   };

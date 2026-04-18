@@ -136,8 +136,13 @@ function bindEvents() {
 
     if (action === 'delete-source') {
       const index = Number(actionBtn.dataset.index || 0);
-      if (!Number.isInteger(index) || index < 1) return;
-      await removeSourceFromTopic(index);
+      const idNoticia = decodeURIComponent(actionBtn.dataset.idNoticia || '');
+      const source = (state.selectedTopic?.sources || []).find((s) => {
+        if (idNoticia) return (s.id_noticia || '').toString() === idNoticia;
+        return Number(s.index) === index;
+      });
+      if (!source) return;
+      await removeSourceFromTopic(source);
     }
   });
 }
@@ -339,6 +344,7 @@ function renderTopicDetail() {
             class="reject"
             data-action="delete-source"
             data-index="${s.index}"
+            data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
             ${state.deletingSource ? 'disabled' : ''}
           >Eliminar</button>
         </div>
@@ -347,7 +353,7 @@ function renderTopicDetail() {
   `;
 }
 
-async function removeSourceFromTopic(removeIndex) {
+async function removeSourceFromTopic(sourceToRemove) {
   if (!state.selectedTopic || !state.selectedTopic.cluster_id) return;
   if (state.deletingSource) return;
 
@@ -355,9 +361,14 @@ async function removeSourceFromTopic(removeIndex) {
   if (!confirmDelete) return;
 
   const clusterId = state.selectedTopic.cluster_id;
+  const idNoticia = (sourceToRemove?.id_noticia || '').toString().trim();
+  const removeIndex = Number(sourceToRemove?.index || 0);
   const currentSources = Array.isArray(state.selectedTopic.sources) ? state.selectedTopic.sources : [];
   const optimistic = currentSources
-    .filter((source) => Number(source.index) !== removeIndex)
+    .filter((source) => {
+      if (idNoticia) return (source.id_noticia || '').toString() !== idNoticia;
+      return Number(source.index) !== removeIndex;
+    })
     .map((source, idx) => ({ ...source, index: idx + 1 }));
 
   state.selectedTopic = {
@@ -370,8 +381,10 @@ async function removeSourceFromTopic(removeIndex) {
 
   try {
     await apiPost('/webhook/approval/sources/v1', {
+      id_noticia: idNoticia,
       cluster_id: clusterId,
-      remove_index: removeIndex,
+      estado_revision: 'descartada',
+      reason: 'fuente_descartada_desde_panel',
     });
 
     toast('Fuente eliminada');

@@ -407,8 +407,24 @@ function bindEvents() {
 
     if (action === 'delete-source') {
       const index = Number(actionBtn.dataset.index || 0);
-      if (!Number.isInteger(index) || index < 1) return;
-      await removeSourceFromTopic(index);
+      const idNoticia = decodeURIComponent(actionBtn.dataset.idNoticia || '');
+      const source = (state.selectedTopic?.sources || []).find((s) => {
+        if (idNoticia) return (s.id_noticia || '').toString() === idNoticia;
+        return Number(s.index) === index;
+      });
+      if (!source) return;
+      await removeSourceFromTopic(source);
+      return;
+    }
+
+    if (action === 'approve-source') {
+      const idNoticia = decodeURIComponent(actionBtn.dataset.idNoticia || '');
+      const source = (state.selectedTopic?.sources || []).find((s) => (s.id_noticia || '').toString() === idNoticia);
+      if (!source) {
+        toast('No encontré la noticia seleccionada. Actualizá y probá de nuevo.');
+        return;
+      }
+      await approveSourceFromTopic(source);
     }
   });
 }
@@ -1871,8 +1887,6 @@ function renderCards() {
       </div>
       <div class="card-actions">
         <button class="secondary" data-action="detail" data-id="${encodeURIComponent(item.cluster_id)}">Ver fuentes</button>
-        <button class="approve" data-action="approve" data-id="${encodeURIComponent(item.cluster_id)}">Aprobar</button>
-        <button class="reject" data-action="reject" data-id="${encodeURIComponent(item.cluster_id)}">Rechazar</button>
       </div>
     </article>
   `;
@@ -1892,7 +1906,6 @@ function renderCards() {
       const id = decodeURIComponent(btn.dataset.id);
       const action = btn.dataset.action;
       if (action === 'detail') return openDetail(id);
-      await decision(id, action);
     });
   });
 }
@@ -1909,7 +1922,7 @@ function renderScriptCards() {
     const status = (item.estado || 'borrador_generado').toString();
 
     return `
-      <article class="card" data-script-id="${encodeURIComponent(item.cluster_id)}">
+      <article class="card" data-script-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}">
         <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
         <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
         <p class="summary">${escapeHtml((item.guion_editado || item.guion_draft || '').trim().slice(0, 260) || 'Sin guion disponible.')}</p>
@@ -1918,7 +1931,7 @@ function renderScriptCards() {
           ${tagChip}
         </div>
         <div class="card-actions">
-          <button class="secondary" data-action="edit-script" data-id="${encodeURIComponent(item.cluster_id)}">Editar guion</button>
+          <button class="secondary" data-action="edit-script" data-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}">Editar guion</button>
         </div>
       </article>
     `;
@@ -1959,9 +1972,17 @@ function renderTopicDetail() {
           >Ver fuente</button>
           <button
             type="button"
+            class="approve"
+            data-action="approve-source"
+            data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
+            ${state.deletingSource ? 'disabled' : ''}
+          >Aprobar noticia</button>
+          <button
+            type="button"
             class="reject"
             data-action="delete-source"
             data-index="${s.index}"
+            data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
             ${state.deletingSource ? 'disabled' : ''}
           >Eliminar</button>
         </div>
@@ -1982,8 +2003,12 @@ async function publishSelectedScript() {
   await scriptsFeature.publishSelectedScript();
 }
 
-async function removeSourceFromTopic(removeIndex) {
-  await approvalFeature.removeSourceFromTopic(removeIndex);
+async function removeSourceFromTopic(source) {
+  await approvalFeature.removeSourceFromTopic(source);
+}
+
+async function approveSourceFromTopic(source) {
+  await approvalFeature.approveSourceFromTopic(source);
 }
 
 async function decision(clusterId, action) {

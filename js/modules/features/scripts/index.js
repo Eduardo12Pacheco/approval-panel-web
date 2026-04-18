@@ -14,10 +14,25 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
     }
   }
 
-  async function openScriptEditor(clusterId) {
+  function resolveScriptIdentity(row = {}) {
+    return {
+      draft_id: (row.draft_id || '').toString(),
+      id_noticia: (row.id_noticia || '').toString(),
+      cluster_id: (row.cluster_id || '').toString(),
+    };
+  }
+
+  function matchesIdentity(row = {}, requested = '') {
+    const id = (requested || '').toString();
+    if (!id) return false;
+    const ids = resolveScriptIdentity(row);
+    return ids.draft_id === id || ids.id_noticia === id || ids.cluster_id === id;
+  }
+
+  async function openScriptEditor(scriptId) {
     const state = store.getState();
     await refreshScriptDrafts();
-    const row = state.scriptDrafts.find((item) => (item.cluster_id || '').toString() === clusterId);
+    const row = state.scriptDrafts.find((item) => matchesIdentity(item, scriptId));
     if (!row) {
       ui.toast('Ese borrador ya no existe o cambió. Actualizá la lista.');
       return;
@@ -42,14 +57,23 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
     try {
       state.savingScript = true;
       selectors.saveDraftBtn.disabled = true;
+      const ids = resolveScriptIdentity(state.selectedScript);
       await api.post('/webhook/mvp-script-draft-save-v1', {
-        cluster_id: state.selectedScript.cluster_id,
+        ...ids,
         guion_editado: edited,
       });
       ui.toast('Cambios guardados');
       await refreshScriptDrafts();
-      if (state.selectedScript?.cluster_id) {
-        const refreshed = state.scriptDrafts.find((item) => item.cluster_id === state.selectedScript.cluster_id);
+      if (state.selectedScript) {
+        const selectedIds = resolveScriptIdentity(state.selectedScript);
+        const refreshed = state.scriptDrafts.find((item) => {
+          const rowIds = resolveScriptIdentity(item);
+          return (
+            (selectedIds.draft_id && rowIds.draft_id === selectedIds.draft_id)
+            || (selectedIds.id_noticia && rowIds.id_noticia === selectedIds.id_noticia)
+            || (selectedIds.cluster_id && rowIds.cluster_id === selectedIds.cluster_id)
+          );
+        });
         if (refreshed) state.selectedScript = refreshed;
       }
       selectors.scriptEditorMeta.textContent = 'Estado: en_revision';
@@ -80,12 +104,13 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
     try {
       state.publishingScript = true;
       selectors.confirmPublishBtn.disabled = true;
+      const ids = resolveScriptIdentity(state.selectedScript);
       await api.post('/webhook/mvp-script-draft-save-v1', {
-        cluster_id: state.selectedScript.cluster_id,
+        ...ids,
         guion_editado: edited,
       });
       await api.post('/webhook/mvp-script-publish-v1', {
-        cluster_id: state.selectedScript.cluster_id,
+        ...ids,
       });
       selectors.publishConfirmDialog.close();
       selectors.scriptEditorDialog.close();
