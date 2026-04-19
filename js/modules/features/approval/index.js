@@ -106,6 +106,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
       await api.post('/webhook/approval/decision/v1', {
         id_noticia: idNoticia,
         cluster_id: clusterId,
+        tema_principal: (state.selectedTopic?.tema_principal || '').toString(),
         action: 'approve',
       });
       ui.toast('Noticia aprobada y encolada para guion');
