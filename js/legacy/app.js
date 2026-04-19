@@ -186,7 +186,7 @@ async function refreshQueue() {
 function renderQueue() {
   const queue = state.queue;
   el.queueMeta.textContent = queue.length
-    ? `${queue.length} tema(s) aprobado(s) esperando generación.`
+    ? `${queue.length} noticia(s) aprobada(s) esperando generación.`
     : 'Sin elementos en cola.';
 
   if (!queue.length) {
@@ -197,8 +197,8 @@ function renderQueue() {
   el.queueList.innerHTML = queue.map((item) => `
     <article class="queue-item">
       <strong>${escapeHtml(item.jugador || 'Sin jugador')}</strong>
-      <div class="meta">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-      <div class="meta">Fuentes: ${Number(item.cantidad_fuentes || 0)}</div>
+      <div class="meta">${escapeHtml(item.titular || 'Sin titular')}</div>
+      <div class="meta">Fuente: ${escapeHtml(item.fuente || 'Sin fuente')}</div>
     </article>
   `).join('');
 }
