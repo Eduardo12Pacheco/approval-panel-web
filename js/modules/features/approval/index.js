@@ -2,6 +2,86 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
   const { renderStats, renderCountryFilter, renderCards, renderQueue, renderTopicDetail, confirmDelete } = callbacks;
   const { getErrorMessage } = helpers;
 
+  const normalizeText = (value) => (value == null ? '' : String(value).trim());
+  const toFiniteNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const pickFirstText = (...values) => {
+    for (const value of values) {
+      const normalized = normalizeText(value);
+      if (normalized) return normalized;
+    }
+    return '';
+  };
+
+  function buildClusterSnapshot(topic, approvedIdNoticia) {
+    const currentSources = Array.isArray(topic?.sources) ? topic.sources : [];
+    const ids = currentSources.map((source) => normalizeText(source?.id_noticia));
+    const titulares = currentSources.map((source) => pickFirstText(source?.titular, source?.headline));
+    const links = currentSources.map((source) => pickFirstText(source?.link, source?.url));
+    const fuentes = currentSources.map((source) => pickFirstText(source?.fuente, source?.fuente_origen, source?.source));
+
+    const approvedId = normalizeText(approvedIdNoticia);
+    const approvedCount = Math.max(
+      toFiniteNumber(topic?.cantidad_fuentes_aprobadas, 0),
+      toFiniteNumber(topic?.approved_sources_count, 0),
+      0,
+    );
+    const totalCount = Math.max(
+      toFiniteNumber(topic?.cantidad_fuentes_total, 0),
+      currentSources.length + approvedCount,
+      currentSources.length,
+    );
+    const availableCount = approvedId
+      ? ids.filter((value) => value && value !== approvedId).length
+      : ids.filter(Boolean).length;
+
+    return {
+      ids_noticias_relacionadas: ids,
+      titulares_relacionados: titulares,
+      links_relacionados: links,
+      fuentes_relacionadas: fuentes,
+      cantidad_fuentes_total: Math.max(totalCount, availableCount, approvedCount + (approvedId ? 1 : 0)),
+      cantidad_fuentes_disponibles: availableCount,
+      cantidad_fuentes_aprobadas: Math.min(totalCount || approvedCount + 1, approvedCount + (approvedId ? 1 : 0)),
+    };
+  }
+
+  function buildDecisionPayload(topic, source, action) {
+    const idNoticia = normalizeText(source?.id_noticia);
+    const clusterId = pickFirstText(topic?.cluster_id, source?.cluster_id);
+    const temaPrincipal = pickFirstText(topic?.tema_principal, source?.tema_principal);
+    const selection = pickFirstText(topic?.seleccion, topic?.['selección'], source?.seleccion, source?.['selección']);
+    const jugador = pickFirstText(topic?.jugador, source?.jugador);
+    const clusterSnapshot = buildClusterSnapshot(topic, idNoticia);
+
+    return {
+      action,
+      id_noticia: idNoticia,
+      cluster_id: clusterId,
+      tema_principal: temaPrincipal,
+      seleccion: selection,
+      jugador,
+      titular: pickFirstText(source?.titular, source?.headline),
+      fuente: pickFirstText(source?.fuente, source?.fuente_origen, source?.source),
+      link: pickFirstText(source?.link, source?.url),
+      snippet: pickFirstText(source?.snippet, source?.resumen),
+      fuente_origen: pickFirstText(source?.fuente_origen, source?.fuente, source?.source),
+      fecha_publicacion: pickFirstText(source?.fecha_publicacion),
+      fecha_detectada: pickFirstText(source?.fecha_detectada),
+      estado_revision_actual: pickFirstText(source?.estado_revision),
+      queue_id: pickFirstText(source?.queue_id),
+      estado_queue_actual: pickFirstText(source?.estado_queue),
+      attempts_actuales: toFiniteNumber(source?.attempts, 0),
+      last_error_actual: pickFirstText(source?.last_error),
+      timestamps_actuales: pickFirstText(source?.timestamps),
+      resumen_cluster: pickFirstText(topic?.resumen_cluster, topic?.resumen),
+      tag_editorial: pickFirstText(topic?.tag_editorial),
+      ...clusterSnapshot,
+    };
+  }
+
   async function refreshPending() {
     const state = store.getState();
     try {
@@ -103,12 +183,10 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     }
 
     try {
-      await api.post('/webhook/approval/decision/v1', {
-        id_noticia: idNoticia,
-        cluster_id: clusterId,
-        tema_principal: (state.selectedTopic?.tema_principal || '').toString(),
-        action: 'approve',
-      });
+      state.approvingSourceId = idNoticia;
+      renderTopicDetail();
+
+      await api.post('/webhook/approval/decision/v1', buildDecisionPayload(state.selectedTopic, source, 'approve'));
       ui.toast('Noticia aprobada y encolada para guion');
       await refreshPending();
       await refreshQueue();
@@ -116,6 +194,9 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     } catch (err) {
       console.error(err);
       ui.toast(getErrorMessage(err, 'Error aprobando noticia'));
+    } finally {
+      state.approvingSourceId = '';
+      renderTopicDetail();
     }
   }
 

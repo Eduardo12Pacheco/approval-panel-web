@@ -1952,12 +1952,12 @@ async function openDetail(clusterId) {
 function renderTopicDetail() {
   const item = state.selectedTopic;
   if (!item) return;
+  const approvingSourceId = (state.approvingSourceId || '').toString();
+  const sourcesMarkup = (item.sources || []).map((s) => {
+    const sourceId = (s.id_noticia || '').toString();
+    const isApproving = approvingSourceId && approvingSourceId === sourceId;
 
-  el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
-  el.dialogBody.innerHTML = `
-    <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
-    <p class="meta">Fuentes detectadas: ${item.sources?.length || 0}</p>
-    ${(item.sources || []).map((s) => `
+    return `
       <div class="source-item">
         <div class="source-content">
           <div><strong>${s.index}. ${escapeHtml(s.titular || 'Sin titular')}</strong></div>
@@ -1975,19 +1975,26 @@ function renderTopicDetail() {
             class="approve"
             data-action="approve-source"
             data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
-            ${state.deletingSource ? 'disabled' : ''}
-          >Aprobar noticia</button>
+            ${(state.deletingSource || isApproving) ? 'disabled' : ''}
+          >${isApproving ? 'Aprobando...' : 'Aprobar noticia'}</button>
           <button
             type="button"
             class="reject"
             data-action="delete-source"
             data-index="${s.index}"
             data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
-            ${state.deletingSource ? 'disabled' : ''}
+            ${(state.deletingSource || isApproving) ? 'disabled' : ''}
           >Eliminar</button>
         </div>
       </div>
-    `).join('')}
+    `;
+  }).join('');
+
+  el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
+  el.dialogBody.innerHTML = `
+    <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
+    <p class="meta">Fuentes detectadas: ${item.sources?.length || 0}</p>
+    ${sourcesMarkup}
   `;
 }
 
