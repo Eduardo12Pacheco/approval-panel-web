@@ -1861,7 +1861,6 @@ function renderQueue() {
         </div>
         <span class="queue-status-pill queue-status-pill--${item.tone}">${escapeHtml(item.statusLabel)}</span>
       </div>
-      <div class="summary queue-item__summary">${escapeHtml(item.summary)}</div>
       <div class="queue-progress">
         <div class="queue-progress__meta">
           <span>${escapeHtml(item.progressLabel)}</span>
@@ -1871,7 +1870,6 @@ function renderQueue() {
           <div class="queue-progress__fill queue-progress__fill--${item.tone}" style="width:${item.percent}%"></div>
         </div>
       </div>
-      <div class="queue-item__footer meta">${escapeHtml(item.footer)}</div>
     </article>
   `).join('');
 }
@@ -1890,17 +1888,11 @@ function buildQueueMonitorCard(item = {}) {
   const eyebrow = [pickFirstNonEmpty(item.jugador, 'Sin jugador'), pickFirstNonEmpty(item.fuente, item.seleccion, 'Sin origen')]
     .filter(Boolean)
     .join(' · ');
-  const summary = pickFirstNonEmpty(item.titular, item.resumen_cluster, item.summary, 'Esperando actualización del backend para más detalle.');
-  const attemptLabel = formatQueueAttempts(item.attempts ?? item.intentos ?? item.retries);
-  const footerParts = [attemptLabel, pickFirstNonEmpty(item.last_error, item.error_message, '')].filter(Boolean);
-
   return {
     title,
     eyebrow,
-    summary,
     statusLabel: getQueueStatusLabel(normalizedStatus),
     progressLabel: getQueueProgressLabel(normalizedStatus, percent),
-    footer: footerParts.join(' · ') || 'Sin observaciones adicionales.',
     percent,
     tone: getQueueTone(normalizedStatus),
     isVisible: shouldDisplayInQueueMonitor(normalizedStatus),
@@ -2146,7 +2138,7 @@ function renderSelectedScriptEditor() {
     : 'Editor de guion';
 
   el.scriptEditorMeta.textContent = hasSelected
-    ? `Estado: ${selected.estado || 'borrador_generado'} · Editá y publicá desde este panel.`
+    ? ''
     : 'Seleccioná un borrador desde la columna derecha para editarlo acá.';
 
   if (!hasSelected) {
