@@ -8,8 +8,8 @@ Baseline parity checkpoints for refactor slices. This matrix freezes user-visibl
 
 | Checkpoint | Flow | Baseline UI State | Endpoint | Method | Required Headers | Payload Keys |
 |---|---|---|---|---|---|---|
-| P0 | approval | Cards render + queue dialog behavior unchanged | `/webhook/approval/*` | `GET/POST` | `x-approval-secret` (optional) | `topic_id`, `decision`, `reason` |
-| P0 | scripts | Draft list/editor/publish dialogs unchanged | `/webhook/mvp-script-*` | `GET/POST` | `x-approval-secret` (optional) | `topic_id`, `script`, `status`, `notes` |
+| P0 | approval | Cards render + queue dialog behavior unchanged | `/webhook/approval/*` | `GET/POST` | `x-approval-secret` (optional) | `cluster_id`, `action`, `id_noticia`, `tema_principal`, `seleccion`, `jugador`, `link` |
+| P0 | scripts | Draft list/editor/publish dialogs unchanged | `/webhook/mvp-script-*` | `GET/POST` | `x-approval-secret` (optional) | `draft_id`, `cluster_id`, `id_noticia`, `guion_editado` |
 | P0 | audio | Job queue cards + polling/SSE status unchanged | `/api/tts/*` | `GET/POST` | `x-api-key`, `Authorization`, `x-user-email` (optional) | `preset`, `text`, `job_id`, `status` |
 | P0 | subtitles | 5-phase state machine visibility unchanged | `/api/subtitles/*` | `GET/POST` | `x-api-key`, `Authorization`, `x-user-email` (optional) | `job_id`, `rows`, `source_language`, `phase` |
 | P0 | auth/session | Auth gate ↔ shell toggle unchanged | local/session bootstrap boundary (no API contract change) | N/A | N/A | `approval-panel-session-v1` |

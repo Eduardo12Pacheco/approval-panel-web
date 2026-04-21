@@ -9,9 +9,10 @@
   <body>
     <!-- Slice A: Auth gate -->
     <section id="authGate" class="auth-gate">
-      <article class="auth-card">
+      <article class="auth-card panel-shell">
+        <div class="auth-card__badge">AP</div>
         <h1>Ingreso privado</h1>
-        <p>Panel interno de aprobación de guiones.</p>
+        <p>Panel interno para aprobación, guiones y audio editorial.</p>
         <form id="authForm" class="auth-form">
           <label>
             Usuario
@@ -23,119 +24,267 @@
           </label>
           <button type="submit">Entrar</button>
         </form>
-        <small>Acceso privado · Newsroom</small>
+        <small>Acceso privado · Operations Studio</small>
       </article>
     </section>
 
     <!-- Slice A: App shell -->
     <div id="appShell" class="hidden app-shell">
-      <aside class="sidebar">
-        <div class="sidebar-brand">
-          <strong>Panel interno</strong>
-          <small>Equipo Editorial</small>
-        </div>
-        <nav class="sidebar-nav" id="sidebarNav">
-          <button class="nav-item active" data-view="approval">Panel de aprobación</button>
-          <button class="nav-item" data-view="scripts">Edición de guiones</button>
-          <button class="nav-item" data-view="audio">Creación de audios</button>
-          <button class="nav-item" data-view="subtitulos">Subtitulos Automaticos</button>
-        </nav>
-        <div class="sidebar-foot">
-          <button id="settingsBtn" class="secondary">Configuración</button>
-          <button id="logoutBtn" class="secondary">Salir</button>
+      <aside class="sidebar sidebar--rail">
+        <div class="sidebar-rail__inner">
+          <div class="sidebar-brand">
+            <div class="sidebar-brand__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path d="M4.75 6.75A2 2 0 0 1 6.75 4.75h7.5l5 5v6.5a2 2 0 0 1-2 2h-10.5a2 2 0 0 1-2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                <path d="M14.25 4.75v5h5M8.5 12h7M8.5 15.5h4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </div>
+            <div class="sidebar-brand__copy">
+              <strong>Approval panel</strong>
+              <small>Operations studio</small>
+            </div>
+          </div>
+
+          <nav class="sidebar-nav" id="sidebarNav">
+            <button class="nav-item active" data-view="approval" title="Approval panel" aria-label="Approval panel">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M7.25 4.75h6.5l4 4v10.5a2 2 0 0 1-2 2h-8.5a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path d="M13.75 4.75v4h4M8.75 12h6.5M8.75 15.25h6.5M8.75 18.5h4.25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Approval panel</span>
+              </span>
+            </button>
+            <button class="nav-item" data-view="audio" title="Voice clone lab" aria-label="Voice clone lab">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 4.5a3.5 3.5 0 0 0-3.5 3.5v4a3.5 3.5 0 1 0 7 0V8A3.5 3.5 0 0 0 12 4.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path d="M6.5 10.5a5.5 5.5 0 0 0 11 0M12 16v3.5M8.5 19.5h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Voice clone lab</span>
+              </span>
+            </button>
+            <button class="nav-item" data-view="subtitulos" title="Subtitles" aria-label="Subtitles">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <rect x="4.75" y="5.5" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></rect>
+                  <path d="M8 10h3M8 13h3M13.5 10h2.5M13.5 13h2.5M8.75 16v2.25M15.25 16v2.25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Subtitles</span>
+              </span>
+            </button>
+          </nav>
+
+          <div class="sidebar-foot">
+            <div class="sidebar-quick-label">Quick access</div>
+            <button id="settingsBtn" class="secondary sidebar-foot__action">Settings</button>
+            <button id="logoutBtn" class="secondary sidebar-foot__action">Cerrar sesión</button>
+          </div>
         </div>
       </aside>
 
       <!-- Slice A: Main views -->
-      <section class="content">
-        <section id="viewApproval" class="view">
-          <header class="topbar">
-            <div>
-              <h1>Panel de aprobación</h1>
-              <p>Revisión de temas pendientes para guion</p>
-            </div>
-            <div class="topbar-actions">
-              <button id="refreshBtn">Actualizar</button>
-              <button id="openQueueBtn" class="secondary">Abrir cola</button>
+      <section class="content app-content">
+        <section id="viewApproval" class="view approval-screen">
+          <header class="approval-controls panel-shell">
+            <label class="control-group control-group--search approval-control approval-control--search">
+              <span class="control-label">Buscar noticia, jugador o tema</span>
+              <span class="control-input-shell control-input-shell--search">
+                <span class="control-input-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"></circle>
+                    <path d="m16 16 4 4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
+                <input id="searchInput" placeholder="Usalo para filtrar temas en tiempo real" />
+              </span>
+            </label>
+
+            <label class="control-group approval-control approval-control--select">
+              <span class="control-label">Países</span>
+              <select id="countryFilter" data-custom-dropdown data-dropdown-label="Países" data-dropdown-placeholder="Países">
+                <option value="">Todos los países</option>
+              </select>
+            </label>
+
+            <label class="control-group approval-control approval-control--select">
+              <span class="control-label">Fuentes</span>
+              <select id="sourcesFilter" data-custom-dropdown data-dropdown-label="Fuentes" data-dropdown-placeholder="Fuentes">
+                <option value="0">Todas las fuentes</option>
+                <option value="1">1+ fuentes</option>
+                <option value="3">3+ fuentes</option>
+                <option value="5">5+ fuentes</option>
+                <option value="10">10+ fuentes</option>
+              </select>
+            </label>
+
+            <div class="approval-controls__actions">
+              <button id="openQueueBtn" class="secondary legacy-only">Abrir cola legacy</button>
             </div>
           </header>
 
-          <section class="stats" id="stats"></section>
+          <section id="stats" class="stats stats--approval approval-stats-sr"></section>
 
-          <section class="filters">
-            <input id="searchInput" placeholder="Buscar por jugador o tema..." />
-            <select id="countryFilter">
-              <option value="">Todos los países</option>
-            </select>
-            <select id="sourcesFilter">
-              <option value="0">Todas las fuentes</option>
-              <option value="1">1+ fuentes</option>
-              <option value="3">3+ fuentes</option>
-              <option value="5">5+ fuentes</option>
-              <option value="10">10+ fuentes</option>
-            </select>
-          </section>
+          <div class="approval-shell-grid">
+            <div class="approval-primary-column">
+              <section class="panel-shell news-panel">
+                <header class="section-heading section-heading--tight">
+                  <div>
+                    <h2>Noticias</h2>
+                    <p>Solo titulares, rápidos de escanear y seleccionar.</p>
+                  </div>
+                  <span id="cardsMeta" class="section-counter section-counter--news">0 resultados</span>
+                </header>
+                <main id="cards" class="cards cards--news"></main>
+              </section>
 
-          <main id="cards" class="cards"></main>
+              <section class="panel-shell script-workbench">
+                <header class="section-heading section-heading--editor">
+                  <div>
+                    <h2 id="scriptEditorTitle">Editor de guion</h2>
+                    <p id="scriptEditorMeta" class="meta">El editor seleccionado se organiza en panel editable solo acá.</p>
+                  </div>
+                  <button id="closeScriptEditor" class="secondary button-icon" disabled>
+                    <span class="button-icon__glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="m13.5 3.75 6.75 6.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="m4.75 12.5 7.9-7.9a2 2 0 0 1 2.83 0l4.92 4.92a2 2 0 0 1 0 2.83l-5.07 5.07a2 2 0 0 1-1.42.58H8.33a2 2 0 0 1-1.42-.58L4.75 15.25a2 2 0 0 1 0-2.75Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M7.75 18h11.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                        <path d="m10.25 7.75 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </span>
+                    <span>Limpiar</span>
+                  </button>
+                </header>
+
+                <label class="editor-label editor-label--workspace">
+                  <span>Texto editable</span>
+                  <textarea id="scriptEditedArea" class="script-area script-area--workspace" placeholder="Aprobá una fuente o elegí un borrador para empezar a editar." disabled></textarea>
+                </label>
+
+                <div class="editor-actions approval-editor-actions">
+                  <p id="scriptEditedWordCount" class="meta word-count">Palabras: 0</p>
+                  <button id="viewOriginalBtn" class="secondary button-icon" disabled>
+                    <span class="button-icon__glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M12 3.75l1.4 3.85L17.25 9l-3.85 1.4L12 14.25l-1.4-3.85L6.75 9l3.85-1.4L12 3.75Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M18.25 13.25l.82 2.18 2.18.82-2.18.82-.82 2.18-.82-2.18-2.18-.82 2.18-.82.82-2.18ZM6 14.75l.54 1.46 1.46.54-1.46.54L6 18.75l-.54-1.46L4 16.75l1.46-.54L6 14.75Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </span>
+                    <span>Ver original</span>
+                  </button>
+                  <button id="voiceAiBtn" class="secondary button-icon" disabled>
+                    <span class="button-icon__glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M12 4.5a3.5 3.5 0 0 0-3.5 3.5v4a3.5 3.5 0 1 0 7 0V8A3.5 3.5 0 0 0 12 4.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M6.5 10.5a5.5 5.5 0 0 0 11 0M12 16v3.5M8.5 19.5h7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </span>
+                    <span>Voz con IA</span>
+                  </button>
+                  <button id="publishDraftBtn" class="approve button-icon" disabled>
+                    <span class="button-icon__glyph" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M4.75 11.5 19.25 4.75 14 19.25 11.5 13.25 4.75 11.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M11.5 13.25 19.25 4.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                      </svg>
+                    </span>
+                    <span>Publicar</span>
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            <aside class="approval-side-column">
+              <section class="panel-shell approval-side-panel">
+                <section class="approval-side-section approval-side-section--queue">
+                  <header class="section-heading section-heading--compact approval-side-section__header">
+                    <div>
+                      <h3>Cola de guiones</h3>
+                      <p class="meta">Monitor de jobs en progreso.</p>
+                    </div>
+                    <span id="queueMeta" class="section-counter hidden"></span>
+                  </header>
+
+                  <section id="queueList" class="queue-list queue-list--integrated"></section>
+                </section>
+
+                <div class="approval-side-divider" aria-hidden="true"></div>
+
+                <section class="approval-side-section approval-side-section--scripts">
+                  <header class="section-heading section-heading--compact approval-side-section__header">
+                    <div>
+                      <h3>Editar guion</h3>
+                      <p class="meta">Borradores listos para abrir en el editor central.</p>
+                    </div>
+                  </header>
+
+                  <section id="scriptStats" class="stats stats--compact approval-stats-sr"></section>
+                  <main id="scriptCards" class="script-selection-list"></main>
+                </section>
+              </section>
+            </aside>
+          </div>
         </section>
 
-        <section id="viewScripts" class="view hidden">
-          <header class="topbar">
-            <div>
-              <h1>Edición de guiones</h1>
-              <p>Borradores generados por IA pendientes de revisión y publicación.</p>
-            </div>
-            <div class="topbar-actions">
-              <button id="refreshScriptsBtn">Actualizar borradores</button>
-            </div>
-          </header>
-
-          <section class="stats" id="scriptStats"></section>
-          <main id="scriptCards" class="cards"></main>
+        <section id="viewScripts" class="view hidden scripts-view">
+          <article class="panel-shell scripts-view__placeholder">
+            <h1>Edición de guiones</h1>
+            <p>La edición principal ahora vive dentro del <strong>Approval panel</strong> junto con la cola y la búsqueda. Esta vista queda como acceso auxiliar mientras se conserva la lógica existente.</p>
+          </article>
         </section>
 
         <section id="viewAudio" class="view hidden">
-          <header class="topbar">
-            <div>
-              <h1>Creación de audios</h1>
-              <p>Generá audio con tu voz de referencia fija usando Qwen3-TTS desde la RTX local.</p>
-            </div>
-          </header>
-
-          <section class="audio-layout">
-            <section class="audio-panel audio-panel--main">
-              <label class="editor-label">
-                Preset de generación
-                <select id="audioPresetSelect">
-                  <option value="balanced_default">balanced_default</option>
-                  <option value="pelotazo_emotivo">pelotazo_emotivo</option>
-                  <option value="pelotazo_informativo">pelotazo_informativo</option>
-                </select>
-              </label>
-
-              <label class="editor-label">
-                Texto para narración
-                <textarea id="audioTextArea" class="script-area" placeholder="Pegá aquí el guion que querés convertir a audio..."></textarea>
-              </label>
-
-              <div class="audio-actions">
-                <p id="audioWordCount" class="meta word-count">Palabras: 0</p>
-                <button id="audioClearBtn" class="secondary">Limpiar</button>
-                <button id="audioRunBtn">Ejecutar</button>
+          <div class="audio-screen">
+            <header class="panel-shell audio-screen__header">
+              <div>
+                <h1>Creación de audio</h1>
+                <p>Generá narraciones con preset fijo y monitoreá la cola de jobs en tiempo real.</p>
               </div>
-            </section>
+            </header>
 
-            <aside class="audio-panel audio-panel--queue">
-              <header class="audio-queue-header">
-                <div>
-                  <h3>Cola de jobs</h3>
-                  <p id="audioQueueMeta" class="meta">Sin jobs todavía.</p>
+            <section class="audio-screen__grid">
+              <section class="audio-panel audio-panel--main panel-shell">
+                <label class="editor-label audio-field">
+                  <span>Preset de generación</span>
+                  <select id="audioPresetSelect" data-custom-dropdown data-dropdown-label="Preset" data-dropdown-placeholder="Preset">
+                    <option value="balanced_default">balanced_default</option>
+                    <option value="pelotazo_emotivo">pelotazo_emotivo</option>
+                    <option value="pelotazo_informativo">pelotazo_informativo</option>
+                  </select>
+                </label>
+
+                <label class="editor-label audio-field audio-field--grow">
+                  <span>Texto para narración</span>
+                  <textarea id="audioTextArea" class="script-area script-area--audio" placeholder="Pegá aquí el guion que querés convertir a audio..."></textarea>
+                </label>
+
+                <div class="audio-actions">
+                  <p id="audioWordCount" class="meta word-count">Palabras: 0</p>
+                  <button id="audioClearBtn" class="secondary">Limpiar</button>
+                  <button id="audioRunBtn">Ejecutar</button>
                 </div>
-              </header>
+              </section>
 
-              <section id="audioQueueList" class="audio-queue-list"></section>
-            </aside>
-          </section>
+              <aside class="audio-panel audio-panel--queue panel-shell">
+                <header class="audio-queue-header">
+                  <div>
+                    <h3>Cola de jobs</h3>
+                    <p class="meta">Estados de render, errores y descargas listas.</p>
+                  </div>
+                  <span id="audioQueueMeta" class="section-counter">Sin jobs todavía.</span>
+                </header>
+
+                <section id="audioQueueList" class="audio-queue-list"></section>
+              </aside>
+            </section>
+          </div>
         </section>
 
         <section id="viewSubtitulos" class="view hidden">
@@ -168,7 +317,7 @@
                 </label>
                 <div class="subtitle-source-language">
                   <p class="subtitle-source-language-title">Idioma origen</p>
-                  <select id="subtitleSourceLanguagePicker" class="subtitle-lang-select" aria-label="Idioma origen para análisis de subtítulos">
+                  <select id="subtitleSourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown data-dropdown-label="Idioma origen" data-dropdown-placeholder="Idioma origen" aria-label="Idioma origen para análisis de subtítulos">
                     <option value="auto">Detectar automáticamente</option>
                     <option value="es">Español</option>
                     <option value="en">Inglés</option>
@@ -271,27 +420,31 @@
 
     <!-- Slice A: Dialogs -->
     <dialog id="queueDialog">
-      <article>
-        <header class="dialog-header">
-          <h2>🧾 Cola de aprobados</h2>
-          <button id="closeQueueBtn" class="secondary">Cerrar ✕</button>
+      <article class="topic-dialog-shell topic-dialog-shell--queue">
+        <header class="dialog-header topic-dialog-header">
+          <div>
+            <h2>Cola de aprobados</h2>
+            <p class="meta">Fallback modal para la cola integrada.</p>
+          </div>
+          <button id="closeQueueBtn" class="secondary">Cerrar</button>
         </header>
-        <p id="queueMeta" class="meta">Sin elementos en cola.</p>
+        <p class="meta">La cola principal vive en la columna derecha del Approval panel.</p>
         <div class="queue-actions">
-          <button id="refreshQueueBtn" class="secondary">Actualizar cola</button>
-          <button id="runQueueBtn">Ejecutar cola</button>
+          <button class="secondary" type="button">Usar panel principal</button>
         </div>
-        <section id="queueList" class="queue-list"></section>
       </article>
     </dialog>
 
     <dialog id="topicDialog">
-      <article>
-        <header class="dialog-header">
-          <h2 id="dialogTitle">Detalle</h2>
+      <article class="topic-dialog-shell">
+        <header class="dialog-header topic-dialog-header">
+          <div>
+            <h2 id="dialogTitle">Detalle</h2>
+            <p class="meta">Pantalla emergente para revisar una noticia filtrada.</p>
+          </div>
           <button id="closeDialog" class="secondary">Cerrar</button>
         </header>
-        <div id="dialogBody"></div>
+        <div id="dialogBody" class="topic-dialog-body"></div>
       </article>
     </dialog>
 
@@ -358,24 +511,11 @@
     </dialog>
 
     <dialog id="scriptEditorDialog">
-      <article>
+      <article class="script-dialog-fallback">
         <header class="dialog-header">
-          <h2 id="scriptEditorTitle">Edición de guion</h2>
-          <button id="closeScriptEditor" class="secondary">Cerrar</button>
+          <h2>Edición de guion</h2>
         </header>
-        <p id="scriptEditorMeta" class="meta"></p>
-
-        <label class="editor-label">
-          Guion editable (se usa para publicar)
-          <textarea id="scriptEditedArea" class="script-area"></textarea>
-        </label>
-
-        <div class="editor-actions">
-          <p id="scriptEditedWordCount" class="meta word-count">Palabras: 0</p>
-          <button id="viewOriginalBtn" class="secondary">Ver original</button>
-          <button id="saveDraftBtn" class="secondary">Guardar cambios</button>
-          <button id="publishDraftBtn" class="approve">Publicar</button>
-        </div>
+        <p class="meta">La edición principal ahora se realiza dentro del panel integrado.</p>
       </article>
     </dialog>
 

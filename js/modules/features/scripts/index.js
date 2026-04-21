@@ -1,25 +1,54 @@
-export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
-  const { renderScriptStats, renderScriptCards, updateWordCounter } = callbacks;
+export function normalizeScriptDraftRows(payload = {}) {
+  const candidates = [payload?.drafts, payload?.items, payload?.rows, payload?.data];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
+}
 
-  async function refreshScriptDrafts() {
+export function resolveScriptIdentity(row = {}) {
+  return {
+    draft_id: (row.draft_id || '').toString(),
+    id_noticia: (row.id_noticia || '').toString(),
+    cluster_id: (row.cluster_id || '').toString(),
+  };
+}
+
+export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
+  const {
+    renderScriptStats = () => {},
+    renderScriptCards = () => {},
+    renderSelectedScriptEditor = () => {},
+  } = callbacks || {};
+
+  async function refreshScriptDrafts({ silent = false } = {}) {
     const state = store.getState();
     try {
-      const data = await api.get('/webhook/mvp-script-drafts-pending-v1');
-      state.scriptDrafts = data.drafts || [];
+      const data = await api.get('/webhook/mvp-script-drafts-pending-v2');
+      state.scriptDrafts = normalizeScriptDraftRows(data);
+
+      if (state.selectedScript) {
+        const currentIds = resolveScriptIdentity(state.selectedScript);
+        const refreshedSelection = state.scriptDrafts.find((item) => {
+          const rowIds = resolveScriptIdentity(item);
+          return (
+            (currentIds.draft_id && rowIds.draft_id === currentIds.draft_id)
+            || (currentIds.id_noticia && rowIds.id_noticia === currentIds.id_noticia)
+            || (currentIds.cluster_id && rowIds.cluster_id === currentIds.cluster_id)
+          );
+        });
+        state.selectedScript = refreshedSelection || null;
+      }
+
       renderScriptStats();
       renderScriptCards();
+      renderSelectedScriptEditor();
     } catch (err) {
       console.error(err);
-      ui.toast('Error cargando borradores');
+      if (!silent) {
+        ui.toast('Error cargando borradores');
+      }
     }
-  }
-
-  function resolveScriptIdentity(row = {}) {
-    return {
-      draft_id: (row.draft_id || '').toString(),
-      id_noticia: (row.id_noticia || '').toString(),
-      cluster_id: (row.cluster_id || '').toString(),
-    };
   }
 
   function matchesIdentity(row = {}, requested = '') {
@@ -38,11 +67,13 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
       return;
     }
     state.selectedScript = row;
-    selectors.scriptEditorTitle.textContent = `${row.jugador || 'Sin jugador'} · ${row.tema_principal || 'Sin tema'}`;
-    selectors.scriptEditorMeta.textContent = `Estado: ${row.estado || 'borrador_generado'}`;
-    selectors.scriptEditedArea.value = (row.guion_editado || row.guion_draft || '').toString();
-    updateWordCounter(selectors.scriptEditedArea.value, selectors.scriptEditedWordCount);
-    selectors.scriptEditorDialog.showModal();
+    renderScriptCards();
+    renderSelectedScriptEditor();
+    if (typeof selectors.scriptEditedArea?.focus !== 'function' && typeof selectors.scriptEditorDialog?.showModal === 'function') {
+      selectors.scriptEditorDialog.showModal();
+    }
+    selectors.scriptEditedArea?.focus?.();
+    selectors.scriptEditedArea?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }
 
   async function saveSelectedScript() {
@@ -56,39 +87,23 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
 
     try {
       state.savingScript = true;
-      selectors.saveDraftBtn.disabled = true;
       const ids = resolveScriptIdentity(state.selectedScript);
-      await api.post('/webhook/mvp-script-draft-save-v1', {
+      await api.post('/webhook/mvp-script-draft-save-v2', {
         ...ids,
         guion_editado: edited,
       });
       ui.toast('Cambios guardados');
       await refreshScriptDrafts();
-      if (state.selectedScript) {
-        const selectedIds = resolveScriptIdentity(state.selectedScript);
-        const refreshed = state.scriptDrafts.find((item) => {
-          const rowIds = resolveScriptIdentity(item);
-          return (
-            (selectedIds.draft_id && rowIds.draft_id === selectedIds.draft_id)
-            || (selectedIds.id_noticia && rowIds.id_noticia === selectedIds.id_noticia)
-            || (selectedIds.cluster_id && rowIds.cluster_id === selectedIds.cluster_id)
-          );
-        });
-        if (refreshed) state.selectedScript = refreshed;
-      }
-      selectors.scriptEditorMeta.textContent = 'Estado: en_revision';
     } catch (err) {
       console.error(err);
       if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
         ui.toast('El borrador cambió o ya no existe. Actualizá la lista.');
         await refreshScriptDrafts();
-        selectors.scriptEditorDialog.close();
         return;
       }
       ui.toast('Error guardando cambios');
     } finally {
       state.savingScript = false;
-      selectors.saveDraftBtn.disabled = false;
     }
   }
 
@@ -105,15 +120,14 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
       state.publishingScript = true;
       selectors.confirmPublishBtn.disabled = true;
       const ids = resolveScriptIdentity(state.selectedScript);
-      await api.post('/webhook/mvp-script-draft-save-v1', {
+      await api.post('/webhook/mvp-script-draft-save-v2', {
         ...ids,
         guion_editado: edited,
       });
-      await api.post('/webhook/mvp-script-publish-v1', {
+      await api.post('/webhook/mvp-script-publish-v2', {
         ...ids,
       });
       selectors.publishConfirmDialog.close();
-      selectors.scriptEditorDialog.close();
       state.selectedScript = null;
       ui.toast('Guion publicado correctamente');
       await refreshScriptDrafts();
@@ -123,7 +137,6 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
         ui.toast('El borrador cambió o ya no existe. Actualizá la lista.');
         await refreshScriptDrafts();
         selectors.publishConfirmDialog.close();
-        selectors.scriptEditorDialog.close();
         return;
       }
       ui.toast('Error publicando guion');

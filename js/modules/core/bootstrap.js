@@ -7,7 +7,6 @@ export function bindCoreEvents({
   clearSessionStatus,
   setView,
   refreshAll,
-  refreshScripts,
   refreshQueue,
   runQueue,
   saveSettings,
@@ -41,15 +40,13 @@ export function bindCoreEvents({
     setView(btn.dataset.view);
   });
 
-  el.refreshBtn.addEventListener('click', refreshAll);
-  el.refreshScriptsBtn.addEventListener('click', refreshScripts);
-  el.openQueueBtn.addEventListener('click', () => {
+  el.openQueueBtn?.addEventListener('click', () => {
     refreshQueue();
-    el.queueDialog.showModal();
+    el.queueDialog?.showModal?.();
   });
-  el.closeQueueBtn.addEventListener('click', () => el.queueDialog.close());
-  el.refreshQueueBtn.addEventListener('click', refreshQueue);
-  el.runQueueBtn.addEventListener('click', runQueue);
+  el.closeQueueBtn?.addEventListener('click', () => el.queueDialog?.close?.());
+  el.refreshQueueBtn?.addEventListener('click', refreshQueue);
+  el.runQueueBtn?.addEventListener('click', runQueue);
   el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
   el.logoutBtn.addEventListener('click', () => {
     clearSessionStatus();

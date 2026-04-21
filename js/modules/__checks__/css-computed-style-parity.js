@@ -9,7 +9,7 @@ const ROOT = path.resolve(__dirname, '..', '..', '..');
 const GUARDED_SELECTOR_BASELINE = {
   '.sidebar': {
     position: 'fixed',
-    width: '240px',
+    width: 'var(--sidebar-collapsed)',
     display: 'flex',
   },
   '.topbar': {

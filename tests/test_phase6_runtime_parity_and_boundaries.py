@@ -33,18 +33,38 @@ const api = createApprovalApiClient({
   fetchImpl: async (url, options = {}) => {
     calls.push({ url, options });
     if (url.endsWith('/http-error')) {
-      return { ok: false, status: 500, text: async () => JSON.stringify({ message: 'boom' }) };
+      return {
+        ok: false,
+        status: 500,
+        text: async () => JSON.stringify({ message: 'boom' }),
+        json: async () => ({ message: 'boom' }),
+      };
     }
     if (url.endsWith('/business-error')) {
-      return { ok: true, status: 200, text: async () => JSON.stringify({ status: 'error', message: 'business' }) };
+      return {
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ status: 'error', message: 'business' }),
+        json: async () => ({ status: 'error', message: 'business' }),
+      };
     }
-    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ ok: true }),
+      json: async () => ({ ok: true }),
+    };
   },
 });
 
-await api.post('/webhook/approval/decision/v1', { cluster_id: 'c-1', action: 'approve' });
-const postCall = calls[0];
-if (postCall.url !== 'http://localhost:5678/webhook/approval/decision/v1') throw new Error('url drift');
+await api.get('/webhook/approval/queue/v2');
+const getCall = calls[0];
+if (getCall.url !== 'http://localhost:5678/webhook/approval/queue/v2') throw new Error('get url drift');
+if (getCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('get secret header drift');
+
+await api.post('/webhook/approval/decision/v2', { cluster_id: 'c-1', action: 'approve' });
+const postCall = calls[1];
+if (postCall.url !== 'http://localhost:5678/webhook/approval/decision/v2') throw new Error('url drift');
 if (postCall.options.method !== 'POST') throw new Error('method drift');
 if (postCall.options.headers['Content-Type'] !== 'application/json') throw new Error('content-type drift');
 if (postCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('secret header drift');
@@ -111,6 +131,221 @@ try {
   missingCredsCaught = String(err?.message || '').includes('Configurá usuario y contraseña de Audio API');
 }
 if (!missingCredsCaught) throw new Error('missing creds path not enforced');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve():
+    script = r"""
+import { createApprovalFeature } from './js/modules/features/approval/index.js';
+
+const state = {
+  queue: [],
+  items: [],
+  selectedCardId: null,
+  deletingSource: false,
+  selectedTopic: {
+    cluster_id: 'cluster-1',
+    tema_principal: 'Tema',
+    seleccion: 'AR',
+    jugador: 'Jugador',
+    approved_sources_count: 0,
+    cantidad_fuentes_total: 1,
+    sources: [{
+      id_noticia: 'news-1',
+      titular: 'Titular',
+      fuente: 'Fuente',
+      link: 'https://example.com',
+      snippet: 'Snippet',
+      estado_revision: 'pendiente',
+      queue_id: 'queue-1',
+      estado_queue: 'queued',
+      attempts: 0,
+    }],
+  },
+};
+
+const calls = [];
+let refreshScriptDraftsCount = 0;
+
+const feature = createApprovalFeature({
+  api: {
+    async get(path) {
+      calls.push({ kind: 'get', path });
+      if (path === '/webhook/approval/queue/v2') return { items: [{ id: 'queue-1' }] };
+      if (path === '/webhook/approval/pending/v1') return { items: [] };
+      if (path.startsWith('/webhook/approval/topic/v1')) return { item: state.selectedTopic };
+      throw new Error(`unexpected get ${path}`);
+    },
+    async post(path, payload) {
+      calls.push({ kind: 'post', path, payload });
+      return { ok: true };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast() {} },
+  selectors: {
+    topicDialog: { showModal() {} },
+    runQueueBtn: { disabled: false, textContent: 'Actualizar cola' },
+  },
+  callbacks: {
+    renderStats() {},
+    renderCountryFilter() {},
+    renderCards() {},
+    renderQueue() {},
+    renderTopicDetail() {},
+    refreshScriptDrafts() { refreshScriptDraftsCount += 1; return Promise.resolve(); },
+    confirmDelete() { return false; },
+  },
+  helpers: { getErrorMessage: (err, fallback) => err?.message || fallback },
+});
+
+await feature.approveSourceFromTopic(state.selectedTopic.sources[0]);
+
+const decisionCall = calls.find((entry) => entry.kind === 'post');
+if (!decisionCall) throw new Error('missing decision call');
+if (decisionCall.path !== '/webhook/approval/decision/v2') throw new Error(`decision path drift: ${decisionCall.path}`);
+if (refreshScriptDraftsCount !== 1) throw new Error(`expected script drafts refresh after approve, got ${refreshScriptDraftsCount}`);
+if (!calls.some((entry) => entry.kind === 'get' && entry.path === '/webhook/approval/queue/v2')) {
+  throw new Error('missing queue v2 refresh after approve');
+}
+
+calls.length = 0;
+await feature.runQueue(async () => {
+  calls.push({ kind: 'refresh-all' });
+});
+
+if (calls.some((entry) => entry.kind === 'post' && entry.path === '/webhook/approval/run-queue/v1')) {
+  throw new Error('manual queue execution endpoint should not be used');
+}
+if (!calls.some((entry) => entry.kind === 'refresh-all')) {
+  throw new Error('manual queue action should reuse refresh path');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_scripts_feature_accepts_v2_polling_rows_from_items_envelope_and_deselects_missing_rows():
+    script = r"""
+import { createScriptsFeature } from './js/modules/features/scripts/index.js';
+
+const state = {
+  scriptDrafts: [],
+  selectedScript: { draft_id: 'draft-missing', cluster_id: 'cluster-missing' },
+  savingScript: false,
+  publishingScript: false,
+};
+
+const selectors = {
+  scriptEditedArea: {
+    value: '',
+    focus() {},
+    scrollIntoView() {},
+  },
+  scriptEditorDialog: { showModal() {} },
+  publishConfirmDialog: { close() {} },
+  confirmPublishBtn: { disabled: false },
+};
+
+let renderStatsCount = 0;
+let renderCardsCount = 0;
+let renderEditorCount = 0;
+
+const feature = createScriptsFeature({
+  api: {
+    async get(path) {
+      if (path !== '/webhook/mvp-script-drafts-pending-v2') throw new Error(`unexpected get ${path}`);
+      return {
+        items: [{
+          draft_id: 'draft-1',
+          cluster_id: 'cluster-1',
+          jugador: 'Jugador',
+          tema_principal: 'Tema',
+          estado: 'borrador_generado',
+          guion_draft: 'Texto suficientemente largo para validar la carga desde polling.',
+        }],
+      };
+    },
+    async post() {
+      return { ok: true };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast() {} },
+  selectors,
+  callbacks: {
+    renderScriptStats() { renderStatsCount += 1; },
+    renderScriptCards() { renderCardsCount += 1; },
+    renderSelectedScriptEditor() { renderEditorCount += 1; },
+  },
+});
+
+await feature.refreshScriptDrafts();
+
+if (state.scriptDrafts.length !== 1) throw new Error(`expected 1 draft from items envelope, got ${state.scriptDrafts.length}`);
+if (state.scriptDrafts[0].draft_id !== 'draft-1') throw new Error('items envelope identity drift');
+if (state.selectedScript !== null) throw new Error('missing draft should be deselected after polling refresh');
+if (renderStatsCount !== 1 || renderCardsCount !== 1 || renderEditorCount !== 1) {
+  throw new Error(`render drift ${renderStatsCount}/${renderCardsCount}/${renderEditorCount}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_approval_source_link_resolution_supports_link_and_url_and_app_shell_uses_it():
+    script = r"""
+import { resolveApprovalSourceLink } from './js/modules/features/approval/index.js';
+
+const fromLink = resolveApprovalSourceLink({ link: 'https://example.com/from-link' });
+if (fromLink !== 'https://example.com/from-link') throw new Error(`link resolution drift: ${fromLink}`);
+
+const fromUrl = resolveApprovalSourceLink({ url: 'https://example.com/from-url' });
+if (fromUrl !== 'https://example.com/from-url') throw new Error(`url resolution drift: ${fromUrl}`);
+
+const blank = resolveApprovalSourceLink({ link: '   ', url: '' });
+if (blank !== '') throw new Error('blank link resolution drift');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+    app_shell_source = (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")
+    assert "resolveApprovalSourceLink" in app_shell_source
+    assert "actionBtn.dataset.url || actionBtn.dataset.link || ''" in app_shell_source
+
+
+def test_single_flight_runner_reuses_inflight_promise_for_poll_refreshes():
+    script = r"""
+import { createSingleFlightRunner } from './js/modules/core/async/single-flight.js';
+
+let runs = 0;
+let release;
+const blocker = new Promise((resolve) => {
+  release = resolve;
+});
+
+const runner = createSingleFlightRunner(async () => {
+  runs += 1;
+  await blocker;
+  return runs;
+});
+
+const first = runner();
+const second = runner();
+if (first !== second) throw new Error('expected in-flight promise reuse');
+
+release();
+const [firstResult, secondResult] = await Promise.all([first, second]);
+if (runs !== 1 || firstResult !== 1 || secondResult !== 1) {
+  throw new Error(`single-flight execution drift: runs=${runs} results=${firstResult}/${secondResult}`);
+}
+
+const thirdResult = await runner();
+if (runs !== 2 || thirdResult !== 2) {
+  throw new Error(`expected runner reset after completion, got runs=${runs} result=${thirdResult}`);
+}
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

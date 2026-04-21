@@ -1,50 +1,54 @@
 dialog {
-  width: min(900px, 92vw);
-  border: 1px solid #474d5a;
-  border-radius: 18px;
-  background: #242830;
+  width: min(1040px, 92vw);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
   color: var(--text);
-  box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55);
-}
-
-#queueDialog {
-  width: min(440px, 95vw);
-}
-
-#queueDialog .dialog-header h2 {
-  font-size: 1rem;
+  box-shadow: var(--shadow-lg);
+  padding: 0;
 }
 
 #settingsDialog {
   width: min(980px, 95vw);
 }
 
-#settingsDialog article {
-  padding: 8px;
-}
-
-#settingsDialog input {
-  width: 100%;
-  min-width: 0;
+#scriptOriginalDialog {
+  width: min(1080px, 92vw);
 }
 
 dialog::backdrop {
-  background: rgba(5, 10, 20, 0.72);
+  background: rgba(5, 5, 5, 0.78);
   backdrop-filter: blur(4px);
 }
 
 dialog article {
-  padding: 4px;
+  padding: 24px;
 }
 
 .dialog-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 14px;
 }
 
-#dialogBody p {
-  line-height: 1.55;
+.dialog-header h2 {
+  margin-bottom: 6px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.topic-dialog-shell {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 28px;
+}
+
+.topic-dialog-header {
+  margin-bottom: 18px;
+}
+
+.topic-dialog-body {
+  display: grid;
+  gap: 20px;
 }
 
 .settings-intro {
@@ -57,19 +61,18 @@ dialog article {
 }
 
 .settings-section {
-  background: var(--card-soft);
+  background: var(--surface-soft);
   border: 1px solid var(--border);
-  border-radius: 14px;
   padding: 14px;
 }
 
 .settings-section h3 {
-  margin: 0;
+  margin-bottom: 6px;
   font-size: 1rem;
 }
 
 .settings-help {
-  margin: 6px 0 10px;
+  margin: 0 0 10px;
 }
 
 .settings-field {
@@ -83,4 +86,8 @@ dialog article {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+}
+
+.script-dialog-fallback {
+  min-width: min(540px, 90vw);
 }

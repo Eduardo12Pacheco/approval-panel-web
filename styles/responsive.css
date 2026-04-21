@@ -1,96 +1,98 @@
+@media (max-width: 1180px) {
+  :root {
+    --sidebar-collapsed: 76px;
+    --sidebar-expanded: min(236px, calc(100vw - 32px));
+  }
+
+  .approval-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .approval-shell-grid,
+  .audio-screen__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 860px) {
   .app-shell {
     display: block;
   }
 
-  .sidebar {
+  .sidebar--rail,
+  .sidebar--rail:hover,
+  .sidebar--rail:focus-within {
     position: static;
-    height: auto;
     width: auto;
+  }
+
+  .sidebar-brand__copy,
+  .nav-item__copy,
+  .sidebar-foot,
+  .sidebar-quick-label {
+    opacity: 1;
+    visibility: visible;
+    max-height: none;
+    pointer-events: auto;
+    transform: none;
+  }
+
+  .sidebar-brand,
+  .nav-item {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .sidebar-brand__copy,
+  .nav-item__copy {
+    width: auto;
+    max-width: none;
+    white-space: normal;
+  }
+
+  .app-content {
+    margin-left: 0;
+    padding: 18px;
   }
 
   .sidebar-nav {
     grid-template-columns: 1fr 1fr;
   }
 
-  .content {
-    margin-left: 0;
-    width: 100%;
-  }
-
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .topbar-actions {
-    width: 100%;
-  }
-
-  .topbar-actions button {
-    flex: 1;
-    min-width: 110px;
-  }
-
-  .stats {
+  .stats,
+  .stats--compact,
+  .stats--approval,
+  .approval-controls {
     grid-template-columns: 1fr;
   }
 
-  .filters {
-    flex-direction: column;
-  }
-
-  .queue-actions {
+  .approval-controls__actions,
+  .audio-actions,
+  .editor-actions,
+  .queue-actions,
+  .card-actions {
     width: 100%;
   }
 
-  .queue-actions button {
+  .approval-controls__actions button,
+  .audio-actions button,
+  .editor-actions button,
+  .queue-actions button,
+  .card-actions button {
     flex: 1;
   }
 
-  .audio-actions {
-    width: 100%;
-  }
-
-  .audio-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .audio-panel--main,
-  .audio-panel--queue {
-    min-height: auto;
+  .cards--news,
+  .queue-list--integrated,
+  .script-selection-list,
+  .audio-queue-list {
     max-height: none;
   }
 
-  .audio-actions button {
-    flex: 1;
-  }
-
-  .subtitle-flow {
-    min-height: auto;
-  }
-
-  .subtitle-phase-section--centered {
-    min-height: auto;
-    place-items: stretch;
-  }
-
-  .subtitle-centered-card {
-    width: 100%;
-  }
-
-  .subtitle-phase-bar {
-    grid-template-columns: 1fr;
-  }
-
-  input,
-  select {
-    min-width: 100%;
-    width: 100%;
-  }
-
-  .cards {
-    grid-template-columns: 1fr;
+  .approval-side-panel {
+    position: static;
+    max-height: none;
+    grid-template-rows: auto auto auto;
   }
 
   .source-item {
@@ -100,9 +102,30 @@
   .source-actions {
     width: 100%;
     flex-direction: row;
+    flex-wrap: wrap;
   }
 
   .source-actions button {
     flex: 1;
+    min-width: 0;
+  }
+
+  .topbar,
+  .dialog-header,
+  .section-heading,
+  .topic-detail-sources__header,
+  .audio-queue-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .script-area--workspace,
+  .script-area--audio {
+    min-height: 260px;
+  }
+
+  input,
+  select {
+    width: 100%;
   }
 }

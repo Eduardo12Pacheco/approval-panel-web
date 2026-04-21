@@ -23,6 +23,7 @@ import {
 import { renderToast } from './core/ui/toast.js';
 import { escapeHtmlCore } from './core/ui/escape-html.js';
 import { updateWordCounterCore } from './core/ui/word-count.js';
+import { createCustomDropdownController } from './core/ui/custom-dropdowns.js';
 import {
   defaultSettingsFactory,
   hydrateSettingsFormValues,
@@ -36,9 +37,11 @@ import {
   readSessionStatus,
 } from './core/auth/session-gate.js';
 import { bindCoreEvents } from './core/bootstrap.js';
+import { createSingleFlightRunner } from './core/async/single-flight.js';
 import { createApprovalApiClient } from './core/http/approval-api.js';
 import { createTtsApiClient } from './core/http/tts-api.js';
-import { createApprovalFeature } from './features/approval/index.js';
+import { createApprovalFeature, resolveApprovalSourceLink } from './features/approval/index.js';
+import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createSubtitlesFeature } from './features/subtitles/index.js';
@@ -67,6 +70,7 @@ const sessionKey = 'approval-panel-session-v1';
 
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
+const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 15000;
 
 function defaultSettings() {
   return defaultSettingsFactory();
@@ -96,6 +100,7 @@ const state = {
   dismissedAudioJobs: new Set(),
   audioQueueSyncTimer: null,
   audioQueueSyncInFlight: false,
+  approvalAutoRefreshTimer: null,
   subtitles: {
     machine: createSubtitlesWorkflowMachine(),
     rows: [
@@ -144,6 +149,8 @@ const __testOverrides = {
 
 let toastTimer = null;
 
+const customDropdowns = createCustomDropdownController({ root: document });
+
 const SUBTITLE_SOURCE_LANGUAGE_ALLOWED = new Set([
   'auto',
   'es',
@@ -190,6 +197,7 @@ const approvalFeature = createApprovalFeature({
     renderCards,
     renderQueue,
     renderTopicDetail,
+    refreshScriptDrafts,
     confirmDelete: (message) => window.confirm(message),
   },
   helpers: {
@@ -205,9 +213,12 @@ const scriptsFeature = createScriptsFeature({
   callbacks: {
     renderScriptStats,
     renderScriptCards,
-    updateWordCounter,
+    renderSelectedScriptEditor,
   },
 });
+
+const runQueueRefresh = createSingleFlightRunner((options) => approvalFeature.refreshQueue(options));
+const runScriptDraftsRefresh = createSingleFlightRunner((options) => scriptsFeature.refreshScriptDrafts(options));
 
 const ttsApi = createTtsApiClient({
   getSettings: () => state.settings,
@@ -272,7 +283,12 @@ export function bootApp() {
 
 export function bootCompatibilityShell() {
   bindEvents();
+  customDropdowns.mountAll();
   hydrateSettingsForm();
+  if (el.runQueueBtn) {
+    el.runQueueBtn.textContent = 'Actualizar cola';
+  }
+  renderSelectedScriptEditor();
   renderSubtitlesWorkflow();
   boot();
 }
@@ -316,7 +332,6 @@ function bindEvents() {
     clearSessionStatus: () => clearSessionStatus({ storage: localStorage, sessionKey }),
     setView,
     refreshAll,
-    refreshScripts: refreshScriptDrafts,
     refreshQueue,
     runQueue,
     saveSettings,
@@ -328,7 +343,8 @@ function bindEvents() {
 
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
-    el.scriptEditorDialog.close();
+    renderScriptCards();
+    renderSelectedScriptEditor();
   });
 
   el.scriptEditedArea.addEventListener('input', () => {
@@ -348,7 +364,16 @@ function bindEvents() {
 
   el.cancelPublishBtn.addEventListener('click', () => el.publishConfirmDialog.close());
   el.confirmPublishBtn.addEventListener('click', publishSelectedScript);
-  el.saveDraftBtn.addEventListener('click', saveSelectedScript);
+  el.voiceAiBtn.addEventListener('click', () => {
+    const text = (el.scriptEditedArea.value || '').trim();
+    if (!text) {
+      toast('No hay texto listo para enviar a Voz con IA');
+      return;
+    }
+    el.audioTextArea.value = text;
+    updateWordCounter(text, el.audioWordCount);
+    setView('audio');
+  });
   el.publishDraftBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
     el.publishConfirmDialog.showModal();
@@ -398,7 +423,7 @@ function bindEvents() {
 
     const action = actionBtn.dataset.action;
     if (action === 'open-source') {
-      const encodedUrl = actionBtn.dataset.url || '';
+      const encodedUrl = actionBtn.dataset.url || actionBtn.dataset.link || '';
       const url = decodeURIComponent(encodedUrl);
       if (!url) return;
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -430,17 +455,21 @@ function bindEvents() {
 }
 
 function setView(view) {
-  state.currentView = view;
-  const isApproval = view === 'approval';
-  const isScripts = view === 'scripts';
-  const isAudio = view === 'audio';
-  const isSubtitulos = view === 'subtitulos';
+  const requestedView = typeof view === 'string' ? view.trim() : '';
+  const nextView = ['approval', 'audio', 'subtitulos'].includes(requestedView) ? requestedView : 'approval';
+
+  state.currentView = nextView;
+  ensureApprovalAutoRefresh();
+  const isApproval = nextView === 'approval';
+  const isScripts = nextView === 'scripts';
+  const isAudio = nextView === 'audio';
+  const isSubtitulos = nextView === 'subtitulos';
   el.viewApproval.classList.toggle('hidden', !isApproval);
   el.viewScripts.classList.toggle('hidden', !isScripts);
   el.viewAudio.classList.toggle('hidden', !isAudio);
   el.viewSubtitulos.classList.toggle('hidden', !isSubtitulos);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.view === view);
+    btn.classList.toggle('active', btn.dataset.view === nextView);
   });
 
   if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
@@ -721,6 +750,7 @@ function renderSubtitleSourceLanguagePicker() {
   if (!el.subtitleSourceLanguagePicker) return;
   const selected = (state.subtitles.sourceLanguage || 'auto').toString().toLowerCase();
   el.subtitleSourceLanguagePicker.value = SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(selected) ? selected : 'auto';
+  customDropdowns.refreshAll();
 
   if (el.subtitleSourceLanguageEngineHint) {
     el.subtitleSourceLanguageEngineHint.textContent = describeSubtitleTranslationEngineRuntime(
@@ -868,6 +898,8 @@ function renderSubtitlesTable() {
       </tr>
     `;
   }).join('');
+
+  customDropdowns.refreshAll();
 }
 
 function renderSubtitleSelectOptions(options, selectedValue) {
@@ -1283,12 +1315,29 @@ async function refreshPending() {
   await approvalFeature.refreshPending();
 }
 
-async function refreshQueue() {
-  await approvalFeature.refreshQueue();
+async function refreshQueue(options = {}) {
+  await runQueueRefresh(options);
 }
 
-async function refreshScriptDrafts() {
-  await scriptsFeature.refreshScriptDrafts();
+async function refreshScriptDrafts(options = {}) {
+  await runScriptDraftsRefresh(options);
+}
+
+function ensureApprovalAutoRefresh() {
+  if (state.approvalAutoRefreshTimer) return;
+
+  const run = () => {
+    void refreshApprovalMonitorData();
+  };
+
+  state.approvalAutoRefreshTimer = setInterval(run, APPROVAL_AUTO_REFRESH_INTERVAL_MS);
+}
+
+async function refreshApprovalMonitorData() {
+  await Promise.allSettled([
+    refreshQueue({ silent: true }),
+    refreshScriptDrafts({ silent: true }),
+  ]);
 }
 
 async function runAudioGeneration() {
@@ -1457,7 +1506,7 @@ function renderAudioQueue() {
     return status !== 'queued' && !isTerminalAudioStatus(status);
   }).length;
   const doneCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'done').length;
-  el.audioQueueMeta.textContent = `${visibleJobs.length} job(s) · En cola ${queuedCount} · Procesando ${runningCount} · Completados ${doneCount}`;
+  el.audioQueueMeta.textContent = `${visibleJobs.length} jobs`;
 
   el.audioQueueList.innerHTML = visibleJobs.map((job) => {
     const status = (job.status || 'queued').toLowerCase();
@@ -1474,13 +1523,16 @@ function renderAudioQueue() {
     return `
       <article class="audio-queue-card" data-job-id="${job.job_id}">
         <header class="audio-queue-card-header">
-          <p class="audio-queue-card-title">Job: ${escapeHtml(job.job_id)}</p>
+          <div>
+            <p class="audio-queue-card-title">${escapeHtml(job.job_id)}</p>
+            <p class="meta">${statusLabel}</p>
+          </div>
           <button class="audio-card-close" data-action="dismiss-audio-job" data-job-id="${job.job_id}" title="Ocultar job">×</button>
         </header>
 
         <span class="audio-status-pill ${statusClass}">${statusLabel}</span>
 
-        <p class="audio-progress-meta">Progreso ${percent}%</p>
+        <p class="audio-progress-meta">Progress ${percent}%</p>
         <div class="audio-progress-track">
           <div class="audio-progress-fill ${progressClass}" style="width:${percent}%"></div>
         </div>
@@ -1782,23 +1834,198 @@ async function downloadAudioJob(jobId = null) {
 }
 
 function renderQueue() {
-  const queue = state.queue;
+  const queue = state.queue
+    .map((item) => buildQueueMonitorCard(item))
+    .filter((item) => item.isVisible);
+
   el.queueMeta.textContent = queue.length
-    ? `${queue.length} noticia(s) aprobada(s) esperando generación.`
-    : 'Sin elementos en cola.';
+    ? `${queue.length} job${queue.length === 1 ? '' : 's'} en curso`
+    : '';
+  el.queueMeta.classList.toggle('hidden', !queue.length);
 
   if (!queue.length) {
-    el.queueList.innerHTML = '';
+    el.queueList.innerHTML = '<p class="meta queue-list__empty">Sin jobs en curso.</p>';
     return;
   }
 
   el.queueList.innerHTML = queue.map((item) => `
-    <article class="queue-item">
-      <strong>${escapeHtml(item.jugador || 'Sin jugador')}</strong>
-      <div class="meta">${escapeHtml(item.titular || 'Sin titular')}</div>
-      <div class="meta">Fuente: ${escapeHtml(item.fuente || 'Sin fuente')}</div>
+    <article class="queue-item queue-item--monitor queue-item--${item.tone}">
+      <div class="queue-item__header">
+        <div class="queue-item__title-group">
+          <div class="meta queue-item__eyebrow">${escapeHtml(item.eyebrow)}</div>
+          <strong>${escapeHtml(item.title)}</strong>
+        </div>
+        <span class="queue-status-pill queue-status-pill--${item.tone}">${escapeHtml(item.statusLabel)}</span>
+      </div>
+      <div class="summary queue-item__summary">${escapeHtml(item.summary)}</div>
+      <div class="queue-progress">
+        <div class="queue-progress__meta">
+          <span>${escapeHtml(item.progressLabel)}</span>
+          <span>${item.percent}%</span>
+        </div>
+        <div class="queue-progress__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${item.percent}">
+          <div class="queue-progress__fill queue-progress__fill--${item.tone}" style="width:${item.percent}%"></div>
+        </div>
+      </div>
+      <div class="queue-item__footer meta">${escapeHtml(item.footer)}</div>
     </article>
   `).join('');
+}
+
+function buildQueueMonitorCard(item = {}) {
+  const rawStatus = pickFirstNonEmpty(
+    item.estado_queue,
+    item.estado,
+    item.status,
+    item.stage,
+    item.progress?.stage,
+  );
+  const normalizedStatus = normalizeQueueStatus(rawStatus);
+  const percent = resolveQueueProgressPercent(item, normalizedStatus);
+  const title = pickFirstNonEmpty(item.tema_principal, item.titular, item.jugador, item.cluster_id, item.queue_id, 'Job sin título');
+  const eyebrow = [pickFirstNonEmpty(item.jugador, 'Sin jugador'), pickFirstNonEmpty(item.fuente, item.seleccion, 'Sin origen')]
+    .filter(Boolean)
+    .join(' · ');
+  const summary = pickFirstNonEmpty(item.titular, item.resumen_cluster, item.summary, 'Esperando actualización del backend para más detalle.');
+  const attemptLabel = formatQueueAttempts(item.attempts ?? item.intentos ?? item.retries);
+  const footerParts = [attemptLabel, pickFirstNonEmpty(item.last_error, item.error_message, '')].filter(Boolean);
+
+  return {
+    title,
+    eyebrow,
+    summary,
+    statusLabel: getQueueStatusLabel(normalizedStatus),
+    progressLabel: getQueueProgressLabel(normalizedStatus, percent),
+    footer: footerParts.join(' · ') || 'Sin observaciones adicionales.',
+    percent,
+    tone: getQueueTone(normalizedStatus),
+    isVisible: shouldDisplayInQueueMonitor(normalizedStatus),
+  };
+}
+
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const normalized = `${value ?? ''}`.trim();
+    if (normalized) return normalized;
+  }
+  return '';
+}
+
+function normalizeQueueStatus(value = '') {
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '_');
+}
+
+function resolveQueueProgressPercent(item = {}, normalizedStatus = '') {
+  const candidates = [
+    item.progress_percent,
+    item.progreso_percent,
+    item.progress_pct,
+    item.progreso_pct,
+    item.progress?.percent,
+    item.progress?.pct,
+    item.progress,
+    item.progreso,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return Math.min(100, Math.max(0, Math.round(parsed)));
+    }
+  }
+
+  const fallbackByStatus = {
+    queued: 12,
+    pending: 12,
+    aprobado: 16,
+    approved: 16,
+    generating: 48,
+    generando: 48,
+    processing: 52,
+    procesando: 52,
+    writing: 68,
+    redactando: 68,
+    editing: 82,
+    en_edicion: 82,
+    en_revision: 86,
+    ready_for_edit: 92,
+    borrador_generado: 92,
+    done: 100,
+    completed: 100,
+    publicado: 100,
+    failed: 100,
+    error: 100,
+  };
+
+  return fallbackByStatus[normalizedStatus] ?? 24;
+}
+
+function isQueueTerminalStatus(normalizedStatus = '') {
+  return new Set(['done', 'completed', 'published', 'publicado', 'cancelled', 'cancelado']).has(normalizedStatus);
+}
+
+function shouldDisplayInQueueMonitor(normalizedStatus = '') {
+  if (isQueueTerminalStatus(normalizedStatus)) return false;
+  if (normalizedStatus === 'ready_for_edit' || normalizedStatus === 'borrador_generado') return false;
+  return true;
+}
+
+function getQueueStatusLabel(normalizedStatus = '') {
+  const labels = {
+    queued: 'En espera',
+    pending: 'En espera',
+    approved: 'Aprobado',
+    aprobado: 'Aprobado',
+    generating: 'Generando',
+    generando: 'Generando',
+    processing: 'Procesando',
+    procesando: 'Procesando',
+    writing: 'Redactando',
+    redactando: 'Redactando',
+    editing: 'Editando',
+    en_edicion: 'Editando',
+    en_revision: 'En revisión',
+    ready_for_edit: 'Listo para editar',
+    borrador_generado: 'Listo para editar',
+    failed: 'Con error',
+    error: 'Con error',
+  };
+
+  return labels[normalizedStatus] || 'En progreso';
+}
+
+function getQueueProgressLabel(normalizedStatus = '', percent = 0) {
+  if (normalizedStatus === 'failed' || normalizedStatus === 'error') {
+    return 'Requiere revisión';
+  }
+  if (normalizedStatus === 'ready_for_edit' || normalizedStatus === 'borrador_generado') {
+    return 'Draft listo';
+  }
+  if (percent >= 90) {
+    return 'Casi listo';
+  }
+  if (percent >= 50) {
+    return 'Avanzando';
+  }
+  return 'Iniciando';
+}
+
+function getQueueTone(normalizedStatus = '') {
+  if (normalizedStatus === 'failed' || normalizedStatus === 'error') return 'error';
+  if (normalizedStatus === 'ready_for_edit' || normalizedStatus === 'borrador_generado') return 'warm';
+  return 'active';
+}
+
+function formatQueueAttempts(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return '';
+  return `Intento ${Math.round(parsed)}`;
 }
 
 function renderStats() {
@@ -1819,9 +2046,9 @@ function renderScriptStats() {
   const generated = state.scriptDrafts.filter((i) => (i.estado || '').toLowerCase() === 'borrador_generado').length;
 
   el.scriptStats.innerHTML = `
-    <div class="stat"><small>Borradores pendientes</small><strong>${total}</strong></div>
+    <div class="stat"><small>Pendientes</small><strong>${total}</strong></div>
     <div class="stat"><small>En revisión</small><strong>${inReview}</strong></div>
-    <div class="stat"><small>Recién generados</small><strong>${generated}</strong></div>
+    <div class="stat"><small>Nuevos</small><strong>${generated}</strong></div>
   `;
 }
 
@@ -1831,6 +2058,7 @@ function renderCountryFilter() {
   el.countryFilter.innerHTML = '<option value="">Todos los países</option>' +
     countries.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
   el.countryFilter.value = current;
+  customDropdowns.refreshAll();
 }
 
 function filteredItems() {
@@ -1866,31 +2094,14 @@ function getEditorialTagLabel(rawTag) {
 
 function renderCards() {
   const list = filteredItems();
+  el.cardsMeta.textContent = `${list.length} resultado${list.length === 1 ? '' : 's'}`;
+
   if (!list.length) {
     el.cards.innerHTML = '<p class="meta">No hay temas para mostrar con esos filtros.</p>';
     return;
   }
 
-  el.cards.innerHTML = list.map((item) => {
-    const tagLabel = getEditorialTagLabel(item.tag_editorial);
-    const tagChip = tagLabel
-      ? `<span class="chip chip--tag">${escapeHtml(tagLabel)}</span>`
-      : '';
-
-    return `
-    <article class="card card--approval" data-card-id="${encodeURIComponent(item.cluster_id)}">
-      <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
-      <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-      <div class="card-meta-row">
-        <span class="chip">Fuentes: ${Number(item.cantidad_fuentes || 0)}</span>
-        ${tagChip}
-      </div>
-      <div class="card-actions">
-        <button class="secondary" data-action="detail" data-id="${encodeURIComponent(item.cluster_id)}">Ver fuentes</button>
-      </div>
-    </article>
-  `;
-  }).join('');
+  el.cards.innerHTML = list.map((item) => buildApprovalNewsCardMarkup(item)).join('');
 
   el.cards.querySelectorAll('.card').forEach((card) => {
     card.addEventListener('click', async (ev) => {
@@ -1899,13 +2110,12 @@ function renderCards() {
       const id = decodeURIComponent(card.dataset.cardId);
       await openDetail(id);
     });
-  });
 
-  el.cards.querySelectorAll('button[data-action]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = decodeURIComponent(btn.dataset.id);
-      const action = btn.dataset.action;
-      if (action === 'detail') return openDetail(id);
+    card.addEventListener('keydown', async (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      const id = decodeURIComponent(card.dataset.cardId);
+      await openDetail(id);
     });
   });
 }
@@ -1920,29 +2130,73 @@ function renderScriptCards() {
     const tagLabel = getEditorialTagLabel(item.tag_editorial);
     const tagChip = tagLabel ? `<span class="chip chip--tag">${escapeHtml(tagLabel)}</span>` : '';
     const status = (item.estado || 'borrador_generado').toString();
+    const selectedId = state.selectedScript?.draft_id || state.selectedScript?.id_noticia || state.selectedScript?.cluster_id;
+    const currentId = item.draft_id || item.id_noticia || item.cluster_id;
+    const selectedClass = selectedId && currentId === selectedId ? ' is-selected' : '';
 
     return `
-      <article class="card" data-script-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}">
-        <div class="meta">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
+      <article class="script-selection-card${selectedClass}" data-script-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}" role="button" tabindex="0" aria-pressed="${selectedClass ? 'true' : 'false'}">
+        <div class="meta script-selection-card__eyebrow">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
         <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-        <p class="summary">${escapeHtml((item.guion_editado || item.guion_draft || '').trim().slice(0, 260) || 'Sin guion disponible.')}</p>
-        <div>
+        <p class="summary">${escapeHtml((item.guion_editado || item.guion_draft || '').trim().slice(0, 140) || 'Sin guion disponible.')}</p>
+        <div class="card-meta-row">
           <span class="chip">Estado: ${escapeHtml(status)}</span>
           ${tagChip}
-        </div>
-        <div class="card-actions">
-          <button class="secondary" data-action="edit-script" data-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}">Editar guion</button>
         </div>
       </article>
     `;
   }).join('');
 
-  el.scriptCards.querySelectorAll('button[data-action="edit-script"]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = decodeURIComponent(btn.dataset.id);
+  el.scriptCards.querySelectorAll('.script-selection-card[data-script-id]').forEach((card) => {
+    const openSelectedCard = async () => {
+      const id = decodeURIComponent(card.dataset.scriptId);
       await openScriptEditor(id);
+    };
+
+    card.addEventListener('click', openSelectedCard);
+    card.addEventListener('keydown', async (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      await openSelectedCard();
     });
   });
+}
+
+function renderSelectedScriptEditor() {
+  const selected = state.selectedScript;
+  const hasSelected = Boolean(selected);
+
+  el.scriptEditorTitle.textContent = hasSelected
+    ? `${selected.jugador || 'Sin jugador'} · ${selected.tema_principal || 'Sin tema'}`
+    : 'Editor de guion';
+
+  el.scriptEditorMeta.textContent = hasSelected
+    ? `Estado: ${selected.estado || 'borrador_generado'} · Editá y publicá desde este panel.`
+    : 'Seleccioná un borrador desde la columna derecha para editarlo acá.';
+
+  if (!hasSelected) {
+    el.scriptEditedArea.value = '';
+    el.scriptEditedArea.disabled = true;
+    el.viewOriginalBtn.disabled = true;
+    el.voiceAiBtn.disabled = true;
+    el.publishDraftBtn.disabled = true;
+    el.closeScriptEditor.disabled = true;
+    updateWordCounter('', el.scriptEditedWordCount);
+    return;
+  }
+
+  el.scriptEditedArea.disabled = false;
+  el.viewOriginalBtn.disabled = false;
+  el.voiceAiBtn.disabled = false;
+  el.publishDraftBtn.disabled = false;
+  el.closeScriptEditor.disabled = false;
+
+  const nextValue = (selected.guion_editado || selected.guion_draft || '').toString();
+  if (el.scriptEditedArea.value !== nextValue) {
+    el.scriptEditedArea.value = nextValue;
+  }
+
+  updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
 }
 
 async function openDetail(clusterId) {
@@ -1956,11 +2210,13 @@ function renderTopicDetail() {
   const sourcesMarkup = (item.sources || []).map((s) => {
     const sourceId = (s.id_noticia || '').toString();
     const isApproving = approvingSourceId && approvingSourceId === sourceId;
+    const sourceStateClass = isApproving ? ' source-item--approved' : '';
 
     return `
-      <div class="source-item">
+      <div class="source-item${sourceStateClass}">
         <div class="source-content">
-          <div><strong>${s.index}. ${escapeHtml(s.titular || 'Sin titular')}</strong></div>
+          <div class="source-item__eyebrow">${s.index}. fuente detectada</div>
+          <div><strong>${escapeHtml(s.titular || 'Sin titular')}</strong></div>
           <div class="meta">${escapeHtml(s.fuente || 'Sin fuente')}</div>
         </div>
         <div class="source-actions">
@@ -1968,7 +2224,7 @@ function renderTopicDetail() {
             type="button"
             class="secondary"
             data-action="open-source"
-            data-url="${encodeURIComponent(s.url || '')}"
+            data-url="${encodeURIComponent(resolveApprovalSourceLink(s))}"
           >Ver fuente</button>
           <button
             type="button"
@@ -1976,7 +2232,7 @@ function renderTopicDetail() {
             data-action="approve-source"
             data-id-noticia="${encodeURIComponent(s.id_noticia || '')}"
             ${(state.deletingSource || isApproving) ? 'disabled' : ''}
-          >${isApproving ? 'Aprobando...' : 'Aprobar noticia'}</button>
+          >${isApproving ? 'Aprobando...' : 'Aprobar'}</button>
           <button
             type="button"
             class="reject"
@@ -1992,9 +2248,21 @@ function renderTopicDetail() {
 
   el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
   el.dialogBody.innerHTML = `
-    <p><strong>Resumen:</strong> ${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
-    <p class="meta">Fuentes detectadas: ${item.sources?.length || 0}</p>
-    ${sourcesMarkup}
+    <section class="topic-detail-summary">
+      <h3 class="topic-detail-summary__title">${escapeHtml(item.tema_principal || 'Sin tema')}</h3>
+      <div class="topic-detail-summary__eyebrow">Resumen</div>
+      <p class="topic-detail-summary__text">${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
+    </section>
+    <section class="topic-detail-sources">
+      <header class="topic-detail-sources__header">
+        <div>
+          <h3>Fuentes detectadas</h3>
+          <p class="meta">Cada fuente muestra titular, medio y dos acciones: ver fuente o aprobar.</p>
+        </div>
+        <div class="topic-detail-sources__meta">${item.sources?.length || 0} fuentes</div>
+      </header>
+      ${sourcesMarkup}
+    </section>
   `;
 }
 

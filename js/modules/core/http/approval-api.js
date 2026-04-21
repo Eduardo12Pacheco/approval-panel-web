@@ -1,19 +1,23 @@
 export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/approval/pending/v1',
-  '/webhook/approval/queue/v1',
+  '/webhook/approval/queue/v2',
   '/webhook/approval/topic/v1',
-  '/webhook/approval/decision/v1',
-  '/webhook/approval/run-queue/v1',
+  '/webhook/approval/decision/v2',
   '/webhook/approval/sources/v1',
-  '/webhook/mvp-script-drafts-pending-v1',
-  '/webhook/mvp-script-draft-save-v1',
-  '/webhook/mvp-script-publish-v1',
+  '/webhook/mvp-script-drafts-pending-v2',
+  '/webhook/mvp-script-draft-save-v2',
+  '/webhook/mvp-script-publish-v2',
 ];
 
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
   async function get(path) {
     const settings = getSettings();
-    const res = await fetchImpl(`${settings.baseUrl}${path}`);
+    const headers = {};
+    if (settings.secret) headers['x-approval-secret'] = settings.secret;
+
+    const res = await fetchImpl(`${settings.baseUrl}${path}`, {
+      headers,
+    });
     if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
     return res.json();
   }

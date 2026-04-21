@@ -1,25 +1,51 @@
-export function createApprovalFeature({ api, store, ui, selectors, callbacks, helpers }) {
-  const { renderStats, renderCountryFilter, renderCards, renderQueue, renderTopicDetail, confirmDelete } = callbacks;
-  const { getErrorMessage } = helpers;
+const normalizeText = (value) => (value == null ? '' : String(value).trim());
+const toFiniteNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const pickFirstText = (...values) => {
+  for (const value of values) {
+    const normalized = normalizeText(value);
+    if (normalized) return normalized;
+  }
+  return '';
+};
 
-  const normalizeText = (value) => (value == null ? '' : String(value).trim());
-  const toFiniteNumber = (value, fallback = 0) => {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
-  const pickFirstText = (...values) => {
-    for (const value of values) {
-      const normalized = normalizeText(value);
-      if (normalized) return normalized;
-    }
-    return '';
-  };
+export function resolveApprovalSourceLink(source = {}) {
+  return pickFirstText(
+    source?.url,
+    source?.link,
+    source?.href,
+    source?.detail_url,
+    source?.source_url,
+  );
+}
+
+export function normalizeApprovalQueueItems(payload = {}) {
+  const candidates = [payload?.items, payload?.queue, payload?.rows, payload?.data];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return [];
+}
+
+export function createApprovalFeature({ api, store, ui, selectors, callbacks, helpers }) {
+  const {
+    renderStats,
+    renderCountryFilter,
+    renderCards,
+    renderQueue,
+    renderTopicDetail,
+    refreshScriptDrafts = async () => {},
+    confirmDelete,
+  } = callbacks;
+  const { getErrorMessage } = helpers;
 
   function buildClusterSnapshot(topic, approvedIdNoticia) {
     const currentSources = Array.isArray(topic?.sources) ? topic.sources : [];
     const ids = currentSources.map((source) => normalizeText(source?.id_noticia));
     const titulares = currentSources.map((source) => pickFirstText(source?.titular, source?.headline));
-    const links = currentSources.map((source) => pickFirstText(source?.link, source?.url));
+    const links = currentSources.map((source) => resolveApprovalSourceLink(source));
     const fuentes = currentSources.map((source) => pickFirstText(source?.fuente, source?.fuente_origen, source?.source));
 
     const approvedId = normalizeText(approvedIdNoticia);
@@ -65,7 +91,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
       jugador,
       titular: pickFirstText(source?.titular, source?.headline),
       fuente: pickFirstText(source?.fuente, source?.fuente_origen, source?.source),
-      link: pickFirstText(source?.link, source?.url),
+      link: resolveApprovalSourceLink(source),
       snippet: pickFirstText(source?.snippet, source?.resumen),
       fuente_origen: pickFirstText(source?.fuente_origen, source?.fuente, source?.source),
       fecha_publicacion: pickFirstText(source?.fecha_publicacion),
@@ -99,15 +125,17 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     }
   }
 
-  async function refreshQueue() {
+  async function refreshQueue({ silent = false } = {}) {
     const state = store.getState();
     try {
-      const data = await api.get('/webhook/approval/queue/v1');
-      state.queue = data.items || [];
+      const data = await api.get('/webhook/approval/queue/v2');
+      state.queue = normalizeApprovalQueueItems(data);
       renderQueue();
     } catch (err) {
       console.error(err);
-      ui.toast('Error cargando cola de aprobados');
+      if (!silent) {
+        ui.toast('Error cargando cola de aprobados');
+      }
     }
   }
 
@@ -186,10 +214,10 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
       state.approvingSourceId = idNoticia;
       renderTopicDetail();
 
-      await api.post('/webhook/approval/decision/v1', buildDecisionPayload(state.selectedTopic, source, 'approve'));
+      await api.post('/webhook/approval/decision/v2', buildDecisionPayload(state.selectedTopic, source, 'approve'));
       ui.toast('Noticia aprobada y encolada para guion');
       await refreshPending();
-      await refreshQueue();
+      await Promise.all([refreshQueue(), refreshScriptDrafts()]);
       await openDetail(clusterId);
     } catch (err) {
       console.error(err);
@@ -202,7 +230,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
 
   async function decision(clusterId, action, refreshAll) {
     try {
-      await api.post('/webhook/approval/decision/v1', { cluster_id: clusterId, action });
+      await api.post('/webhook/approval/decision/v2', { cluster_id: clusterId, action });
       ui.toast(`Tema ${action === 'approve' ? 'aprobado' : 'rechazado'}`);
       await refreshAll();
     } catch (err) {
@@ -212,18 +240,22 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
   }
 
   async function runQueue(refreshAll) {
+    const runButton = selectors.runQueueBtn;
     try {
-      selectors.runQueueBtn.disabled = true;
-      selectors.runQueueBtn.textContent = 'Ejecutando...';
-      const result = await api.post('/webhook/approval/run-queue/v1', { max_items: 20 });
-      ui.toast(`Cola ejecutada: ${result.processed || 0} OK · ${result.failed || 0} error(es)`);
+      if (runButton) {
+        runButton.disabled = true;
+        runButton.textContent = 'Actualizando...';
+      }
       await refreshAll();
+      ui.toast('La cola ahora se procesa automáticamente. Monitor actualizado.');
     } catch (err) {
       console.error(err);
-      ui.toast(getErrorMessage(err, 'Error ejecutando cola'));
+      ui.toast(getErrorMessage(err, 'Error actualizando cola'));
     } finally {
-      selectors.runQueueBtn.disabled = false;
-      selectors.runQueueBtn.textContent = 'Ejecutar cola';
+      if (runButton) {
+        runButton.disabled = false;
+        runButton.textContent = 'Actualizar cola';
+      }
     }
   }
 

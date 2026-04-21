@@ -125,7 +125,7 @@ const card = result.computed['.card'] || {};
 const phaseBar = result.computed['.subtitle-phase-bar'] || {};
 
 if (sidebar.position !== 'fixed') throw new Error('sidebar position computed-style drift');
-if (sidebar.width !== '240px') throw new Error('sidebar width computed-style drift');
+if (sidebar.width !== 'var(--sidebar-collapsed)') throw new Error('sidebar width computed-style drift');
 if (card.display !== 'flex') throw new Error('card display computed-style drift');
 if (phaseBar.display !== 'grid') throw new Error('subtitle phase bar display computed-style drift');
 """

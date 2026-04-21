@@ -1,12 +1,11 @@
+.scripts-view__placeholder {
+  padding: 28px;
+}
+
 #scriptEditorDialog {
-  width: min(1080px, 92vw);
+  width: min(560px, 92vw);
 }
 
-#scriptOriginalDialog {
-  width: min(1080px, 92vw);
-}
-
-#scriptEditorDialog .script-area,
 #scriptOriginalDialog .script-area {
   min-height: 500px;
 }

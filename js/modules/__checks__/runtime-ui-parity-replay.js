@@ -98,7 +98,7 @@ async function replayApprovalScenario() {
     api: {
       async get(path) {
         if (path === '/webhook/approval/pending/v1') return { items: [{ cluster_id: 'c1', resumen: 'r1' }] };
-        if (path === '/webhook/approval/queue/v1') return { items: [{ cluster_id: 'c1' }] };
+        if (path === '/webhook/approval/queue/v2') return { items: [{ cluster_id: 'c1' }] };
         if (path.startsWith('/webhook/approval/topic/v1')) return { item: { cluster_id: 'c1', tema_principal: 'tema' } };
         return {};
       },
@@ -110,7 +110,7 @@ async function replayApprovalScenario() {
     ui: { toast: (msg) => toasts.push(msg) },
     selectors: {
       topicDialog: { showModal() {} },
-      runQueueBtn: { disabled: false, textContent: 'Ejecutar cola' },
+      runQueueBtn: { disabled: false, textContent: 'Actualizar cola' },
     },
     callbacks: {
       renderStats: () => { callbacks.stats += 1; },
@@ -162,7 +162,7 @@ async function replayScriptsScenario() {
     api: {
       async get() {
         return {
-          drafts: [{
+          items: [{
             cluster_id: 'c1',
             jugador: 'Jugador',
             tema_principal: 'Tema',

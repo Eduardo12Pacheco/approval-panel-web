@@ -5,6 +5,8 @@ Este repositorio quedó organizado por capas y features, manteniendo la regla pr
 
 > **Paridad 1:1**: no cambiar funcionalidades ni apariencia para el usuario.
 
+Este orden existe para refactorizar y endurecer el frontend **sin cambios de features, API ni UX** fuera de lo aprobado por diseño.
+
 ---
 
 ## 1) Cómo arranca la app (entrypoints reales)
@@ -22,6 +24,8 @@ En estilos:
 ---
 
 ## 2) Dónde está cada cosa
+
+## Arquitectura
 
 ### Núcleo (`js/modules/core`)
 - `auth/session-gate.js` → sesión/login y estado de autenticación.
@@ -54,6 +58,8 @@ En estilos:
 ---
 
 ## 3) Estructura de carpetas actual
+
+## Mapa de carpetas
 
 ```text
 approval-panel-web/
@@ -105,6 +111,8 @@ approval-panel-web/
 
 ## 4) Contratos que NO se tocan
 
+## Guardrails de paridad
+
 1. **DOM contract**
    - No renombrar/eliminar IDs usados por `selectors.js` y `parity-checklist.js`.
 
@@ -121,6 +129,8 @@ approval-panel-web/
 ---
 
 ## 5) Cómo validar que no rompiste nada
+
+## Workflow seguro por slices
 
 Desde `approval-panel-web/`:
 

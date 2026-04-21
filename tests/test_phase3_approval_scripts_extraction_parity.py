@@ -32,11 +32,11 @@ def test_approval_api_contract_preserves_secret_header_and_webhook_routes():
 
     for endpoint in [
         "/webhook/approval/pending/v1",
-        "/webhook/approval/queue/v1",
-        "/webhook/approval/decision/v1",
-        "/webhook/approval/run-queue/v1",
-        "/webhook/mvp-script-draft-save-v1",
-        "/webhook/mvp-script-publish-v1",
+        "/webhook/approval/queue/v2",
+        "/webhook/approval/decision/v2",
+        "/webhook/mvp-script-drafts-pending-v2",
+        "/webhook/mvp-script-draft-save-v2",
+        "/webhook/mvp-script-publish-v2",
     ]:
         assert endpoint in source, f"Missing parity endpoint marker in approval API module: {endpoint}"
 
