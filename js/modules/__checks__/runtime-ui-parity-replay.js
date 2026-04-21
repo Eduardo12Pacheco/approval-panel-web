@@ -97,9 +97,9 @@ async function replayApprovalScenario() {
   const feature = createApprovalFeature({
     api: {
       async get(path) {
-        if (path === '/webhook/approval/pending/v1') return { items: [{ cluster_id: 'c1', resumen: 'r1' }] };
-        if (path === '/webhook/approval/queue/v2') return { items: [{ cluster_id: 'c1' }] };
-        if (path.startsWith('/webhook/approval/topic/v1')) return { item: { cluster_id: 'c1', tema_principal: 'tema' } };
+        if (path === '/webhook/approval/pending/supabase/v2') return { items: [{ cluster_id: 'c1', resumen: 'r1' }] };
+        if (path === '/webhook/approval/queue/supabase/v2') return { items: [{ cluster_id: 'c1' }] };
+        if (path.startsWith('/webhook/approval/topic/supabase/v2')) return { item: { cluster_id: 'c1', tema_principal: 'tema' } };
         return {};
       },
       async post() {

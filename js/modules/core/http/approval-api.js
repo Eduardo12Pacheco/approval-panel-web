@@ -1,12 +1,11 @@
 export const APPROVAL_PARITY_ENDPOINTS = [
-  '/webhook/approval/pending/v1',
-  '/webhook/approval/queue/v2',
-  '/webhook/approval/topic/v1',
-  '/webhook/approval/decision/v2',
-  '/webhook/approval/sources/v1',
-  '/webhook/mvp-script-drafts-pending-v2',
-  '/webhook/mvp-script-draft-save-v2',
-  '/webhook/mvp-script-publish-v2',
+  '/webhook/approval/pending/supabase/v2',
+  '/webhook/approval/queue/supabase/v2',
+  '/webhook/approval/topic/supabase/v2',
+  '/webhook/approval/decision/supabase/v2',
+  '/webhook/mvp-script-drafts-pending/supabase/v2',
+  '/webhook/mvp-script-draft-save/supabase/v2',
+  '/webhook/mvp-script-publish/supabase/v2',
 ];
 
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
@@ -19,7 +18,13 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
       headers,
     });
     if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
-    return res.json();
+    const raw = await res.text();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { raw };
+    }
   }
 
   async function post(path, payload) {

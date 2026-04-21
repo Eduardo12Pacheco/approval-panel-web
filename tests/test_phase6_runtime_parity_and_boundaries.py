@@ -57,9 +57,9 @@ const api = createApprovalApiClient({
   },
 });
 
-await api.get('/webhook/approval/queue/v2');
+await api.get('/webhook/approval/queue/supabase/v2');
 const getCall = calls[0];
-if (getCall.url !== 'http://localhost:5678/webhook/approval/queue/v2') throw new Error('get url drift');
+if (getCall.url !== 'http://localhost:5678/webhook/approval/queue/supabase/v2') throw new Error('get url drift');
 if (getCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('get secret header drift');
 
 await api.post('/webhook/approval/decision/v2', { cluster_id: 'c-1', action: 'approve' });
@@ -174,9 +174,9 @@ const feature = createApprovalFeature({
   api: {
     async get(path) {
       calls.push({ kind: 'get', path });
-      if (path === '/webhook/approval/queue/v2') throw new Error('queue refresh failed after success');
-      if (path === '/webhook/approval/pending/v1') return { items: [] };
-      if (path.startsWith('/webhook/approval/topic/v1')) return { item: state.selectedTopic };
+      if (path === '/webhook/approval/queue/supabase/v2') throw new Error('queue refresh failed after success');
+      if (path === '/webhook/approval/pending/supabase/v2') return { items: [] };
+      if (path.startsWith('/webhook/approval/topic/supabase/v2')) return { item: state.selectedTopic };
       throw new Error(`unexpected get ${path}`);
     },
     async post(path, payload) {
@@ -206,9 +206,9 @@ await feature.approveSourceFromTopic(state.selectedTopic.sources[0]);
 
 const decisionCall = calls.find((entry) => entry.kind === 'post');
 if (!decisionCall) throw new Error('missing decision call');
-if (decisionCall.path !== '/webhook/approval/decision/v2') throw new Error(`decision path drift: ${decisionCall.path}`);
+if (decisionCall.path !== '/webhook/approval/decision/supabase/v2') throw new Error(`decision path drift: ${decisionCall.path}`);
 if (refreshScriptDraftsCount !== 1) throw new Error(`expected script drafts refresh after approve, got ${refreshScriptDraftsCount}`);
-if (!calls.some((entry) => entry.kind === 'get' && entry.path === '/webhook/approval/queue/v2')) {
+if (!calls.some((entry) => entry.kind === 'get' && entry.path === '/webhook/approval/queue/supabase/v2')) {
   throw new Error('missing queue v2 refresh after approve');
 }
 if (toasts.length !== 1 || toasts[0] !== 'Noticia aprobada y encolada para guion') {
@@ -273,7 +273,7 @@ let renderEditorCount = 0;
 const feature = createScriptsFeature({
   api: {
     async get(path) {
-      if (path !== '/webhook/mvp-script-drafts-pending-v2') throw new Error(`unexpected get ${path}`);
+      if (path !== '/webhook/mvp-script-drafts-pending/supabase/v2') throw new Error(`unexpected get ${path}`);
       return {
         items: [{
           draft_id: 'draft-1',

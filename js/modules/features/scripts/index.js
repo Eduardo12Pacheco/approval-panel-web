@@ -42,7 +42,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
   async function refreshScriptDrafts({ silent = false } = {}) {
     const state = store.getState();
     try {
-      const data = await api.get('/webhook/mvp-script-drafts-pending-v2');
+      const data = await api.get('/webhook/mvp-script-drafts-pending/supabase/v2');
       state.scriptDrafts = normalizeScriptDraftRows(data);
 
       if (state.selectedScript) {
@@ -106,7 +106,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
     try {
       state.savingScript = true;
       const ids = resolveScriptIdentity(state.selectedScript);
-      await api.post('/webhook/mvp-script-draft-save-v2', {
+      await api.post('/webhook/mvp-script-draft-save/supabase/v2', {
         ...ids,
         guion_editado: edited,
       });
@@ -138,11 +138,11 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
       state.publishingScript = true;
       selectors.confirmPublishBtn.disabled = true;
       const ids = resolveScriptIdentity(state.selectedScript);
-      await api.post('/webhook/mvp-script-draft-save-v2', {
+      await api.post('/webhook/mvp-script-draft-save/supabase/v2', {
         ...ids,
         guion_editado: edited,
       });
-      await api.post('/webhook/mvp-script-publish-v2', {
+      await api.post('/webhook/mvp-script-publish/supabase/v2', {
         ...ids,
       });
       selectors.publishConfirmDialog.close();
