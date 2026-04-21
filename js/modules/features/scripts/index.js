@@ -1,9 +1,27 @@
+import { escapeHtmlCore } from '../../core/ui/escape-html.js';
+
 export function normalizeScriptDraftRows(payload = {}) {
   const candidates = [payload?.drafts, payload?.items, payload?.rows, payload?.data];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }
   return [];
+}
+
+export function buildScriptSelectionCardMarkup(item = {}, { selected = false } = {}) {
+  const selectedClass = selected ? ' is-selected' : '';
+  const selectedPressed = selected ? 'true' : 'false';
+  const identity = (item.draft_id || item.id_noticia || item.cluster_id || '').toString();
+  const country = escapeHtmlCore((item.seleccion || 'Sin país').toString());
+  const player = escapeHtmlCore((item.jugador || 'Sin jugador').toString());
+  const title = escapeHtmlCore((item.tema_principal || 'Sin tema').toString());
+
+  return `
+    <article class="script-selection-card${selectedClass}" data-script-id="${encodeURIComponent(identity)}" role="button" tabindex="0" aria-pressed="${selectedPressed}">
+      <div class="meta script-selection-card__eyebrow">${country} · ${player}</div>
+      <div class="topic">${title}</div>
+    </article>
+  `;
 }
 
 export function resolveScriptIdentity(row = {}) {
@@ -147,6 +165,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
   }
 
   return {
+    buildScriptSelectionCardMarkup,
     refreshScriptDrafts,
     openScriptEditor,
     saveSelectedScript,

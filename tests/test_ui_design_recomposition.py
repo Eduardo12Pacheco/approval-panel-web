@@ -11,6 +11,7 @@ SCRIPTS_PATH = ROOT / "styles" / "features" / "scripts.css"
 AUDIO_PATH = ROOT / "styles" / "features" / "audio.css"
 FORMS_PATH = ROOT / "styles" / "components" / "forms.css"
 BUTTONS_PATH = ROOT / "styles" / "components" / "buttons.css"
+TOAST_PATH = ROOT / "styles" / "components" / "toast.css"
 CUSTOM_DROPDOWNS_PATH = ROOT / "js" / "modules" / "core" / "ui" / "custom-dropdowns.js"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 
@@ -627,3 +628,59 @@ def test_dropdown_styles_no_longer_make_hovered_triggers_look_open():
     assert '.ui-dropdown__trigger:hover:not(:disabled) {' in forms_source
     assert '.ui-dropdown.is-open .ui-dropdown__trigger {' in forms_source
     assert '.ui-dropdown__trigger:hover:not(:disabled),\n.ui-dropdown.is-open .ui-dropdown__trigger {' not in forms_source
+
+
+def test_script_selection_cards_keep_only_country_player_title_and_premium_selected_style():
+    script = r"""
+import { buildScriptSelectionCardMarkup } from './js/modules/features/scripts/index.js';
+
+const markup = buildScriptSelectionCardMarkup({
+  draft_id: 'draft-77',
+  seleccion: 'Argentina',
+  jugador: 'Messi',
+  tema_principal: 'Editar guion premium sin ruido visual',
+  estado: 'borrador_generado',
+  guion_draft: 'Este resumen ya no debería verse en la card.',
+  tag_editorial: 'emotividad',
+}, { selected: true });
+
+for (const expected of [
+  'class="script-selection-card is-selected"',
+  'class="meta script-selection-card__eyebrow">Argentina · Messi</div>',
+  'class="topic">Editar guion premium sin ruido visual</div>',
+]) {
+  if (!markup.includes(expected)) {
+    throw new Error(`missing selected script card fragment: ${expected} :: ${markup}`);
+  }
+}
+
+for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Este resumen ya no debería verse']) {
+  if (markup.includes(forbidden)) {
+    throw new Error(`script selection card should stay minimal: ${forbidden} :: ${markup}`);
+  }
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+    approval_source = _read(APPROVAL_PATH)
+    toast_source = _read(TOAST_PATH)
+
+    for expected_rule in [
+        '.script-selection-card {',
+        'border-radius: 0;',
+        '.script-selection-card.is-selected {',
+        'radial-gradient(circle at top left',
+        'rgba(244, 183, 64, 0.18)',
+        'box-shadow:',
+    ]:
+        assert expected_rule in approval_source
+
+    for expected_rule in [
+        '.toast {',
+        'border-radius: 0;',
+        "font-family: 'JetBrains Mono', monospace;",
+        'border-left: 3px solid var(--accent);',
+        'text-transform: uppercase;',
+    ]:
+        assert expected_rule in toast_source

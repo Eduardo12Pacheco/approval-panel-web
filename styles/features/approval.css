@@ -259,7 +259,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
   padding: 15px 16px;
-  border-radius: 18px;
+  border-radius: 0;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
@@ -273,25 +273,24 @@
 
 .script-selection-card.is-selected {
   background:
-    radial-gradient(circle at top left, rgba(255, 214, 133, 0.18), transparent 40%),
-    linear-gradient(180deg, rgba(44, 31, 11, 0.96), rgba(18, 13, 5, 0.96));
-  border-color: rgba(244, 183, 64, 0.42);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(244, 183, 64, 0.1), 0 0 28px rgba(244, 183, 64, 0.16);
+    radial-gradient(circle at top left, rgba(255, 214, 133, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(46, 32, 8, 0.98), rgba(17, 12, 4, 0.98));
+   border-color: rgba(244, 183, 64, 0.5);
+   box-shadow:
+     0 20px 38px rgba(0, 0, 0, 0.34),
+     inset 0 0 0 1px rgba(255, 214, 133, 0.14),
+     0 0 0 1px rgba(244, 183, 64, 0.12),
+     0 0 32px rgba(244, 183, 64, 0.18);
 }
 
 .script-selection-card .topic {
-  margin: 0 0 8px;
-  font-size: 0.96rem;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
 }
 
-.script-selection-card .summary {
-  font-size: 0.82rem;
-  margin-bottom: 12px;
-}
-
-.script-selection-card .card-meta-row {
-  gap: 8px;
-  flex-wrap: wrap;
+.topic-detail-sources__empty {
+  min-height: 160px;
 }
 
 .topic-detail-summary {

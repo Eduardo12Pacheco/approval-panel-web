@@ -40,9 +40,13 @@ import { bindCoreEvents } from './core/bootstrap.js';
 import { createSingleFlightRunner } from './core/async/single-flight.js';
 import { createApprovalApiClient } from './core/http/approval-api.js';
 import { createTtsApiClient } from './core/http/tts-api.js';
-import { createApprovalFeature, resolveApprovalSourceLink } from './features/approval/index.js';
+import {
+  createApprovalFeature,
+  orderApprovalItemsByLowestAvg,
+  resolveApprovalSourceLink,
+} from './features/approval/index.js';
 import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
-import { createScriptsFeature } from './features/scripts/index.js';
+import { buildScriptSelectionCardMarkup, createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createSubtitlesFeature } from './features/subtitles/index.js';
 import {
@@ -2066,30 +2070,14 @@ function filteredItems() {
   const country = el.countryFilter.value;
   const minSources = Number(el.sourcesFilter.value || 0);
 
-  return state.items.filter((item) => {
+  const filtered = state.items.filter((item) => {
     const searchMatch = !q || `${item.jugador} ${item.tema_principal}`.toLowerCase().includes(q);
     const countryMatch = !country || item.seleccion === country;
     const sourcesMatch = Number(item.cantidad_fuentes || 0) >= minSources;
     return searchMatch && countryMatch && sourcesMatch;
   });
-}
 
-function getEditorialTagLabel(rawTag) {
-  const normalized = (rawTag || '')
-    .toString()
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, '_');
-
-  const labels = {
-    elogio_prensa: 'Elogio Prensa',
-    elogio_director_tecnico: 'Elogio Director Técnico',
-    emotividad: 'Emotividad',
-  };
-
-  return labels[normalized] || '';
+  return orderApprovalItemsByLowestAvg(filtered);
 }
 
 function renderCards() {
@@ -2127,24 +2115,11 @@ function renderScriptCards() {
   }
 
   el.scriptCards.innerHTML = state.scriptDrafts.map((item) => {
-    const tagLabel = getEditorialTagLabel(item.tag_editorial);
-    const tagChip = tagLabel ? `<span class="chip chip--tag">${escapeHtml(tagLabel)}</span>` : '';
-    const status = (item.estado || 'borrador_generado').toString();
     const selectedId = state.selectedScript?.draft_id || state.selectedScript?.id_noticia || state.selectedScript?.cluster_id;
     const currentId = item.draft_id || item.id_noticia || item.cluster_id;
-    const selectedClass = selectedId && currentId === selectedId ? ' is-selected' : '';
+    const isSelected = Boolean(selectedId && currentId === selectedId);
 
-    return `
-      <article class="script-selection-card${selectedClass}" data-script-id="${encodeURIComponent(item.draft_id || item.id_noticia || item.cluster_id)}" role="button" tabindex="0" aria-pressed="${selectedClass ? 'true' : 'false'}">
-        <div class="meta script-selection-card__eyebrow">${escapeHtml(item.seleccion || 'Sin país')} · ${escapeHtml(item.jugador || 'Sin jugador')}</div>
-        <div class="topic">${escapeHtml(item.tema_principal || 'Sin tema')}</div>
-        <p class="summary">${escapeHtml((item.guion_editado || item.guion_draft || '').trim().slice(0, 140) || 'Sin guion disponible.')}</p>
-        <div class="card-meta-row">
-          <span class="chip">Estado: ${escapeHtml(status)}</span>
-          ${tagChip}
-        </div>
-      </article>
-    `;
+    return buildScriptSelectionCardMarkup(item, { selected: isSelected });
   }).join('');
 
   el.scriptCards.querySelectorAll('.script-selection-card[data-script-id]').forEach((card) => {
@@ -2207,7 +2182,8 @@ function renderTopicDetail() {
   const item = state.selectedTopic;
   if (!item) return;
   const approvingSourceId = (state.approvingSourceId || '').toString();
-  const sourcesMarkup = (item.sources || []).map((s) => {
+  const sources = Array.isArray(item.sources) ? item.sources : [];
+  const sourcesMarkup = sources.map((s) => {
     const sourceId = (s.id_noticia || '').toString();
     const isApproving = approvingSourceId && approvingSourceId === sourceId;
     const sourceStateClass = isApproving ? ' source-item--approved' : '';
@@ -2245,6 +2221,10 @@ function renderTopicDetail() {
       </div>
     `;
   }).join('');
+  const hasSources = sources.length > 0;
+  const sourcesContent = hasSources
+    ? sourcesMarkup
+    : '<div class="queue-list__empty topic-detail-sources__empty">No quedan fuentes pendientes en este tema.</div>';
 
   el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
   el.dialogBody.innerHTML = `
@@ -2257,11 +2237,11 @@ function renderTopicDetail() {
       <header class="topic-detail-sources__header">
         <div>
           <h3>Fuentes detectadas</h3>
-          <p class="meta">Cada fuente muestra titular, medio y dos acciones: ver fuente o aprobar.</p>
+          <p class="meta">${hasSources ? 'Cada fuente muestra titular, medio y dos acciones: ver fuente o aprobar.' : 'La aprobación salió bien y este tema quedó sin fuentes pendientes visibles.'}</p>
         </div>
-        <div class="topic-detail-sources__meta">${item.sources?.length || 0} fuentes</div>
+        <div class="topic-detail-sources__meta">${sources.length} fuentes</div>
       </header>
-      ${sourcesMarkup}
+      ${sourcesContent}
     </section>
   `;
 }

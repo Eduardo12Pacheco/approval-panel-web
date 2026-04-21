@@ -136,13 +136,13 @@ if (!missingCredsCaught) throw new Error('missing creds path not enforced');
     assert result.returncode == 0, result.stderr
 
 
-def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve():
+def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve_without_false_negative_toast():
     script = r"""
-import { createApprovalFeature } from './js/modules/features/approval/index.js';
+import { createApprovalFeature, orderApprovalItemsByLowestAvg } from './js/modules/features/approval/index.js';
 
 const state = {
   queue: [],
-  items: [],
+  items: [{ cluster_id: 'cluster-1', cantidad_fuentes: 1, cantidad_fuentes_total: 1, seleccion: 'AR', jugador: 'Jugador', tema_principal: 'Tema' }],
   selectedCardId: null,
   deletingSource: false,
   selectedTopic: {
@@ -167,13 +167,14 @@ const state = {
 };
 
 const calls = [];
+const toasts = [];
 let refreshScriptDraftsCount = 0;
 
 const feature = createApprovalFeature({
   api: {
     async get(path) {
       calls.push({ kind: 'get', path });
-      if (path === '/webhook/approval/queue/v2') return { items: [{ id: 'queue-1' }] };
+      if (path === '/webhook/approval/queue/v2') throw new Error('queue refresh failed after success');
       if (path === '/webhook/approval/pending/v1') return { items: [] };
       if (path.startsWith('/webhook/approval/topic/v1')) return { item: state.selectedTopic };
       throw new Error(`unexpected get ${path}`);
@@ -184,7 +185,7 @@ const feature = createApprovalFeature({
     },
   },
   store: { getState: () => state },
-  ui: { toast() {} },
+  ui: { toast(msg) { toasts.push(msg); } },
   selectors: {
     topicDialog: { showModal() {} },
     runQueueBtn: { disabled: false, textContent: 'Actualizar cola' },
@@ -209,6 +210,22 @@ if (decisionCall.path !== '/webhook/approval/decision/v2') throw new Error(`deci
 if (refreshScriptDraftsCount !== 1) throw new Error(`expected script drafts refresh after approve, got ${refreshScriptDraftsCount}`);
 if (!calls.some((entry) => entry.kind === 'get' && entry.path === '/webhook/approval/queue/v2')) {
   throw new Error('missing queue v2 refresh after approve');
+}
+if (toasts.length !== 1 || toasts[0] !== 'Noticia aprobada y encolada para guion') {
+  throw new Error(`approve success should not be followed by false-negative toast: ${JSON.stringify(toasts)}`);
+}
+if (state.selectedTopic.sources.length !== 0) throw new Error('approved source should disappear from detail immediately');
+if (state.items.length !== 0) throw new Error('approved topic should disappear from pending list after refresh payload empties it');
+
+const orderedIds = orderApprovalItemsByLowestAvg([
+  { cluster_id: 'c-1', tema_principal: 'Tema 1', avg: 3.2 },
+  { cluster_id: 'c-2', tema_principal: 'Tema 2', promedio_score: 1.4 },
+  { cluster_id: 'c-3', tema_principal: 'Tema 3', rolling_average_score: 2.1 },
+  { cluster_id: 'c-4', tema_principal: 'Tema 4' },
+]).map((item) => item.cluster_id).join(',');
+
+if (orderedIds !== 'c-2,c-3,c-1,c-4') {
+  throw new Error(`lowest-avg ordering drift: ${orderedIds}`);
 }
 
 calls.length = 0;

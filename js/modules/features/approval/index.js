@@ -11,6 +11,81 @@ const pickFirstText = (...values) => {
   return '';
 };
 
+const APPROVAL_AVG_FIELD_PRIORITY = [
+  'avg',
+  'average',
+  'promedio',
+  'avg_score',
+  'average_score',
+  'promedio_score',
+  'avg_sentiment',
+  'average_sentiment',
+  'promedio_sentimiento',
+  'avg_relevance',
+  'average_relevance',
+  'promedio_relevancia',
+  'cluster_avg',
+  'cluster_average',
+  'cluster_promedio',
+];
+
+const APPROVAL_DYNAMIC_AVG_FIELD_REGEX = /(^|_|-)(avg|average|promedio|media|mean)($|_|-)/i;
+
+function toFiniteOrNull(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeKey(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+export function resolveApprovalOrderingAvg(item = {}) {
+  for (const field of APPROVAL_AVG_FIELD_PRIORITY) {
+    const value = toFiniteOrNull(item?.[field]);
+    if (value != null) {
+      return { field, value };
+    }
+  }
+
+  const dynamicAvgEntry = Object.entries(item).find(([key, rawValue]) => {
+    if (toFiniteOrNull(rawValue) == null) return false;
+    return APPROVAL_DYNAMIC_AVG_FIELD_REGEX.test(normalizeKey(key));
+  });
+
+  if (dynamicAvgEntry) {
+    const [field, rawValue] = dynamicAvgEntry;
+    return { field, value: Number(rawValue) };
+  }
+
+  return { field: '', value: Number.POSITIVE_INFINITY };
+}
+
+export function orderApprovalItemsByLowestAvg(items = []) {
+  return items
+    .map((item, index) => ({
+      item,
+      index,
+      avg: resolveApprovalOrderingAvg(item),
+    }))
+    .sort((left, right) => {
+      if (left.avg.value !== right.avg.value) {
+        return left.avg.value - right.avg.value;
+      }
+
+      const leftTitle = pickFirstText(left.item?.tema_principal, left.item?.jugador, left.item?.cluster_id);
+      const rightTitle = pickFirstText(right.item?.tema_principal, right.item?.jugador, right.item?.cluster_id);
+      const titleComparison = leftTitle.localeCompare(rightTitle, 'es', { sensitivity: 'base' });
+      if (titleComparison !== 0) return titleComparison;
+
+      return left.index - right.index;
+    })
+    .map(({ item }) => item);
+}
+
 export function resolveApprovalSourceLink(source = {}) {
   return pickFirstText(
     source?.url,
@@ -27,6 +102,78 @@ export function normalizeApprovalQueueItems(payload = {}) {
     if (Array.isArray(candidate)) return candidate;
   }
   return [];
+}
+
+export function createOptimisticApprovedTopic(topic = {}, approvedSource = {}) {
+  const approvedId = normalizeText(approvedSource?.id_noticia);
+  const approvedIndex = toFiniteNumber(approvedSource?.index, Number.NaN);
+  const currentSources = Array.isArray(topic?.sources) ? topic.sources : [];
+  const optimisticSources = currentSources
+    .filter((source) => {
+      if (approvedId) {
+        return normalizeText(source?.id_noticia) !== approvedId;
+      }
+
+      if (Number.isFinite(approvedIndex)) {
+        return toFiniteNumber(source?.index, Number.NaN) !== approvedIndex;
+      }
+
+      return true;
+    })
+    .map((source, index) => ({ ...source, index: index + 1 }));
+
+  const previousApproved = Math.max(
+    toFiniteNumber(topic?.cantidad_fuentes_aprobadas, 0),
+    toFiniteNumber(topic?.approved_sources_count, 0),
+    0,
+  );
+  const previousTotal = Math.max(
+    toFiniteNumber(topic?.cantidad_fuentes_total, 0),
+    currentSources.length + previousApproved,
+    currentSources.length,
+  );
+  const nextApproved = approvedId ? previousApproved + 1 : previousApproved;
+
+  return {
+    ...topic,
+    sources: optimisticSources,
+    cantidad_fuentes: optimisticSources.length,
+    cantidad_fuentes_disponibles: optimisticSources.length,
+    cantidad_fuentes_total: Math.max(previousTotal, optimisticSources.length + nextApproved),
+    cantidad_fuentes_aprobadas: nextApproved,
+    approved_sources_count: nextApproved,
+  };
+}
+
+export function syncPendingItemsAfterApproval(items = [], optimisticTopic = {}, approvedSource = {}) {
+  const clusterId = pickFirstText(optimisticTopic?.cluster_id, approvedSource?.cluster_id);
+  if (!clusterId) return [...items];
+
+  const availableCount = Math.max(
+    toFiniteNumber(optimisticTopic?.cantidad_fuentes, 0),
+    Array.isArray(optimisticTopic?.sources) ? optimisticTopic.sources.length : 0,
+  );
+
+  return items.reduce((nextItems, item) => {
+    if (pickFirstText(item?.cluster_id) !== clusterId) {
+      nextItems.push(item);
+      return nextItems;
+    }
+
+    if (availableCount <= 0) {
+      return nextItems;
+    }
+
+    nextItems.push({
+      ...item,
+      cantidad_fuentes: availableCount,
+      cantidad_fuentes_disponibles: Math.max(toFiniteNumber(optimisticTopic?.cantidad_fuentes_disponibles, availableCount), availableCount),
+      cantidad_fuentes_total: Math.max(toFiniteNumber(optimisticTopic?.cantidad_fuentes_total, availableCount), availableCount),
+      cantidad_fuentes_aprobadas: Math.max(toFiniteNumber(optimisticTopic?.cantidad_fuentes_aprobadas, 0), 0),
+      approved_sources_count: Math.max(toFiniteNumber(optimisticTopic?.approved_sources_count, 0), 0),
+    });
+    return nextItems;
+  }, []);
 }
 
 export function createApprovalFeature({ api, store, ui, selectors, callbacks, helpers }) {
@@ -108,7 +255,7 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     };
   }
 
-  async function refreshPending() {
+  async function refreshPending({ silent = false } = {}) {
     const state = store.getState();
     try {
       const data = await api.get('/webhook/approval/pending/v1');
@@ -121,7 +268,9 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
       renderCards();
     } catch (err) {
       console.error(err);
-      ui.toast('Error cargando pendientes');
+      if (!silent) {
+        ui.toast('Error cargando pendientes');
+      }
     }
   }
 
@@ -204,6 +353,9 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     const state = store.getState();
     const idNoticia = (source?.id_noticia || '').toString().trim();
     const clusterId = (state.selectedTopic?.cluster_id || '').toString().trim();
+    const previousTopic = state.selectedTopic;
+    const previousItems = [...state.items];
+    const previousSelectedCardId = state.selectedCardId;
 
     if (!idNoticia) {
       ui.toast('Esta fuente no tiene id_noticia. Actualizá clusters y volvé a intentar.');
@@ -215,12 +367,39 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
       renderTopicDetail();
 
       await api.post('/webhook/approval/decision/v2', buildDecisionPayload(state.selectedTopic, source, 'approve'));
+
+      const optimisticTopic = createOptimisticApprovedTopic(previousTopic, source);
+      state.selectedTopic = optimisticTopic;
+      state.items = syncPendingItemsAfterApproval(state.items, optimisticTopic, source);
+      if (clusterId && !state.items.some((item) => pickFirstText(item?.cluster_id) === clusterId)) {
+        state.selectedCardId = null;
+      }
+
+      renderStats();
+      renderCountryFilter();
+      renderCards();
+      renderTopicDetail();
       ui.toast('Noticia aprobada y encolada para guion');
-      await refreshPending();
-      await Promise.all([refreshQueue(), refreshScriptDrafts()]);
-      await openDetail(clusterId);
+
+      const refreshResults = await Promise.allSettled([
+        refreshPending({ silent: true }),
+        refreshQueue({ silent: true }),
+        refreshScriptDrafts({ silent: true }),
+      ]);
+
+      refreshResults.forEach((result) => {
+        if (result.status === 'rejected') {
+          console.error(result.reason);
+        }
+      });
     } catch (err) {
       console.error(err);
+      state.selectedTopic = previousTopic;
+      state.items = previousItems;
+      state.selectedCardId = previousSelectedCardId;
+      renderStats();
+      renderCountryFilter();
+      renderCards();
       ui.toast(getErrorMessage(err, 'Error aprobando noticia'));
     } finally {
       state.approvingSourceId = '';
