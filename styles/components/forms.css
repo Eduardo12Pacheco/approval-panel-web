@@ -207,7 +207,7 @@
 .source-item {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
@@ -220,6 +220,8 @@
 }
 
 .source-content {
+  display: grid;
+  gap: 4px;
   flex: 1;
   min-width: 0;
 }
@@ -234,6 +236,7 @@
 .source-actions {
   display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }

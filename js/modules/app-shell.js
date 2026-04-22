@@ -2188,7 +2188,6 @@ function renderTopicDetail() {
     return `
       <div class="source-item${sourceStateClass}">
         <div class="source-content">
-          <div class="source-item__eyebrow">${s.index}. fuente detectada</div>
           <div><strong>${escapeHtml(s.titular || 'Sin titular')}</strong></div>
           <div class="meta">${escapeHtml(s.fuente || 'Sin fuente')}</div>
         </div>
@@ -2225,16 +2224,11 @@ function renderTopicDetail() {
 
   el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
   el.dialogBody.innerHTML = `
-    <section class="topic-detail-summary">
-      <h3 class="topic-detail-summary__title">${escapeHtml(item.tema_principal || 'Sin tema')}</h3>
-      <div class="topic-detail-summary__eyebrow">Resumen</div>
-      <p class="topic-detail-summary__text">${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
-    </section>
+    <p class="topic-dialog-summary">${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
     <section class="topic-detail-sources">
       <header class="topic-detail-sources__header">
         <div>
           <h3>Fuentes detectadas</h3>
-          <p class="meta">${hasSources ? 'Cada fuente muestra titular, medio y dos acciones: ver fuente o aprobar.' : 'La aprobación salió bien y este tema quedó sin fuentes pendientes visibles.'}</p>
         </div>
         <div class="topic-detail-sources__meta">${sources.length} fuentes</div>
       </header>
