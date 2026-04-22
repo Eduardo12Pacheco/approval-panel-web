@@ -1,11 +1,11 @@
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
+  justify-content: flex-start;
+  gap: 10px;
   width: 100%;
   min-height: 52px;
-  padding: 10px;
+  padding: 10px 12px;
   text-align: left;
   background: #0d0d0d;
   border: 1px solid var(--border);
@@ -13,13 +13,6 @@
   border-radius: 0;
   overflow: hidden;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-}
-
-.sidebar--rail:hover .nav-item,
-.sidebar--rail:focus-within .nav-item {
-  justify-content: flex-start;
-  gap: 10px;
-  padding-inline: 12px;
 }
 
 .nav-item:hover {
@@ -40,7 +33,7 @@
   display: grid;
   place-items: center;
   flex: 0 0 30px;
-  margin-inline: auto;
+  margin-inline: 0;
   border: 0;
   color: var(--accent);
   background: transparent;
@@ -50,11 +43,6 @@
 .nav-item__icon svg {
   width: 30px;
   height: 30px;
-}
-
-.sidebar--rail:hover .nav-item__icon,
-.sidebar--rail:focus-within .nav-item__icon {
-  margin-inline: 0;
 }
 
 .nav-item:not(.active) .nav-item__icon {
