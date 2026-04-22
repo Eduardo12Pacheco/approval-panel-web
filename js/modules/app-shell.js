@@ -358,7 +358,7 @@ function bindEvents() {
   el.viewOriginalBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
     el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${state.selectedScript.tema_principal || 'Sin tema'} (original)`;
-    el.scriptOriginalMeta.textContent = `Estado: ${state.selectedScript.estado || 'borrador_generado'}`;
+    el.scriptOriginalMeta.textContent = '';
     el.scriptOriginalArea.value = (state.selectedScript.guion_draft || '').toString();
     updateWordCounter(el.scriptOriginalArea.value, el.scriptOriginalWordCount);
     el.scriptOriginalDialog.showModal();
@@ -2164,6 +2164,11 @@ function renderSelectedScriptEditor() {
   }
 
   updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
+}
+
+function renderOriginalScriptDialogMeta(selected) {
+  if (!selected) return '';
+  return '';
 }
 
 async function openDetail(clusterId) {
