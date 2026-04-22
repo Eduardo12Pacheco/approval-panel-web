@@ -42,6 +42,10 @@
   font-size: 1.5rem;
 }
 
+.audio-queue-header p {
+  white-space: nowrap;
+}
+
 .audio-queue-header {
   display: flex;
   justify-content: space-between;
@@ -54,6 +58,7 @@
 }
 
 .audio-queue-list {
+  flex: 1;
   overflow: auto;
   display: grid;
   gap: 12px;
@@ -63,6 +68,7 @@
 
 .audio-queue-empty {
   margin: 0;
+  flex: 1;
   min-height: 260px;
   display: grid;
   place-items: center;
