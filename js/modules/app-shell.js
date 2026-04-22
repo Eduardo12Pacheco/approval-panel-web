@@ -1500,7 +1500,7 @@ function renderAudioQueue() {
 
   if (!visibleJobs.length) {
     el.audioQueueMeta.textContent = 'Sin jobs todavía.';
-    el.audioQueueList.innerHTML = '<p class="meta">Cuando ejecutes audios, aparecerán acá.</p>';
+    el.audioQueueList.innerHTML = '<p class="audio-queue-empty">Sin jobs todavía.</p>';
     return;
   }
 
