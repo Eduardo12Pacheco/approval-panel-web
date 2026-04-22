@@ -104,14 +104,24 @@ export function createCustomDropdownController({ root = document } = {}) {
       `;
     }).join('');
 
+    const applySelection = (button) => {
+      const nextValue = button.dataset.value ?? '';
+      instance.select.value = nextValue;
+      instance.select.dispatchEvent(new Event('input', { bubbles: true }));
+      instance.select.dispatchEvent(new Event('change', { bubbles: true }));
+      syncInstance(instance);
+      close(instance);
+    };
+
     instance.menu.querySelectorAll('.ui-dropdown__option').forEach((button) => {
-      button.addEventListener('click', () => {
-        const nextValue = button.dataset.value ?? '';
-        instance.select.value = nextValue;
-        instance.select.dispatchEvent(new Event('input', { bubbles: true }));
-        instance.select.dispatchEvent(new Event('change', { bubbles: true }));
-        syncInstance(instance);
-        close(instance);
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        applySelection(button);
+      });
+
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        applySelection(button);
       });
     });
   }
@@ -153,6 +163,9 @@ export function createCustomDropdownController({ root = document } = {}) {
     const menu = root.createElement('div');
     menu.className = 'ui-dropdown__menu';
     menu.hidden = true;
+    menu.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+    });
 
     select.classList.add('ui-native-select');
     select.hidden = true;
