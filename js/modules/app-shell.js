@@ -2224,6 +2224,7 @@ function renderTopicDetail() {
 
   el.dialogTitle.textContent = `${item.jugador} · ${item.tema_principal}`;
   el.dialogBody.innerHTML = `
+    <p class="topic-dialog-summary-label">Resumen</p>
     <p class="topic-dialog-summary">${escapeHtml(item.resumen_cluster || 'Sin resumen')}</p>
     <section class="topic-detail-sources">
       <header class="topic-detail-sources__header">

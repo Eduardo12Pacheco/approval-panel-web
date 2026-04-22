@@ -316,8 +316,18 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
+.topic-dialog-summary-label {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .topic-dialog-summary {
-  margin: 0;
+  margin: 0 0 18px;
   color: #d0d4d8;
   line-height: 1.75;
   font-size: 0.98rem;
