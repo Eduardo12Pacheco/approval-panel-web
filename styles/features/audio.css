@@ -58,7 +58,7 @@
 
 .audio-queue-card {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
   padding: 14px;
@@ -102,11 +102,13 @@
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-  padding: 3px 10px;
+  width: fit-content;
+  max-width: fit-content;
+  padding: 2px 8px;
   border: 1px solid transparent;
   border-radius: 0;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   font-weight: 700;
   margin-top: 0;
 }
@@ -171,8 +173,7 @@
 }
 
 .audio-queue-actions .approve {
-  width: calc(100% - 36px);
-  max-width: 260px;
+  width: 100%;
 }
 
 .audio-actions {
