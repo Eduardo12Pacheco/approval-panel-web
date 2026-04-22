@@ -1529,14 +1529,17 @@ function renderAudioQueue() {
         <header class="audio-queue-card-header">
           <div>
             <p class="audio-queue-card-title">${escapeHtml(job.job_id)}</p>
-            <p class="meta">${statusLabel}</p>
           </div>
-          <button class="audio-card-close" data-action="dismiss-audio-job" data-job-id="${job.job_id}" title="Ocultar job">×</button>
+          <button class="audio-card-close" data-action="dismiss-audio-job" data-job-id="${job.job_id}" title="Ocultar job" aria-label="Ocultar job">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </button>
         </header>
 
         <span class="audio-status-pill ${statusClass}">${statusLabel}</span>
 
-        <p class="audio-progress-meta">Progress ${percent}%</p>
+        <p class="audio-progress-meta">Progreso ${percent}%</p>
         <div class="audio-progress-track">
           <div class="audio-progress-fill ${progressClass}" style="width:${percent}%"></div>
         </div>

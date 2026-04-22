@@ -57,10 +57,12 @@
 }
 
 .audio-queue-card {
-  border: 1px solid var(--border);
-  background: #1e2430;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
   padding: 14px;
-  border-radius: 14px;
+  border-radius: 0;
 }
 
 .audio-queue-card-header {
@@ -73,7 +75,27 @@
 .audio-queue-card-title {
   font-weight: 700;
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.audio-card-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(217, 87, 100, 0.46);
+  border-radius: 0;
+  background: rgba(43, 11, 16, 0.9);
+  color: #ff8f9b;
+  cursor: pointer;
+}
+
+.audio-card-close svg {
+  width: 16px;
+  height: 16px;
 }
 
 .audio-status-pill {
@@ -82,10 +104,11 @@
   min-height: 24px;
   padding: 3px 10px;
   border: 1px solid transparent;
+  border-radius: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.62rem;
   font-weight: 700;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .audio-status-pill--processing {
@@ -107,7 +130,7 @@
 }
 
 .audio-progress-meta {
-  margin: 14px 0 6px;
+  margin: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.66rem;
   color: var(--muted-2);
@@ -121,6 +144,7 @@
   border: 1px solid var(--border-strong);
   background: #121212;
   overflow: hidden;
+  border-radius: 0;
 }
 
 .audio-progress-fill {
@@ -142,7 +166,13 @@
 }
 
 .audio-queue-actions {
-  margin-top: 12px;
+  margin-top: 4px;
+  display: flex;
+}
+
+.audio-queue-actions .approve {
+  width: calc(100% - 36px);
+  max-width: 260px;
 }
 
 .audio-actions {
