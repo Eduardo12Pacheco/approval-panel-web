@@ -57,6 +57,10 @@
   white-space: nowrap;
 }
 
+.audio-queue-header .section-counter:empty {
+  display: none;
+}
+
 .audio-queue-list {
   flex: 1;
   overflow: auto;
