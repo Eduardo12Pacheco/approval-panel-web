@@ -277,6 +277,29 @@
   line-height: 1.7;
   font-size: 0.94rem;
   font-family: Inter, system-ui, Arial, sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 247, 247, 0.82) transparent;
+}
+
+.script-area::-webkit-scrollbar {
+  width: 5px;
+}
+
+.script-area::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.script-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.script-area::-webkit-scrollbar-thumb {
+  background: rgba(245, 247, 247, 0.82);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 
 .script-area:disabled {

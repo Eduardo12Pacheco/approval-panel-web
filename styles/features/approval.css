@@ -224,6 +224,7 @@
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.1;
+  margin-bottom: 4px;
 }
 
 .queue-progress__track {
