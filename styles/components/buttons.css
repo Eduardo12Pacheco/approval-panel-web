@@ -1,8 +1,8 @@
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+  justify-content: center;
+  gap: 0;
   width: 100%;
   min-height: 52px;
   padding: 10px 12px;
@@ -13,6 +13,12 @@
   border-radius: 0;
   overflow: hidden;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.sidebar--rail:hover .nav-item,
+.sidebar--rail:focus-within .nav-item {
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .nav-item:hover {
