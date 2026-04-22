@@ -25,11 +25,12 @@ export function createCustomDropdownController({ root = document } = {}) {
   }
 
   function getSelectOptions(select) {
+    const currentValue = select.value;
     return Array.from(select.options).map((option) => ({
       value: option.value,
       label: option.textContent || option.label || option.value,
       disabled: option.disabled,
-      selected: option.selected,
+      selected: option.value === currentValue,
     }));
   }
 
@@ -37,8 +38,7 @@ export function createCustomDropdownController({ root = document } = {}) {
     const selectedOption = options.find((option) => option.selected) || options[0];
     const placeholder = select.dataset.dropdownPlaceholder || select.dataset.dropdownLabel || selectedOption?.label || 'Seleccionar';
     if (!selectedOption) return placeholder;
-    const defaultValue = options[0]?.value ?? '';
-    return selectedOption.value === defaultValue ? placeholder : selectedOption.label;
+    return selectedOption.label || placeholder;
   }
 
   function close(instance) {
