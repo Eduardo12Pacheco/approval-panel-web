@@ -117,8 +117,20 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-time-range__line',
         '.subtitle-align-group--compact',
         'button.selected-green',
+        '.subtitle-history-item--editing',
+        '.subtitle-history-item--done',
+        '.subtitle-history-item--active',
     ]:
         assert token in css
+
+    for runtime_token in [
+        'setSubtitles2PhaseFromRemoteStatus',
+        'forceSubtitles2Phase',
+        'resolveSubtitle2HistoryTone',
+        'aria-current=',
+        'subtitle-history-item--${tone}',
+    ]:
+        assert runtime_token in app_shell
 
     assert 'buildSubtitlePreviewPresentationRuntime' in services
     assert 'resolveSubtitleTimelineSeekMsRuntime' in services

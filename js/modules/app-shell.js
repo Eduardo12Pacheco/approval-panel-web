@@ -481,15 +481,8 @@ function bindEvents() {
     const sessionId = (button.dataset.sessionId || '').trim();
     if (!sessionId) return;
     void (async () => {
-      await hydrateSubtitle2Session(sessionId);
-      const detail = await ttsApi.getSubtitleSession(sessionId);
-      if ((detail?.status || '').toString().toLowerCase() === 'succeeded' && detail?.download?.ready) {
-        state.subtitles2.renderStatus = 'succeeded';
-        state.subtitles2.renderArtifactReady = true;
-        transitionSubtitles2Phase('Terminado');
-      } else {
-        transitionSubtitles2Phase('Edicion');
-      }
+      const detail = await hydrateSubtitle2Session(sessionId, { render: false });
+      setSubtitles2PhaseFromRemoteStatus(detail);
     })();
   });
 
@@ -1119,8 +1112,8 @@ async function pollRemoteSubtitleSessionStatus(sessionId) {
   state.subtitles2.snapshotVersion = Number(detail?.current_snapshot_version || state.subtitles2.snapshotVersion || 0);
   if ((state.subtitles2.analyzeStatus || '').toLowerCase() === 'editing' || state.subtitles2.snapshotVersion > 0) {
     stopSubtitle2Polling();
-    await hydrateSubtitle2Session(sessionId);
-    transitionSubtitles2Phase('Edicion');
+    const hydratedDetail = await hydrateSubtitle2Session(sessionId, { render: false });
+    setSubtitles2PhaseFromRemoteStatus(hydratedDetail || detail);
     return;
   }
   stopSubtitle2Polling();
@@ -1472,6 +1465,37 @@ function resetSubtitles2RunState() {
   state.subtitles2 = createRemoteSubtitlesState();
 }
 
+function forceSubtitles2Phase(nextPhase) {
+  const phasePath = {
+    Carga: [],
+    'Procesando audio': ['Procesando audio'],
+    Edicion: ['Procesando audio', 'Edicion'],
+    'Procesando video': ['Procesando audio', 'Edicion', 'Procesando video'],
+    Terminado: ['Procesando audio', 'Edicion', 'Procesando video', 'Terminado'],
+  }[nextPhase];
+  if (!phasePath) return false;
+  state.subtitles2.machine.reset();
+  for (const phase of phasePath) {
+    state.subtitles2.machine.transition(phase);
+  }
+  renderSubtitles2Workflow();
+  return true;
+}
+
+function resolveSubtitles2PhaseFromRemoteStatus(detail = {}) {
+  const status = (detail?.status || state.subtitles2.analyzeStatus || '').toString().trim().toLowerCase();
+  const renderStatus = (state.subtitles2.renderStatus || '').toString().trim().toLowerCase();
+  const downloadReady = Boolean(detail?.download?.ready || state.subtitles2.renderArtifactReady);
+  if (downloadReady || ['succeeded', 'completed', 'complete', 'done', 'finished'].includes(status) || renderStatus === 'succeeded') return 'Terminado';
+  if (['rendering', 'render_queued', 'rendering_video', 'processing_video'].includes(status) || ['queued', 'processing', 'running'].includes(renderStatus)) return 'Procesando video';
+  if (['processing', 'queued', 'analyzing', 'analysis', 'analyzing_audio', 'processing_audio'].includes(status)) return 'Procesando audio';
+  return 'Edicion';
+}
+
+function setSubtitles2PhaseFromRemoteStatus(detail = {}) {
+  return forceSubtitles2Phase(resolveSubtitles2PhaseFromRemoteStatus(detail));
+}
+
 function transitionSubtitles2Phase(nextPhase) {
   const moved = state.subtitles2.machine.transition(nextPhase);
   if (!moved) {
@@ -1712,11 +1736,24 @@ function renderSubtitle2SessionHistory() {
     el.subtitle2SessionHistory.innerHTML = '<p class="meta">Todavía no hay sesiones remotas.</p>';
     return;
   }
-  el.subtitle2SessionHistory.innerHTML = items.map((item) => `
-    <button type="button" class="secondary" data-action="resume-subtitle-session" data-session-id="${escapeHtml(item.id)}">
-      ${escapeHtml(item.id)} · ${escapeHtml(item.status || 'unknown')}
+  el.subtitle2SessionHistory.innerHTML = items.map((item) => {
+    const sessionId = (item?.id || '').toString();
+    const status = (item?.status || 'unknown').toString();
+    const tone = resolveSubtitle2HistoryTone({ sessionId, status, item });
+    return `
+    <button type="button" class="secondary subtitle-history-item subtitle-history-item--${tone}" data-action="resume-subtitle-session" data-session-id="${escapeHtml(sessionId)}" aria-current="${tone === 'active' ? 'true' : 'false'}">
+      <span class="subtitle-history-item__id">${escapeHtml(sessionId)}</span>
+      <span class="subtitle-history-item__status">${escapeHtml(status)}</span>
     </button>
-  `).join('');
+  `;
+  }).join('');
+}
+
+function resolveSubtitle2HistoryTone({ sessionId = '', status = '', item = {} } = {}) {
+  if (sessionId && sessionId === state.subtitles2.sessionId) return 'active';
+  const normalizedStatus = status.toString().trim().toLowerCase();
+  if (item?.download?.ready || ['succeeded', 'completed', 'complete', 'done', 'finished'].includes(normalizedStatus)) return 'done';
+  return 'editing';
 }
 
 function renderSubtitle2PreviewPlayer() {
@@ -2010,10 +2047,12 @@ async function refreshSubtitle2RemoteStatus() {
   renderSubtitle2SessionHistory();
 }
 
-async function hydrateSubtitle2Session(sessionId) {
+async function hydrateSubtitle2Session(sessionId, { render = true } = {}) {
   const [detail, segments] = await Promise.all([ttsApi.getSubtitleSession(sessionId), ttsApi.getSubtitleSegments(sessionId)]);
   state.subtitles2.sessionId = sessionId;
   state.subtitles2.analyzeStatus = (detail?.status || 'editing').toString();
+  state.subtitles2.renderStatus = (detail?.render?.status || detail?.render_status || '').toString();
+  state.subtitles2.renderArtifactReady = Boolean(detail?.download?.ready);
   state.subtitles2.previewVideoUrl = buildSubtitlePreviewUrlRuntime(detail?.preview?.video_url || `/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`, state.settings.ttsBaseUrl);
   state.subtitles2.snapshotVersion = Number(segments?.version || 0);
   state.subtitles2.rows = mapRemoteSubtitleSegmentsToRowsRuntime({
@@ -2027,7 +2066,8 @@ async function hydrateSubtitle2Session(sessionId) {
   state.subtitles2.audioDurationMs = Math.max(0, Number(detail?.preview?.duration_ms || 0)) || resolveSubtitle2PreviewDurationMs();
   state.subtitles2.savedVersion = state.subtitles2.changeVersion;
   state.subtitles2.dirty = false;
-  renderSubtitles2Workflow();
+  if (render) renderSubtitles2Workflow();
+  return detail;
 }
 
 function resetSubtitle2EditorForAnotherVideo() {
