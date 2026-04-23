@@ -448,10 +448,6 @@
   width: 122px;
 }
 
-.subtitle-table__col--actions {
-  width: 172px;
-}
-
 .subtitle-table--remote thead th {
   position: sticky;
   top: 0;
@@ -498,24 +494,6 @@
 .subtitle-align-group--compact button {
   min-width: 32px;
   padding: 8px 0;
-  font-size: 0.78rem;
-}
-
-.subtitle-row-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.subtitle-row-actions--tight {
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-}
-
-.subtitle-row-actions--tight .secondary {
-  min-width: 46px;
-  padding: 7px 8px;
   font-size: 0.78rem;
 }
 
@@ -806,13 +784,20 @@
 }
 
 #viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-card-heading {
-  padding: 24px 5px 14px;
+  padding: 24px 24px 26px;
 }
 
 #viewSubtitulos2 #subtitle2PhaseEdition .subtitle-table-scroll {
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .audio-actions {
+  margin-top: 0;
+  padding: 14px 24px 16px;
+  border-top: 1px solid #262626;
+  background: #0A0A0A;
 }
 
 #viewSubtitulos2 .subtitle-phase-section--centered {
@@ -979,6 +964,10 @@
   border-bottom-color: #2A2A2A;
 }
 
+#viewSubtitulos2 .subtitle-table--remote td {
+  vertical-align: middle;
+}
+
 #viewSubtitulos2 .subtitle-table__title {
   color: #F5F7F7;
   font-family: 'JetBrains Mono', monospace;
@@ -1005,8 +994,20 @@
   border-radius: 0;
 }
 
-#viewSubtitulos2 .subtitle-align-group--compact button,
-#viewSubtitulos2 .subtitle-row-actions--tight .secondary {
+#viewSubtitulos2 .subtitle-table--remote td:nth-child(1) input[type="text"],
+#viewSubtitulos2 .subtitle-table--remote td:nth-child(2) input[type="text"] {
+  min-height: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: #F5F7F7;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}
+
+#viewSubtitulos2 .subtitle-align-group--compact button {
   border-color: #2A2A2A;
   border-radius: 0;
   background: #121212;

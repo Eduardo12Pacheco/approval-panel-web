@@ -103,7 +103,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'id="subtitle2PreviewEmpty"' in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
-    assert 'subtitle-row-actions subtitle-row-actions--tight' in app_shell
+    assert 'subtitle-row-actions subtitle-row-actions--tight' not in app_shell
 
     for token in [
         '.subtitle-preview-controls',
@@ -111,7 +111,6 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-preview-empty',
         '.subtitle-table__title',
         '.subtitle-table__hint',
-        '.subtitle-row-actions--tight',
         '.subtitle-align-group--compact',
     ]:
         assert token in css
@@ -179,11 +178,17 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         'data-field="fontFamily"',
         'data-field="color"',
         'data-field="align"',
+    ]:
+        assert contract_fragment in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
+
+    for removed_fragment in [
         'data-action="jump-cue"',
         'data-action="insert-row"',
         'data-action="delete-row"',
+        'subtitle-table__col--actions',
+        'Acciones',
     ]:
-        assert contract_fragment in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
+        assert removed_fragment not in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
 
     for expected_fragment in [
         'id="viewSubtitulos2" class="view hidden subtitle2-screen"',

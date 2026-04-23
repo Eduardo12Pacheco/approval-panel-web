@@ -1655,14 +1655,6 @@ function applySubtitle2TimingInput(rowId, field, rawValue) {
 }
 
 function onSubtitle2TableClick(ev) {
-  const actionButton = ev.target.closest('button[data-action]');
-  if (actionButton) {
-    const action = actionButton.dataset.action;
-    const rowId = actionButton.dataset.rowId;
-    if (action === 'insert-row' && rowId) return void onSubtitle2InsertRowClicked(rowId);
-    if (action === 'delete-row' && rowId) return void onSubtitle2DeleteRowClicked(rowId);
-    if (action === 'jump-cue' && rowId) return void seekSubtitle2PreviewToCue(rowId);
-  }
   const button = ev.target.closest('button[data-field="align"]');
   if (!button) return;
   const rowId = button.dataset.rowId;
@@ -1685,35 +1677,6 @@ function onSubtitle2AddRowClicked() {
     return;
   }
   state.subtitles2.rows = [...state.subtitles2.rows, result.row];
-  state.subtitles2.changeVersion += 1;
-  state.subtitles2.dirty = true;
-  renderSubtitles2Workflow();
-}
-
-function onSubtitle2InsertRowClicked(rowId) {
-  const result = buildSubtitleInsertRowRuntime({
-    rows: state.subtitles2.rows,
-    insertAfterRowId: rowId,
-    createRow: createEmptySubtitleRow,
-    formatTime: formatSubtitleDisplayTimeRuntime,
-  });
-  if (!result.accepted || !result.row) {
-    toast(result.reason || 'No se pudo insertar línea');
-    return;
-  }
-  const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
-  state.subtitles2.rows = [...state.subtitles2.rows.slice(0, index + 1), result.row, ...state.subtitles2.rows.slice(index + 1)];
-  state.subtitles2.changeVersion += 1;
-  state.subtitles2.dirty = true;
-  renderSubtitles2Workflow();
-}
-
-function onSubtitle2DeleteRowClicked(rowId) {
-  if (state.subtitles2.rows.length <= 1) {
-    toast('Necesitás al menos una fila');
-    return;
-  }
-  state.subtitles2.rows = state.subtitles2.rows.filter((row) => row.id !== rowId);
   state.subtitles2.changeVersion += 1;
   state.subtitles2.dirty = true;
   renderSubtitles2Workflow();
@@ -1835,13 +1798,6 @@ function onSubtitle2PreviewTimeUpdate(ev) {
 
 function onSubtitle2PreviewTimelineClick(ev) {
   seekSubtitle2PreviewFromClientX(ev.clientX);
-}
-
-function seekSubtitle2PreviewToCue(rowId) {
-  const row = state.subtitles2.rows.find((entry) => entry.id === rowId);
-  if (!row) return;
-  const startMs = parseSubtitleTimeToMsRuntime(row.start);
-  seekSubtitle2PreviewToMs(startMs);
 }
 
 function renderSubtitle2PreviewPlaybackState() {
@@ -2019,13 +1975,6 @@ function renderSubtitles2Table() {
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda" aria-pressed="${alignment.left.selected}">I</button>
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro" aria-pressed="${alignment.center.selected}">C</button>
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
-          </div>
-        </td>
-        <td>
-          <div class="subtitle-row-actions subtitle-row-actions--tight">
-            <button type="button" data-action="jump-cue" data-row-id="${row.id}" class="secondary">Cue</button>
-            <button type="button" data-action="insert-row" data-row-id="${row.id}" class="secondary">+1</button>
-            <button type="button" data-action="delete-row" data-row-id="${row.id}" class="secondary">Borrar</button>
           </div>
         </td>
       </tr>
