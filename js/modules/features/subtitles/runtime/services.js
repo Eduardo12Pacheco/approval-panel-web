@@ -173,11 +173,13 @@ export function buildSubtitlePreviewPresentationRuntime({
   const justifyContent = rawAlign === 'right' ? 'flex-end' : rawAlign === 'center' ? 'center' : 'flex-start';
   const fontSizeBase = Number(activeCue?.size || activeCue?.font_size || 110);
   const cueWidthBase = Number(activeCue?.maxWidthPx || activeCue?.max_width_px || defaultMaxWidthPx);
+  const fontFamily = (activeCue?.fontFamily || activeCue?.font_family || 'Khand').toString();
   return {
     hasCue: Boolean(activeCue),
     text: activeCue ? (activeCue?.phrase || activeCue?.translated_es || '').toString().toUpperCase() : '',
     color: (activeCue?.color || '#FFFFFF').toString(),
-    fontFamily: (activeCue?.fontFamily || activeCue?.font_family || 'Khand').toString(),
+    fontFamily,
+    fontWeight: (activeCue?.fontWeight || activeCue?.font_weight || resolveSubtitleFontWeightRuntime(fontFamily)).toString(),
     fontSizePx: Math.max(12, Math.round((Number.isFinite(fontSizeBase) ? fontSizeBase : 110) * scale)),
     cueWidthPx: Math.max(1, Math.round((Number.isFinite(cueWidthBase) && cueWidthBase > 0 ? cueWidthBase : defaultMaxWidthPx) * scale)),
     justifyContent,
@@ -204,6 +206,7 @@ export function mapRemoteSubtitleSegmentsToRowsRuntime({ segments = [], createRo
     size: String(segment?.style?.font_size || sizePresets?.[0] || '110'),
     maxWidthPx: Number(segment?.style?.max_width_px || 1080),
     fontFamily: (segment?.style?.font_family || fontPresets?.[0] || 'Khand').toString(),
+    fontWeight: (segment?.style?.font_weight || resolveSubtitleFontWeightRuntime(segment?.style?.font_family || fontPresets?.[0] || 'Khand')).toString(),
     color: (segment?.style?.color || colorPresets?.[0] || '#FFFFFF').toString(),
     align: (segment?.style?.align || 'left').toString(),
   }));
@@ -273,10 +276,18 @@ export function buildSubtitleInsertRowRuntime({ rows = [], insertAfterRowId, cre
     size: '110',
     maxWidthPx: 1080,
     fontFamily: 'Khand',
+    fontWeight: 'Bold',
     color: '#FFFFFF',
     align: 'left',
   });
   return { accepted: true, row };
+}
+
+function resolveSubtitleFontWeightRuntime(fontFamily, fallback = 'normal') {
+  const family = (fontFamily || '').toString().trim();
+  if (family === 'Khand') return 'Bold';
+  if (family === 'Oswald') return '700';
+  return fallback;
 }
 
 export function buildSubtitleCueMarkersRuntime(rows = [], durationMs = 0) {

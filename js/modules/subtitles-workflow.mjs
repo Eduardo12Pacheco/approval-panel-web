@@ -10,9 +10,13 @@ export const SUBTITLES_POLL_INTERVAL_MS = 2000;
 export const SUBTITLES_AUTOSAVE_INTERVAL_MS = 5000;
 export const SUBTITLES_RENDER_WATCHDOG_MS = 300000;
 
-export const SUBTITLE_SIZE_PRESETS = Object.freeze(['36', '42', '48']);
+export const SUBTITLE_SIZE_PRESETS = Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140']);
 export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2']);
-export const SUBTITLE_FONT_PRESETS = Object.freeze(['Khand Bold', 'Oswald', 'League Gothic', 'Impact', 'Anton']);
+export const SUBTITLE_FONT_PRESETS = Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald']);
+export const SUBTITLE_FONT_WEIGHT_BY_FAMILY = Object.freeze({
+  Khand: 'Bold',
+  Oswald: '700',
+});
 
 const ALLOWED_TRANSITIONS = Object.freeze({
   Carga: ['Procesando audio'],
@@ -50,6 +54,7 @@ export function createSubtitlesWorkflowMachine(initialPhase = 'Carga') {
 export function createEmptySubtitleRow(seed = {}) {
   const rawMaxWidthPx = Number(seed.maxWidthPx ?? 1080);
   const safeMaxWidthPx = Number.isFinite(rawMaxWidthPx) && rawMaxWidthPx > 0 ? Math.round(rawMaxWidthPx) : 1080;
+  const fontFamily = normalizeFontFamily(seed.fontFamily || seed.font_family, SUBTITLE_FONT_PRESETS[0]);
   return {
     id: (seed.id || '').toString(),
     start: (seed.start || '00:00:00.000').toString(),
@@ -59,7 +64,8 @@ export function createEmptySubtitleRow(seed = {}) {
     maxWidthPx: safeMaxWidthPx,
     size: sanitizePreset((seed.size || SUBTITLE_SIZE_PRESETS[0]).toString(), SUBTITLE_SIZE_PRESETS, SUBTITLE_SIZE_PRESETS[0]),
     color: sanitizePreset((seed.color || SUBTITLE_COLOR_PRESETS[0]).toString(), SUBTITLE_COLOR_PRESETS, SUBTITLE_COLOR_PRESETS[0]),
-    fontFamily: sanitizePreset((seed.fontFamily || SUBTITLE_FONT_PRESETS[0]).toString(), SUBTITLE_FONT_PRESETS, SUBTITLE_FONT_PRESETS[0]),
+    fontFamily,
+    fontWeight: (seed.fontWeight || seed.font_weight || resolveSubtitleFontWeight(fontFamily)).toString(),
     align: normalizeAlignment(seed.align),
   };
 }
@@ -84,10 +90,21 @@ export function applySubtitleRowPatch(row, patch = {}) {
       ? sanitizePreset(patch.color.toString(), SUBTITLE_COLOR_PRESETS, safeRow.color)
       : safeRow.color,
     fontFamily: patch.fontFamily != null
-      ? sanitizePreset(patch.fontFamily.toString(), SUBTITLE_FONT_PRESETS, safeRow.fontFamily)
+      ? normalizeFontFamily(patch.fontFamily, safeRow.fontFamily)
       : safeRow.fontFamily,
+    fontWeight: patch.fontWeight != null
+      ? patch.fontWeight.toString()
+      : resolveSubtitleFontWeight(
+        patch.fontFamily != null ? normalizeFontFamily(patch.fontFamily, safeRow.fontFamily) : safeRow.fontFamily,
+        safeRow.fontWeight,
+      ),
     align: patch.align != null ? normalizeAlignment(patch.align, safeRow.align) : safeRow.align,
   };
+}
+
+export function resolveSubtitleFontWeight(fontFamily, fallback = 'normal') {
+  const family = normalizeFontFamily(fontFamily, '');
+  return SUBTITLE_FONT_WEIGHT_BY_FAMILY[family] || fallback;
 }
 
 export function getAlignmentButtonState(activeAlignment) {
@@ -259,6 +276,12 @@ function normalizeAlignment(value, fallback = 'left') {
   const lower = (value || '').toString().trim().toLowerCase();
   if (ALIGNMENTS.includes(lower)) return lower;
   return fallback;
+}
+
+function normalizeFontFamily(value, fallback = SUBTITLE_FONT_PRESETS[0]) {
+  const raw = (value || '').toString().trim();
+  const family = raw === 'Khand Bold' ? 'Khand' : raw;
+  return sanitizePreset(family, SUBTITLE_FONT_PRESETS, fallback);
 }
 
 function sanitizePreset(value, allowed, fallback) {

@@ -60,6 +60,7 @@ if (centered.justifyContent !== 'center') throw new Error(`unexpected justify: $
 if (centered.playheadPercent !== 25) throw new Error(`unexpected playhead: ${centered.playheadPercent}`);
 if (centered.fontSizePx !== 55) throw new Error(`expected scaled font size, got ${centered.fontSizePx}`);
 if (centered.cueWidthPx !== 480) throw new Error(`expected scaled cue width, got ${centered.cueWidthPx}`);
+if (centered.fontWeight !== 'normal') throw new Error(`expected Anton normal weight, got ${centered.fontWeight}`);
 
 const rightAligned = buildSubtitlePreviewPresentationRuntime({
   activeCue: {
@@ -78,6 +79,7 @@ const rightAligned = buildSubtitlePreviewPresentationRuntime({
 
 if (rightAligned.justifyContent !== 'flex-end') throw new Error(`right align drift: ${rightAligned.justifyContent}`);
 if (rightAligned.playheadPercent !== 90) throw new Error(`expected 90 percent, got ${rightAligned.playheadPercent}`);
+if (rightAligned.fontWeight !== 'Bold') throw new Error(`expected Khand Bold export weight, got ${rightAligned.fontWeight}`);
 
 const beforeTrack = resolveSubtitleTimelineSeekMsRuntime({ clientX: 10, rectLeft: 100, rectWidth: 400, durationMs: 10000 });
 const middleTrack = resolveSubtitleTimelineSeekMsRuntime({ clientX: 300, rectLeft: 100, rectWidth: 400, durationMs: 10000 });
@@ -116,6 +118,18 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
 
     assert 'buildSubtitlePreviewPresentationRuntime' in services
     assert 'resolveSubtitleTimelineSeekMsRuntime' in services
+
+
+def test_subtitle2_remote_style_presets_match_backend_contracts():
+    workflow = (ROOT / "js" / "modules" / "subtitles-workflow.mjs").read_text(encoding="utf-8")
+    app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")
+
+    assert "Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140'])" in workflow
+    assert "Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald'])" in workflow
+    assert "Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2'])" in workflow
+    assert "Object.freeze(['Khand Bold'" not in workflow
+    assert "font_weight" in app_shell
+    assert "style.fontWeight = presentation.fontWeight" in app_shell
 
 
 def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_contract_drift():

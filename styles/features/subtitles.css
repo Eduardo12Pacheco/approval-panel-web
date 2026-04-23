@@ -800,12 +800,13 @@
 }
 
 #viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-editor-card {
+  margin: 0 -19px -19px;
   padding: 0;
   gap: 0;
 }
 
 #viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-card-heading {
-  padding: 24px 24px 14px;
+  padding: 24px 5px 14px;
 }
 
 #viewSubtitulos2 #subtitle2PhaseEdition .subtitle-table-scroll {

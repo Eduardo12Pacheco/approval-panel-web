@@ -16,6 +16,7 @@ import {
   getAlignmentButtonState,
   getSubtitlesActionPolicy,
   getSubtitlesPhaseSectionVisibility,
+  resolveSubtitleFontWeight,
   shouldFailRenderByWatchdog,
   shouldRunAutosave,
   shouldRunStatusPolling,
@@ -1365,6 +1366,7 @@ function collectCurrentSubtitlesSnapshot() {
       style: {
         font_size: row.size,
         font_family: row.fontFamily,
+        font_weight: row.fontWeight || resolveSubtitleFontWeight(row.fontFamily),
         color: row.color,
         align: row.align,
         max_width_px: row.maxWidthPx || 1080,
@@ -1384,6 +1386,7 @@ function mapSnapshotToRows(snapshotJson) {
     maxWidthPx: Number(segment?.style?.max_width_px || 1080),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
     fontFamily: (segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0]).toString(),
+    fontWeight: (segment?.style?.font_weight || resolveSubtitleFontWeight(segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0])).toString(),
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
     align: (segment?.style?.align || 'left').toString(),
   }));
@@ -1547,6 +1550,7 @@ async function enqueueSubtitle2Save(saveMode) {
       style: {
         font_size: Number(row.size),
         font_family: row.fontFamily,
+        font_weight: row.fontWeight || resolveSubtitleFontWeight(row.fontFamily),
         color: row.color,
         align: row.align,
         max_width_px: Number(row.maxWidthPx || 1080),
@@ -1798,6 +1802,7 @@ function renderSubtitle2PreviewOverlay() {
     el.subtitle2PreviewCue.textContent = presentation.text;
     el.subtitle2PreviewCue.style.color = presentation.color;
     el.subtitle2PreviewCue.style.fontFamily = presentation.fontFamily;
+    el.subtitle2PreviewCue.style.fontWeight = presentation.fontWeight;
     el.subtitle2PreviewCue.style.fontSize = `${presentation.fontSizePx}px`;
     el.subtitle2PreviewCue.style.width = `${presentation.cueWidthPx}px`;
   }
@@ -2004,7 +2009,7 @@ function renderSubtitles2Table() {
       <tr>
         <td><input type="text" data-row-id="${row.id}" data-field="start" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" /></td>
         <td><input type="text" data-row-id="${row.id}" data-field="end" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" /></td>
-        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};">${escapeHtml(row.phrase)}</textarea></td>
+        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};font-weight:${escapeHtml(row.fontWeight || resolveSubtitleFontWeight(row.fontFamily))};">${escapeHtml(row.phrase)}</textarea></td>
         <td><select data-row-id="${row.id}" data-field="size">${renderSubtitleSelectOptions(sizeOptions, row.size)}</select></td>
         <td><input type="number" min="1" step="10" data-row-id="${row.id}" data-field="maxWidthPx" value="${escapeHtml(String(row.maxWidthPx || 1080))}" /></td>
         <td><select data-row-id="${row.id}" data-field="fontFamily">${renderSubtitleSelectOptions(fontOptions, row.fontFamily)}</select></td>
