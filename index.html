@@ -427,20 +427,23 @@
           </section>
         </section>
 
-        <section id="viewSubtitulos2" class="view hidden">
-          <header class="topbar">
+        <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
+          <header class="subtitle2-screen__header">
             <div>
+              <p class="subtitle2-eyebrow">Workstation subtitle pipeline</p>
               <h1>Subtítulos 2</h1>
               <p>Segmento remoto con video obligatorio, preview local y coexistencia segura con el flujo legacy.</p>
             </div>
+            <div id="subtitle2ServiceHealthBanner" class="subtitle2-health-chip subtitle-health-banner">
+              Estado remoto: pendiente.
+            </div>
           </header>
 
-          <section id="subtitle2ServiceHealthBanner" class="audio-panel subtitle-health-banner">
-            Estado remoto: pendiente.
-          </section>
-
-          <section class="audio-panel">
-            <h3>Fases</h3>
+          <section class="subtitle2-phase-card">
+            <div>
+              <span class="subtitle2-section-label">Estado del flujo</span>
+              <h3>Fases</h3>
+            </div>
             <ol id="subtitle2PhaseBar" class="subtitle-phase-bar">
               <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
               <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
@@ -450,15 +453,51 @@
             </ol>
           </section>
 
-          <section class="subtitle-layout subtitle-layout--remote">
-            <aside class="audio-panel subtitle-history-panel">
-              <h3>Historial de sesiones</h3>
-              <div id="subtitle2SessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
+          <section class="subtitle2-workspace">
+            <aside class="subtitle2-side-card">
+              <div class="subtitle-preview-frame">
+                <div class="subtitle-preview-frame__header">
+                  <div>
+                    <span class="subtitle2-section-label">Live preview</span>
+                    <h3>Preview</h3>
+                    <p class="meta">Video de fondo + cue activo sincronizado, más cerca del editor local.</p>
+                  </div>
+                </div>
+                <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
+                  <video id="subtitle2PreviewVideo" playsinline preload="metadata"></video>
+                  <div id="subtitle2PreviewEmpty" class="subtitle-preview-empty">Agregá o retomá una sesión para iniciar el preview</div>
+                  <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
+                    <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
+                  </div>
+                </div>
+                <div class="subtitle-preview-controls">
+                  <button id="subtitle2PreviewPlayBtn" class="subtitle-preview-play-btn" type="button" aria-label="Reproducir preview">▶</button>
+                  <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
+                    <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
+                      <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
+                    </div>
+                  </div>
+                  <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
+                </div>
+              </div>
+
+              <div class="subtitle2-history-section">
+                <div>
+                  <span class="subtitle2-section-label">Últimos proyectos</span>
+                  <h3>Historial</h3>
+                </div>
+                <div id="subtitle2SessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
+              </div>
             </aside>
 
-            <section class="subtitle-flow">
+            <section class="subtitle2-master-card">
               <section id="subtitle2PhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
-                <article class="subtitle-upload-stage">
+                <article class="subtitle2-upload-source-card">
+                  <div class="subtitle2-card-heading">
+                    <span class="subtitle2-section-label">Upload source</span>
+                    <h3>Subí tu archivo</h3>
+                    <p class="meta">Arrancá una sesión remota con un único .mp4 o .mov.</p>
+                  </div>
                   <label class="subtitle-upload-dropzone" for="subtitle2UploadInput">
                     <input id="subtitle2UploadInput" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" />
                     <div class="subtitle-upload-cta-icon" aria-hidden="true">＋</div>
@@ -492,7 +531,7 @@
                 </article>
               </section>
 
-              <section id="subtitle2AnalyzeMeta" class="audio-panel subtitle-meta-card hidden">
+              <section id="subtitle2AnalyzeMeta" class="subtitle2-editor-card subtitle-meta-card hidden">
                 <h3>Metadata del análisis</h3>
                 <div class="subtitle-meta-grid">
                   <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_requested</span><strong id="subtitle2MetaRequested">—</strong></div>
@@ -504,7 +543,7 @@
               </section>
 
               <section id="subtitle2PhaseProcessing" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-                <article class="audio-panel subtitle-centered-card subtitle-processing-card">
+                <article class="subtitle2-editor-card subtitle-centered-card subtitle-processing-card">
                   <div id="subtitle2ProcessingIcon" class="subtitle-phase-icon" aria-hidden="true">⏳</div>
                   <h3 id="subtitle2ProcessingTitle">Procesando audio</h3>
                   <p id="subtitle2ProcessingMessage" class="meta">Estamos analizando tu archivo…</p>
@@ -515,33 +554,15 @@
                 </article>
               </section>
 
-               <section id="subtitle2PhaseEdition" class="subtitle-phase-section hidden">
-                 <article class="audio-panel">
-                   <div class="subtitle-preview-frame">
-                     <div class="subtitle-preview-frame__header">
-                       <div>
-                         <h3>Preview</h3>
-                         <p class="meta">Video de fondo + cue activo sincronizado, más cerca del editor local.</p>
-                       </div>
-                     </div>
-                     <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
-                       <video id="subtitle2PreviewVideo" playsinline preload="metadata"></video>
-                       <div id="subtitle2PreviewEmpty" class="subtitle-preview-empty">Agregá o retomá una sesión para iniciar el preview</div>
-                       <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
-                         <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
-                       </div>
-                     </div>
-                     <div class="subtitle-preview-controls">
-                       <button id="subtitle2PreviewPlayBtn" class="subtitle-preview-play-btn" type="button" aria-label="Reproducir preview">▶</button>
-                       <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
-                         <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
-                           <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
-                         </div>
-                       </div>
-                       <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
-                     </div>
-                   </div>
-                   <h3>Tabla de edición</h3>
+              <section id="subtitle2PhaseEdition" class="subtitle-phase-section hidden">
+                <article class="subtitle2-editor-card">
+                  <div class="subtitle2-card-heading subtitle2-card-heading--inline">
+                    <div>
+                      <span class="subtitle2-section-label">Editor</span>
+                      <h3>Tabla de edición</h3>
+                    </div>
+                    <p class="meta">Ajustá tiempos, frase y estilo antes de renderizar.</p>
+                  </div>
 
                    <div class="subtitle-table-scroll">
                      <table class="subtitle-table subtitle-table--remote" id="subtitle2RowsTable">
@@ -582,7 +603,7 @@
               </section>
 
               <section id="subtitle2PhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-                <article class="audio-panel subtitle-centered-card subtitle-success-card">
+                <article class="subtitle2-editor-card subtitle-centered-card subtitle-success-card">
                   <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">✅</div>
                   <h3 id="subtitle2DoneTitle">Video listo</h3>
                   <p id="subtitle2DoneMessage" class="meta">Tu video ya está listo. Descargalo manualmente cuando quieras.</p>

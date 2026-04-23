@@ -102,3 +102,92 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
 
     assert 'buildSubtitlePreviewPresentationRuntime' in services
     assert 'resolveSubtitleTimelineSeekMsRuntime' in services
+
+
+def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_contract_drift():
+    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+
+    required_ids = [
+        "subtitle2ServiceHealthBanner",
+        "subtitle2PhaseBar",
+        "subtitle2PhaseUpload",
+        "subtitle2PhaseProcessing",
+        "subtitle2PhaseEdition",
+        "subtitle2PhaseDone",
+        "subtitle2UploadInput",
+        "subtitle2SourceLanguagePicker",
+        "subtitle2SourceLanguageEngineHint",
+        "subtitle2SessionHistory",
+        "subtitle2PreviewStage",
+        "subtitle2PreviewVideo",
+        "subtitle2PreviewEmpty",
+        "subtitle2PreviewOverlay",
+        "subtitle2PreviewCue",
+        "subtitle2PreviewPlayBtn",
+        "subtitle2PreviewTimeline",
+        "subtitle2PreviewTimelineTrack",
+        "subtitle2PreviewPlayhead",
+        "subtitle2PreviewTimecode",
+        "subtitle2RowsBody",
+        "subtitle2AddRowBtn",
+        "subtitle2SaveBtn",
+        "subtitle2ReadyBtn",
+        "subtitle2DownloadBtn",
+        "subtitle2AnotherVideoBtn",
+    ]
+    for element_id in required_ids:
+        assert f'id="{element_id}"' in index_html
+
+    for contract_fragment in [
+        'data-action="resume-subtitle-session"',
+        'data-session-id',
+        'data-row-id',
+        'data-field="start"',
+        'data-field="end"',
+        'data-field="phrase"',
+        'data-field="maxWidthPx"',
+        'data-field="size"',
+        'data-field="fontFamily"',
+        'data-field="color"',
+        'data-field="align"',
+        'data-action="jump-cue"',
+        'data-action="insert-row"',
+        'data-action="delete-row"',
+    ]:
+        assert contract_fragment in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
+
+    for expected_fragment in [
+        'id="viewSubtitulos2" class="view hidden subtitle2-screen"',
+        'class="subtitle2-screen__header"',
+        'class="subtitle2-phase-card"',
+        'class="subtitle2-workspace"',
+        'class="subtitle2-master-card"',
+        'class="subtitle2-side-card"',
+        'class="subtitle2-upload-source-card"',
+        'class="subtitle2-editor-card"',
+        'class="subtitle2-history-section"',
+    ]:
+        assert expected_fragment in index_html
+
+    preview_index = index_html.index('id="subtitle2PreviewStage"')
+    history_index = index_html.index('id="subtitle2SessionHistory"')
+    edition_index = index_html.index('id="subtitle2PhaseEdition"')
+    assert preview_index < history_index
+    assert history_index < edition_index
+
+    for expected_rule in [
+        '#viewSubtitulos2.subtitle2-screen',
+        '#viewSubtitulos2 .subtitle2-workspace',
+        'grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);',
+        '#viewSubtitulos2 .subtitle2-master-card',
+        '#viewSubtitulos2 .subtitle2-side-card',
+        '#viewSubtitulos2 .subtitle2-upload-source-card',
+        '#viewSubtitulos2 .subtitle2-editor-card',
+        '#viewSubtitulos2 .subtitle2-history-section',
+        '#0C0C0C',
+        '#00E88F',
+        '#9DB8FF',
+        '#F7B955',
+    ]:
+        assert expected_rule in css
