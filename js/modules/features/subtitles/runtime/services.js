@@ -129,6 +129,7 @@ export function buildSubtitleHealthRuntime(rawHealth, mode) {
   if (resolvedMode === 'legacy') {
     return {
       status: 'legacy',
+      tone: 'offline',
       message: 'Legacy habilitado mientras validamos Subtítulos 2.',
       banner: 'Estado remoto: legacy activo. El flujo remoto convive sin reemplazar al anterior.',
     };
@@ -136,10 +137,12 @@ export function buildSubtitleHealthRuntime(rawHealth, mode) {
 
   const status = (rawHealth?.status || 'pending').toString().trim().toLowerCase() || 'pending';
   const message = (rawHealth?.message || 'Estado remoto pendiente.').toString().trim();
+  const tone = ['online', 'healthy', 'ok', 'available', 'succeeded'].includes(status) ? 'online' : 'offline';
   return {
     status,
+    tone,
     message,
-    banner: `Estado remoto: ${status}. ${message}`.trim(),
+    banner: tone === 'online' ? 'Remote Online' : 'Remote Offline',
   };
 }
 

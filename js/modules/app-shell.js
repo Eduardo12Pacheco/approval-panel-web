@@ -1734,6 +1734,8 @@ function renderSubtitle2HealthBanner() {
   if (!el.subtitle2ServiceHealthBanner) return;
   const resolved = buildSubtitleHealthRuntime(state.subtitles2.serviceHealth, 'remote-core');
   el.subtitle2ServiceHealthBanner.textContent = resolved.banner;
+  el.subtitle2ServiceHealthBanner.classList.toggle('is-online', resolved.tone === 'online');
+  el.subtitle2ServiceHealthBanner.classList.toggle('is-offline', resolved.tone !== 'online');
 }
 
 function renderSubtitle2SessionHistory() {

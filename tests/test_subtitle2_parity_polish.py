@@ -174,7 +174,6 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     for expected_fragment in [
         'id="viewSubtitulos2" class="view hidden subtitle2-screen"',
         'class="subtitle2-screen__header"',
-        'class="subtitle2-phase-card"',
         'class="subtitle2-workspace"',
         'class="subtitle2-master-card"',
         'class="subtitle2-side-card"',
@@ -187,13 +186,17 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     preview_index = index_html.index('id="subtitle2PreviewStage"')
     history_index = index_html.index('id="subtitle2SessionHistory"')
     edition_index = index_html.index('id="subtitle2PhaseEdition"')
+    master_index = index_html.index('class="subtitle2-master-card"')
+    side_index = index_html.index('class="subtitle2-side-card"')
+    assert master_index < side_index
+    assert edition_index < side_index
     assert preview_index < history_index
-    assert history_index < edition_index
+    assert side_index < preview_index
 
     for expected_rule in [
         '#viewSubtitulos2.subtitle2-screen',
         '#viewSubtitulos2 .subtitle2-workspace',
-        'grid-template-columns: minmax(0, 1fr) 520px;',
+        'grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);',
         '#viewSubtitulos2 .subtitle2-master-card',
         '#viewSubtitulos2 .subtitle2-side-card',
         '#viewSubtitulos2 .subtitle2-upload-source-card',
@@ -260,7 +263,7 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
 
     for expected_rule in [
         "padding: 28px 32px 32px 32px;",
-        "grid-template-columns: minmax(0, 1fr) 520px;",
+        "grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);",
         "gap: 20px;",
         "padding: 24px;",
         "gap: 24px;",
@@ -278,3 +281,56 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
         "font-size: 14px;",
     ]:
         assert expected_rule in scoped_css
+
+
+def test_subtitle2_upload_slide_keeps_header_health_and_phases_inside_left_card():
+    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    scoped_css = _subtitle2_scoped_css(css)
+
+    workspace_start = index_html.index('class="subtitle2-workspace"')
+    master_start = index_html.index('class="subtitle2-master-card"', workspace_start)
+    side_start = index_html.index('class="subtitle2-side-card"', workspace_start)
+
+    assert master_start < side_start
+    assert workspace_start < master_start
+
+    master_end = index_html.index('id="subtitle2PhaseUpload"', master_start)
+    master_header = index_html[master_start:master_end]
+    assert 'class="subtitle2-screen__header"' in master_header
+    assert 'id="subtitle2ServiceHealthBanner"' in master_header
+    assert 'id="subtitle2PhaseBar"' in master_header
+
+    pre_workspace_html = index_html[index_html.index('id="viewSubtitulos2"'):workspace_start]
+    assert 'id="subtitle2ServiceHealthBanner"' not in pre_workspace_html
+    assert 'id="subtitle2PhaseBar"' not in pre_workspace_html
+    assert 'Estado del flujo' not in index_html
+    assert '<h3>Fases</h3>' not in index_html[index_html.index('id="viewSubtitulos2"'):index_html.index('</section>', workspace_start)]
+
+    assert 'grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);' in scoped_css
+    assert '#viewSubtitulos2 .subtitle2-master-card .subtitle2-screen__header' in scoped_css
+    assert 'justify-self: end;' in scoped_css
+    assert 'min-width: 0;' in scoped_css
+
+
+def test_subtitle2_health_runtime_outputs_compact_remote_online_offline_chip_contract():
+    script = r"""
+import { buildSubtitleHealthRuntime } from './js/modules/features/subtitles/runtime/services.js';
+
+const online = buildSubtitleHealthRuntime({ status: 'online', message: 'Servicio remoto disponible.' }, 'remote-core');
+if (online.banner !== 'Remote Online') throw new Error(`online chip drift: ${online.banner}`);
+if (online.status !== 'online') throw new Error(`online status drift: ${online.status}`);
+if (online.tone !== 'online') throw new Error(`online tone drift: ${online.tone}`);
+
+const healthy = buildSubtitleHealthRuntime({ status: 'healthy', message: 'OK' }, 'remote-core');
+if (healthy.banner !== 'Remote Online') throw new Error(`healthy chip drift: ${healthy.banner}`);
+if (healthy.tone !== 'online') throw new Error(`healthy tone drift: ${healthy.tone}`);
+
+for (const status of ['offline', 'degraded', 'unavailable', 'failed', 'pending']) {
+  const resolved = buildSubtitleHealthRuntime({ status, message: 'Una oración larga que no debe agrandar el chip.' }, 'remote-core');
+  if (resolved.banner !== 'Remote Offline') throw new Error(`${status} chip drift: ${resolved.banner}`);
+  if (resolved.tone !== 'offline') throw new Error(`${status} tone drift: ${resolved.tone}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

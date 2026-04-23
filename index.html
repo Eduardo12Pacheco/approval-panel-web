@@ -428,69 +428,27 @@
         </section>
 
         <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
-          <header class="subtitle2-screen__header">
-            <div>
-              <p class="subtitle2-eyebrow">Workstation subtitle pipeline</p>
-              <h1>Subtítulos 2</h1>
-              <p>Segmento remoto con video obligatorio, preview local y coexistencia segura con el flujo legacy.</p>
-            </div>
-            <div id="subtitle2ServiceHealthBanner" class="subtitle2-health-chip subtitle-health-banner">
-              Estado remoto: pendiente.
-            </div>
-          </header>
-
-          <section class="subtitle2-phase-card">
-            <div>
-              <span class="subtitle2-section-label">Estado del flujo</span>
-              <h3>Fases</h3>
-            </div>
-            <ol id="subtitle2PhaseBar" class="subtitle-phase-bar">
-              <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
-              <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
-              <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
-              <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
-              <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
-            </ol>
-          </section>
-
           <section class="subtitle2-workspace">
-            <aside class="subtitle2-side-card">
-              <div class="subtitle-preview-frame">
-                <div class="subtitle-preview-frame__header">
-                  <div>
-                    <span class="subtitle2-section-label">Live preview</span>
-                    <h3>Preview</h3>
-                    <p class="meta">Video de fondo + cue activo sincronizado, más cerca del editor local.</p>
-                  </div>
-                </div>
-                <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
-                  <video id="subtitle2PreviewVideo" playsinline preload="metadata"></video>
-                  <div id="subtitle2PreviewEmpty" class="subtitle-preview-empty">Agregá o retomá una sesión para iniciar el preview</div>
-                  <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
-                    <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
-                  </div>
-                </div>
-                <div class="subtitle-preview-controls">
-                  <button id="subtitle2PreviewPlayBtn" class="subtitle-preview-play-btn" type="button" aria-label="Reproducir preview">▶</button>
-                  <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
-                    <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
-                      <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
-                    </div>
-                  </div>
-                  <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
-                </div>
-              </div>
-
-              <div class="subtitle2-history-section">
-                <div>
-                  <span class="subtitle2-section-label">Últimos proyectos</span>
-                  <h3>Historial</h3>
-                </div>
-                <div id="subtitle2SessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
-              </div>
-            </aside>
-
             <section class="subtitle2-master-card">
+              <header class="subtitle2-screen__header">
+                <div>
+                  <p class="subtitle2-eyebrow">Workstation subtitle pipeline</p>
+                  <h1>Subtítulos 2</h1>
+                  <p>Segmento remoto con video obligatorio, preview local y coexistencia segura con el flujo legacy.</p>
+                </div>
+                <div id="subtitle2ServiceHealthBanner" class="subtitle2-health-chip subtitle-health-banner">
+                  Remote Offline
+                </div>
+              </header>
+
+              <ol id="subtitle2PhaseBar" class="subtitle-phase-bar" aria-label="Fases de Subtítulos 2">
+                <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
+                <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
+                <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
+                <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
+                <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
+              </ol>
+
               <section id="subtitle2PhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
                 <article class="subtitle2-upload-source-card">
                   <div class="subtitle2-card-heading">
@@ -614,6 +572,42 @@
                 </article>
               </section>
             </section>
+
+            <aside class="subtitle2-side-card">
+              <div class="subtitle-preview-frame">
+                <div class="subtitle-preview-frame__header">
+                  <div>
+                    <span class="subtitle2-section-label">Live preview</span>
+                    <h3>Preview</h3>
+                    <p class="meta">Video de fondo + cue activo sincronizado, más cerca del editor local.</p>
+                  </div>
+                </div>
+                <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
+                  <video id="subtitle2PreviewVideo" playsinline preload="metadata"></video>
+                  <div id="subtitle2PreviewEmpty" class="subtitle-preview-empty">Agregá o retomá una sesión para iniciar el preview</div>
+                  <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
+                    <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
+                  </div>
+                </div>
+                <div class="subtitle-preview-controls">
+                  <button id="subtitle2PreviewPlayBtn" class="subtitle-preview-play-btn" type="button" aria-label="Reproducir preview">▶</button>
+                  <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
+                    <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
+                      <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
+                    </div>
+                  </div>
+                  <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
+                </div>
+              </div>
+
+              <div class="subtitle2-history-section">
+                <div>
+                  <span class="subtitle2-section-label">Últimos proyectos</span>
+                  <h3>Historial</h3>
+                </div>
+                <div id="subtitle2SessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
+              </div>
+            </aside>
           </section>
         </section>
       </section>
