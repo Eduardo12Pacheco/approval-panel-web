@@ -1963,8 +1963,13 @@ function renderSubtitles2Table() {
     const alignment = getAlignmentButtonState(row.align);
     return `
       <tr>
-        <td><input type="text" data-row-id="${row.id}" data-field="start" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" /></td>
-        <td><input type="text" data-row-id="${row.id}" data-field="end" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" /></td>
+        <td>
+          <div class="subtitle-time-range" aria-label="Rango de tiempo">
+            <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" />
+            <span class="subtitle-time-range__line" aria-hidden="true"></span>
+            <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" />
+          </div>
+        </td>
         <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};font-weight:${escapeHtml(row.fontWeight || resolveSubtitleFontWeight(row.fontFamily))};">${escapeHtml(row.phrase)}</textarea></td>
         <td><select data-row-id="${row.id}" data-field="size">${renderSubtitleSelectOptions(sizeOptions, row.size)}</select></td>
         <td><input type="number" min="1" step="10" data-row-id="${row.id}" data-field="maxWidthPx" value="${escapeHtml(String(row.maxWidthPx || 1080))}" /></td>

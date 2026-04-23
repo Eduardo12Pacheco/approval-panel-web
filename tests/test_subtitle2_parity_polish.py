@@ -101,6 +101,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
 
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
     assert 'id="subtitle2PreviewEmpty"' in index_html
+    assert 'subtitle-table__col--time-range' in index_html
+    assert 'Start / End' in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
     assert 'subtitle-row-actions subtitle-row-actions--tight' not in app_shell
@@ -111,7 +113,10 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-preview-empty',
         '.subtitle-table__title',
         '.subtitle-table__hint',
+        '.subtitle-time-range',
+        '.subtitle-time-range__line',
         '.subtitle-align-group--compact',
+        'button.selected-green',
     ]:
         assert token in css
 
