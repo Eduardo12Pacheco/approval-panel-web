@@ -57,15 +57,16 @@ export function bindCoreEvents({
 
   el.saveSettingsBtn.addEventListener('click', () => {
     const defaults = defaultSettings();
-    saveSettings({
-      baseUrl: el.baseUrlInput.value.trim() || defaults.baseUrl,
-      secret: el.secretInput.value.trim(),
-      ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaults.ttsBaseUrl,
-      ttsApiKey: el.ttsApiKeyInput.value.trim(),
-      ttsBasicUser: el.ttsBasicUserInput.value.trim(),
-      ttsBasicPass: el.ttsBasicPassInput.value,
-      ttsUserEmail: el.ttsUserEmailInput.value.trim(),
-    });
+      saveSettings({
+        baseUrl: el.baseUrlInput.value.trim() || defaults.baseUrl,
+        secret: el.secretInput.value.trim(),
+        ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaults.ttsBaseUrl,
+        ttsApiKey: el.ttsApiKeyInput.value.trim(),
+        ttsBasicUser: el.ttsBasicUserInput.value.trim(),
+        ttsBasicPass: el.ttsBasicPassInput.value,
+        ttsUserEmail: el.ttsUserEmailInput.value.trim(),
+        subtitlesMode: el.subtitleModeSelect?.value || defaults.subtitlesMode,
+      });
     el.settingsDialog.close();
     toast('Configuración guardada');
     refreshAll();

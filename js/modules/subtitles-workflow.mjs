@@ -48,12 +48,15 @@ export function createSubtitlesWorkflowMachine(initialPhase = 'Carga') {
 }
 
 export function createEmptySubtitleRow(seed = {}) {
+  const rawMaxWidthPx = Number(seed.maxWidthPx ?? 1080);
+  const safeMaxWidthPx = Number.isFinite(rawMaxWidthPx) && rawMaxWidthPx > 0 ? Math.round(rawMaxWidthPx) : 1080;
   return {
     id: (seed.id || '').toString(),
     start: (seed.start || '00:00:00.000').toString(),
     end: (seed.end || '00:00:02.000').toString(),
     sourceText: (seed.sourceText || '').toString(),
     phrase: (seed.phrase || '').toString(),
+    maxWidthPx: safeMaxWidthPx,
     size: sanitizePreset((seed.size || SUBTITLE_SIZE_PRESETS[0]).toString(), SUBTITLE_SIZE_PRESETS, SUBTITLE_SIZE_PRESETS[0]),
     color: sanitizePreset((seed.color || SUBTITLE_COLOR_PRESETS[0]).toString(), SUBTITLE_COLOR_PRESETS, SUBTITLE_COLOR_PRESETS[0]),
     fontFamily: sanitizePreset((seed.fontFamily || SUBTITLE_FONT_PRESETS[0]).toString(), SUBTITLE_FONT_PRESETS, SUBTITLE_FONT_PRESETS[0]),
@@ -65,7 +68,15 @@ export function applySubtitleRowPatch(row, patch = {}) {
   const safeRow = createEmptySubtitleRow(row || {});
   return {
     ...safeRow,
+    start: patch.start != null ? patch.start.toString() : safeRow.start,
+    end: patch.end != null ? patch.end.toString() : safeRow.end,
     phrase: patch.phrase != null ? patch.phrase.toString() : safeRow.phrase,
+    maxWidthPx: patch.maxWidthPx != null
+      ? (() => {
+          const parsed = Number(patch.maxWidthPx);
+          return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : safeRow.maxWidthPx;
+        })()
+      : safeRow.maxWidthPx,
     size: patch.size != null
       ? sanitizePreset(patch.size.toString(), SUBTITLE_SIZE_PRESETS, safeRow.size)
       : safeRow.size,

@@ -21,6 +21,7 @@ const CHECKPOINT_ALLOWED_PREFIXES = {
     'js/modules/__checks__/dependency-boundary-validator.js',
     'openspec/changes/approval-panel-web-appshell-decomposition-archive-legacy/tasks.md',
   ],
+  'subtitles-remote-core': ['js/modules/app-shell.js', 'js/modules/core/http/tts-api.js', 'js/modules/core/state/app-store.js', 'js/modules/shared/dom/selectors.js', 'js/modules/__checks__/parity-checklist.js', 'js/modules/__checks__/rollback-scope-validator.js', 'js/modules/__checks__/runtime-ui-parity-replay.js', 'index.html', 'styles/features/subtitles.css'],
 };
 
 export function evaluateRollbackPlan({ checkpoint, changedFiles = [] }) {

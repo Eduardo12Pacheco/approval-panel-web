@@ -119,6 +119,131 @@ export function normalizeSubtitleMetaValueForStateRuntime(...candidates) {
   return null;
 }
 
+export function resolveSubtitlesModeRuntime(rawMode) {
+  const normalized = (rawMode || 'legacy').toString().trim().toLowerCase();
+  return normalized === 'remote-core' ? 'remote-core' : 'legacy';
+}
+
+export function buildSubtitleHealthRuntime(rawHealth, mode) {
+  const resolvedMode = resolveSubtitlesModeRuntime(mode);
+  if (resolvedMode === 'legacy') {
+    return {
+      status: 'legacy',
+      message: 'Legacy habilitado mientras validamos Subtítulos 2.',
+      banner: 'Estado remoto: legacy activo. El flujo remoto convive sin reemplazar al anterior.',
+    };
+  }
+
+  const status = (rawHealth?.status || 'pending').toString().trim().toLowerCase() || 'pending';
+  const message = (rawHealth?.message || 'Estado remoto pendiente.').toString().trim();
+  return {
+    status,
+    message,
+    banner: `Estado remoto: ${status}. ${message}`.trim(),
+  };
+}
+
+export function buildSubtitlePreviewUrlRuntime(rawPath, baseUrl) {
+  const path = (rawPath || '').toString().trim();
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const root = (baseUrl || '').toString().trim();
+  return root ? `${root}${path}` : path;
+}
+
+export function mapRemoteSubtitleSegmentsToRowsRuntime({ segments = [], createRow, formatTime, sizePresets, fontPresets, colorPresets }) {
+  return (Array.isArray(segments) ? segments : []).map((segment, index) => createRow({
+    id: (segment?.id || `row-${index + 1}`).toString(),
+    start: formatTime(segment?.start_ms || 0),
+    end: formatTime(segment?.end_ms || 0),
+    sourceText: (segment?.source_text || '').toString(),
+    phrase: (segment?.translated_text || '').toString(),
+    size: String(segment?.style?.font_size || sizePresets?.[0] || '110'),
+    maxWidthPx: Number(segment?.style?.max_width_px || 1080),
+    fontFamily: (segment?.style?.font_family || fontPresets?.[0] || 'Khand').toString(),
+    color: (segment?.style?.color || colorPresets?.[0] || '#FFFFFF').toString(),
+    align: (segment?.style?.align || 'left').toString(),
+  }));
+}
+
+export function pickActiveSubtitleCueRuntime(rows = [], currentMs = 0) {
+  return (Array.isArray(rows) ? rows : []).find((row) => {
+    const startMs = parseSubtitleTimeToMsRuntime(row?.start);
+    const endMs = parseSubtitleTimeToMsRuntime(row?.end);
+    return currentMs >= startMs && currentMs <= endMs;
+  }) || null;
+}
+
+export function validateSubtitleTimingPatchRuntime({ rows = [], rowId, field, valueMs, gapMs = 67 }) {
+  const index = (Array.isArray(rows) ? rows : []).findIndex((row) => row?.id === rowId);
+  if (index < 0) return { accepted: false, reason: 'Fila inválida.', rows };
+  const current = rows[index];
+  const currentStart = parseSubtitleTimeToMsRuntime(current?.start);
+  const currentEnd = parseSubtitleTimeToMsRuntime(current?.end);
+  const previous = rows[index - 1] || null;
+  const next = rows[index + 1] || null;
+
+  if (field === 'start') {
+    if (index === 0 && valueMs !== 0) {
+      return { accepted: false, reason: 'El START de la primera frase es fijo en 00:00.00.', rows };
+    }
+    if (previous) {
+      const expectedStart = parseSubtitleTimeToMsRuntime(previous?.end) + gapMs;
+      if (valueMs !== expectedStart) {
+        return { accepted: false, reason: 'START inválido: debe ser END anterior + gap.', rows };
+      }
+    }
+    if (valueMs >= currentEnd) {
+      return { accepted: false, reason: 'START inválido: debe ser menor que END.', rows };
+    }
+    return { accepted: true, rows };
+  }
+
+  if (valueMs <= currentStart) {
+    return { accepted: false, reason: 'END inválido: debe ser mayor que START.', rows };
+  }
+  if (next) {
+    const nextEnd = parseSubtitleTimeToMsRuntime(next?.end);
+    if (valueMs >= nextEnd) {
+      return { accepted: false, reason: 'END inválido: debe ser menor al END de la siguiente frase.', rows };
+    }
+  }
+  return { accepted: true, rows };
+}
+
+export function buildSubtitleInsertRowRuntime({ rows = [], insertAfterRowId, createRow, formatTime, nowMs = null, gapMs = 67 }) {
+  const list = Array.isArray(rows) ? rows : [];
+  const index = list.findIndex((row) => row?.id === insertAfterRowId);
+  if (index < 0) return { accepted: false, reason: 'Fila inválida.', row: null };
+  const current = list[index];
+  const next = list[index + 1] || null;
+  const currentEnd = parseSubtitleTimeToMsRuntime(current?.end);
+  const nextStart = next ? parseSubtitleTimeToMsRuntime(next?.start) : currentEnd + 2000 + gapMs;
+  const draftStart = currentEnd + gapMs;
+  const draftEnd = Math.max(draftStart + gapMs, next ? nextStart - gapMs : draftStart + 1500);
+  if (draftEnd <= draftStart) return { accepted: false, reason: 'No hay hueco válido para insertar.', row: null };
+  const row = createRow({
+    id: `row-${nowMs || Date.now()}`,
+    start: formatTime(draftStart),
+    end: formatTime(draftEnd),
+    phrase: '',
+    size: '110',
+    maxWidthPx: 1080,
+    fontFamily: 'Khand',
+    color: '#FFFFFF',
+    align: 'left',
+  });
+  return { accepted: true, row };
+}
+
+export function buildSubtitleCueMarkersRuntime(rows = [], durationMs = 0) {
+  if (!durationMs || durationMs <= 0) return [];
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const startMs = parseSubtitleTimeToMsRuntime(row?.start);
+    return Math.min(Math.max(startMs / durationMs, 0), 1);
+  });
+}
+
 export function extractSubtitleAnalyzeMetadataRuntime(payload) {
   const metadata = payload?.metadata || payload?.analysis_metadata || payload?.analyze_metadata || null;
   return {
@@ -164,5 +289,13 @@ export function createSubtitlesRuntimeServices({ hooks }) {
     parseSubtitleTimeToMsRuntime,
     extractSubtitleAnalyzeMetadataRuntime,
     normalizeSubtitleMetaValueForStateRuntime,
+    resolveSubtitlesModeRuntime,
+    buildSubtitleHealthRuntime,
+    mapRemoteSubtitleSegmentsToRowsRuntime,
+    buildSubtitlePreviewUrlRuntime,
+    pickActiveSubtitleCueRuntime,
+    validateSubtitleTimingPatchRuntime,
+    buildSubtitleInsertRowRuntime,
+    buildSubtitleCueMarkersRuntime,
   };
 }

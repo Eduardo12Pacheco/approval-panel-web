@@ -13,6 +13,16 @@ export const REQUIRED_SELECTOR_IDS = [
   'viewScripts',
   'viewAudio',
   'viewSubtitulos',
+  'subtitleModeSelect',
+  'subtitleServiceHealthBanner',
+  'subtitleSessionHistory',
+  'subtitlePreviewStage',
+  'subtitlePreviewVideo',
+  'subtitlePreviewOverlay',
+  'subtitlePreviewCue',
+  'subtitlePreviewTimeline',
+  'subtitleAddRowBtn',
+  'subtitleAnotherVideoBtn',
   'audioRunBtn',
   'subtitleRowsBody',
 ];
@@ -23,6 +33,7 @@ const APP_SHELL_IMPORT_PATH = './app-shell.js';
 const APP_SHELL_BOOT_FN = 'bootApp';
 const AUDIO_RUNTIME_HELPER_IMPORT_TOKEN = 'normalizeAudioProgressPercent';
 const SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN = 'extractSubtitleProgressPercentRuntime';
+export const SUBTITLE_REMOTE_CUTOVER_GATES = ['legacy-coexists', 'remote-core-ready'];
 
 function assertSelectorContracts(indexHtmlSource, failures) {
   for (const selectorId of REQUIRED_SELECTOR_IDS) {

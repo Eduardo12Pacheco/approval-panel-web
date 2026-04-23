@@ -111,6 +111,37 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     return data;
   }
 
+  async function put(path, payload) {
+    const baseUrl = resolveBaseUrl();
+    const headers = buildTtsHeaders('application/json');
+    const res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+
+    const businessStatus = (data?.status || '').toString().trim().toLowerCase();
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `PUT ${path} ${res.status}`;
+      throw new Error(message);
+    }
+
+    if (data?.error && businessStatus !== 'failed') {
+      const message = data?.error?.message || data?.message || `PUT ${path} ${res.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
   async function postForm(path, formData) {
     const baseUrl = resolveBaseUrl();
     const headers = buildTtsHeaders();
@@ -162,8 +193,37 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   return {
     get,
     post,
+    put,
     postForm,
     getBlob,
     buildTtsHeaders,
+    getSubtitlesHealth: () => get('/api/subtitles/health'),
+    createSubtitleSession(formData) {
+      return postForm('/api/subtitles/sessions', formData);
+    },
+    listSubtitleSessions(limit = 20) {
+      return get(`/api/subtitles/sessions?limit=${encodeURIComponent(limit)}`);
+    },
+    getSubtitleSession(sessionId) {
+      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
+    },
+    getSubtitleSegments(sessionId) {
+      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`);
+    },
+    updateSubtitleSegments(sessionId, payload) {
+      return put(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`, payload);
+    },
+    startSubtitleRender(sessionId, payload) {
+      return post(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`, payload);
+    },
+    getSubtitleRenderStatus(sessionId) {
+      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`);
+    },
+    getSubtitleDownload(sessionId) {
+      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download`);
+    },
+    downloadSubtitleRender(sessionId) {
+      return getBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download/file`);
+    },
   };
 }

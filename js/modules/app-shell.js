@@ -48,7 +48,7 @@ import {
 import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { buildScriptSelectionCardMarkup, createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
-import { createSubtitlesFeature } from './features/subtitles/index.js';
+import { createSubtitlesFeature, createSubtitlesModeAwareFeature } from './features/subtitles/index.js';
 import {
   createAudioRuntime,
   getAudioStatusClassRuntime,
@@ -57,15 +57,23 @@ import {
   normalizeAudioProgressPercent,
 } from './features/audio/runtime/index.js';
 import {
+  buildSubtitleCueMarkersRuntime,
+  buildSubtitleHealthRuntime,
+  buildSubtitleInsertRowRuntime,
+  buildSubtitlePreviewUrlRuntime,
   buildSubtitleProcessingMessageRuntime,
   createSubtitlesRuntime,
   describeSubtitleTranslationEngineRuntime,
   extractSubtitleAnalyzeMetadataRuntime,
   extractSubtitleProgressPercentRuntime,
   formatSubtitleDisplayTimeRuntime,
+  mapRemoteSubtitleSegmentsToRowsRuntime,
   normalizeSubtitleMetaValueForStateRuntime,
   parseSubtitleTimeToMsRuntime,
+  pickActiveSubtitleCueRuntime,
+  resolveSubtitlesModeRuntime,
   resolveSubtitleProgressPercentRuntime,
+  validateSubtitleTimingPatchRuntime,
 } from './features/subtitles/runtime/index.js';
 import { getDomSelectors } from './shared/dom/selectors.js';
 
@@ -119,6 +127,12 @@ const state = {
       }),
     ],
     selectedFileName: '',
+    sessionId: null,
+    sessionHistory: [],
+    serviceHealth: { status: 'pending', message: 'Estado remoto pendiente.' },
+    previewVideoUrl: '',
+    previewCurrentMs: 0,
+    previewPlaying: false,
     analysisJobId: null,
     renderJobId: null,
     analyzeStatus: null,
@@ -276,9 +290,15 @@ const subtitlesFeature = createSubtitlesFeature({
   store,
   ui: { toast },
   selectors: el,
+  getMode: () => resolveSubtitlesModeRuntime(state.settings.subtitlesMode),
   handlers: {
     ...subtitlesRuntime,
   },
+});
+
+const subtitlesModeFeature = createSubtitlesModeAwareFeature({
+  handlers: subtitlesRuntime,
+  getMode: () => resolveSubtitlesModeRuntime(state.settings.subtitlesMode),
 });
 
 export function bootApp() {
@@ -395,13 +415,41 @@ function bindEvents() {
   el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
 
   el.subtitleUploadInput?.addEventListener('change', subtitlesFeature.onUploadSelected);
+  el.subtitleModeSelect?.addEventListener('change', onSubtitleModeChanged);
   el.subtitleSourceLanguagePicker?.addEventListener('change', subtitlesFeature.onSourceLanguageChanged);
   el.subtitleSaveBtn?.addEventListener('click', subtitlesFeature.onSaveClicked);
   el.subtitleReadyBtn?.addEventListener('click', subtitlesFeature.onReadyClicked);
   el.subtitleDownloadBtn?.addEventListener('click', subtitlesFeature.onDownloadClicked);
+  el.subtitleAddRowBtn?.addEventListener('click', onSubtitleAddRowClicked);
+  el.subtitleAnotherVideoBtn?.addEventListener('click', resetSubtitleEditorForAnotherVideo);
   el.subtitleRowsBody?.addEventListener('input', subtitlesFeature.onTableInput);
   el.subtitleRowsBody?.addEventListener('change', subtitlesFeature.onTableInput);
   el.subtitleRowsBody?.addEventListener('click', subtitlesFeature.onTableClick);
+  el.subtitlePreviewVideo?.addEventListener('timeupdate', onSubtitlePreviewTimeUpdate);
+  el.subtitlePreviewVideo?.addEventListener('play', () => {
+    state.subtitles.previewPlaying = true;
+  });
+  el.subtitlePreviewVideo?.addEventListener('pause', () => {
+    state.subtitles.previewPlaying = false;
+  });
+  el.subtitlePreviewTimeline?.addEventListener('click', onSubtitlePreviewTimelineClick);
+  el.subtitleSessionHistory?.addEventListener('click', (ev) => {
+    const button = ev.target.closest('[data-action="resume-subtitle-session"]');
+    if (!button) return;
+    const sessionId = (button.dataset.sessionId || '').trim();
+    if (!sessionId) return;
+    void (async () => {
+      await hydrateRemoteSubtitleSession(sessionId);
+      const detail = await ttsApi.getSubtitleSession(sessionId);
+      if ((detail?.status || '').toString().toLowerCase() === 'succeeded' && detail?.download?.ready) {
+        state.subtitles.renderStatus = 'succeeded';
+        state.subtitles.renderArtifactReady = true;
+        transitionSubtitlesPhase('Terminado');
+      } else {
+        transitionSubtitlesPhase('Edicion');
+      }
+    })();
+  });
 
   el.audioQueueList?.addEventListener('click', async (ev) => {
     const button = ev.target.closest('button[data-action]');
@@ -490,8 +538,20 @@ function setView(view) {
   }
 
   if (isSubtitulos) {
+    void refreshSubtitleRemoteStatus();
     renderSubtitlesWorkflow();
   }
+}
+
+function getActiveSubtitlesMode() {
+  return subtitlesModeFeature.getMode();
+}
+
+function onSubtitleModeChanged(ev) {
+  const nextMode = (ev.target?.value || 'legacy').toString().trim().toLowerCase();
+  state.settings = { ...state.settings, subtitlesMode: nextMode };
+  renderSubtitlesWorkflow();
+  void refreshSubtitleRemoteStatus();
 }
 
 async function onSubtitleUploadSelected() {
@@ -547,6 +607,10 @@ async function onSubtitleSaveClicked() {
 }
 
 async function onSubtitleReadyClicked() {
+  if (getActiveSubtitlesMode() === 'remote-core') {
+    await onRemoteSubtitleReadyClicked();
+    return;
+  }
   const phase = state.subtitles.machine.getPhase();
   const plan = createReadyActionPlan({
     phase,
@@ -627,6 +691,10 @@ async function onSubtitleReadyClicked() {
 }
 
 async function onSubtitleDownloadClicked() {
+  if (getActiveSubtitlesMode() === 'remote-core') {
+    await onRemoteSubtitleDownloadClicked();
+    return;
+  }
   const phase = state.subtitles.machine.getPhase();
   const plan = createDownloadActionPlan({
     phase,
@@ -654,8 +722,17 @@ function onSubtitleTableInput(ev) {
   const rowId = target.dataset.rowId;
   if (!rowId) return;
 
+   if (target.dataset.field === 'start' || target.dataset.field === 'end') {
+    applySubtitleTimingInput(rowId, target.dataset.field, target.value);
+    return;
+  }
+
   if (target.dataset.field === 'phrase') {
     patchSubtitleRow(rowId, { phrase: target.value }, { rerender: false });
+    return;
+  }
+  if (target.dataset.field === 'maxWidthPx') {
+    patchSubtitleRow(rowId, { maxWidthPx: target.value });
     return;
   }
   if (target.dataset.field === 'size') {
@@ -672,6 +749,23 @@ function onSubtitleTableInput(ev) {
 }
 
 function onSubtitleTableClick(ev) {
+  const actionButton = ev.target.closest('button[data-action]');
+  if (actionButton) {
+    const action = actionButton.dataset.action;
+    const rowId = actionButton.dataset.rowId;
+    if (action === 'insert-row' && rowId) {
+      onSubtitleInsertRowClicked(rowId);
+      return;
+    }
+    if (action === 'delete-row' && rowId) {
+      onSubtitleDeleteRowClicked(rowId);
+      return;
+    }
+    if (action === 'jump-cue' && rowId) {
+      seekPreviewToCue(rowId);
+      return;
+    }
+  }
   const button = ev.target.closest('button[data-field="align"]');
   if (!button) return;
   const rowId = button.dataset.rowId;
@@ -700,8 +794,97 @@ function patchSubtitleRow(rowId, patch, options = {}) {
   if (rerender) {
     renderSubtitlesTable();
   }
+  renderSubtitlePreviewOverlay();
   updateSubtitleButtonsByPhase();
   syncSubtitleAutosaveTimer();
+}
+
+function applySubtitleTimingInput(rowId, field, rawValue) {
+  const valueMs = parseSubtitleTimeToMsRuntime(rawValue);
+  const validation = validateSubtitleTimingPatchRuntime({
+    rows: state.subtitles.rows,
+    rowId,
+    field,
+    valueMs,
+  });
+  if (!validation.accepted) {
+    toast(validation.reason || 'Timing inválido');
+    renderSubtitlesTable();
+    return;
+  }
+
+  const index = state.subtitles.rows.findIndex((row) => row.id === rowId);
+  const row = state.subtitles.rows[index];
+  if (!row) return;
+
+  if (field === 'start') {
+    patchSubtitleRow(rowId, { start: formatSubtitleDisplayTimeRuntime(valueMs) });
+    return;
+  }
+
+  const patch = { end: formatSubtitleDisplayTimeRuntime(valueMs) };
+  patchSubtitleRow(rowId, patch);
+  const nextRow = state.subtitles.rows[index + 1];
+  if (nextRow) {
+    patchSubtitleRow(nextRow.id, { start: formatSubtitleDisplayTimeRuntime(valueMs + 67) });
+  }
+}
+
+function onSubtitleAddRowClicked() {
+  const lastRow = state.subtitles.rows[state.subtitles.rows.length - 1];
+  if (!lastRow) {
+    state.subtitles.rows = [createEmptySubtitleRow({ id: `row-${Date.now()}` })];
+    state.subtitles.dirty = true;
+    renderSubtitlesWorkflow();
+    return;
+  }
+  const result = buildSubtitleInsertRowRuntime({
+    rows: state.subtitles.rows,
+    insertAfterRowId: lastRow.id,
+    createRow: createEmptySubtitleRow,
+    formatTime: formatSubtitleDisplayTimeRuntime,
+  });
+  if (!result.accepted || !result.row) {
+    toast(result.reason || 'No se pudo agregar línea');
+    return;
+  }
+  state.subtitles.rows = [...state.subtitles.rows, result.row];
+  state.subtitles.changeVersion += 1;
+  state.subtitles.dirty = true;
+  renderSubtitlesWorkflow();
+}
+
+function onSubtitleInsertRowClicked(rowId) {
+  const result = buildSubtitleInsertRowRuntime({
+    rows: state.subtitles.rows,
+    insertAfterRowId: rowId,
+    createRow: createEmptySubtitleRow,
+    formatTime: formatSubtitleDisplayTimeRuntime,
+  });
+  if (!result.accepted || !result.row) {
+    toast(result.reason || 'No se pudo insertar línea');
+    return;
+  }
+  const index = state.subtitles.rows.findIndex((row) => row.id === rowId);
+  state.subtitles.rows = [
+    ...state.subtitles.rows.slice(0, index + 1),
+    result.row,
+    ...state.subtitles.rows.slice(index + 1),
+  ];
+  state.subtitles.changeVersion += 1;
+  state.subtitles.dirty = true;
+  renderSubtitlesWorkflow();
+}
+
+function onSubtitleDeleteRowClicked(rowId) {
+  if (state.subtitles.rows.length <= 1) {
+    toast('Necesitás al menos una fila');
+    return;
+  }
+  state.subtitles.rows = state.subtitles.rows.filter((row) => row.id !== rowId);
+  state.subtitles.changeVersion += 1;
+  state.subtitles.dirty = true;
+  renderSubtitlesWorkflow();
 }
 
 function transitionSubtitlesPhase(nextPhase) {
@@ -715,7 +898,113 @@ function transitionSubtitlesPhase(nextPhase) {
   return true;
 }
 
+function renderSubtitleHealthBanner() {
+  if (!el.subtitleServiceHealthBanner) return;
+  const resolved = buildSubtitleHealthRuntime(state.subtitles.serviceHealth, getActiveSubtitlesMode());
+  el.subtitleServiceHealthBanner.textContent = resolved.banner;
+}
+
+function renderSubtitleSessionHistory() {
+  if (!el.subtitleSessionHistory) return;
+  const items = Array.isArray(state.subtitles.sessionHistory) ? state.subtitles.sessionHistory : [];
+  if (!items.length) {
+    el.subtitleSessionHistory.innerHTML = '<p class="meta">Todavía no hay sesiones remotas.</p>';
+    return;
+  }
+  el.subtitleSessionHistory.innerHTML = items.map((item) => `
+    <button type="button" class="secondary" data-action="resume-subtitle-session" data-session-id="${escapeHtml(item.id)}">
+      ${escapeHtml(item.id)} · ${escapeHtml(item.status || 'unknown')}
+    </button>
+  `).join('');
+}
+
+function renderSubtitlePreviewPlayer() {
+  if (!el.subtitlePreviewVideo) return;
+  const src = (state.subtitles.previewVideoUrl || '').trim();
+  if (!src) {
+    el.subtitlePreviewVideo.removeAttribute('src');
+    renderSubtitlePreviewOverlay();
+    return;
+  }
+  if (el.subtitlePreviewVideo.getAttribute('src') !== src) {
+    el.subtitlePreviewVideo.src = src;
+  }
+  renderSubtitlePreviewOverlay();
+}
+
+function renderSubtitlePreviewOverlay() {
+  const activeCue = pickActiveSubtitleCueRuntime(state.subtitles.rows, state.subtitles.previewCurrentMs);
+  if (el.subtitlePreviewCue) {
+    if (!activeCue) {
+      el.subtitlePreviewCue.classList.add('hidden');
+      el.subtitlePreviewCue.textContent = '';
+      el.subtitlePreviewCue.removeAttribute('style');
+    } else {
+      el.subtitlePreviewCue.classList.remove('hidden');
+      el.subtitlePreviewCue.textContent = (activeCue.phrase || '').toString().toUpperCase();
+      el.subtitlePreviewCue.style.color = activeCue.color;
+      el.subtitlePreviewCue.style.fontFamily = activeCue.fontFamily;
+      el.subtitlePreviewCue.style.fontSize = `${activeCue.size}px`;
+      el.subtitlePreviewCue.style.width = `${activeCue.maxWidthPx || 1080}px`;
+      el.subtitlePreviewCue.style.marginLeft = activeCue.align === 'right' ? 'auto' : activeCue.align === 'center' ? 'auto' : '0';
+      el.subtitlePreviewCue.style.marginRight = activeCue.align === 'left' ? 'auto' : activeCue.align === 'center' ? 'auto' : '0';
+    }
+  }
+  renderSubtitlePreviewTimeline();
+}
+
+function renderSubtitlePreviewTimeline() {
+  const durationMs = Math.max(0, Number(state.subtitles.audioDurationMs || deriveAudioDurationFromRows()));
+  const cueRatios = buildSubtitleCueMarkersRuntime(state.subtitles.rows, durationMs);
+  if (el.subtitlePreviewTimelineTrack) {
+    const markers = cueRatios.map((ratio) => `<div class="subtitle-preview-timeline-cue" style="left:${ratio * 100}%"></div>`).join('');
+    el.subtitlePreviewTimelineTrack.innerHTML = `${markers}<div id="subtitlePreviewPlayhead" class="subtitle-preview-playhead" style="left:${durationMs > 0 ? (state.subtitles.previewCurrentMs / durationMs) * 100 : 0}%"></div>`;
+  }
+  if (el.subtitlePreviewTimecode) {
+    el.subtitlePreviewTimecode.textContent = formatSubtitleDisplayTimeRuntime(state.subtitles.previewCurrentMs);
+  }
+}
+
+function onSubtitlePreviewTimeUpdate(ev) {
+  state.subtitles.previewCurrentMs = Math.round((ev.target?.currentTime || 0) * 1000);
+  if (!state.subtitles.audioDurationMs && Number.isFinite(ev.target?.duration)) {
+    state.subtitles.audioDurationMs = Math.round(ev.target.duration * 1000);
+  }
+  renderSubtitlePreviewOverlay();
+}
+
+function onSubtitlePreviewTimelineClick(ev) {
+  const timeline = el.subtitlePreviewTimelineTrack;
+  if (!timeline) return;
+  const rect = timeline.getBoundingClientRect();
+  if (!rect.width) return;
+  const durationMs = Math.max(0, Number(state.subtitles.audioDurationMs || deriveAudioDurationFromRows()));
+  if (!durationMs) return;
+  const ratio = Math.min(Math.max((ev.clientX - rect.left) / rect.width, 0), 1);
+  const nextMs = Math.round(durationMs * ratio);
+  state.subtitles.previewCurrentMs = nextMs;
+  if (el.subtitlePreviewVideo) {
+    el.subtitlePreviewVideo.currentTime = nextMs / 1000;
+  }
+  renderSubtitlePreviewOverlay();
+}
+
+function seekPreviewToCue(rowId) {
+  const row = state.subtitles.rows.find((entry) => entry.id === rowId);
+  if (!row) return;
+  const startMs = parseSubtitleTimeToMsRuntime(row.start);
+  state.subtitles.previewCurrentMs = startMs;
+  if (el.subtitlePreviewVideo) {
+    el.subtitlePreviewVideo.currentTime = startMs / 1000;
+  }
+  renderSubtitlePreviewOverlay();
+}
+
 function renderSubtitlesWorkflow() {
+  renderSubtitleHealthBanner();
+  renderSubtitleSessionHistory();
+  renderSubtitlePreviewPlayer();
+  renderSubtitlePreviewOverlay();
   renderSubtitlesPhaseBar();
   renderSubtitlesPhaseSections();
   renderSubtitleSourceLanguagePicker();
@@ -874,14 +1163,15 @@ function renderSubtitlesTable() {
     const colorSelectOptions = renderSubtitleSelectOptions(colorOptions, row.color);
     return `
       <tr>
-        <td><span class="subtitle-time-pill">${escapeHtml(startDisplay)}</span></td>
-        <td><span class="subtitle-time-pill">${escapeHtml(endDisplay)}</span></td>
+        <td><input type="text" data-row-id="${row.id}" data-field="start" value="${escapeHtml(startDisplay)}" /></td>
+        <td><input type="text" data-row-id="${row.id}" data-field="end" value="${escapeHtml(endDisplay)}" /></td>
         <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};">${escapeHtml(row.phrase)}</textarea></td>
         <td>
           <select data-row-id="${row.id}" data-field="size">
             ${sizeSelectOptions}
           </select>
         </td>
+        <td><input type="number" min="1" step="10" data-row-id="${row.id}" data-field="maxWidthPx" value="${escapeHtml(String(row.maxWidthPx || 1080))}" /></td>
         <td>
           <select data-row-id="${row.id}" data-field="fontFamily">
             ${fontSelectOptions}
@@ -897,6 +1187,13 @@ function renderSubtitlesTable() {
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-pressed="${alignment.left.selected}">Izq</button>
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-pressed="${alignment.center.selected}">Centro</button>
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-pressed="${alignment.right.selected}">Der</button>
+          </div>
+        </td>
+        <td>
+          <div class="subtitle-row-actions">
+            <button type="button" data-action="jump-cue" data-row-id="${row.id}" class="secondary">Cue</button>
+            <button type="button" data-action="insert-row" data-row-id="${row.id}" class="secondary">+1</button>
+            <button type="button" data-action="delete-row" data-row-id="${row.id}" class="secondary">Borrar</button>
           </div>
         </td>
       </tr>
@@ -954,12 +1251,19 @@ function updateSubtitleButtonsByPhase() {
   if (el.subtitleDownloadBtn) {
     el.subtitleDownloadBtn.disabled = !policy.canDownload || !state.subtitles.renderJobId || !renderSucceeded || !state.subtitles.renderArtifactReady;
   }
+  if (el.subtitleAnotherVideoBtn) {
+    el.subtitleAnotherVideoBtn.disabled = state.subtitles.machine.getPhase() !== 'Terminado';
+  }
 }
 
 function resetSubtitlesRunState() {
   state.subtitles.machine.reset();
   stopSubtitlePolling();
   stopSubtitleAutosave();
+  state.subtitles.sessionId = null;
+  state.subtitles.previewVideoUrl = '';
+  state.subtitles.previewCurrentMs = 0;
+  state.subtitles.previewPlaying = false;
   state.subtitles.analysisJobId = null;
   state.subtitles.renderJobId = null;
   state.subtitles.analyzeStatus = null;
@@ -977,9 +1281,24 @@ function resetSubtitlesRunState() {
   state.subtitles.savedVersion = 0;
   state.subtitles.saveQueue.setAckVersion(0);
   state.subtitles.analyzeMetadata = createEmptySubtitleAnalyzeMetadata();
+  state.subtitles.rows = [createEmptySubtitleRow({ id: 'row-1', start: '00:00.00', end: '00:02.00', phrase: '' })];
 }
 
 async function startSubtitleAnalyze(file) {
+  if (getActiveSubtitlesMode() === 'remote-core') {
+    const form = new FormData();
+    form.append('video', file);
+    form.append('source_language', state.subtitles.sourceLanguage || 'auto');
+    const response = await ttsApi.createSubtitleSession(form);
+    state.subtitles.sessionId = (response?.session_id || '').toString();
+    state.subtitles.analysisJobId = state.subtitles.sessionId;
+    state.subtitles.previewVideoUrl = buildSubtitlePreviewUrlRuntime(response?.preview?.video_url || '', state.settings.ttsBaseUrl);
+    state.subtitles.analyzeStatus = (response?.status || 'processing').toString();
+    transitionSubtitlesPhase('Procesando audio');
+    await refreshSubtitleRemoteStatus();
+    await pollRemoteSubtitleSessionStatus(state.subtitles.sessionId);
+    return;
+  }
   const form = new FormData();
   form.append('file', file);
   form.append('source_language', state.subtitles.sourceLanguage || 'auto');
@@ -1013,6 +1332,48 @@ function stopSubtitlePolling() {
     clearInterval(state.subtitles.pollingTimer);
     state.subtitles.pollingTimer = null;
   }
+}
+
+async function pollRemoteSubtitleSessionStatus(sessionId) {
+  const detail = await ttsApi.getSubtitleSession(sessionId);
+  state.subtitles.analyzeStatus = (detail?.status || 'processing').toString();
+  state.subtitles.snapshotVersion = Number(detail?.current_snapshot_version || state.subtitles.snapshotVersion || 0);
+  if ((state.subtitles.analyzeStatus || '').toLowerCase() === 'editing' || state.subtitles.snapshotVersion > 0) {
+    stopSubtitlePolling();
+    await hydrateRemoteSubtitleSession(sessionId);
+    transitionSubtitlesPhase('Edicion');
+    return;
+  }
+  stopSubtitlePolling();
+  state.subtitles.pollingTimer = setTimeout(() => {
+    void pollRemoteSubtitleSessionStatus(sessionId);
+  }, SUBTITLES_POLL_INTERVAL_MS);
+  renderSubtitlesWorkflow();
+}
+
+async function pollRemoteSubtitleRenderStatus(sessionId) {
+  const payload = await ttsApi.getSubtitleRenderStatus(sessionId);
+  state.subtitles.renderStatus = (payload?.job?.status || state.subtitles.renderStatus || 'queued').toString();
+  state.subtitles.renderProgressPct = Number(payload?.job?.progress_percent || 0);
+  state.subtitles.renderArtifactReady = Boolean(payload?.download?.ready);
+  if ((state.subtitles.renderStatus || '').toLowerCase() === 'succeeded') {
+    stopSubtitlePolling();
+    transitionSubtitlesPhase('Terminado');
+    renderSubtitleDoneCard();
+    return;
+  }
+  if ((state.subtitles.renderStatus || '').toLowerCase() === 'failed') {
+    stopSubtitlePolling();
+    state.subtitles.renderFailureReason = 'El render remoto falló';
+    transitionSubtitlesPhase('Terminado');
+    renderSubtitleDoneCard();
+    return;
+  }
+  stopSubtitlePolling();
+  state.subtitles.pollingTimer = setTimeout(() => {
+    void pollRemoteSubtitleRenderStatus(sessionId);
+  }, SUBTITLES_POLL_INTERVAL_MS);
+  renderSubtitlesWorkflow();
 }
 
 async function pollSubtitleStatus(kind, jobId) {
@@ -1190,6 +1551,35 @@ async function maybeAutosaveSubtitles() {
 }
 
 async function enqueueSubtitleSave(saveMode) {
+  if (getActiveSubtitlesMode() === 'remote-core') {
+    if (!state.subtitles.sessionId) {
+      throw new Error('No hay sesión remota activa para guardar');
+    }
+    const response = await ttsApi.updateSubtitleSegments(state.subtitles.sessionId, {
+      base_version: state.subtitles.snapshotVersion,
+      save_mode: saveMode,
+      segments: state.subtitles.rows.map((row) => ({
+        id: row.id,
+        start_ms: parseSubtitleTimeToMsRuntime(row.start),
+        end_ms: parseSubtitleTimeToMsRuntime(row.end),
+        source_text: row.sourceText,
+        translated_text: row.phrase,
+        style: {
+          font_size: Number(row.size),
+          font_family: row.fontFamily,
+          color: row.color,
+          align: row.align,
+          max_width_px: Number(row.maxWidthPx || 1080),
+        },
+      })),
+    });
+    const version = Number(response?.version || 0);
+    state.subtitles.snapshotVersion = version;
+    state.subtitles.savedVersion = Math.max(state.subtitles.savedVersion, state.subtitles.changeVersion);
+    state.subtitles.dirty = false;
+    await refreshSubtitleRemoteStatus();
+    return { ackVersion: version };
+  }
   if (!state.subtitles.analysisJobId) {
     throw new Error('No hay análisis activo para guardar');
   }
@@ -1228,6 +1618,7 @@ function collectCurrentSubtitlesSnapshot() {
         font_family: row.fontFamily,
         color: row.color,
         align: row.align,
+        max_width_px: row.maxWidthPx || 1080,
       },
     })),
   };
@@ -1241,6 +1632,7 @@ function mapSnapshotToRows(snapshotJson) {
     end: formatSubtitleDisplayTimeRuntime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
     sourceText: (segment?.source_text || '').toString(),
     phrase: (segment?.translated_text_es || segment?.translated_text || segment?.text || '').toString(),
+    maxWidthPx: Number(segment?.style?.max_width_px || 1080),
     size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
     fontFamily: (segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0]).toString(),
     color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
@@ -1305,6 +1697,95 @@ async function persistSubtitleSnapshotRequest(payload) {
   return {
     snapshot_version: Number(response?.snapshot_version || 0),
   };
+}
+
+async function refreshSubtitleRemoteStatus() {
+  if (getActiveSubtitlesMode() !== 'remote-core') {
+    state.subtitles.serviceHealth = { status: 'legacy', message: 'Legacy habilitado mientras validamos Subtítulos 2.' };
+    renderSubtitleHealthBanner();
+    return;
+  }
+  try {
+    const [health, sessions] = await Promise.all([
+      ttsApi.getSubtitlesHealth(),
+      ttsApi.listSubtitleSessions(20),
+    ]);
+    state.subtitles.serviceHealth = {
+      status: (health?.status || 'online').toString(),
+      message: 'Servicio remoto disponible.',
+    };
+    state.subtitles.sessionHistory = Array.isArray(sessions?.items) ? sessions.items : [];
+  } catch (error) {
+    state.subtitles.serviceHealth = {
+      status: 'offline',
+      message: getErrorMessage(error, 'No se pudo alcanzar el servicio remoto.'),
+    };
+  }
+  renderSubtitleHealthBanner();
+  renderSubtitleSessionHistory();
+}
+
+async function hydrateRemoteSubtitleSession(sessionId) {
+  const [detail, segments] = await Promise.all([
+    ttsApi.getSubtitleSession(sessionId),
+    ttsApi.getSubtitleSegments(sessionId),
+  ]);
+  state.subtitles.sessionId = sessionId;
+  state.subtitles.analyzeStatus = (detail?.status || 'editing').toString();
+  state.subtitles.previewVideoUrl = buildSubtitlePreviewUrlRuntime(
+    detail?.preview?.video_url || `/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`,
+    state.settings.ttsBaseUrl,
+  );
+  state.subtitles.snapshotVersion = Number(segments?.version || 0);
+  state.subtitles.rows = mapRemoteSubtitleSegmentsToRowsRuntime({
+    segments: segments?.segments || [],
+    createRow: createEmptySubtitleRow,
+    formatTime: formatSubtitleDisplayTimeRuntime,
+    sizePresets: SUBTITLE_SIZE_PRESETS,
+    fontPresets: SUBTITLE_FONT_PRESETS,
+    colorPresets: SUBTITLE_COLOR_PRESETS,
+  });
+  state.subtitles.savedVersion = state.subtitles.changeVersion;
+  state.subtitles.dirty = false;
+  renderSubtitlePreviewPlayer();
+}
+
+async function onRemoteSubtitleReadyClicked() {
+  if (!state.subtitles.sessionId || state.subtitles.snapshotVersion < 1) {
+    toast('Necesitás una sesión remota lista antes de renderizar');
+    return;
+  }
+  if (state.subtitles.dirty) {
+    await enqueueSubtitleSave('manual');
+  }
+  const response = await ttsApi.startSubtitleRender(state.subtitles.sessionId, {
+    base_version: state.subtitles.snapshotVersion,
+    request_id: `sub-render-${Date.now()}`,
+  });
+  state.subtitles.renderJobId = (response?.job?.id || '').toString();
+  state.subtitles.renderStatus = (response?.job?.status || 'queued').toString();
+  state.subtitles.renderArtifactReady = Boolean(response?.download?.ready);
+  transitionSubtitlesPhase('Procesando video');
+  await pollRemoteSubtitleRenderStatus(state.subtitles.sessionId);
+  await refreshSubtitleRemoteStatus();
+}
+
+async function onRemoteSubtitleDownloadClicked() {
+  if (!state.subtitles.sessionId) {
+    toast('No hay sesión remota para descargar');
+    return;
+  }
+  const blob = await ttsApi.downloadSubtitleRender(state.subtitles.sessionId);
+  downloadBlob(blob, `${state.subtitles.sessionId}.mp4`);
+}
+
+function resetSubtitleEditorForAnotherVideo() {
+  resetSubtitlesRunState();
+  if (el.subtitleUploadInput) {
+    el.subtitleUploadInput.value = '';
+  }
+  renderSubtitlesWorkflow();
+  toast('Listo para subtitular otro video');
 }
 
 function hydrateSettingsForm() {
