@@ -196,7 +196,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     for expected_rule in [
         '#viewSubtitulos2.subtitle2-screen',
         '#viewSubtitulos2 .subtitle2-workspace',
-        'grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);',
+        'grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);',
         '#viewSubtitulos2 .subtitle2-master-card',
         '#viewSubtitulos2 .subtitle2-side-card',
         '#viewSubtitulos2 .subtitle2-upload-source-card',
@@ -263,7 +263,7 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
 
     for expected_rule in [
         "padding: 28px 32px 32px 32px;",
-        "grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);",
+        "grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);",
         "gap: 20px;",
         "padding: 24px;",
         "gap: 24px;",
@@ -307,7 +307,7 @@ def test_subtitle2_upload_slide_keeps_header_health_and_phases_inside_left_card(
     assert 'Estado del flujo' not in index_html
     assert '<h3>Fases</h3>' not in index_html[index_html.index('id="viewSubtitulos2"'):index_html.index('</section>', workspace_start)]
 
-    assert 'grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);' in scoped_css
+    assert 'grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);' in scoped_css
     assert '#viewSubtitulos2 .subtitle2-master-card .subtitle2-screen__header' in scoped_css
     assert 'justify-self: end;' in scoped_css
     assert 'min-width: 0;' in scoped_css

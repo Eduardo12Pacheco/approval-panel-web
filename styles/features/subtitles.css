@@ -737,7 +737,7 @@
 
 #viewSubtitulos2 .subtitle2-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 0.6fr) minmax(360px, 0.4fr);
+  grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);
   gap: 20px;
   align-items: stretch;
 }
@@ -797,6 +797,21 @@
   gap: 16px;
   border-color: #2A2A2A;
   background: #0D0D0D;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-editor-card {
+  padding: 0;
+  gap: 0;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-card-heading {
+  padding: 24px 24px 14px;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle-table-scroll {
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
 }
 
 #viewSubtitulos2 .subtitle-phase-section--centered {
@@ -973,6 +988,10 @@
 
 #viewSubtitulos2 .subtitle-table__hint {
   color: #9DB8FF;
+}
+
+#viewSubtitulos2 .subtitle-table--remote thead th:not(:nth-child(8)) .subtitle-table__hint {
+  display: none;
 }
 
 #viewSubtitulos2 .subtitle-table input[type="number"],
