@@ -22,8 +22,18 @@ REQUIRED_SELECTOR_IDS = [
     "viewScripts",
     "viewAudio",
     "viewSubtitulos",
+    "viewSubtitulos2",
     "audioRunBtn",
     "subtitleRowsBody",
+    "subtitle2ServiceHealthBanner",
+    "subtitle2SessionHistory",
+    "subtitle2PreviewStage",
+    "subtitle2PreviewVideo",
+    "subtitle2PreviewOverlay",
+    "subtitle2PreviewCue",
+    "subtitle2PreviewTimeline",
+    "subtitle2AddRowBtn",
+    "subtitle2AnotherVideoBtn",
 ]
 
 
@@ -54,6 +64,7 @@ def test_parity_checklist_defines_selector_and_bootstrap_contract_assertions():
 
     assert "./modules/composition-root.js" in checklist_source
     assert "bootCompositionRoot" in checklist_source
+    assert "subtitleModeSelect" not in checklist_source
 
 
 def test_main_bootstrap_boundary_routes_through_composition_root():

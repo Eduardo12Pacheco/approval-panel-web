@@ -7,7 +7,6 @@ export function defaultSettingsFactory() {
     ttsBasicUser: '',
     ttsBasicPass: '',
     ttsUserEmail: '',
-    subtitlesMode: 'legacy',
   };
 }
 
@@ -35,5 +34,4 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.ttsBasicUserInput.value = settings.ttsBasicUser;
   el.ttsBasicPassInput.value = settings.ttsBasicPass;
   el.ttsUserEmailInput.value = settings.ttsUserEmail;
-  if (el.subtitleModeSelect) el.subtitleModeSelect.value = settings.subtitlesMode || 'legacy';
 }

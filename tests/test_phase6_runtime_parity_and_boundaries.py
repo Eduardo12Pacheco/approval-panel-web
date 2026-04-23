@@ -424,7 +424,7 @@ def test_parity_checklist_enforces_runtime_helper_import_boundaries_in_app_shell
 import { runParityChecklist } from './js/modules/__checks__/parity-checklist.js';
 
 const baseline = runParityChecklist({
-  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody>',
+  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><section id="viewSubtitulos2"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody><section id="subtitle2ServiceHealthBanner"></section><section id="subtitle2SessionHistory"></section><section id="subtitle2PreviewStage"></section><video id="subtitle2PreviewVideo"></video><section id="subtitle2PreviewOverlay"></section><section id="subtitle2PreviewCue"></section><section id="subtitle2PreviewTimeline"></section><button id="subtitle2AddRowBtn"></button><button id="subtitle2AnotherVideoBtn"></button>',
   mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
   compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
   appShellSource: "import { normalizeAudioProgressPercent } from './features/audio/runtime/index.js'; import { extractSubtitleProgressPercentRuntime } from './features/subtitles/runtime/index.js';",
@@ -435,7 +435,7 @@ if (!baseline.pass) {
 }
 
 const mutated = runParityChecklist({
-  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody>',
+  indexHtmlSource: '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos"></section><section id="viewSubtitulos2"></section><button id="audioRunBtn"></button><tbody id="subtitleRowsBody"></tbody><section id="subtitle2ServiceHealthBanner"></section><section id="subtitle2SessionHistory"></section><section id="subtitle2PreviewStage"></section><video id="subtitle2PreviewVideo"></video><section id="subtitle2PreviewOverlay"></section><section id="subtitle2PreviewCue"></section><section id="subtitle2PreviewTimeline"></section><button id="subtitle2AddRowBtn"></button><button id="subtitle2AnotherVideoBtn"></button>',
   mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
   compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
   appShellSource: "import { createAudioRuntime } from './features/audio/runtime/index.js'; import { createSubtitlesRuntime } from './features/subtitles/runtime/index.js';",
@@ -455,3 +455,26 @@ if (!mutated.failures.some((f) => String(f).includes('extractSubtitleProgressPer
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_subtitles_navigation_contract_uses_separate_legacy_and_remote_views_without_mode_toggle():
+    index_source = (ROOT / "index.html").read_text(encoding="utf-8")
+    selectors_source = (ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js").read_text(encoding="utf-8")
+    bootstrap_source = (ROOT / "js" / "modules" / "core" / "bootstrap.js").read_text(encoding="utf-8")
+
+    for expected in [
+        'data-view="subtitulos"',
+        'data-view="subtitulos2"',
+        'id="viewSubtitulos"',
+        'id="viewSubtitulos2"',
+        'id="subtitle2ServiceHealthBanner"',
+        'id="subtitle2SessionHistory"',
+    ]:
+        assert expected in index_source
+
+    for forbidden in [
+        'id="subtitleModeSelect"',
+        'subtitlesMode:',
+        'subtitleModeSelect:',
+    ]:
+        assert forbidden not in "\n".join([index_source, selectors_source, bootstrap_source])

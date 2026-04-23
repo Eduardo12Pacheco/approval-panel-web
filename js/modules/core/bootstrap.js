@@ -65,7 +65,6 @@ export function bindCoreEvents({
         ttsBasicUser: el.ttsBasicUserInput.value.trim(),
         ttsBasicPass: el.ttsBasicPassInput.value,
         ttsUserEmail: el.ttsUserEmailInput.value.trim(),
-        subtitlesMode: el.subtitleModeSelect?.value || defaults.subtitlesMode,
       });
     el.settingsDialog.close();
     toast('Configuración guardada');

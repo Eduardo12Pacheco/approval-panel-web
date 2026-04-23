@@ -46,7 +46,7 @@
           </div>
 
           <nav class="sidebar-nav" id="sidebarNav">
-            <button class="nav-item active" data-view="approval" title="Approval panel" aria-label="Approval panel">
+            <button class="nav-item active" data-view="approval" title="Guiones" aria-label="Guiones">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <path d="M7.25 4.75h6.5l4 4v10.5a2 2 0 0 1-2 2h-8.5a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -54,10 +54,10 @@
                 </svg>
               </span>
               <span class="nav-item__copy">
-                <span class="nav-item__title">Approval panel</span>
+                <span class="nav-item__title">Guiones</span>
               </span>
             </button>
-            <button class="nav-item" data-view="audio" title="Voice clone lab" aria-label="Voice clone lab">
+            <button class="nav-item" data-view="audio" title="Voz" aria-label="Voz">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <path d="M12 4.5a3.5 3.5 0 0 0-3.5 3.5v4a3.5 3.5 0 1 0 7 0V8A3.5 3.5 0 0 0 12 4.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -65,10 +65,10 @@
                 </svg>
               </span>
               <span class="nav-item__copy">
-                <span class="nav-item__title">Voice clone lab</span>
+                <span class="nav-item__title">Voz</span>
               </span>
             </button>
-            <button class="nav-item" data-view="subtitulos" title="Subtitles" aria-label="Subtitles">
+            <button class="nav-item" data-view="subtitulos" title="Subtítulos" aria-label="Subtítulos">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <rect x="4.75" y="5.5" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></rect>
@@ -76,7 +76,18 @@
                 </svg>
               </span>
               <span class="nav-item__copy">
-                <span class="nav-item__title">Subtitles</span>
+                <span class="nav-item__title">Subtítulos</span>
+              </span>
+            </button>
+            <button class="nav-item" data-view="subtitulos2" title="Subtítulos 2" aria-label="Subtítulos 2">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <rect x="4.75" y="5.5" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></rect>
+                  <path d="M8 10h3M8 13h3M13.5 10h2.5M13.5 13h2.5M8.75 16v2.25M15.25 16v2.25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Subtítulos 2</span>
               </span>
             </button>
           </nav>
@@ -290,21 +301,10 @@
         <section id="viewSubtitulos" class="view hidden">
           <header class="topbar">
             <div>
-              <h1>Subtítulos 2</h1>
-              <p>Segmento remoto con video obligatorio, preview local y coexistencia segura con el flujo legacy.</p>
+              <h1>Subtítulos</h1>
+              <p>Flujo legacy de 5 fases para revisar subtítulos antes del render final.</p>
             </div>
-            <label class="control-group approval-control approval-control--select">
-              <span class="control-label">Modo</span>
-              <select id="subtitleModeSelect" data-custom-dropdown data-dropdown-label="Modo subtítulos" data-dropdown-placeholder="Modo subtítulos">
-                <option value="legacy">legacy</option>
-                <option value="remote-core">remote-core</option>
-              </select>
-            </label>
           </header>
-
-          <section id="subtitleServiceHealthBanner" class="audio-panel subtitle-health-banner">
-            Estado remoto: pendiente.
-          </section>
 
           <section class="audio-panel">
             <h3>Fases</h3>
@@ -317,20 +317,14 @@
             </ol>
           </section>
 
-          <section class="subtitle-layout">
-            <aside class="audio-panel subtitle-history-panel">
-              <h3>Historial de sesiones</h3>
-              <div id="subtitleSessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
-            </aside>
-
-            <section class="subtitle-flow" id="subtitleFlowContainer">
-              <section id="subtitlePhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
-                <article class="subtitle-upload-stage">
+          <section class="subtitle-flow" id="subtitleFlowContainer">
+            <section id="subtitlePhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
+              <article class="subtitle-upload-stage">
                 <label class="subtitle-upload-dropzone" for="subtitleUploadInput">
-                  <input id="subtitleUploadInput" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" />
+                  <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
                   <div class="subtitle-upload-cta-icon" aria-hidden="true">＋</div>
-                  <div class="subtitle-upload-cta-title">Agregar video</div>
-                  <div class="subtitle-upload-cta-sub">Arrastrá un .mp4 o .mov para crear una sesión remota</div>
+                  <div class="subtitle-upload-cta-title">Agregar Audio</div>
+                  <div class="subtitle-upload-cta-sub">Arrastrá un archivo o hacé click para subir</div>
                 </label>
                 <div class="subtitle-source-language">
                   <p class="subtitle-source-language-title">Idioma origen</p>
@@ -356,8 +350,8 @@
                   </select>
                   <p id="subtitleSourceLanguageEngineHint" class="meta subtitle-source-engine-hint"></p>
                 </div>
-                </article>
-              </section>
+              </article>
+            </section>
 
             <section id="subtitleAnalyzeMeta" class="audio-panel subtitle-meta-card hidden">
               <h3>Metadata del análisis</h3>
@@ -382,23 +376,8 @@
               </article>
             </section>
 
-              <section id="subtitlePhaseEdition" class="subtitle-phase-section hidden">
-                <article class="audio-panel">
-                  <div class="subtitle-preview-frame">
-                    <h3>Preview</h3>
-                    <div id="subtitlePreviewStage" class="subtitle-preview-stage">
-                      <video id="subtitlePreviewVideo" controls playsinline preload="metadata"></video>
-                      <div id="subtitlePreviewOverlay" class="subtitle-preview-overlay">
-                        <div id="subtitlePreviewCue" class="subtitle-preview-cue hidden"></div>
-                      </div>
-                    </div>
-                    <div id="subtitlePreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos">
-                      <div id="subtitlePreviewTimelineTrack" class="subtitle-preview-timeline-track">
-                        <div id="subtitlePreviewPlayhead" class="subtitle-preview-playhead"></div>
-                      </div>
-                      <span id="subtitlePreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
-                    </div>
-                  </div>
+            <section id="subtitlePhaseEdition" class="subtitle-phase-section hidden">
+              <article class="audio-panel">
                 <h3>Tabla de edición</h3>
 
                 <datalist id="subtitleSizePresets">
@@ -421,11 +400,9 @@
                         <th>end</th>
                         <th>Frase</th>
                         <th>Tamaño</th>
-                        <th>Espacio / Ancho max</th>
                         <th>Fuentes</th>
                         <th>Color</th>
                         <th>Alineación</th>
-                        <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody id="subtitleRowsBody"></tbody>
@@ -433,22 +410,166 @@
                 </div>
 
                 <div class="audio-actions">
-                  <button id="subtitleAddRowBtn" class="secondary">Agregar línea</button>
                   <button id="subtitleSaveBtn" class="secondary">Guardar cambios</button>
                   <button id="subtitleReadyBtn" class="approve">Listo</button>
                 </div>
-                </article>
-              </section>
+              </article>
+            </section>
 
-              <section id="subtitlePhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-                <article class="audio-panel subtitle-centered-card subtitle-success-card">
+            <section id="subtitlePhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
+              <article class="audio-panel subtitle-centered-card subtitle-success-card">
                 <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">✅</div>
                 <h3 id="subtitleDoneTitle">Video listo</h3>
                 <p id="subtitleDoneMessage" class="meta">Tu video ya está listo. Descargalo manualmente cuando quieras.</p>
-                <div class="audio-actions subtitle-finish-actions">
-                  <button id="subtitleDownloadBtn">Descargar video</button>
-                  <button id="subtitleAnotherVideoBtn" class="secondary">Subtitular otro video</button>
+                <button id="subtitleDownloadBtn">Descargar video</button>
+              </article>
+            </section>
+          </section>
+        </section>
+
+        <section id="viewSubtitulos2" class="view hidden">
+          <header class="topbar">
+            <div>
+              <h1>Subtítulos 2</h1>
+              <p>Segmento remoto con video obligatorio, preview local y coexistencia segura con el flujo legacy.</p>
+            </div>
+          </header>
+
+          <section id="subtitle2ServiceHealthBanner" class="audio-panel subtitle-health-banner">
+            Estado remoto: pendiente.
+          </section>
+
+          <section class="audio-panel">
+            <h3>Fases</h3>
+            <ol id="subtitle2PhaseBar" class="subtitle-phase-bar">
+              <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
+              <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
+              <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
+              <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
+              <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
+            </ol>
+          </section>
+
+          <section class="subtitle-layout subtitle-layout--remote">
+            <aside class="audio-panel subtitle-history-panel">
+              <h3>Historial de sesiones</h3>
+              <div id="subtitle2SessionHistory" class="subtitle-history-list">Todavía no hay sesiones remotas.</div>
+            </aside>
+
+            <section class="subtitle-flow">
+              <section id="subtitle2PhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
+                <article class="subtitle-upload-stage">
+                  <label class="subtitle-upload-dropzone" for="subtitle2UploadInput">
+                    <input id="subtitle2UploadInput" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" />
+                    <div class="subtitle-upload-cta-icon" aria-hidden="true">＋</div>
+                    <div class="subtitle-upload-cta-title">Agregar video</div>
+                    <div class="subtitle-upload-cta-sub">Arrastrá un .mp4 o .mov para crear una sesión remota</div>
+                  </label>
+                  <div class="subtitle-source-language">
+                    <p class="subtitle-source-language-title">Idioma origen</p>
+                    <select id="subtitle2SourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown data-dropdown-label="Idioma origen" data-dropdown-placeholder="Idioma origen" aria-label="Idioma origen para Subtítulos 2">
+                      <option value="auto">Detectar automáticamente</option>
+                      <option value="es">Español</option>
+                      <option value="en">Inglés</option>
+                      <option value="fr">Francés</option>
+                      <option value="pt">Portugués</option>
+                      <option value="de">Alemán</option>
+                      <option value="it">Italiano</option>
+                      <option value="nl">Neerlandés</option>
+                      <option value="ca">Catalán</option>
+                      <option value="pap">Papiamento</option>
+                      <option value="ko">Coreano</option>
+                      <option value="ar">Árabe</option>
+                      <option value="ber">Amazigh / Bereber</option>
+                      <option value="cs">Checo</option>
+                      <option value="gd">Gaélico escocés</option>
+                      <option value="tr">Turco</option>
+                      <option value="tzm">Tamazight (Tzm)</option>
+                      <option value="uz">Uzbeko</option>
+                    </select>
+                    <p id="subtitle2SourceLanguageEngineHint" class="meta subtitle-source-engine-hint"></p>
+                  </div>
+                </article>
+              </section>
+
+              <section id="subtitle2AnalyzeMeta" class="audio-panel subtitle-meta-card hidden">
+                <h3>Metadata del análisis</h3>
+                <div class="subtitle-meta-grid">
+                  <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_requested</span><strong id="subtitle2MetaRequested">—</strong></div>
+                  <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_effective</span><strong id="subtitle2MetaEffective">—</strong></div>
+                  <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">detected_language</span><strong id="subtitle2MetaDetected">—</strong></div>
+                  <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">asr_model</span><strong id="subtitle2MetaAsrModel">—</strong></div>
+                  <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">mt_model</span><strong id="subtitle2MetaMtModel">—</strong></div>
                 </div>
+              </section>
+
+              <section id="subtitle2PhaseProcessing" class="subtitle-phase-section subtitle-phase-section--centered hidden">
+                <article class="audio-panel subtitle-centered-card subtitle-processing-card">
+                  <div id="subtitle2ProcessingIcon" class="subtitle-phase-icon" aria-hidden="true">⏳</div>
+                  <h3 id="subtitle2ProcessingTitle">Procesando audio</h3>
+                  <p id="subtitle2ProcessingMessage" class="meta">Estamos analizando tu archivo…</p>
+                  <div class="subtitle-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="subtitle2ProgressFill" class="subtitle-progress-fill" style="width: 0%"></div>
+                  </div>
+                  <p id="subtitle2ProgressPercent" class="subtitle-progress-percent">0%</p>
+                </article>
+              </section>
+
+              <section id="subtitle2PhaseEdition" class="subtitle-phase-section hidden">
+                <article class="audio-panel">
+                  <div class="subtitle-preview-frame">
+                    <h3>Preview</h3>
+                    <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
+                      <video id="subtitle2PreviewVideo" controls playsinline preload="metadata"></video>
+                      <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
+                        <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
+                      </div>
+                    </div>
+                    <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
+                      <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
+                        <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
+                      </div>
+                      <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
+                    </div>
+                  </div>
+                  <h3>Tabla de edición</h3>
+
+                  <div class="subtitle-table-scroll">
+                    <table class="subtitle-table" id="subtitle2RowsTable">
+                      <thead>
+                        <tr>
+                          <th>start</th>
+                          <th>end</th>
+                          <th>Frase</th>
+                          <th>Tamaño</th>
+                          <th>Espacio / Ancho max</th>
+                          <th>Fuentes</th>
+                          <th>Color</th>
+                          <th>Alineación</th>
+                          <th>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody id="subtitle2RowsBody"></tbody>
+                    </table>
+                  </div>
+
+                  <div class="audio-actions">
+                    <button id="subtitle2AddRowBtn" class="secondary">Agregar línea</button>
+                    <button id="subtitle2SaveBtn" class="secondary">Guardar cambios</button>
+                    <button id="subtitle2ReadyBtn" class="approve">Listo</button>
+                  </div>
+                </article>
+              </section>
+
+              <section id="subtitle2PhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
+                <article class="audio-panel subtitle-centered-card subtitle-success-card">
+                  <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">✅</div>
+                  <h3 id="subtitle2DoneTitle">Video listo</h3>
+                  <p id="subtitle2DoneMessage" class="meta">Tu video ya está listo. Descargalo manualmente cuando quieras.</p>
+                  <div class="audio-actions subtitle-finish-actions">
+                    <button id="subtitle2DownloadBtn">Descargar video</button>
+                    <button id="subtitle2AnotherVideoBtn" class="secondary">Subtitular otro video</button>
+                  </div>
                 </article>
               </section>
             </section>

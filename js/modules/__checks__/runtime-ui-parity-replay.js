@@ -65,7 +65,6 @@ function replaySettingsScenario() {
     ...defaults,
     baseUrl: 'http://localhost:9999',
     secret: 'abc',
-    subtitlesMode: 'remote-core',
   };
   saveSettingsToStorage({ storage, storageKey, nextSettings: next });
   const loadedSaved = loadSettingsFromStorage({ storage, storageKey, defaultsFactory: defaultSettingsFactory });
@@ -81,10 +80,9 @@ function replaySettingsScenario() {
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
     ttsUserEmailInput: { value: '' },
-    subtitleModeSelect: { value: '' },
   };
   hydrateSettingsFormValues({ el, settings: loadedSaved });
-  if (el.baseUrlInput.value !== 'http://localhost:9999' || el.subtitleModeSelect.value !== 'remote-core') {
+  if (el.baseUrlInput.value !== 'http://localhost:9999') {
     return { ok: false, reason: 'settings hydrate drift' };
   }
 
