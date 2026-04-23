@@ -60,6 +60,7 @@ import {
   buildSubtitleCueMarkersRuntime,
   buildSubtitleHealthRuntime,
   buildSubtitleInsertRowRuntime,
+  buildSubtitlePreviewPresentationRuntime,
   buildSubtitlePreviewUrlRuntime,
   buildSubtitleProcessingMessageRuntime,
   createSubtitlesRuntime,
@@ -71,6 +72,7 @@ import {
   normalizeSubtitleMetaValueForStateRuntime,
   parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
+  resolveSubtitleTimelineSeekMsRuntime,
   resolveSubtitleProgressPercentRuntime,
   validateSubtitleTimingPatchRuntime,
 } from './features/subtitles/runtime/index.js';
@@ -198,6 +200,7 @@ const __testOverrides = {
 };
 
 let toastTimer = null;
+let subtitle2PreviewDragCleanup = null;
 
 const customDropdowns = createCustomDropdownController({ root: document });
 
@@ -462,11 +465,15 @@ function bindEvents() {
   el.subtitle2PreviewVideo?.addEventListener('timeupdate', onSubtitle2PreviewTimeUpdate);
   el.subtitle2PreviewVideo?.addEventListener('play', () => {
     state.subtitles2.previewPlaying = true;
+    renderSubtitle2PreviewPlaybackState();
   });
   el.subtitle2PreviewVideo?.addEventListener('pause', () => {
     state.subtitles2.previewPlaying = false;
+    renderSubtitle2PreviewPlaybackState();
   });
+  el.subtitle2PreviewPlayBtn?.addEventListener('click', onSubtitle2PreviewToggleClicked);
   el.subtitle2PreviewTimeline?.addEventListener('click', onSubtitle2PreviewTimelineClick);
+  el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', onSubtitle2PreviewTimelineDragStart);
   el.subtitle2SessionHistory?.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-action="resume-subtitle-session"]');
     if (!button) return;
@@ -1746,42 +1753,65 @@ function renderSubtitle2SessionHistory() {
 function renderSubtitle2PreviewPlayer() {
   if (!el.subtitle2PreviewVideo) return;
   const src = (state.subtitles2.previewVideoUrl || '').trim();
+  const hasPreview = Boolean(src);
+  el.subtitle2PreviewStage?.classList.toggle('is-empty', !hasPreview);
+  el.subtitle2PreviewEmpty?.classList.toggle('hidden', hasPreview);
+  if (el.subtitle2PreviewPlayBtn) {
+    el.subtitle2PreviewPlayBtn.disabled = !hasPreview;
+  }
   if (!src) {
     el.subtitle2PreviewVideo.removeAttribute('src');
+    el.subtitle2PreviewVideo.pause();
+    state.subtitles2.previewPlaying = false;
+    renderSubtitle2PreviewPlaybackState();
     renderSubtitle2PreviewOverlay();
     return;
   }
   if (el.subtitle2PreviewVideo.getAttribute('src') !== src) {
     el.subtitle2PreviewVideo.src = src;
   }
+  renderSubtitle2PreviewPlaybackState();
 }
 
 function renderSubtitle2PreviewOverlay() {
   const activeCue = pickActiveSubtitleCueRuntime(state.subtitles2.rows, state.subtitles2.previewCurrentMs);
   if (!el.subtitle2PreviewCue) return;
+  const stageRect = el.subtitle2PreviewStage?.getBoundingClientRect?.() || { width: 0, height: 0 };
+  const presentation = buildSubtitlePreviewPresentationRuntime({
+    activeCue,
+    currentMs: state.subtitles2.previewCurrentMs,
+    durationMs: resolveSubtitle2PreviewDurationMs(),
+    stageWidth: stageRect.width,
+    stageHeight: stageRect.height,
+  });
+  if (el.subtitle2PreviewOverlay) {
+    el.subtitle2PreviewOverlay.style.justifyContent = presentation.justifyContent;
+  }
   if (!activeCue) {
     el.subtitle2PreviewCue.classList.add('hidden');
     el.subtitle2PreviewCue.textContent = '';
     el.subtitle2PreviewCue.removeAttribute('style');
   } else {
     el.subtitle2PreviewCue.classList.remove('hidden');
-    el.subtitle2PreviewCue.textContent = (activeCue.phrase || '').toString().toUpperCase();
-    el.subtitle2PreviewCue.style.color = activeCue.color;
-    el.subtitle2PreviewCue.style.fontFamily = activeCue.fontFamily;
-    el.subtitle2PreviewCue.style.fontSize = `${activeCue.size}px`;
-    el.subtitle2PreviewCue.style.width = `${activeCue.maxWidthPx || 1080}px`;
-    el.subtitle2PreviewCue.style.marginLeft = activeCue.align === 'right' ? 'auto' : activeCue.align === 'center' ? 'auto' : '0';
-    el.subtitle2PreviewCue.style.marginRight = activeCue.align === 'left' ? 'auto' : activeCue.align === 'center' ? 'auto' : '0';
+    el.subtitle2PreviewCue.textContent = presentation.text;
+    el.subtitle2PreviewCue.style.color = presentation.color;
+    el.subtitle2PreviewCue.style.fontFamily = presentation.fontFamily;
+    el.subtitle2PreviewCue.style.fontSize = `${presentation.fontSizePx}px`;
+    el.subtitle2PreviewCue.style.width = `${presentation.cueWidthPx}px`;
   }
   renderSubtitle2PreviewTimeline();
 }
 
 function renderSubtitle2PreviewTimeline() {
-  const durationMs = Math.max(0, Number(state.subtitles2.audioDurationMs || 0));
+  const durationMs = resolveSubtitle2PreviewDurationMs();
   const cueRatios = buildSubtitleCueMarkersRuntime(state.subtitles2.rows, durationMs);
+  const presentation = buildSubtitlePreviewPresentationRuntime({
+    currentMs: state.subtitles2.previewCurrentMs,
+    durationMs,
+  });
   if (el.subtitle2PreviewTimelineTrack) {
     const markers = cueRatios.map((ratio) => `<div class="subtitle-preview-timeline-cue" style="left:${ratio * 100}%"></div>`).join('');
-    el.subtitle2PreviewTimelineTrack.innerHTML = `${markers}<div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead" style="left:${durationMs > 0 ? (state.subtitles2.previewCurrentMs / durationMs) * 100 : 0}%"></div>`;
+    el.subtitle2PreviewTimelineTrack.innerHTML = `${markers}<div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead" style="left:${presentation.playheadPercent}%"></div>`;
   }
   if (el.subtitle2PreviewTimecode) {
     el.subtitle2PreviewTimecode.textContent = formatSubtitleDisplayTimeRuntime(state.subtitles2.previewCurrentMs);
@@ -1797,26 +1827,86 @@ function onSubtitle2PreviewTimeUpdate(ev) {
 }
 
 function onSubtitle2PreviewTimelineClick(ev) {
-  const timeline = el.subtitle2PreviewTimelineTrack;
-  if (!timeline) return;
-  const rect = timeline.getBoundingClientRect();
-  if (!rect.width) return;
-  const durationMs = Math.max(0, Number(state.subtitles2.audioDurationMs || 0));
-  if (!durationMs) return;
-  const ratio = Math.min(Math.max((ev.clientX - rect.left) / rect.width, 0), 1);
-  const nextMs = Math.round(durationMs * ratio);
-  state.subtitles2.previewCurrentMs = nextMs;
-  if (el.subtitle2PreviewVideo) el.subtitle2PreviewVideo.currentTime = nextMs / 1000;
-  renderSubtitle2PreviewOverlay();
+  seekSubtitle2PreviewFromClientX(ev.clientX);
 }
 
 function seekSubtitle2PreviewToCue(rowId) {
   const row = state.subtitles2.rows.find((entry) => entry.id === rowId);
   if (!row) return;
   const startMs = parseSubtitleTimeToMsRuntime(row.start);
-  state.subtitles2.previewCurrentMs = startMs;
-  if (el.subtitle2PreviewVideo) el.subtitle2PreviewVideo.currentTime = startMs / 1000;
+  seekSubtitle2PreviewToMs(startMs);
+}
+
+function renderSubtitle2PreviewPlaybackState() {
+  if (!el.subtitle2PreviewPlayBtn) return;
+  const isPlaying = Boolean(state.subtitles2.previewPlaying);
+  el.subtitle2PreviewPlayBtn.textContent = isPlaying ? '❚❚' : '▶';
+  el.subtitle2PreviewPlayBtn.setAttribute('aria-label', isPlaying ? 'Pausar preview' : 'Reproducir preview');
+  el.subtitle2PreviewPlayBtn.setAttribute('title', isPlaying ? 'Pausar' : 'Reproducir');
+}
+
+function onSubtitle2PreviewToggleClicked() {
+  if (!el.subtitle2PreviewVideo || !(state.subtitles2.previewVideoUrl || '').trim()) return;
+  if (el.subtitle2PreviewVideo.paused) {
+    void el.subtitle2PreviewVideo.play().catch(() => undefined);
+    return;
+  }
+  el.subtitle2PreviewVideo.pause();
+}
+
+function resolveSubtitle2PreviewDurationMs() {
+  const declared = Math.max(0, Number(state.subtitles2.audioDurationMs || 0));
+  const rowsMax = state.subtitles2.rows.reduce((max, row) => {
+    const endMs = parseSubtitleTimeToMsRuntime(row?.end);
+    return Number.isFinite(endMs) ? Math.max(max, endMs) : max;
+  }, 0);
+  return Math.max(declared, rowsMax);
+}
+
+function seekSubtitle2PreviewToMs(nextMs) {
+  const durationMs = resolveSubtitle2PreviewDurationMs();
+  const bounded = Math.max(0, Math.min(Number(nextMs) || 0, durationMs || 0));
+  state.subtitles2.previewCurrentMs = bounded;
+  if (el.subtitle2PreviewVideo) el.subtitle2PreviewVideo.currentTime = bounded / 1000;
   renderSubtitle2PreviewOverlay();
+}
+
+function seekSubtitle2PreviewFromClientX(clientX) {
+  const timeline = el.subtitle2PreviewTimelineTrack;
+  if (!timeline) return;
+  const rect = timeline.getBoundingClientRect();
+  const durationMs = resolveSubtitle2PreviewDurationMs();
+  const nextMs = resolveSubtitleTimelineSeekMsRuntime({
+    clientX,
+    rectLeft: rect.left,
+    rectWidth: rect.width,
+    durationMs,
+  });
+  seekSubtitle2PreviewToMs(nextMs);
+}
+
+function cleanupSubtitle2PreviewDrag() {
+  subtitle2PreviewDragCleanup?.();
+  subtitle2PreviewDragCleanup = null;
+}
+
+function onSubtitle2PreviewTimelineDragStart(ev) {
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  cleanupSubtitle2PreviewDrag();
+  seekSubtitle2PreviewFromClientX(ev.clientX);
+  const onMouseMove = (moveEv) => {
+    seekSubtitle2PreviewFromClientX(moveEv.clientX);
+  };
+  const onMouseUp = () => {
+    cleanupSubtitle2PreviewDrag();
+  };
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+  subtitle2PreviewDragCleanup = () => {
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseup', onMouseUp);
+  };
 }
 
 function renderSubtitles2PhaseBar() {
@@ -1918,14 +2008,14 @@ function renderSubtitles2Table() {
         <td><select data-row-id="${row.id}" data-field="fontFamily">${renderSubtitleSelectOptions(fontOptions, row.fontFamily)}</select></td>
         <td><select data-row-id="${row.id}" data-field="color">${renderSubtitleSelectOptions(colorOptions, row.color)}</select></td>
         <td>
-          <div class="subtitle-align-group">
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-pressed="${alignment.left.selected}">Izq</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-pressed="${alignment.center.selected}">Centro</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-pressed="${alignment.right.selected}">Der</button>
+          <div class="subtitle-align-group subtitle-align-group--compact">
+            <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda" aria-pressed="${alignment.left.selected}">I</button>
+            <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro" aria-pressed="${alignment.center.selected}">C</button>
+            <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
           </div>
         </td>
         <td>
-          <div class="subtitle-row-actions">
+          <div class="subtitle-row-actions subtitle-row-actions--tight">
             <button type="button" data-action="jump-cue" data-row-id="${row.id}" class="secondary">Cue</button>
             <button type="button" data-action="insert-row" data-row-id="${row.id}" class="secondary">+1</button>
             <button type="button" data-action="delete-row" data-row-id="${row.id}" class="secondary">Borrar</button>
@@ -1973,6 +2063,7 @@ async function hydrateSubtitle2Session(sessionId) {
     fontPresets: SUBTITLE_FONT_PRESETS,
     colorPresets: SUBTITLE_COLOR_PRESETS,
   });
+  state.subtitles2.audioDurationMs = Math.max(0, Number(detail?.preview?.duration_ms || 0)) || resolveSubtitle2PreviewDurationMs();
   state.subtitles2.savedVersion = state.subtitles2.changeVersion;
   state.subtitles2.dirty = false;
   renderSubtitles2Workflow();

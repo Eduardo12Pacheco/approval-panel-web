@@ -515,42 +515,62 @@
                 </article>
               </section>
 
-              <section id="subtitle2PhaseEdition" class="subtitle-phase-section hidden">
-                <article class="audio-panel">
-                  <div class="subtitle-preview-frame">
-                    <h3>Preview</h3>
-                    <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
-                      <video id="subtitle2PreviewVideo" controls playsinline preload="metadata"></video>
-                      <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
-                        <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
-                      </div>
-                    </div>
-                    <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
-                      <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
-                        <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
-                      </div>
-                      <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
-                    </div>
-                  </div>
-                  <h3>Tabla de edición</h3>
+               <section id="subtitle2PhaseEdition" class="subtitle-phase-section hidden">
+                 <article class="audio-panel">
+                   <div class="subtitle-preview-frame">
+                     <div class="subtitle-preview-frame__header">
+                       <div>
+                         <h3>Preview</h3>
+                         <p class="meta">Video de fondo + cue activo sincronizado, más cerca del editor local.</p>
+                       </div>
+                     </div>
+                     <div id="subtitle2PreviewStage" class="subtitle-preview-stage">
+                       <video id="subtitle2PreviewVideo" playsinline preload="metadata"></video>
+                       <div id="subtitle2PreviewEmpty" class="subtitle-preview-empty">Agregá o retomá una sesión para iniciar el preview</div>
+                       <div id="subtitle2PreviewOverlay" class="subtitle-preview-overlay">
+                         <div id="subtitle2PreviewCue" class="subtitle-preview-cue hidden"></div>
+                       </div>
+                     </div>
+                     <div class="subtitle-preview-controls">
+                       <button id="subtitle2PreviewPlayBtn" class="subtitle-preview-play-btn" type="button" aria-label="Reproducir preview">▶</button>
+                       <div id="subtitle2PreviewTimeline" class="subtitle-preview-timeline" role="slider" aria-label="Timeline preview subtítulos 2">
+                         <div id="subtitle2PreviewTimelineTrack" class="subtitle-preview-timeline-track">
+                           <div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead"></div>
+                         </div>
+                       </div>
+                       <span id="subtitle2PreviewTimecode" class="subtitle-preview-timecode">00:00.00</span>
+                     </div>
+                   </div>
+                   <h3>Tabla de edición</h3>
 
-                  <div class="subtitle-table-scroll">
-                    <table class="subtitle-table" id="subtitle2RowsTable">
-                      <thead>
-                        <tr>
-                          <th>start</th>
-                          <th>end</th>
-                          <th>Frase</th>
-                          <th>Tamaño</th>
-                          <th>Espacio / Ancho max</th>
-                          <th>Fuentes</th>
-                          <th>Color</th>
-                          <th>Alineación</th>
-                          <th>Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody id="subtitle2RowsBody"></tbody>
-                    </table>
+                   <div class="subtitle-table-scroll">
+                     <table class="subtitle-table subtitle-table--remote" id="subtitle2RowsTable">
+                       <colgroup>
+                         <col class="subtitle-table__col subtitle-table__col--time" />
+                         <col class="subtitle-table__col subtitle-table__col--time" />
+                         <col class="subtitle-table__col subtitle-table__col--phrase" />
+                         <col class="subtitle-table__col subtitle-table__col--size" />
+                         <col class="subtitle-table__col subtitle-table__col--space" />
+                         <col class="subtitle-table__col subtitle-table__col--font" />
+                         <col class="subtitle-table__col subtitle-table__col--color" />
+                         <col class="subtitle-table__col subtitle-table__col--align" />
+                         <col class="subtitle-table__col subtitle-table__col--actions" />
+                       </colgroup>
+                       <thead>
+                         <tr>
+                           <th><span class="subtitle-table__title">Start</span><span class="subtitle-table__hint">mm:ss.ff</span></th>
+                           <th><span class="subtitle-table__title">End</span><span class="subtitle-table__hint">mm:ss.ff</span></th>
+                           <th><span class="subtitle-table__title">Frase</span><span class="subtitle-table__hint">texto visible</span></th>
+                           <th><span class="subtitle-table__title">Tamaño</span><span class="subtitle-table__hint">escala cue</span></th>
+                           <th><span class="subtitle-table__title">Ancho máx</span><span class="subtitle-table__hint">espacio</span></th>
+                           <th><span class="subtitle-table__title">Fuente</span><span class="subtitle-table__hint">familia</span></th>
+                           <th><span class="subtitle-table__title">Color</span><span class="subtitle-table__hint">cue</span></th>
+                           <th><span class="subtitle-table__title">Alineación</span><span class="subtitle-table__hint">I · C · D</span></th>
+                           <th><span class="subtitle-table__title">Acciones</span><span class="subtitle-table__hint">cue · +1 · borrar</span></th>
+                         </tr>
+                       </thead>
+                       <tbody id="subtitle2RowsBody"></tbody>
+                     </table>
                   </div>
 
                   <div class="audio-actions">

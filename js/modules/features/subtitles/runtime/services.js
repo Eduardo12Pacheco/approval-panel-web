@@ -151,6 +151,46 @@ export function buildSubtitlePreviewUrlRuntime(rawPath, baseUrl) {
   return root ? `${root}${path}` : path;
 }
 
+export function buildSubtitlePreviewPresentationRuntime({
+  activeCue = null,
+  currentMs = 0,
+  durationMs = 0,
+  stageWidth = 0,
+  stageHeight = 0,
+  renderWidth = 1920,
+  renderHeight = 1080,
+  defaultMaxWidthPx = 1080,
+} = {}) {
+  const safeDurationMs = Math.max(0, Number(durationMs) || 0);
+  const safeCurrentMs = Math.max(0, Math.min(Number(currentMs) || 0, safeDurationMs || 0));
+  const widthScale = stageWidth > 0 ? Number(stageWidth) / renderWidth : 1;
+  const heightScale = stageHeight > 0 ? Number(stageHeight) / renderHeight : 1;
+  const scale = Math.min(widthScale || 1, heightScale || 1, 1);
+  const rawAlign = (activeCue?.align || 'left').toString().trim().toLowerCase();
+  const justifyContent = rawAlign === 'right' ? 'flex-end' : rawAlign === 'center' ? 'center' : 'flex-start';
+  const fontSizeBase = Number(activeCue?.size || activeCue?.font_size || 110);
+  const cueWidthBase = Number(activeCue?.maxWidthPx || activeCue?.max_width_px || defaultMaxWidthPx);
+  return {
+    hasCue: Boolean(activeCue),
+    text: activeCue ? (activeCue?.phrase || activeCue?.translated_es || '').toString().toUpperCase() : '',
+    color: (activeCue?.color || '#FFFFFF').toString(),
+    fontFamily: (activeCue?.fontFamily || activeCue?.font_family || 'Khand').toString(),
+    fontSizePx: Math.max(12, Math.round((Number.isFinite(fontSizeBase) ? fontSizeBase : 110) * scale)),
+    cueWidthPx: Math.max(1, Math.round((Number.isFinite(cueWidthBase) && cueWidthBase > 0 ? cueWidthBase : defaultMaxWidthPx) * scale)),
+    justifyContent,
+    playheadPercent: safeDurationMs > 0 ? Math.round((safeCurrentMs / safeDurationMs) * 10000) / 100 : 0,
+    scale,
+  };
+}
+
+export function resolveSubtitleTimelineSeekMsRuntime({ clientX = 0, rectLeft = 0, rectWidth = 0, durationMs = 0 } = {}) {
+  const safeWidth = Number(rectWidth) || 0;
+  const safeDurationMs = Math.max(0, Number(durationMs) || 0);
+  if (safeWidth <= 0 || safeDurationMs <= 0) return 0;
+  const ratio = Math.min(Math.max(((Number(clientX) || 0) - (Number(rectLeft) || 0)) / safeWidth, 0), 1);
+  return Math.round(ratio * safeDurationMs);
+}
+
 export function mapRemoteSubtitleSegmentsToRowsRuntime({ segments = [], createRow, formatTime, sizePresets, fontPresets, colorPresets }) {
   return (Array.isArray(segments) ? segments : []).map((segment, index) => createRow({
     id: (segment?.id || `row-${index + 1}`).toString(),
@@ -293,7 +333,9 @@ export function createSubtitlesRuntimeServices({ hooks }) {
     buildSubtitleHealthRuntime,
     mapRemoteSubtitleSegmentsToRowsRuntime,
     buildSubtitlePreviewUrlRuntime,
+    buildSubtitlePreviewPresentationRuntime,
     pickActiveSubtitleCueRuntime,
+    resolveSubtitleTimelineSeekMsRuntime,
     validateSubtitleTimingPatchRuntime,
     buildSubtitleInsertRowRuntime,
     buildSubtitleCueMarkersRuntime,
