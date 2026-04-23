@@ -553,7 +553,7 @@
   --subtitle2-green-ink: #03140D;
   --subtitle2-silver: #DADDE0;
   min-height: calc(100vh - 42px);
-  padding: 28px 32px 32px 32px;
+  padding: 28px 5px 32px 5px;
   display: grid;
   gap: 20px;
   background: #0C0C0C;

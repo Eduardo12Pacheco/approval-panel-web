@@ -276,7 +276,7 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
     scoped_css = _subtitle2_scoped_css(css)
 
     for expected_rule in [
-        "padding: 28px 32px 32px 32px;",
+        "padding: 28px 5px 32px 5px;",
         "grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);",
         "gap: 20px;",
         "padding: 24px;",
