@@ -1479,6 +1479,7 @@ async function onSubtitle2UploadSelected() {
   state.subtitles2.selectedFileName = file.name;
   resetSubtitles2RunState();
   state.subtitles2.selectedFileName = file.name;
+  transitionSubtitles2Phase('Procesando audio');
   renderSubtitles2Workflow();
 
   try {
@@ -1489,7 +1490,6 @@ async function onSubtitle2UploadSelected() {
     state.subtitles2.sessionId = (response?.session_id || '').toString();
     state.subtitles2.analyzeStatus = (response?.status || 'processing').toString();
     state.subtitles2.previewVideoUrl = buildSubtitlePreviewUrlRuntime(response?.preview?.video_url || '', state.settings.ttsBaseUrl);
-    transitionSubtitles2Phase('Procesando audio');
     await refreshSubtitle2RemoteStatus();
     await pollRemoteSubtitleSessionStatus(state.subtitles2.sessionId);
   } catch (err) {
