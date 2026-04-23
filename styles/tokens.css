@@ -25,5 +25,5 @@
   --radius-sm: 0;
   --sidebar-collapsed: 82px;
   --sidebar-expanded: clamp(248px, 22vw, 272px);
-  --content-max: 1580px;
+  --content-max: 1800px;
 }
