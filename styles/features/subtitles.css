@@ -524,60 +524,99 @@
 }
 
 #viewSubtitulos2.subtitle2-screen {
+  --subtitle2-base: #0C0C0C;
+  --subtitle2-base-deep: #070707;
+  --subtitle2-card: #0A0A0A;
+  --subtitle2-panel: #0D0D0D;
+  --subtitle2-stage: #050505;
+  --subtitle2-ink: #151515;
+  --subtitle2-rail: #121212;
+  --subtitle2-border-soft: #232323;
+  --subtitle2-border: #262626;
+  --subtitle2-border-strong: #2A2A2A;
+  --subtitle2-border-hard: #353535;
+  --subtitle2-green: #00E88F;
+  --subtitle2-green-soft: #00E88F55;
+  --subtitle2-mint-soft: #00FFAA55;
+  --subtitle2-amber-soft: #F7B95555;
+  --subtitle2-blue-soft: #9DB8FF55;
+  --subtitle2-mint-line: #00FFAA66;
+  --subtitle2-amber: #F7B955;
+  --subtitle2-blue: #9DB8FF;
+  --subtitle2-yellow: #FACC15;
+  --subtitle2-text: #F5F7F7;
+  --subtitle2-text-soft: #D8DBDE;
+  --subtitle2-muted: #8B8E93;
+  --subtitle2-muted-strong: #6E7278;
+  --subtitle2-label: #6B6B6B;
+  --subtitle2-control: #777B80;
+  --subtitle2-green-ink: #03140D;
+  --subtitle2-silver: #DADDE0;
   min-height: calc(100vh - 42px);
-  padding-bottom: 24px;
+  padding: 28px 32px 32px 32px;
   display: grid;
-  gap: 18px;
-  background:
-    radial-gradient(circle at 22% 0%, rgba(0, 232, 143, 0.08), transparent 28%),
-    radial-gradient(circle at 88% 10%, rgba(157, 184, 255, 0.08), transparent 24%),
-    #0C0C0C;
-  color: #F4F4F4;
+  gap: 20px;
+  background: #0C0C0C;
+  color: #F5F7F7;
+  font-family: 'Inter', sans-serif;
 }
 
 #viewSubtitulos2 .subtitle2-screen__header {
   align-items: stretch;
   gap: 20px;
-  padding: 22px;
-  border: 1px solid #262626;
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96)),
-    #0A0A0A;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.36);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #0C0C0C;
 }
 
 #viewSubtitulos2 .subtitle2-screen__header h1 {
-  margin: 2px 0 8px;
-  letter-spacing: -0.055em;
+  margin: 2px 0 10px;
+  color: #F5F7F7;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
 }
 
 #viewSubtitulos2 .subtitle2-screen__header p:not(.subtitle2-eyebrow) {
   max-width: 760px;
-  color: #A7A7A7;
+  color: #8B8E93;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 #viewSubtitulos2 .subtitle2-eyebrow,
 #viewSubtitulos2 .subtitle2-section-label {
   margin: 0;
-  color: #00E88F;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  color: #6B6B6B;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading .subtitle2-section-label,
+#viewSubtitulos2 .subtitle2-history-section .subtitle2-section-label {
+  color: #00E88F;
 }
 
 #viewSubtitulos2 .subtitle2-health-chip {
   min-width: 230px;
   align-self: center;
   padding: 12px 14px;
-  border: 1px solid rgba(0, 232, 143, 0.34);
-  border-radius: 999px;
-  background: rgba(0, 232, 143, 0.09);
-  color: #D9FFEF;
-  font-weight: 800;
+  border: 1px solid #00E88F55;
+  border-radius: 0;
+  background: #03140D;
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
   text-align: center;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 #viewSubtitulos2 .subtitle2-phase-card,
@@ -586,17 +625,18 @@
 #viewSubtitulos2 .subtitle2-upload-source-card,
 #viewSubtitulos2 .subtitle2-editor-card {
   border: 1px solid #262626;
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(13, 13, 13, 0.98), rgba(10, 10, 10, 0.98));
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.32);
+  border-radius: 0;
+  background: #0A0A0A;
 }
 
 #viewSubtitulos2 .subtitle2-phase-card {
-  padding: 18px;
+  padding: 24px;
   display: grid;
   grid-template-columns: minmax(150px, 0.22fr) minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: 24px;
+  background: #070707;
+  border-color: #232323;
 }
 
 #viewSubtitulos2 .subtitle2-phase-card h3,
@@ -604,7 +644,26 @@
 #viewSubtitulos2 .subtitle2-card-heading h3,
 #viewSubtitulos2 .subtitle2-history-section h3 {
   margin: 4px 0 0;
-  color: #F5F5F5;
+  color: #F5F7F7;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+#viewSubtitulos2 .subtitle2-side-card h3,
+#viewSubtitulos2 .subtitle2-card-heading h3 {
+  font-size: 26px;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading p,
+#viewSubtitulos2 .subtitle2-side-card .meta,
+#viewSubtitulos2 .subtitle2-history-section .meta,
+#viewSubtitulos2 .meta {
+  color: #8B8E93;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 #viewSubtitulos2 .subtitle-phase-bar {
@@ -614,10 +673,14 @@
 #viewSubtitulos2 .subtitle-phase-item {
   position: relative;
   border-color: #2A2A2A;
-  border-radius: 14px;
+  border-radius: 0;
   padding: 13px 10px;
-  background: #111111;
-  color: #8D8D8D;
+  background: #121212;
+  color: #777B80;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
   overflow: hidden;
 }
 
@@ -630,9 +693,9 @@
 }
 
 #viewSubtitulos2 .subtitle-phase-item.active {
-  border-color: rgba(0, 232, 143, 0.54);
-  background: rgba(0, 232, 143, 0.08);
-  color: #E8FFF6;
+  border-color: #00FFAA66;
+  background: #03140D;
+  color: #00E88F;
 }
 
 #viewSubtitulos2 .subtitle-phase-item.active::before {
@@ -640,9 +703,9 @@
 }
 
 #viewSubtitulos2 .subtitle-phase-item.done {
-  border-color: rgba(247, 185, 85, 0.36);
-  background: rgba(247, 185, 85, 0.08);
-  color: #FFE7B9;
+  border-color: #F7B95555;
+  background: #151515;
+  color: #F7B955;
 }
 
 #viewSubtitulos2 .subtitle-phase-item.done::before {
@@ -651,26 +714,31 @@
 
 #viewSubtitulos2 .subtitle2-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 520px;
+  gap: 20px;
   align-items: start;
 }
 
 #viewSubtitulos2 .subtitle2-master-card {
   order: 1;
   min-height: min(720px, calc(100vh - 250px));
-  padding: 18px;
+  padding: 24px;
   display: grid;
-  gap: 16px;
+  gap: 24px;
+  background: #0A0A0A;
+  border-color: #262626;
 }
 
 #viewSubtitulos2 .subtitle2-side-card {
   order: 2;
-  padding: 18px;
+  width: 520px;
+  padding: 24px;
   display: grid;
   gap: 18px;
   position: sticky;
   top: 18px;
+  background: #0A0A0A;
+  border-color: #262626;
 }
 
 #viewSubtitulos2 .subtitle2-card-heading {
@@ -687,17 +755,23 @@
 
 #viewSubtitulos2 .subtitle2-upload-source-card,
 #viewSubtitulos2 .subtitle2-editor-card {
-  padding: 18px;
+  padding: 24px;
 }
 
 #viewSubtitulos2 .subtitle2-upload-source-card {
-  width: min(640px, 100%);
+  width: min(700px, 100%);
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+  border-color: #2A2A2A;
+  background: #0D0D0D;
+}
+
+#viewSubtitulos2 .subtitle2-editor-card {
   display: grid;
   gap: 16px;
-  border-color: rgba(0, 232, 143, 0.22);
-  background:
-    radial-gradient(circle at 50% 30%, rgba(0, 232, 143, 0.1), transparent 52%),
-    #0A0A0A;
+  border-color: #2A2A2A;
+  background: #0D0D0D;
 }
 
 #viewSubtitulos2 .subtitle-phase-section--centered {
@@ -707,36 +781,42 @@
 #viewSubtitulos2 .subtitle-upload-dropzone {
   margin: 0;
   min-height: 290px;
-  border-color: rgba(0, 232, 143, 0.45);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(0, 232, 143, 0.08), rgba(157, 184, 255, 0.04)),
-    #0D0D0D;
+  padding: 42px 28px;
+  border: 1px solid #262626;
+  border-radius: 0;
+  background: #0A0A0A;
 }
 
 #viewSubtitulos2 .subtitle-upload-cta-icon {
   color: #00E88F;
-  text-shadow: 0 0 28px rgba(0, 232, 143, 0.35);
 }
 
 #viewSubtitulos2 .subtitle-upload-cta-title {
-  color: #FFFFFF;
+  color: #F5F7F7;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
 }
 
 #viewSubtitulos2 .subtitle-upload-cta-sub,
 #viewSubtitulos2 .subtitle-source-engine-hint,
 #viewSubtitulos2 .meta {
-  color: #9C9C9C;
+  color: #8B8E93;
 }
 
 #viewSubtitulos2 .subtitle-source-language {
   border-color: #2A2A2A;
-  border-radius: 16px;
-  background: #101010;
+  border-radius: 0;
+  background: #0D0D0D;
 }
 
 #viewSubtitulos2 .subtitle-source-language-title {
-  color: #EDEDED;
+  color: #D8DBDE;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 
 #viewSubtitulos2 .subtitle-preview-frame {
@@ -748,32 +828,33 @@
 #viewSubtitulos2 .subtitle-preview-stage {
   min-height: 240px;
   border-color: #2A2A2A;
-  border-radius: 18px;
+  border-radius: 0;
   background: #050505;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 14px 32px rgba(0, 0, 0, 0.36);
+  box-shadow: none;
 }
 
 #viewSubtitulos2 .subtitle-preview-empty {
-  color: #B7C6FF;
-  background: radial-gradient(circle at center, rgba(157, 184, 255, 0.14), transparent 64%);
+  color: #9DB8FF;
+  background: #050505;
 }
 
 #viewSubtitulos2 .subtitle-preview-cue {
-  color: #FFFFFF;
-  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.9);
+  color: #F5F7F7;
+  font-family: 'Khand', sans-serif;
+  text-shadow: none;
 }
 
 #viewSubtitulos2 .subtitle-preview-play-btn {
-  border-color: rgba(157, 184, 255, 0.55);
-  background: rgba(157, 184, 255, 0.12);
-  color: #EEF3FF;
+  border-color: #9DB8FF55;
+  border-radius: 0;
+  background: #121212;
+  color: #D8DBDE;
 }
 
 #viewSubtitulos2 .subtitle-preview-timeline-track {
   border-color: #2A2A2A;
-  background: #111111;
+  border-radius: 0;
+  background: #121212;
 }
 
 #viewSubtitulos2 .subtitle-preview-timeline-cue {
@@ -783,11 +864,13 @@
 #viewSubtitulos2 .subtitle-preview-playhead,
 #viewSubtitulos2 .subtitle-preview-playhead::after {
   background: #00E88F;
-  border-color: #BCFFE5;
+  border-color: #00FFAA55;
+  border-radius: 0;
 }
 
 #viewSubtitulos2 .subtitle-preview-timecode {
-  color: #C6C6C6;
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 #viewSubtitulos2 .subtitle2-history-section {
@@ -799,16 +882,16 @@
   min-height: 118px;
   padding: 12px;
   border: 1px solid #262626;
-  border-radius: 16px;
+  border-radius: 0;
   background: #0A0A0A;
-  color: #A7A7A7;
+  color: #8B8E93;
 }
 
 #viewSubtitulos2 .subtitle-history-list button {
   border: 1px solid #2A2A2A;
-  border-radius: 14px;
-  background: #101010;
-  color: #EDEDED;
+  border-radius: 0;
+  background: #151515;
+  color: #DADDE0;
 }
 
 #viewSubtitulos2 .subtitle-centered-card {
@@ -817,23 +900,27 @@
 }
 
 #viewSubtitulos2 .subtitle-processing-card .subtitle-phase-icon {
-  border-color: rgba(247, 185, 85, 0.42);
-  background: rgba(247, 185, 85, 0.1);
+  border-color: #F7B95555;
+  border-radius: 0;
+  background: #151515;
   color: #F7B955;
 }
 
 #viewSubtitulos2 .subtitle-progress-track {
   border-color: #2A2A2A;
-  background: #111111;
+  border-radius: 0;
+  background: #121212;
 }
 
 #viewSubtitulos2 .subtitle-progress-fill {
-  background: linear-gradient(90deg, #F7B955, #00E88F);
+  border-radius: 0;
+  background: #00E88F;
 }
 
 #viewSubtitulos2 .subtitle-table-scroll {
   border-color: #262626;
-  background: #080808;
+  border-radius: 0;
+  background: #070707;
 }
 
 #viewSubtitulos2 .subtitle-table--remote {
@@ -841,12 +928,16 @@
 }
 
 #viewSubtitulos2 .subtitle-table--remote thead th {
-  background: #101010;
+  background: #121212;
   border-bottom-color: #2A2A2A;
 }
 
 #viewSubtitulos2 .subtitle-table__title {
-  color: #F4F4F4;
+  color: #F5F7F7;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
 }
 
 #viewSubtitulos2 .subtitle-table__hint {
@@ -859,14 +950,16 @@
 #viewSubtitulos2 .subtitle-table select {
   border-color: #2A2A2A;
   background: #0D0D0D;
-  color: #F4F4F4;
+  color: #F5F7F7;
+  border-radius: 0;
 }
 
 #viewSubtitulos2 .subtitle-align-group--compact button,
 #viewSubtitulos2 .subtitle-row-actions--tight .secondary {
   border-color: #2A2A2A;
-  background: #111111;
-  color: #DCDCDC;
+  border-radius: 0;
+  background: #121212;
+  color: #D8DBDE;
 }
 
 @media (max-width: 1160px) {
@@ -876,6 +969,7 @@
 
   #viewSubtitulos2 .subtitle2-side-card {
     position: static;
+    width: 100%;
   }
 }
 

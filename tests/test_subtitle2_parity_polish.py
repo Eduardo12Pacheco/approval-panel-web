@@ -1,4 +1,5 @@
 import subprocess
+import re
 from pathlib import Path
 
 
@@ -7,6 +8,19 @@ INDEX_HTML_PATH = ROOT / "index.html"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
 SUBTITLE_CSS_PATH = ROOT / "styles" / "features" / "subtitles.css"
+
+
+def _subtitle2_scoped_css(css: str) -> str:
+    """Return only Subtítulos 2 scoped rule blocks, including responsive overrides."""
+    scoped_blocks = []
+    for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        if "#viewSubtitulos2" in selector or ".subtitle2-screen" in selector:
+            scoped_blocks.append(f"{selector}{{{body}}}")
+    return "\n".join(scoped_blocks)
+
+
+def _border_radius_values(css: str) -> list[str]:
+    return re.findall(r"border-radius\s*:\s*([^;]+);", css)
 
 
 def _run_node(script: str):
@@ -179,7 +193,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     for expected_rule in [
         '#viewSubtitulos2.subtitle2-screen',
         '#viewSubtitulos2 .subtitle2-workspace',
-        'grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.75fr);',
+        'grid-template-columns: minmax(0, 1fr) 520px;',
         '#viewSubtitulos2 .subtitle2-master-card',
         '#viewSubtitulos2 .subtitle2-side-card',
         '#viewSubtitulos2 .subtitle2-upload-source-card',
@@ -191,3 +205,76 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         '#F7B955',
     ]:
         assert expected_rule in css
+
+
+def test_subtitle2_web_pen_fidelity_uses_square_flat_pencil_tokens():
+    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    scoped_css = _subtitle2_scoped_css(css)
+
+    for pencil_color in [
+        "#0C0C0C",
+        "#070707",
+        "#0A0A0A",
+        "#0D0D0D",
+        "#050505",
+        "#151515",
+        "#121212",
+        "#232323",
+        "#262626",
+        "#2A2A2A",
+        "#353535",
+        "#00E88F55",
+        "#00FFAA55",
+        "#F7B95555",
+        "#9DB8FF55",
+        "#00FFAA66",
+        "#00E88F",
+        "#F7B955",
+        "#9DB8FF",
+        "#FACC15",
+        "#F5F7F7",
+        "#D8DBDE",
+        "#8B8E93",
+        "#6E7278",
+        "#6B6B6B",
+        "#777B80",
+        "#03140D",
+        "#DADDE0",
+    ]:
+        assert pencil_color in scoped_css
+
+    for invented_color in ["#F4F4F4", "#A7A7A7", "#EDEDED", "#9C9C9C", "#FFFFFF"]:
+        assert invented_color not in scoped_css
+
+    assert "radial-gradient" not in scoped_css
+    assert "linear-gradient" not in scoped_css
+
+    radius_values = _border_radius_values(scoped_css)
+    assert radius_values
+    assert all(value.strip() in {"0", "0px"} for value in radius_values)
+
+
+def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_tokens():
+    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    scoped_css = _subtitle2_scoped_css(css)
+
+    for expected_rule in [
+        "padding: 28px 32px 32px 32px;",
+        "grid-template-columns: minmax(0, 1fr) 520px;",
+        "gap: 20px;",
+        "padding: 24px;",
+        "gap: 24px;",
+        "gap: 18px;",
+        "width: min(700px, 100%);",
+        "padding: 28px;",
+        "padding: 42px 28px;",
+        "font-family: 'JetBrains Mono', monospace;",
+        "font-size: 10px;",
+        "letter-spacing: 1.2px;",
+        "font-family: 'Space Grotesk', sans-serif;",
+        "font-size: 38px;",
+        "font-size: 24px;",
+        "font-family: 'Inter', sans-serif;",
+        "font-size: 14px;",
+    ]:
+        assert expected_rule in scoped_css
