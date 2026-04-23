@@ -120,6 +120,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-history-item--editing',
         '.subtitle-history-item--done',
         '.subtitle-history-item--active',
+        '.subtitle-history-item__resume',
+        '.subtitle-history-item__delete',
     ]:
         assert token in css
 
@@ -127,6 +129,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'setSubtitles2PhaseFromRemoteStatus',
         'forceSubtitles2Phase',
         'resolveSubtitle2HistoryTone',
+        'deleteSubtitle2HistorySession',
+        'delete-subtitle-session',
         'aria-current=',
         'subtitle-history-item--${tone}',
     ]:

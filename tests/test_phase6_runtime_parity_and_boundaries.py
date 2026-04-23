@@ -119,6 +119,12 @@ if (postCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('x-ap
 if (!String(postCall.options.headers['Authorization'] || '').startsWith('Basic ')) throw new Error('basic auth drift');
 if (postCall.options.headers['x-user-email'] !== 'dev@example.com') throw new Error('x-user-email drift');
 
+await api.deleteSubtitleSession('session-1');
+const deleteCall = calls[1];
+if (deleteCall.url !== 'http://localhost:8088/api/subtitles/sessions/session-1') throw new Error('subtitle delete url drift');
+if (deleteCall.options.method !== 'DELETE') throw new Error('subtitle delete method drift');
+if (deleteCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('subtitle delete auth drift');
+
 const apiMissingCreds = createTtsApiClient({
   getSettings: () => ({ ttsBaseUrl: 'http://localhost:8088', ttsApiKey: 'k', ttsBasicUser: '', ttsBasicPass: '' }),
   fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),

@@ -476,6 +476,12 @@ function bindEvents() {
   el.subtitle2PreviewTimeline?.addEventListener('click', onSubtitle2PreviewTimelineClick);
   el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', onSubtitle2PreviewTimelineDragStart);
   el.subtitle2SessionHistory?.addEventListener('click', (ev) => {
+    const deleteButton = ev.target.closest('[data-action="delete-subtitle-session"]');
+    if (deleteButton) {
+      const sessionId = (deleteButton.dataset.sessionId || '').trim();
+      if (sessionId) void deleteSubtitle2HistorySession(sessionId);
+      return;
+    }
     const button = ev.target.closest('[data-action="resume-subtitle-session"]');
     if (!button) return;
     const sessionId = (button.dataset.sessionId || '').trim();
@@ -1741,10 +1747,13 @@ function renderSubtitle2SessionHistory() {
     const status = (item?.status || 'unknown').toString();
     const tone = resolveSubtitle2HistoryTone({ sessionId, status, item });
     return `
-    <button type="button" class="secondary subtitle-history-item subtitle-history-item--${tone}" data-action="resume-subtitle-session" data-session-id="${escapeHtml(sessionId)}" aria-current="${tone === 'active' ? 'true' : 'false'}">
-      <span class="subtitle-history-item__id">${escapeHtml(sessionId)}</span>
-      <span class="subtitle-history-item__status">${escapeHtml(status)}</span>
-    </button>
+    <article class="subtitle-history-item subtitle-history-item--${tone}" aria-current="${tone === 'active' ? 'true' : 'false'}">
+      <button type="button" class="secondary subtitle-history-item__resume" data-action="resume-subtitle-session" data-session-id="${escapeHtml(sessionId)}">
+        <span class="subtitle-history-item__id">${escapeHtml(sessionId)}</span>
+        <span class="subtitle-history-item__status">${escapeHtml(status)}</span>
+      </button>
+      <button type="button" class="subtitle-history-item__delete" aria-label="Eliminar proyecto" data-action="delete-subtitle-session" data-session-id="${escapeHtml(sessionId)}">×</button>
+    </article>
   `;
   }).join('');
 }
@@ -2075,6 +2084,24 @@ function resetSubtitle2EditorForAnotherVideo() {
   if (el.subtitle2UploadInput) el.subtitle2UploadInput.value = '';
   renderSubtitles2Workflow();
   toast('Listo para subtitular otro video');
+}
+
+async function deleteSubtitle2HistorySession(sessionId) {
+  const confirmed = window.confirm(`¿Eliminar proyecto ${sessionId}? Esta acción no se puede deshacer.`);
+  if (!confirmed) return;
+  try {
+    await ttsApi.deleteSubtitleSession(sessionId);
+    state.subtitles2.sessionHistory = state.subtitles2.sessionHistory.filter((item) => item?.id !== sessionId);
+    if (state.subtitles2.sessionId === sessionId) {
+      resetSubtitles2RunState();
+    }
+    renderSubtitles2Workflow();
+    await refreshSubtitle2RemoteStatus();
+    toast('Proyecto eliminado');
+  } catch (error) {
+    console.error(error);
+    toast(getErrorMessage(error, 'No se pudo eliminar el proyecto'));
+  }
 }
 
 function hydrateSettingsForm() {
