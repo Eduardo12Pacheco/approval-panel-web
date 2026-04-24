@@ -501,6 +501,58 @@ function renderStats() {
   `;
 }
 
+function renderCountryFilter() {
+  const current = el.countryFilter.value;
+  const countries = [...new Set(state.items.map((i) => i.seleccion).filter(Boolean))].sort();
+  el.countryFilter.innerHTML = '<option value="">Todos los países</option>'
+    + countries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join('');
+  el.countryFilter.value = current;
+  customDropdowns.refreshAll();
+}
+
+function filteredItems() {
+  const query = el.searchInput.value.trim().toLowerCase();
+  const country = el.countryFilter.value;
+  const minSources = Number(el.sourcesFilter.value || 0);
+
+  const filtered = state.items.filter((item) => {
+    const searchMatch = !query || `${item.jugador} ${item.tema_principal}`.toLowerCase().includes(query);
+    const countryMatch = !country || item.seleccion === country;
+    const sourcesMatch = Number(item.cantidad_fuentes || 0) >= minSources;
+    return searchMatch && countryMatch && sourcesMatch;
+  });
+
+  return orderApprovalItemsByLowestAvg(filtered);
+}
+
+function renderCards() {
+  const list = filteredItems();
+  el.cardsMeta.textContent = `${list.length} resultado${list.length === 1 ? '' : 's'}`;
+
+  if (!list.length) {
+    el.cards.innerHTML = '<p class="meta">No hay temas para mostrar con esos filtros.</p>';
+    return;
+  }
+
+  el.cards.innerHTML = list.map((item) => buildApprovalNewsCardMarkup(item)).join('');
+
+  el.cards.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('click', async (ev) => {
+      const interactive = ev.target.closest('button, a');
+      if (interactive) return;
+      const id = decodeURIComponent(card.dataset.cardId);
+      await openDetail(id);
+    });
+
+    card.addEventListener('keydown', async (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      const id = decodeURIComponent(card.dataset.cardId);
+      await openDetail(id);
+    });
+  });
+}
+
 function renderScriptStats() {
   renderScriptStatsView({ scriptDrafts: state.scriptDrafts, el });
 }

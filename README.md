@@ -83,7 +83,6 @@ approval-panel-web/
 │     ├─ approval.css
 │     ├─ scripts.css
 │     ├─ audio.css
-│     ├─ subtitles.css              # compat histórico; no importado por styles.css
 │     ├─ subtitles/
 │     │  ├─ index.css               # fachada import-only
 │     │  ├─ legacy-base.css
