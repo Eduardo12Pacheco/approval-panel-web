@@ -103,7 +103,6 @@ const api = createTtsApiClient({
     ttsApiKey: 'api-key-1',
     ttsBasicUser: 'user',
     ttsBasicPass: 'pass',
-    ttsUserEmail: 'dev@example.com',
   }),
   btoaImpl: (value) => Buffer.from(value).toString('base64'),
   fetchImpl: async (url, options = {}) => {
@@ -117,7 +116,7 @@ const postCall = calls[0];
 if (postCall.url !== 'http://localhost:8088/api/tts/jobs') throw new Error('tts url drift');
 if (postCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('x-api-key drift');
 if (!String(postCall.options.headers['Authorization'] || '').startsWith('Basic ')) throw new Error('basic auth drift');
-if (postCall.options.headers['x-user-email'] !== 'dev@example.com') throw new Error('x-user-email drift');
+if ('x-user-email' in postCall.options.headers) throw new Error('x-user-email should not be sent');
 
 await api.deleteSubtitleSession('session-1');
 const deleteCall = calls[1];

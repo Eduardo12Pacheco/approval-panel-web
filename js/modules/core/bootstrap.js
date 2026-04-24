@@ -64,7 +64,6 @@ export function bindCoreEvents({
         ttsApiKey: el.ttsApiKeyInput.value.trim(),
         ttsBasicUser: el.ttsBasicUserInput.value.trim(),
         ttsBasicPass: el.ttsBasicPassInput.value,
-        ttsUserEmail: el.ttsUserEmailInput.value.trim(),
       });
     el.settingsDialog.close();
     toast('Configuración guardada');

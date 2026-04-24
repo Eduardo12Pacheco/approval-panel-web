@@ -79,7 +79,6 @@ function replaySettingsScenario() {
     ttsApiKeyInput: { value: '' },
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
-    ttsUserEmailInput: { value: '' },
   };
   hydrateSettingsFormValues({ el, settings: loadedSaved });
   if (el.baseUrlInput.value !== 'http://localhost:9999') {

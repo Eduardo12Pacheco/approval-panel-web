@@ -6,7 +6,6 @@ export function defaultSettingsFactory() {
     ttsApiKey: '',
     ttsBasicUser: '',
     ttsBasicPass: '',
-    ttsUserEmail: '',
   };
 }
 
@@ -33,5 +32,4 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.ttsApiKeyInput.value = settings.ttsApiKey;
   el.ttsBasicUserInput.value = settings.ttsBasicUser;
   el.ttsBasicPassInput.value = settings.ttsBasicPass;
-  el.ttsUserEmailInput.value = settings.ttsUserEmail;
 }

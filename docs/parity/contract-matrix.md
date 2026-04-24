@@ -10,8 +10,8 @@ Baseline parity checkpoints for refactor slices. This matrix freezes user-visibl
 |---|---|---|---|---|---|---|
 | P0 | approval | Cards render + queue dialog behavior unchanged | `/webhook/approval/*` | `GET/POST` | `x-approval-secret` (optional) | `cluster_id`, `action`, `id_noticia`, `tema_principal`, `seleccion`, `jugador`, `link` |
 | P0 | scripts | Draft list/editor/publish dialogs unchanged | `/webhook/mvp-script-*` | `GET/POST` | `x-approval-secret` (optional) | `draft_id`, `cluster_id`, `id_noticia`, `guion_editado` |
-| P0 | audio | Job queue cards + polling/SSE status unchanged | `/api/tts/*` | `GET/POST` | `x-api-key`, `Authorization`, `x-user-email` (optional) | `preset`, `text`, `job_id`, `status` |
-| P0 | subtitles | 5-phase state machine visibility unchanged | `/api/subtitles/*` | `GET/POST` | `x-api-key`, `Authorization`, `x-user-email` (optional) | `job_id`, `rows`, `source_language`, `phase` |
+| P0 | audio | Job queue cards + polling/SSE status unchanged | `/api/tts/*` | `GET/POST` | `x-api-key`, `Authorization` | `preset`, `text`, `job_id`, `status` |
+| P0 | subtitles | 5-phase state machine visibility unchanged | `/api/subtitles/*` | `GET/POST/PATCH/DELETE` | `x-api-key`, `Authorization` | `job_id`, `rows`, `source_language`, `phase` |
 | P0 | auth/session | Auth gate ↔ shell toggle unchanged | local/session bootstrap boundary (no API contract change) | N/A | N/A | `approval-panel-session-v1` |
 | P0 | settings | Settings hydration/save flow unchanged | local/settings bootstrap boundary (no API contract change) | N/A | N/A | `approval-panel-settings-v1` |
 
@@ -26,7 +26,7 @@ For each checkpoint replay, UI states and network contract columns MUST match th
 | CSS guarded selectors keep computed-style contract across split layers (`.sidebar`, `.topbar`, `.card`, `.audio-queue-card`, `.subtitle-phase-bar`) | Node-executed computed-style parity snapshot (import-order aware) | `tests/test_phase5_css_split_parity.py::test_executable_computed_style_parity_evidence_exists_for_guarded_selectors` + `tests/test_phase5_css_split_parity.py::test_computed_style_parity_snapshot_covers_multiple_guarded_selectors` |
 | Approval decision POST preserves URL/method/header/body | Node-executed API client behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_approval_api_runtime_contract_headers_payload_and_error_paths` |
 | Approval API rejects HTTP error and business-error payloads | Node-executed negative behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_approval_api_runtime_contract_headers_payload_and_error_paths` |
-| TTS API preserves `x-api-key` + `Authorization` + optional `x-user-email` | Node-executed API client behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_tts_api_runtime_contract_headers_and_negative_auth_paths` |
+| TTS API preserves `x-api-key` + `Authorization` and never sends `x-user-email` | Node-executed API client behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_tts_api_runtime_contract_headers_and_negative_auth_paths` |
 | TTS API rejects missing basic-auth credentials | Node-executed negative behavior test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_tts_api_runtime_contract_headers_and_negative_auth_paths` |
 | Feature isolation boundary (no forbidden cross-feature imports) | Dependency-boundary negative test | `tests/test_phase6_runtime_parity_and_boundaries.py::test_forbidden_cross_feature_import_boundaries_are_enforced` |
 

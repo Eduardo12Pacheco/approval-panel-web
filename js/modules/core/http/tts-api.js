@@ -39,9 +39,6 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
       headers['Content-Type'] = contentType;
     }
 
-    const devUserEmail = (settings.ttsUserEmail || '').trim();
-    if (devUserEmail) headers['x-user-email'] = devUserEmail;
-
     return headers;
   }
 

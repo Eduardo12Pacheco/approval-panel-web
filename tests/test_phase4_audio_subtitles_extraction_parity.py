@@ -25,8 +25,9 @@ def test_tts_api_contract_preserves_headers_and_audio_subtitles_routes():
     source = TTS_API_PATH.read_text(encoding="utf-8")
     assert "createTtsApiClient" in source
 
-    for token in ["x-api-key", "Authorization", "x-user-email"]:
+    for token in ["x-api-key", "Authorization"]:
         assert token in source, f"Missing TTS header contract token: {token}"
+    assert "x-user-email" not in source
 
     for endpoint in [
         "/api/tts/jobs",
