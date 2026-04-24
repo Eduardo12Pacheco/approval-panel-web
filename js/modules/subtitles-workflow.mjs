@@ -55,10 +55,11 @@ export function createEmptySubtitleRow(seed = {}) {
   const rawMaxWidthPx = Number(seed.maxWidthPx ?? 1080);
   const safeMaxWidthPx = Number.isFinite(rawMaxWidthPx) && rawMaxWidthPx > 0 ? Math.round(rawMaxWidthPx) : 1080;
   const fontFamily = normalizeFontFamily(seed.fontFamily || seed.font_family, SUBTITLE_FONT_PRESETS[0]);
+  const isDraft = Boolean(seed.isDraft || seed.draft || seed.untimed);
   return {
     id: (seed.id || '').toString(),
-    start: (seed.start || '00:00:00.000').toString(),
-    end: (seed.end || '00:00:02.000').toString(),
+    start: (isDraft ? (seed.start ?? '') : (seed.start || '00:00:00.000')).toString(),
+    end: (isDraft ? (seed.end ?? '') : (seed.end || '00:00:02.000')).toString(),
     sourceText: (seed.sourceText || '').toString(),
     phrase: (seed.phrase || '').toString(),
     maxWidthPx: safeMaxWidthPx,
@@ -67,6 +68,7 @@ export function createEmptySubtitleRow(seed = {}) {
     fontFamily,
     fontWeight: (seed.fontWeight || seed.font_weight || resolveSubtitleFontWeight(fontFamily)).toString(),
     align: normalizeAlignment(seed.align),
+    isDraft,
   };
 }
 
@@ -99,6 +101,7 @@ export function applySubtitleRowPatch(row, patch = {}) {
         safeRow.fontWeight,
       ),
     align: patch.align != null ? normalizeAlignment(patch.align, safeRow.align) : safeRow.align,
+    isDraft: patch.isDraft != null ? Boolean(patch.isDraft) : safeRow.isDraft,
   };
 }
 

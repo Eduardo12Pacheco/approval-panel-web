@@ -102,7 +102,9 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
     assert 'id="subtitle2PreviewEmpty"' in index_html
     assert 'subtitle-table__col--time-range' in index_html
+    assert 'subtitle-table__col--delete' in index_html
     assert 'Start / End' in index_html
+    assert 'Agregar subtítulo' in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
     assert 'subtitle-row-actions subtitle-row-actions--tight' not in app_shell
@@ -122,6 +124,10 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-history-item--active',
         '.subtitle-history-item__resume',
         '.subtitle-history-item__delete',
+        '.subtitle-row-delete',
+        '.subtitle-row--draft',
+        '.is-drop-before',
+        '.is-dragging',
     ]:
         assert token in css
 
@@ -131,6 +137,14 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'resolveSubtitle2HistoryTone',
         'deleteSubtitle2HistorySession',
         'delete-subtitle-session',
+        'deleteSubtitle2Row',
+        'delete-subtitle-row',
+        'La primera frase no se puede eliminar',
+        'onSubtitle2DraftDragStart',
+        'placeSubtitle2DraftBetweenRows',
+        'Ubicá el subtítulo fantasma antes de guardar',
+        'Ya hay un subtítulo fantasma para ubicar',
+        'data-draft=',
         'aria-current=',
         'subtitle-history-item--${tone}',
     ]:

@@ -463,6 +463,11 @@ function bindEvents() {
   el.subtitle2RowsBody?.addEventListener('input', onSubtitle2TableInput);
   el.subtitle2RowsBody?.addEventListener('change', onSubtitle2TableInput);
   el.subtitle2RowsBody?.addEventListener('click', onSubtitle2TableClick);
+  el.subtitle2RowsBody?.addEventListener('dragstart', onSubtitle2DraftDragStart);
+  el.subtitle2RowsBody?.addEventListener('dragover', onSubtitle2DraftDragOver);
+  el.subtitle2RowsBody?.addEventListener('dragleave', onSubtitle2DraftDragLeave);
+  el.subtitle2RowsBody?.addEventListener('drop', onSubtitle2DraftDrop);
+  el.subtitle2RowsBody?.addEventListener('dragend', onSubtitle2DraftDragEnd);
   el.subtitle2PreviewVideo?.addEventListener('timeupdate', onSubtitle2PreviewTimeUpdate);
   el.subtitle2PreviewVideo?.addEventListener('play', () => {
     state.subtitles2.previewPlaying = true;
@@ -1556,6 +1561,10 @@ async function onSubtitle2SaveClicked() {
     toast('No hay cambios para guardar');
     return;
   }
+  if (hasSubtitle2DraftRows()) {
+    toast('Ubicá el subtítulo fantasma antes de guardar');
+    return;
+  }
   try {
     await enqueueSubtitle2Save('manual');
     toast('Cambios guardados');
@@ -1568,6 +1577,9 @@ async function onSubtitle2SaveClicked() {
 }
 
 async function enqueueSubtitle2Save(saveMode) {
+  if (hasSubtitle2DraftRows()) {
+    throw new Error('Ubicá el subtítulo fantasma antes de guardar');
+  }
   const response = await ttsApi.updateSubtitleSegments(state.subtitles2.sessionId, {
     base_version: state.subtitles2.snapshotVersion,
     save_mode: saveMode,
@@ -1597,6 +1609,10 @@ async function enqueueSubtitle2Save(saveMode) {
 async function onSubtitle2ReadyClicked() {
   if (!state.subtitles2.sessionId || state.subtitles2.snapshotVersion < 1) {
     toast('Necesitás una sesión remota lista antes de renderizar');
+    return;
+  }
+  if (hasSubtitle2DraftRows()) {
+    toast('Ubicá el subtítulo fantasma antes de renderizar');
     return;
   }
   if (state.subtitles2.dirty) {
@@ -1631,6 +1647,10 @@ function patchSubtitle2Row(rowId, patch, options = {}) {
   if (rerender) renderSubtitles2Table();
   renderSubtitle2PreviewOverlay();
   updateSubtitle2ButtonsByPhase();
+}
+
+function hasSubtitle2DraftRows() {
+  return state.subtitles2.rows.some((row) => Boolean(row?.isDraft));
 }
 
 function onSubtitle2TableInput(ev) {
@@ -1685,6 +1705,12 @@ function applySubtitle2TimingInput(rowId, field, rawValue) {
 }
 
 function onSubtitle2TableClick(ev) {
+  const deleteButton = ev.target.closest('button[data-action="delete-subtitle-row"]');
+  if (deleteButton) {
+    const rowId = deleteButton.dataset.rowId;
+    if (rowId) deleteSubtitle2Row(rowId);
+    return;
+  }
   const button = ev.target.closest('button[data-field="align"]');
   if (!button) return;
   const rowId = button.dataset.rowId;
@@ -1693,22 +1719,143 @@ function onSubtitle2TableClick(ev) {
   patchSubtitle2Row(rowId, { align });
 }
 
-function onSubtitle2AddRowClicked() {
-  const lastRow = state.subtitles2.rows[state.subtitles2.rows.length - 1];
-  if (!lastRow) return;
-  const result = buildSubtitleInsertRowRuntime({
-    rows: state.subtitles2.rows,
-    insertAfterRowId: lastRow.id,
-    createRow: createEmptySubtitleRow,
-    formatTime: formatSubtitleDisplayTimeRuntime,
-  });
-  if (!result.accepted || !result.row) {
-    toast(result.reason || 'No se pudo agregar línea');
+function deleteSubtitle2Row(rowId) {
+  const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
+  if (index <= 0) {
+    toast('La primera frase no se puede eliminar');
     return;
   }
-  state.subtitles2.rows = [...state.subtitles2.rows, result.row];
+  const deletedRow = state.subtitles2.rows[index];
+  if (deletedRow?.isDraft) {
+    state.subtitles2.rows = state.subtitles2.rows.filter((row) => row.id !== rowId);
+    state.subtitles2.changeVersion += 1;
+    state.subtitles2.dirty = true;
+    renderSubtitles2Workflow();
+    return;
+  }
+  const previousRow = state.subtitles2.rows[index - 1];
+  const nextRows = state.subtitles2.rows.filter((row) => row.id !== rowId);
+  nextRows[index - 1] = {
+    ...previousRow,
+    end: deletedRow.end,
+  };
+  state.subtitles2.rows = nextRows;
   state.subtitles2.changeVersion += 1;
   state.subtitles2.dirty = true;
+  renderSubtitles2Workflow();
+}
+
+function onSubtitle2AddRowClicked() {
+  if (hasSubtitle2DraftRows()) {
+    toast('Ya hay un subtítulo fantasma para ubicar');
+    return;
+  }
+  const row = createEmptySubtitleRow({
+    id: `draft-${Date.now()}`,
+    start: '',
+    end: '',
+    phrase: '',
+    isDraft: true,
+  });
+  state.subtitles2.rows = [...state.subtitles2.rows, row];
+  state.subtitles2.changeVersion += 1;
+  state.subtitles2.dirty = true;
+  renderSubtitles2Workflow();
+}
+
+function onSubtitle2DraftDragStart(ev) {
+  const rowEl = ev.target.closest('tr[data-row-id]');
+  if (!rowEl || rowEl.dataset.draft !== 'true') return;
+  state.subtitles2.draggingDraftRowId = rowEl.dataset.rowId;
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', rowEl.dataset.rowId);
+  rowEl.classList.add('is-dragging');
+}
+
+function onSubtitle2DraftDragOver(ev) {
+  const draftId = state.subtitles2.draggingDraftRowId;
+  if (!draftId) return;
+  const rowEl = ev.target.closest('tr[data-row-id]');
+  if (!rowEl || rowEl.dataset.draft === 'true') return;
+  const targetIndex = state.subtitles2.rows.findIndex((row) => row.id === rowEl.dataset.rowId);
+  if (targetIndex <= 0) return;
+  ev.preventDefault();
+  clearSubtitle2DropTargets();
+  rowEl.classList.add('is-drop-before');
+}
+
+function onSubtitle2DraftDragLeave(ev) {
+  const rowEl = ev.target.closest('tr[data-row-id]');
+  if (!rowEl || rowEl.contains(ev.relatedTarget)) return;
+  rowEl.classList.remove('is-drop-before');
+}
+
+function onSubtitle2DraftDrop(ev) {
+  const draftId = state.subtitles2.draggingDraftRowId;
+  if (!draftId) return;
+  const rowEl = ev.target.closest('tr[data-row-id]');
+  if (!rowEl || rowEl.dataset.draft === 'true') return;
+  ev.preventDefault();
+  const targetIndex = state.subtitles2.rows.findIndex((row) => row.id === rowEl.dataset.rowId);
+  if (targetIndex <= 0) {
+    toast('Soltá el subtítulo entre dos frases existentes');
+    return;
+  }
+  placeSubtitle2DraftBetweenRows(draftId, targetIndex);
+}
+
+function onSubtitle2DraftDragEnd() {
+  clearSubtitle2DropTargets();
+  state.subtitles2.draggingDraftRowId = null;
+}
+
+function clearSubtitle2DropTargets() {
+  el.subtitle2RowsBody?.querySelectorAll('.is-drop-before, .is-dragging').forEach((node) => {
+    node.classList.remove('is-drop-before', 'is-dragging');
+  });
+}
+
+function placeSubtitle2DraftBetweenRows(draftId, targetIndex) {
+  const rows = state.subtitles2.rows;
+  const draft = rows.find((row) => row.id === draftId && row.isDraft);
+  const previous = rows[targetIndex - 1];
+  const next = rows[targetIndex];
+  if (!draft || !previous || !next || previous.isDraft || next.isDraft) return;
+  const previousStartMs = parseSubtitleTimeToMsRuntime(previous.start);
+  const previousEndMs = parseSubtitleTimeToMsRuntime(previous.end);
+  const nextStartMs = parseSubtitleTimeToMsRuntime(next.start);
+  const nextEndMs = parseSubtitleTimeToMsRuntime(next.end);
+  const draftStartMs = previousEndMs - 1000;
+  const draftEndMs = nextStartMs + 1000;
+  if (draftStartMs <= previousStartMs || draftEndMs >= nextEndMs || draftEndMs <= draftStartMs) {
+    toast('No hay espacio suficiente para insertar el subtítulo');
+    renderSubtitles2Workflow();
+    return;
+  }
+  const placedDraft = {
+    ...draft,
+    start: formatSubtitleDisplayTimeRuntime(draftStartMs),
+    end: formatSubtitleDisplayTimeRuntime(draftEndMs),
+    isDraft: false,
+  };
+  const withoutDraft = rows.filter((row) => row.id !== draftId);
+  const adjustedTargetIndex = withoutDraft.findIndex((row) => row.id === next.id);
+  withoutDraft[adjustedTargetIndex - 1] = {
+    ...previous,
+    end: formatSubtitleDisplayTimeRuntime(draftStartMs),
+  };
+  withoutDraft[adjustedTargetIndex] = {
+    ...next,
+    start: formatSubtitleDisplayTimeRuntime(draftEndMs),
+  };
+  state.subtitles2.rows = [
+    ...withoutDraft.slice(0, adjustedTargetIndex),
+    placedDraft,
+    ...withoutDraft.slice(adjustedTargetIndex),
+  ];
+  state.subtitles2.changeVersion += 1;
+  state.subtitles2.dirty = true;
+  state.subtitles2.draggingDraftRowId = null;
   renderSubtitles2Workflow();
 }
 
@@ -2005,15 +2152,17 @@ function renderSubtitles2Table() {
     { value: '#00FF5A', label: 'Verde' },
     { value: '#0CC3F2', label: 'Celeste' },
   ];
-  el.subtitle2RowsBody.innerHTML = state.subtitles2.rows.map((row) => {
+  el.subtitle2RowsBody.innerHTML = state.subtitles2.rows.map((row, index) => {
     const alignment = getAlignmentButtonState(row.align);
+    const canDelete = index > 0;
+    const isDraft = Boolean(row.isDraft);
     return `
-      <tr>
+      <tr data-row-id="${row.id}" data-draft="${isDraft ? 'true' : 'false'}" class="${isDraft ? 'subtitle-row--draft' : ''}" ${isDraft ? 'draggable="true"' : ''}>
         <td>
           <div class="subtitle-time-range" aria-label="Rango de tiempo">
-            <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" />
+            <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" ${isDraft ? 'disabled' : ''} />
             <span class="subtitle-time-range__line" aria-hidden="true"></span>
-            <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" value="${escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" />
+            <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
           </div>
         </td>
         <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};font-weight:${escapeHtml(row.fontWeight || resolveSubtitleFontWeight(row.fontFamily))};">${escapeHtml(row.phrase)}</textarea></td>
@@ -2028,6 +2177,9 @@ function renderSubtitles2Table() {
             <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
           </div>
         </td>
+        <td>
+          <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${row.id}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
+        </td>
       </tr>
     `;
   }).join('');
@@ -2038,8 +2190,9 @@ function updateSubtitle2ButtonsByPhase() {
   const current = state.subtitles2.machine.getPhase();
   const policy = getSubtitlesActionPolicy(current);
   const renderSucceeded = (state.subtitles2.renderStatus || '').toString().trim().toLowerCase() === 'succeeded';
-  if (el.subtitle2SaveBtn) el.subtitle2SaveBtn.disabled = !policy.canSave || !state.subtitles2.dirty;
-  if (el.subtitle2ReadyBtn) el.subtitle2ReadyBtn.disabled = !policy.canReady || !state.subtitles2.sessionId || state.subtitles2.snapshotVersion < 1;
+  const hasDraft = hasSubtitle2DraftRows();
+  if (el.subtitle2SaveBtn) el.subtitle2SaveBtn.disabled = !policy.canSave || !state.subtitles2.dirty || hasDraft;
+  if (el.subtitle2ReadyBtn) el.subtitle2ReadyBtn.disabled = !policy.canReady || !state.subtitles2.sessionId || state.subtitles2.snapshotVersion < 1 || hasDraft;
   if (el.subtitle2DownloadBtn) el.subtitle2DownloadBtn.disabled = !policy.canDownload || !state.subtitles2.sessionId || !renderSucceeded || !state.subtitles2.renderArtifactReady;
   if (el.subtitle2AnotherVideoBtn) el.subtitle2AnotherVideoBtn.disabled = current !== 'Terminado';
 }

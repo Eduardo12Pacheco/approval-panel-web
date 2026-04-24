@@ -449,6 +449,10 @@
   width: 122px;
 }
 
+.subtitle-table__col--delete {
+  width: 58px;
+}
+
 .subtitle-table--remote thead th {
   position: sticky;
   top: 0;
@@ -955,7 +959,7 @@
   gap: 4px;
   justify-content: stretch;
   border: 0;
-  background: transparent;
+  background: transparent !important;
   color: inherit;
   text-align: left;
 }
@@ -992,7 +996,7 @@
   padding: 0;
   border: 0;
   border-left: 1px solid rgba(255, 88, 102, 0.32);
-  background: rgba(255, 88, 102, 0.08);
+  background: transparent !important;
   color: #FF5A66;
   font-family: 'JetBrains Mono', monospace;
   font-size: 20px;
@@ -1073,6 +1077,30 @@
   vertical-align: middle;
 }
 
+#viewSubtitulos2 .subtitle-table--remote tr {
+  transition: transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+#viewSubtitulos2 .subtitle-table--remote tr.is-drop-before {
+  transform: translateY(8px);
+  box-shadow: 0 -2px 0 #F7B955;
+}
+
+#viewSubtitulos2 .subtitle-table--remote tr.is-dragging {
+  opacity: 0.55;
+}
+
+#viewSubtitulos2 .subtitle-table--remote tr.subtitle-row--draft {
+  cursor: grab;
+  background: #111111;
+  outline: 1px dashed #F7B95555;
+  outline-offset: -6px;
+}
+
+#viewSubtitulos2 .subtitle-table--remote tr.subtitle-row--draft:active {
+  cursor: grabbing;
+}
+
 #viewSubtitulos2 .subtitle-table__title {
   color: #F5F7F7;
   font-family: 'JetBrains Mono', monospace;
@@ -1085,7 +1113,7 @@
   color: #9DB8FF;
 }
 
-#viewSubtitulos2 .subtitle-table--remote thead th:not(:nth-child(7)) .subtitle-table__hint {
+#viewSubtitulos2 .subtitle-table--remote thead th:not(:nth-child(7)):not(:nth-child(8)) .subtitle-table__hint {
   display: none;
 }
 
@@ -1129,6 +1157,16 @@
   color: #9DB8FF;
 }
 
+#viewSubtitulos2 .subtitle-time-range input:disabled {
+  color: #F7B955;
+  opacity: 0.72;
+}
+
+#viewSubtitulos2 .subtitle-time-range input::placeholder {
+  color: #F7B955;
+  opacity: 0.72;
+}
+
 #viewSubtitulos2 .subtitle-align-group--compact button {
   border-color: #2A2A2A;
   border-radius: 0;
@@ -1140,6 +1178,27 @@
   border-color: #00E88F55;
   background: #03140D;
   color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-row-delete {
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(255, 88, 102, 0.36);
+  background: rgba(255, 88, 102, 0.06);
+  color: #FF5A66;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#viewSubtitulos2 .subtitle-row-delete:disabled {
+  border-color: #2A2A2A;
+  background: transparent;
+  color: #4B4F55;
+  opacity: 0.55;
 }
 
 @media (max-width: 1160px) {
