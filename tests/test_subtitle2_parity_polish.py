@@ -431,19 +431,43 @@ def test_subtitle2_health_runtime_outputs_compact_remote_online_offline_chip_con
 import { buildSubtitleHealthRuntime } from './js/modules/features/subtitles/runtime/services.js';
 
 const online = buildSubtitleHealthRuntime({ status: 'online', message: 'Servicio remoto disponible.' }, 'remote-core');
-if (online.banner !== 'Remote Online') throw new Error(`online chip drift: ${online.banner}`);
+if (online.banner !== 'Servidor conectado') throw new Error(`online chip drift: ${online.banner}`);
 if (online.status !== 'online') throw new Error(`online status drift: ${online.status}`);
 if (online.tone !== 'online') throw new Error(`online tone drift: ${online.tone}`);
 
 const healthy = buildSubtitleHealthRuntime({ status: 'healthy', message: 'OK' }, 'remote-core');
-if (healthy.banner !== 'Remote Online') throw new Error(`healthy chip drift: ${healthy.banner}`);
+if (healthy.banner !== 'Servidor conectado') throw new Error(`healthy chip drift: ${healthy.banner}`);
 if (healthy.tone !== 'online') throw new Error(`healthy tone drift: ${healthy.tone}`);
 
 for (const status of ['offline', 'degraded', 'unavailable', 'failed', 'pending']) {
   const resolved = buildSubtitleHealthRuntime({ status, message: 'Una oración larga que no debe agrandar el chip.' }, 'remote-core');
-  if (resolved.banner !== 'Remote Offline') throw new Error(`${status} chip drift: ${resolved.banner}`);
+  if (resolved.banner !== 'Servidor desconectado') throw new Error(`${status} chip drift: ${resolved.banner}`);
   if (resolved.tone !== 'offline') throw new Error(`${status} tone drift: ${resolved.tone}`);
 }
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_subtitle2_hydrated_render_state_preserves_finished_downloadable_sessions():
+    script = r"""
+import { resolveHydratedSubtitleRenderStateRuntime } from './js/modules/features/subtitles/runtime/services.js';
+
+const readyFromDownload = resolveHydratedSubtitleRenderStateRuntime({ status: 'editing', download: { ready: true } });
+if (readyFromDownload.status !== 'succeeded') throw new Error(`download-ready status drift: ${readyFromDownload.status}`);
+if (readyFromDownload.artifactReady !== true) throw new Error('download-ready artifact drift');
+
+const readyFromSession = resolveHydratedSubtitleRenderStateRuntime({ status: 'succeeded', download: { ready: false } });
+if (readyFromSession.status !== 'succeeded') throw new Error(`session-succeeded status drift: ${readyFromSession.status}`);
+if (readyFromSession.artifactReady !== true) throw new Error('session-succeeded artifact drift');
+
+const explicitRunning = resolveHydratedSubtitleRenderStateRuntime({ status: 'editing', render: { status: 'running' }, download: { ready: false } });
+if (explicitRunning.status !== 'running') throw new Error(`explicit running drift: ${explicitRunning.status}`);
+if (explicitRunning.artifactReady !== false) throw new Error('explicit running artifact drift');
+
+const empty = resolveHydratedSubtitleRenderStateRuntime({ status: 'editing', download: { ready: false } });
+if (empty.status !== '') throw new Error(`editing status drift: ${empty.status}`);
+if (empty.artifactReady !== false) throw new Error('editing artifact drift');
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

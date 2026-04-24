@@ -132,8 +132,34 @@ export function buildSubtitleHealthRuntime(rawHealth, mode) {
     status,
     tone,
     message,
-    banner: tone === 'online' ? 'Remote Online' : 'Remote Offline',
+    banner: tone === 'online' ? 'Servidor conectado' : 'Servidor desconectado',
   };
+}
+
+export function resolveHydratedSubtitleRenderStateRuntime(detail = {}) {
+  const explicitStatus = (detail?.render?.status || detail?.render_status || '').toString().trim();
+  const sessionStatus = (detail?.status || '').toString().trim().toLowerCase();
+  const downloadReady = Boolean(detail?.download?.ready);
+  const finalStatuses = ['succeeded', 'completed', 'complete', 'done', 'finished'];
+  const failedStatuses = ['failed', 'cancelled', 'canceled'];
+
+  if (explicitStatus) {
+    const normalizedExplicitStatus = explicitStatus.toLowerCase();
+    return {
+      status: explicitStatus,
+      artifactReady: Boolean(downloadReady || finalStatuses.includes(normalizedExplicitStatus)),
+    };
+  }
+
+  if (downloadReady || finalStatuses.includes(sessionStatus)) {
+    return { status: 'succeeded', artifactReady: true };
+  }
+
+  if (failedStatuses.includes(sessionStatus)) {
+    return { status: 'failed', artifactReady: false };
+  }
+
+  return { status: '', artifactReady: false };
 }
 
 export function buildSubtitlePreviewUrlRuntime(rawPath, baseUrl) {

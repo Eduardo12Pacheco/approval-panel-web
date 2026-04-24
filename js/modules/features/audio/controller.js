@@ -187,9 +187,12 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
 
     if (!visibleJobs.length) {
       el.audioQueueMeta.textContent = '';
+      el.audioQueueList.classList.add('is-empty');
       el.audioQueueList.innerHTML = '<p class="audio-queue-empty">Sin jobs todavía.</p>';
       return;
     }
+
+    el.audioQueueList.classList.remove('is-empty');
 
     const queuedCount = visibleJobs.filter((j) => (j.status || '').toLowerCase() === 'queued').length;
     const runningCount = visibleJobs.filter((j) => {

@@ -278,10 +278,12 @@
                     <h3>Cola de jobs</h3>
                     <p class="meta">Estados de render, errores y descargas listas.</p>
                   </div>
-                  <span id="audioQueueMeta" class="section-counter">Sin jobs todavía.</span>
+                  <span id="audioQueueMeta" class="section-counter"></span>
                 </header>
 
-                <section id="audioQueueList" class="audio-queue-list"></section>
+                <section id="audioQueueList" class="audio-queue-list is-empty">
+                  <p class="audio-queue-empty">Sin jobs todavía.</p>
+                </section>
               </aside>
             </section>
           </div>
@@ -296,7 +298,7 @@
                   <h1>Subtítulos</h1>
                 </div>
                 <div id="subtitle2ServiceHealthBanner" class="subtitle2-health-chip subtitle-health-banner">
-                  Remote Offline
+                  Servidor desconectado
                 </div>
               </header>
 

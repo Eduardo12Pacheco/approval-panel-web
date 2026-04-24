@@ -29,6 +29,7 @@ import {
   normalizeSubtitleMetaValueRuntime,
   parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
+  resolveHydratedSubtitleRenderStateRuntime,
   resolveSubtitlePreviewDurationMsRuntime,
   resolveSubtitleTimelineSeekMsRuntime,
   resolveSubtitleProgressPercentRuntime,
@@ -928,10 +929,11 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
 
   async function hydrateSubtitle2Session(sessionId, { render = true } = {}) {
     const [detail, segments] = await Promise.all([ttsApi.getSubtitleSession(sessionId), ttsApi.getSubtitleSegments(sessionId)]);
+    const hydratedRender = resolveHydratedSubtitleRenderStateRuntime(detail);
     state.subtitles2.sessionId = sessionId;
     state.subtitles2.analyzeStatus = (detail?.status || 'editing').toString();
-    state.subtitles2.renderStatus = (detail?.render?.status || detail?.render_status || '').toString();
-    state.subtitles2.renderArtifactReady = Boolean(detail?.download?.ready);
+    state.subtitles2.renderStatus = hydratedRender.status;
+    state.subtitles2.renderArtifactReady = hydratedRender.artifactReady;
     state.subtitles2.previewVideoUrl = buildSubtitlePreviewUrlRuntime(detail?.preview?.video_url || `/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`, state.settings.ttsBaseUrl);
     await loadSubtitle2PreviewVideoBlob(sessionId);
     state.subtitles2.snapshotVersion = Number(segments?.version || 0);

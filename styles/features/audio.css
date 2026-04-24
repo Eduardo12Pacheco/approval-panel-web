@@ -1,6 +1,7 @@
 .audio-screen {
   display: grid;
   gap: 28px;
+  min-width: 0;
 }
 
 .audio-screen__header {
@@ -12,6 +13,7 @@
   grid-template-columns: minmax(0, 1fr) 400px;
   gap: 20px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .audio-panel--main {
@@ -19,6 +21,7 @@
   flex-direction: column;
   gap: 16px;
   min-height: calc(100vh - 220px);
+  min-width: 0;
 }
 
 .audio-field--grow {
@@ -34,6 +37,7 @@
   flex-direction: column;
   gap: 16px;
   max-height: calc(100vh - 220px);
+  min-width: 0;
 }
 
 .audio-queue-header h3 {
@@ -43,7 +47,7 @@
 }
 
 .audio-queue-header p {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .audio-queue-header {
@@ -51,9 +55,16 @@
   justify-content: space-between;
   gap: 12px;
   align-items: baseline;
+  min-width: 0;
+}
+
+.audio-queue-header > div {
+  min-width: 0;
 }
 
 .audio-queue-header .section-counter {
+  flex: 0 0 auto;
+  max-width: 100%;
   white-space: nowrap;
 }
 
@@ -63,17 +74,25 @@
 
 .audio-queue-list {
   flex: 1;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: grid;
   gap: 12px;
   padding-right: 4px;
   align-content: start;
+  min-width: 0;
+}
+
+.audio-queue-list.is-empty {
+  min-height: 260px;
+  padding-right: 0;
+  place-items: center;
+  align-content: stretch;
 }
 
 .audio-queue-empty {
   margin: 0;
-  flex: 1;
-  min-height: 260px;
+  min-height: 0;
   display: grid;
   place-items: center;
   text-align: center;
@@ -92,6 +111,7 @@
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
   padding: 14px;
   border-radius: 0;
+  min-width: 0;
 }
 
 .audio-queue-card-header {
@@ -106,6 +126,7 @@
   margin: 0;
   font-size: 0.92rem;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .audio-card-close {

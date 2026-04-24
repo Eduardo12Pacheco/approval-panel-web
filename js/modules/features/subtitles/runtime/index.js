@@ -23,6 +23,7 @@ export {
   normalizeSubtitleMetaValueForStateRuntime,
   parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
+  resolveHydratedSubtitleRenderStateRuntime,
   resolveSubtitleHistoryToneRuntime,
   resolveSubtitlePreviewDurationMsRuntime,
   resolveSubtitleTimelineSeekMsRuntime,

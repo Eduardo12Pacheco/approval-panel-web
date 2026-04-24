@@ -67,6 +67,9 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         'class="audio-screen"',
         'class="audio-screen__grid"',
         'id="audioQueueMeta" class="section-counter"',
+        'id="audioQueueMeta" class="section-counter"></span>',
+        'id="audioQueueList" class="audio-queue-list is-empty"',
+        'class="audio-queue-empty">Sin jobs todavía.</p>',
         'class="audio-panel audio-panel--queue panel-shell"',
     ]:
         assert expected_fragment in index_source
@@ -82,6 +85,9 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         '.audio-screen__grid',
         '.approval-stats-sr',
         '.audio-queue-header',
+        '.audio-queue-list.is-empty',
+        'overflow-x: hidden;',
+        'overflow-wrap: anywhere;',
     ]:
         joined_css = "\n".join([tokens_source, layout_source, approval_source, scripts_source, audio_source])
         assert expected_rule in joined_css
