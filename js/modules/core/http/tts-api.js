@@ -253,5 +253,8 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     downloadSubtitleRender(sessionId) {
       return getBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download/file`);
     },
+    getSubtitlePreviewVideo(sessionId) {
+      return getBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`);
+    },
   };
 }

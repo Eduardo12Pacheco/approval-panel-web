@@ -120,6 +120,7 @@ function createRemoteSubtitlesState() {
     sessionHistory: [],
     serviceHealth: { status: 'pending', message: 'Estado remoto pendiente.' },
     previewVideoUrl: '',
+    previewVideoObjectUrl: '',
     previewCurrentMs: 0,
     previewPlaying: false,
     analyzeStatus: null,
@@ -1477,7 +1478,26 @@ function stopSubtitle2Polling() {
 }
 
 function resetSubtitles2RunState() {
+  revokeSubtitle2PreviewObjectUrl();
   state.subtitles2 = createRemoteSubtitlesState();
+}
+
+function revokeSubtitle2PreviewObjectUrl() {
+  const objectUrl = state.subtitles2?.previewVideoObjectUrl;
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  if (state.subtitles2) state.subtitles2.previewVideoObjectUrl = '';
+}
+
+async function loadSubtitle2PreviewVideoBlob(sessionId) {
+  if (!sessionId) return;
+  try {
+    const blob = await ttsApi.getSubtitlePreviewVideo(sessionId);
+    revokeSubtitle2PreviewObjectUrl();
+    state.subtitles2.previewVideoObjectUrl = URL.createObjectURL(blob);
+    renderSubtitle2PreviewPlayer();
+  } catch (error) {
+    console.warn('No se pudo cargar preview autenticado', error);
+  }
 }
 
 function forceSubtitles2Phase(nextPhase) {
@@ -1539,6 +1559,7 @@ async function onSubtitle2UploadSelected() {
     state.subtitles2.sessionId = (response?.session_id || '').toString();
     state.subtitles2.analyzeStatus = (response?.status || 'processing').toString();
     state.subtitles2.previewVideoUrl = buildSubtitlePreviewUrlRuntime(response?.preview?.video_url || '', state.settings.ttsBaseUrl);
+    await loadSubtitle2PreviewVideoBlob(state.subtitles2.sessionId);
     await refreshSubtitle2RemoteStatus();
     await pollRemoteSubtitleSessionStatus(state.subtitles2.sessionId);
   } catch (err) {
@@ -1975,7 +1996,7 @@ function resolveSubtitle2HistoryTone({ sessionId = '', status = '', item = {} } 
 
 function renderSubtitle2PreviewPlayer() {
   if (!el.subtitle2PreviewVideo) return;
-  const src = (state.subtitles2.previewVideoUrl || '').trim();
+  const src = (state.subtitles2.previewVideoObjectUrl || state.subtitles2.previewVideoUrl || '').trim();
   const hasPreview = Boolean(src);
   el.subtitle2PreviewStage?.classList.toggle('is-empty', !hasPreview);
   el.subtitle2PreviewEmpty?.classList.toggle('hidden', hasPreview);
@@ -2316,6 +2337,7 @@ async function hydrateSubtitle2Session(sessionId, { render = true } = {}) {
   state.subtitles2.renderStatus = (detail?.render?.status || detail?.render_status || '').toString();
   state.subtitles2.renderArtifactReady = Boolean(detail?.download?.ready);
   state.subtitles2.previewVideoUrl = buildSubtitlePreviewUrlRuntime(detail?.preview?.video_url || `/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`, state.settings.ttsBaseUrl);
+  await loadSubtitle2PreviewVideoBlob(sessionId);
   state.subtitles2.snapshotVersion = Number(segments?.version || 0);
   state.subtitles2.rows = mapRemoteSubtitleSegmentsToRowsRuntime({
     segments: segments?.segments || [],

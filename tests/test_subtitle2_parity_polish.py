@@ -151,6 +151,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'onSubtitle2PreviewLoadedMetadata',
         'ensureSubtitle2RowsCoverDuration',
         'applySubtitle2VideoDuration',
+        'loadSubtitle2PreviewVideoBlob',
+        'previewVideoObjectUrl',
         'data-field="start" data-direction="up"',
         'data-field="end" data-direction="down"',
         'SUBTITLE_TIME_NUDGE_MS = 100',
