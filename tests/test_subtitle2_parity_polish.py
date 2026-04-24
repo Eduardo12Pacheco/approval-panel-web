@@ -8,6 +8,7 @@ INDEX_HTML_PATH = ROOT / "index.html"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 SUBTITLE_WORKFLOW_PATH = ROOT / "js" / "modules" / "subtitles-workflow.mjs"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
+SUBTITLE_RUNTIME_PRESENTATION_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "presentation.js"
 SUBTITLE_CSS_PATH = ROOT / "styles" / "features" / "subtitles.css"
 
 
@@ -100,6 +101,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     workflow = SUBTITLE_WORKFLOW_PATH.read_text(encoding="utf-8")
     css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
     services = SUBTITLE_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
+    presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
+    subtitle_runtime_source = "\n".join([app_shell, presentation])
 
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
     assert 'id="subtitle2PreviewEmpty"' in index_html
@@ -141,7 +144,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     for runtime_token in [
         'setSubtitles2PhaseFromRemoteStatus',
         'forceSubtitles2Phase',
-        'resolveSubtitle2HistoryTone',
+        'buildSubtitleSessionHistoryMarkupRuntime',
+        'resolveSubtitleHistoryToneRuntime',
         'deleteSubtitle2HistorySession',
         'delete-subtitle-session',
         'deleteSubtitle2Row',
@@ -176,7 +180,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'aria-current=',
         'subtitle-history-item--${tone}',
     ]:
-        assert runtime_token in app_shell
+        assert runtime_token in subtitle_runtime_source
 
     assert "DEFAULT_SUBTITLE_SIZE = '110'" in workflow
 
@@ -199,6 +203,10 @@ def test_subtitle2_remote_style_presets_match_backend_contracts():
 def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_contract_drift():
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
     css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    subtitle_runtime_source = "\n".join([
+        APP_SHELL_PATH.read_text(encoding="utf-8"),
+        SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8"),
+    ])
 
     required_ids = [
         "subtitle2ServiceHealthBanner",
@@ -244,7 +252,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         'data-field="color"',
         'data-field="align"',
     ]:
-        assert contract_fragment in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
+        assert contract_fragment in "\n".join([index_html, css, subtitle_runtime_source])
 
     for removed_fragment in [
         'data-action="jump-cue"',
@@ -253,7 +261,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         'subtitle-table__col--actions',
         'Acciones',
     ]:
-        assert removed_fragment not in "\n".join([index_html, css, (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")])
+        assert removed_fragment not in "\n".join([index_html, css, subtitle_runtime_source])
 
     for expected_fragment in [
         'id="viewSubtitulos2" class="view hidden subtitle2-screen"',

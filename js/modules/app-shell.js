@@ -6,7 +6,6 @@ import {
   SUBTITLE_SIZE_PRESETS,
   applySubtitleRowPatch,
   createEmptySubtitleRow,
-  createSubtitlesWorkflowMachine,
   getAlignmentButtonState,
   getSubtitlesActionPolicy,
   getSubtitlesPhaseSectionVisibility,
@@ -48,16 +47,24 @@ import {
   normalizeAudioProgressPercent,
 } from './features/audio/runtime/index.js';
 import {
-  buildSubtitleCueMarkersRuntime,
   buildSubtitleHealthRuntime,
   buildSubtitlePreviewPresentationRuntime,
+  buildSubtitlePreviewTimelineMarkupRuntime,
   buildSubtitlePreviewUrlRuntime,
   buildSubtitleProcessingMessageRuntime,
+  buildSubtitleSessionHistoryMarkupRuntime,
+  buildSubtitlesTableRowsMarkupRuntime,
+  createEmptySubtitleAnalyzeMetadata,
+  createRemoteSubtitlesState,
   describeSubtitleTranslationEngineRuntime,
   formatSubtitleDisplayTimeRuntime,
+  getLastSubtitleNonDraftRowIndexRuntime,
+  hasSubtitleDraftRowsRuntime,
   mapRemoteSubtitleSegmentsToRowsRuntime,
+  normalizeSubtitleMetaValueRuntime,
   parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
+  resolveSubtitlePreviewDurationMsRuntime,
   resolveSubtitleTimelineSeekMsRuntime,
   resolveSubtitleProgressPercentRuntime,
   validateSubtitleTimingPatchRuntime,
@@ -76,57 +83,6 @@ const SUBTITLE_DRAFT_INSERT_DURATION_MS = 1000;
 
 function defaultSettings() {
   return defaultSettingsFactory();
-}
-
-function createRemoteSubtitleSeedRows() {
-  return [createEmptySubtitleRow({ id: 'row-1', start: '00:00.00', end: '00:02.00', phrase: '' })];
-}
-
-function createEmptySubtitleAnalyzeMetadata() {
-  return {
-    sourceLanguageRequested: null,
-    sourceLanguageEffective: null,
-    detectedLanguage: null,
-    asrModel: null,
-    mtModel: null,
-  };
-}
-
-function normalizeSubtitleMetaValue(value) {
-  if (value == null) return '—';
-  const text = value.toString().trim();
-  return text || '—';
-}
-
-function createRemoteSubtitlesState() {
-  return {
-    machine: createSubtitlesWorkflowMachine(),
-    rows: createRemoteSubtitleSeedRows(),
-    selectedFileName: '',
-    sessionId: null,
-    sessionHistory: [],
-    serviceHealth: { status: 'pending', message: 'Estado remoto pendiente.' },
-    previewVideoUrl: '',
-    previewVideoObjectUrl: '',
-    previewCurrentMs: 0,
-    previewPlaying: false,
-    analyzeStatus: null,
-    analyzeProgressPct: null,
-    renderJobId: null,
-    renderStatus: null,
-    renderProgressPct: null,
-    renderArtifactReady: false,
-    renderFailureReason: null,
-    snapshotVersion: 0,
-    dirty: false,
-    changeVersion: 0,
-    savedVersion: 0,
-    pollingTimer: null,
-    pollingInFlight: false,
-    sourceLanguage: 'auto',
-    analyzeMetadata: createEmptySubtitleAnalyzeMetadata(),
-    audioDurationMs: null,
-  };
 }
 
 const state = {
@@ -781,7 +737,7 @@ function patchSubtitle2Row(rowId, patch, options = {}) {
 }
 
 function hasSubtitle2DraftRows() {
-  return state.subtitles2.rows.some((row) => Boolean(row?.isDraft));
+  return hasSubtitleDraftRowsRuntime(state.subtitles2.rows);
 }
 
 function onSubtitle2TableInput(ev) {
@@ -1000,10 +956,7 @@ function onSubtitle2DraftDrop(ev) {
 }
 
 function getLastSubtitle2NonDraftRowIndex() {
-  for (let index = state.subtitles2.rows.length - 1; index >= 0; index -= 1) {
-    if (!state.subtitles2.rows[index]?.isDraft) return index;
-  }
-  return -1;
+  return getLastSubtitleNonDraftRowIndexRuntime(state.subtitles2.rows);
 }
 
 function onSubtitle2DraftDragEnd() {
@@ -1082,32 +1035,11 @@ function renderSubtitle2HealthBanner() {
 
 function renderSubtitle2SessionHistory() {
   if (!el.subtitle2SessionHistory) return;
-  const items = Array.isArray(state.subtitles2.sessionHistory) ? state.subtitles2.sessionHistory : [];
-  if (!items.length) {
-    el.subtitle2SessionHistory.innerHTML = '<p class="meta">Todavía no hay sesiones remotas.</p>';
-    return;
-  }
-  el.subtitle2SessionHistory.innerHTML = items.map((item) => {
-    const sessionId = (item?.id || '').toString();
-    const status = (item?.status || 'unknown').toString();
-    const tone = resolveSubtitle2HistoryTone({ sessionId, status, item });
-    return `
-    <article class="subtitle-history-item subtitle-history-item--${tone}" aria-current="${tone === 'active' ? 'true' : 'false'}">
-      <button type="button" class="secondary subtitle-history-item__resume" data-action="resume-subtitle-session" data-session-id="${escapeHtml(sessionId)}">
-        <span class="subtitle-history-item__id">${escapeHtml(sessionId)}</span>
-        <span class="subtitle-history-item__status">${escapeHtml(status)}</span>
-      </button>
-      <button type="button" class="subtitle-history-item__delete" aria-label="Eliminar proyecto" data-action="delete-subtitle-session" data-session-id="${escapeHtml(sessionId)}">×</button>
-    </article>
-  `;
-  }).join('');
-}
-
-function resolveSubtitle2HistoryTone({ sessionId = '', status = '', item = {} } = {}) {
-  if (sessionId && sessionId === state.subtitles2.sessionId) return 'active';
-  const normalizedStatus = status.toString().trim().toLowerCase();
-  if (item?.download?.ready || ['succeeded', 'completed', 'complete', 'done', 'finished'].includes(normalizedStatus)) return 'done';
-  return 'editing';
+  el.subtitle2SessionHistory.innerHTML = buildSubtitleSessionHistoryMarkupRuntime({
+    items: state.subtitles2.sessionHistory,
+    activeSessionId: state.subtitles2.sessionId,
+    escapeHtml,
+  });
 }
 
 function renderSubtitle2PreviewPlayer() {
@@ -1165,14 +1097,12 @@ function renderSubtitle2PreviewOverlay() {
 
 function renderSubtitle2PreviewTimeline() {
   const durationMs = resolveSubtitle2PreviewDurationMs();
-  const cueRatios = buildSubtitleCueMarkersRuntime(state.subtitles2.rows, durationMs);
-  const presentation = buildSubtitlePreviewPresentationRuntime({
-    currentMs: state.subtitles2.previewCurrentMs,
-    durationMs,
-  });
   if (el.subtitle2PreviewTimelineTrack) {
-    const markers = cueRatios.map((ratio) => `<div class="subtitle-preview-timeline-cue" style="left:${ratio * 100}%"></div>`).join('');
-    el.subtitle2PreviewTimelineTrack.innerHTML = `${markers}<div id="subtitle2PreviewPlayhead" class="subtitle-preview-playhead" style="left:${presentation.playheadPercent}%"></div>`;
+    el.subtitle2PreviewTimelineTrack.innerHTML = buildSubtitlePreviewTimelineMarkupRuntime({
+      rows: state.subtitles2.rows,
+      durationMs,
+      currentMs: state.subtitles2.previewCurrentMs,
+    });
   }
   if (el.subtitle2PreviewTimecode) {
     el.subtitle2PreviewTimecode.textContent = formatSubtitleDisplayTimeRuntime(state.subtitles2.previewCurrentMs);
@@ -1238,12 +1168,10 @@ function onSubtitle2PreviewToggleClicked() {
 }
 
 function resolveSubtitle2PreviewDurationMs() {
-  const declared = Math.max(0, Number(state.subtitles2.audioDurationMs || 0));
-  const rowsMax = state.subtitles2.rows.reduce((max, row) => {
-    const endMs = parseSubtitleTimeToMsRuntime(row?.end);
-    return Number.isFinite(endMs) ? Math.max(max, endMs) : max;
-  }, 0);
-  return Math.max(declared, rowsMax);
+  return resolveSubtitlePreviewDurationMsRuntime({
+    audioDurationMs: state.subtitles2.audioDurationMs,
+    rows: state.subtitles2.rows,
+  });
 }
 
 function seekSubtitle2PreviewToMs(nextMs) {
@@ -1323,11 +1251,11 @@ function renderSubtitle2SourceLanguagePicker() {
 function renderSubtitle2AnalyzeMeta() {
   if (!el.subtitle2AnalyzeMeta) return;
   const metadata = state.subtitles2.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
-  const requested = normalizeSubtitleMetaValue(metadata.sourceLanguageRequested);
-  const effective = normalizeSubtitleMetaValue(metadata.sourceLanguageEffective);
-  const detected = normalizeSubtitleMetaValue(metadata.detectedLanguage);
-  const asrModel = normalizeSubtitleMetaValue(metadata.asrModel);
-  const mtModel = normalizeSubtitleMetaValue(metadata.mtModel);
+  const requested = normalizeSubtitleMetaValueRuntime(metadata.sourceLanguageRequested);
+  const effective = normalizeSubtitleMetaValueRuntime(metadata.sourceLanguageEffective);
+  const detected = normalizeSubtitleMetaValueRuntime(metadata.detectedLanguage);
+  const asrModel = normalizeSubtitleMetaValueRuntime(metadata.asrModel);
+  const mtModel = normalizeSubtitleMetaValueRuntime(metadata.mtModel);
   if (el.subtitle2MetaRequested) el.subtitle2MetaRequested.textContent = requested;
   if (el.subtitle2MetaEffective) el.subtitle2MetaEffective.textContent = effective;
   if (el.subtitle2MetaDetected) el.subtitle2MetaDetected.textContent = detected;
@@ -1379,48 +1307,17 @@ function renderSubtitles2Table() {
     { value: '#00FF5A', label: 'Verde' },
     { value: '#0CC3F2', label: 'Celeste' },
   ];
-  el.subtitle2RowsBody.innerHTML = state.subtitles2.rows.map((row, index) => {
-    const alignment = getAlignmentButtonState(row.align);
-    const canDelete = index > 0;
-    const isDraft = Boolean(row.isDraft);
-    const isLastTimedRow = index === getLastSubtitle2NonDraftRowIndex();
-    return `
-      <tr data-row-id="${row.id}" data-draft="${isDraft ? 'true' : 'false'}" class="${isDraft ? 'subtitle-row--draft' : ''}" ${isDraft ? 'draggable="true"' : ''}>
-        <td>
-          <div class="subtitle-time-range" aria-label="Rango de tiempo">
-            <div class="subtitle-time-row">
-              <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" ${isDraft ? 'disabled' : ''} />
-              <div class="subtitle-time-nudge" aria-label="Ajustar Start">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="up" aria-label="Subir Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌃</button>
-              </div>
-            </div>
-            <span class="subtitle-time-range__line" aria-hidden="true"></span>
-            <div class="subtitle-time-row">
-              <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
-              <div class="subtitle-time-nudge" aria-label="Ajustar End">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft || isLastTimedRow ? 'disabled' : ''}>⌄</button>
-              </div>
-            </div>
-          </div>
-        </td>
-        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};font-weight:${escapeHtml(row.fontWeight || resolveSubtitleFontWeight(row.fontFamily))};">${escapeHtml(row.phrase)}</textarea></td>
-        <td><select data-row-id="${row.id}" data-field="size">${renderSubtitleSelectOptions(sizeOptions, row.size)}</select></td>
-        <td><input type="number" min="1" step="10" data-row-id="${row.id}" data-field="maxWidthPx" value="${escapeHtml(String(row.maxWidthPx || 1080))}" /></td>
-        <td><select data-row-id="${row.id}" data-field="fontFamily">${renderSubtitleSelectOptions(fontOptions, row.fontFamily)}</select></td>
-        <td><select data-row-id="${row.id}" data-field="color">${renderSubtitleSelectOptions(colorOptions, row.color)}</select></td>
-        <td>
-          <div class="subtitle-align-group subtitle-align-group--compact">
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda" aria-pressed="${alignment.left.selected}">I</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro" aria-pressed="${alignment.center.selected}">C</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
-          </div>
-        </td>
-        <td>
-          <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${row.id}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  el.subtitle2RowsBody.innerHTML = buildSubtitlesTableRowsMarkupRuntime({
+    rows: state.subtitles2.rows,
+    sizeOptions,
+    fontOptions,
+    colorOptions,
+    lastNonDraftRowIndex: getLastSubtitle2NonDraftRowIndex(),
+    escapeHtml,
+    formatDisplayTime: formatSubtitleDisplayTimeRuntime,
+    getAlignmentButtonState,
+    resolveFontWeight: resolveSubtitleFontWeight,
+  });
   customDropdowns.refreshAll();
 }
 
