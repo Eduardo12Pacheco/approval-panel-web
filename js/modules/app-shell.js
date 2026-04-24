@@ -87,6 +87,7 @@ const AUTH_PASS = 'Guiones2026!';
 const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 15000;
 const SUBTITLE_TIME_NUDGE_MS = 100;
 const SUBTITLE_TIMING_GAP_MS = 60;
+const SUBTITLE_DRAFT_INSERT_DURATION_MS = 1000;
 
 function defaultSettings() {
   return defaultSettingsFactory();
@@ -1883,13 +1884,13 @@ function placeSubtitle2DraftBetweenRows(draftId, targetIndex) {
   const previous = rows[targetIndex - 1];
   const next = rows[targetIndex];
   if (!draft || !previous || !next || previous.isDraft || next.isDraft) return;
-  const previousStartMs = parseSubtitleTimeToMsRuntime(previous.start);
   const previousEndMs = parseSubtitleTimeToMsRuntime(previous.end);
   const nextStartMs = parseSubtitleTimeToMsRuntime(next.start);
   const nextEndMs = parseSubtitleTimeToMsRuntime(next.end);
-  const draftStartMs = previousEndMs - 1000;
-  const draftEndMs = nextStartMs + 1000;
-  if (draftStartMs <= previousStartMs || draftEndMs >= nextEndMs || draftEndMs <= draftStartMs) {
+  const draftStartMs = nextStartMs;
+  const draftEndMs = draftStartMs + SUBTITLE_DRAFT_INSERT_DURATION_MS;
+  const adjustedNextStartMs = draftEndMs + SUBTITLE_TIMING_GAP_MS;
+  if (draftStartMs < previousEndMs + SUBTITLE_TIMING_GAP_MS || adjustedNextStartMs >= nextEndMs) {
     toast('No hay espacio suficiente para insertar el subtítulo');
     renderSubtitles2Workflow();
     return;
@@ -1902,13 +1903,9 @@ function placeSubtitle2DraftBetweenRows(draftId, targetIndex) {
   };
   const withoutDraft = rows.filter((row) => row.id !== draftId);
   const adjustedTargetIndex = withoutDraft.findIndex((row) => row.id === next.id);
-  withoutDraft[adjustedTargetIndex - 1] = {
-    ...previous,
-    end: formatSubtitleDisplayTimeRuntime(draftStartMs),
-  };
   withoutDraft[adjustedTargetIndex] = {
     ...next,
-    start: formatSubtitleDisplayTimeRuntime(draftEndMs),
+    start: formatSubtitleDisplayTimeRuntime(adjustedNextStartMs),
   };
   state.subtitles2.rows = [
     ...withoutDraft.slice(0, adjustedTargetIndex),
