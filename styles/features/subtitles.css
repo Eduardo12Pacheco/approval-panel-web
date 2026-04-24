@@ -1082,8 +1082,8 @@
 }
 
 #viewSubtitulos2 .subtitle-table--remote tr.is-drop-before {
-  transform: translateY(8px);
-  box-shadow: 0 -2px 0 #F7B955;
+  transform: translateY(18px);
+  box-shadow: 0 -4px 0 #F7B955;
 }
 
 #viewSubtitulos2 .subtitle-table--remote tr.is-dragging {
@@ -1104,9 +1104,9 @@
 #viewSubtitulos2 .subtitle-table__title {
   color: #F5F7F7;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 1.2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.35px;
 }
 
 #viewSubtitulos2 .subtitle-table__hint {

@@ -13,6 +13,7 @@ export const SUBTITLES_RENDER_WATCHDOG_MS = 300000;
 export const SUBTITLE_SIZE_PRESETS = Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140']);
 export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2']);
 export const SUBTITLE_FONT_PRESETS = Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald']);
+const DEFAULT_SUBTITLE_SIZE = '110';
 export const SUBTITLE_FONT_WEIGHT_BY_FAMILY = Object.freeze({
   Khand: 'Bold',
   Oswald: '700',
@@ -63,7 +64,7 @@ export function createEmptySubtitleRow(seed = {}) {
     sourceText: (seed.sourceText || '').toString(),
     phrase: (seed.phrase || '').toString(),
     maxWidthPx: safeMaxWidthPx,
-    size: sanitizePreset((seed.size || SUBTITLE_SIZE_PRESETS[0]).toString(), SUBTITLE_SIZE_PRESETS, SUBTITLE_SIZE_PRESETS[0]),
+    size: sanitizePreset((seed.size || DEFAULT_SUBTITLE_SIZE).toString(), SUBTITLE_SIZE_PRESETS, DEFAULT_SUBTITLE_SIZE),
     color: sanitizePreset((seed.color || SUBTITLE_COLOR_PRESETS[0]).toString(), SUBTITLE_COLOR_PRESETS, SUBTITLE_COLOR_PRESETS[0]),
     fontFamily,
     fontWeight: (seed.fontWeight || seed.font_weight || resolveSubtitleFontWeight(fontFamily)).toString(),

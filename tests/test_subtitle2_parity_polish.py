@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = ROOT / "index.html"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
+SUBTITLE_WORKFLOW_PATH = ROOT / "js" / "modules" / "subtitles-workflow.mjs"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
 SUBTITLE_CSS_PATH = ROOT / "styles" / "features" / "subtitles.css"
 
@@ -96,6 +97,7 @@ if (afterTrack != 10000) throw new Error(`seek should clamp after track, got ${a
 def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_table_headers():
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
     app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")
+    workflow = SUBTITLE_WORKFLOW_PATH.read_text(encoding="utf-8")
     css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
     services = SUBTITLE_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
 
@@ -104,6 +106,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'subtitle-table__col--time-range' in index_html
     assert 'subtitle-table__col--delete' in index_html
     assert 'Start / End' in index_html
+    assert '<th aria-label="Eliminar"></th>' in index_html
+    assert '<span class="subtitle-table__title">Eliminar</span>' not in index_html
     assert 'Agregar subtítulo' in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
@@ -149,6 +153,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'subtitle-history-item--${tone}',
     ]:
         assert runtime_token in app_shell
+
+    assert "DEFAULT_SUBTITLE_SIZE = '110'" in workflow
 
     assert 'buildSubtitlePreviewPresentationRuntime' in services
     assert 'resolveSubtitleTimelineSeekMsRuntime' in services
