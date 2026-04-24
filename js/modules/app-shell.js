@@ -1644,16 +1644,28 @@ async function onSubtitle2ReadyClicked() {
   if (state.subtitles2.dirty) {
     await enqueueSubtitle2Save('manual');
   }
-  const response = await ttsApi.startSubtitleRender(state.subtitles2.sessionId, {
-    base_version: state.subtitles2.snapshotVersion,
-    request_id: `sub-render-${Date.now()}`,
-  });
-  state.subtitles2.renderJobId = (response?.job?.id || '').toString();
-  state.subtitles2.renderStatus = (response?.job?.status || 'queued').toString();
-  state.subtitles2.renderArtifactReady = Boolean(response?.download?.ready);
   transitionSubtitles2Phase('Procesando video');
-  await pollRemoteSubtitleRenderStatus(state.subtitles2.sessionId);
-  await refreshSubtitle2RemoteStatus();
+  state.subtitles2.renderStatus = 'queued';
+  state.subtitles2.renderProgressPct = 0;
+  state.subtitles2.renderArtifactReady = false;
+  try {
+    const response = await ttsApi.startSubtitleRender(state.subtitles2.sessionId, {
+      base_version: state.subtitles2.snapshotVersion,
+      request_id: `sub-render-${Date.now()}`,
+    });
+    state.subtitles2.renderJobId = (response?.job?.id || '').toString();
+    state.subtitles2.renderStatus = (response?.job?.status || 'queued').toString();
+    state.subtitles2.renderArtifactReady = Boolean(response?.download?.ready);
+    await pollRemoteSubtitleRenderStatus(state.subtitles2.sessionId);
+    await refreshSubtitle2RemoteStatus();
+  } catch (error) {
+    console.error(error);
+    state.subtitles2.renderStatus = 'failed';
+    state.subtitles2.renderArtifactReady = false;
+    state.subtitles2.renderFailureReason = getErrorMessage(error, 'El render remoto falló');
+    transitionSubtitles2Phase('Terminado');
+    renderSubtitle2DoneCard();
+  }
 }
 
 async function onSubtitle2DownloadClicked() {

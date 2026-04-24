@@ -153,6 +153,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'applySubtitle2VideoDuration',
         'loadSubtitle2PreviewVideoBlob',
         'previewVideoObjectUrl',
+        "state.subtitles2.renderStatus = 'queued'",
+        "state.subtitles2.renderArtifactReady = false",
         'data-field="start" data-direction="up"',
         'data-field="end" data-direction="down"',
         'getLastSubtitle2NonDraftRowIndex',
