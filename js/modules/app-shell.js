@@ -2223,14 +2223,12 @@ function renderSubtitles2Table() {
               <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" ${isDraft ? 'disabled' : ''} />
               <div class="subtitle-time-nudge" aria-label="Ajustar Start">
                 <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="up" aria-label="Subir Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌃</button>
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="down" aria-label="Bajar Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌄</button>
               </div>
             </div>
             <span class="subtitle-time-range__line" aria-hidden="true"></span>
             <div class="subtitle-time-row">
               <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
               <div class="subtitle-time-nudge" aria-label="Ajustar End">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="up" aria-label="Subir End 00:00.10" ${isDraft ? 'disabled' : ''}>⌃</button>
                 <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft ? 'disabled' : ''}>⌄</button>
               </div>
             </div>

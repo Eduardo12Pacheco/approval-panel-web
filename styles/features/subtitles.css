@@ -1146,7 +1146,7 @@
 
 #viewSubtitulos2 .subtitle-time-nudge {
   display: grid;
-  gap: 2px;
+  place-items: center;
 }
 
 #viewSubtitulos2 .subtitle-time-range__line {
@@ -1171,7 +1171,7 @@
 #viewSubtitulos2 .subtitle-time-nudge button {
   width: 18px;
   min-width: 18px;
-  min-height: 17px;
+  min-height: 20px;
   padding: 0;
   border: 1px solid #2A2A2A;
   background: #101010;
