@@ -1087,8 +1087,8 @@
 }
 
 #viewSubtitulos2 .subtitle-table--remote tr.is-drop-before {
-  transform: translateY(18px);
-  box-shadow: 0 -4px 0 #F7B955;
+  transform: translateY(32px);
+  box-shadow: 0 -6px 0 #F7B955;
 }
 
 #viewSubtitulos2 .subtitle-table--remote tr.is-dragging {

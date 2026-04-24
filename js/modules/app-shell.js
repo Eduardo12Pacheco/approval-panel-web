@@ -1754,6 +1754,10 @@ function nudgeSubtitle2TimingBoundary(rowId, field, direction) {
   const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
   const row = state.subtitles2.rows[index];
   if (!row || row.isDraft) return;
+  if (field === 'end' && index === getLastSubtitle2NonDraftRowIndex()) {
+    toast('El END de la última frase debe durar hasta el final del video');
+    return;
+  }
   const delta = direction === 'up' ? -SUBTITLE_TIME_NUDGE_MS : SUBTITLE_TIME_NUDGE_MS;
   const currentStartMs = parseSubtitleTimeToMsRuntime(row.start);
   const currentEndMs = parseSubtitleTimeToMsRuntime(row.end);
@@ -1864,7 +1868,7 @@ function onSubtitle2DraftDragOver(ev) {
   const rowEl = ev.target.closest('tr[data-row-id]');
   if (!rowEl || rowEl.dataset.draft === 'true') return;
   const targetIndex = state.subtitles2.rows.findIndex((row) => row.id === rowEl.dataset.rowId);
-  if (targetIndex <= 0) return;
+  if (targetIndex <= 0 || targetIndex >= getLastSubtitle2NonDraftRowIndex()) return;
   ev.preventDefault();
   clearSubtitle2DropTargets();
   rowEl.classList.add('is-drop-before');
@@ -1883,11 +1887,18 @@ function onSubtitle2DraftDrop(ev) {
   if (!rowEl || rowEl.dataset.draft === 'true') return;
   ev.preventDefault();
   const targetIndex = state.subtitles2.rows.findIndex((row) => row.id === rowEl.dataset.rowId);
-  if (targetIndex <= 0) {
-    toast('Soltá el subtítulo entre dos frases existentes');
+  if (targetIndex <= 0 || targetIndex >= getLastSubtitle2NonDraftRowIndex()) {
+    toast('Soltá el subtítulo entre dos frases intermedias');
     return;
   }
   placeSubtitle2DraftBetweenRows(draftId, targetIndex);
+}
+
+function getLastSubtitle2NonDraftRowIndex() {
+  for (let index = state.subtitles2.rows.length - 1; index >= 0; index -= 1) {
+    if (!state.subtitles2.rows[index]?.isDraft) return index;
+  }
+  return -1;
 }
 
 function onSubtitle2DraftDragEnd() {
@@ -2267,6 +2278,7 @@ function renderSubtitles2Table() {
     const alignment = getAlignmentButtonState(row.align);
     const canDelete = index > 0;
     const isDraft = Boolean(row.isDraft);
+    const isLastTimedRow = index === getLastSubtitle2NonDraftRowIndex();
     return `
       <tr data-row-id="${row.id}" data-draft="${isDraft ? 'true' : 'false'}" class="${isDraft ? 'subtitle-row--draft' : ''}" ${isDraft ? 'draggable="true"' : ''}>
         <td>
@@ -2281,7 +2293,7 @@ function renderSubtitles2Table() {
             <div class="subtitle-time-row">
               <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
               <div class="subtitle-time-nudge" aria-label="Ajustar End">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft ? 'disabled' : ''}>⌄</button>
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft || isLastTimedRow ? 'disabled' : ''}>⌄</button>
               </div>
             </div>
           </div>
