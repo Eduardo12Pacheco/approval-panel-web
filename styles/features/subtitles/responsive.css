@@ -1,0 +1,22 @@
+@media (max-width: 1160px) {
+  #viewSubtitulos2 .subtitle2-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  #viewSubtitulos2 .subtitle2-side-card {
+    position: static;
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  #viewSubtitulos2 .subtitle2-screen__header,
+  #viewSubtitulos2 .subtitle2-phase-card,
+  #viewSubtitulos2 .subtitle2-card-heading--inline {
+    grid-template-columns: 1fr;
+  }
+
+  #viewSubtitulos2 .subtitle-phase-bar {
+    grid-template-columns: 1fr;
+  }
+}

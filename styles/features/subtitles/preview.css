@@ -1,0 +1,53 @@
+#viewSubtitulos2 .subtitle-preview-frame {
+  margin: 0;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #262626;
+}
+
+#viewSubtitulos2 .subtitle-preview-stage {
+  min-height: 240px;
+  border-color: #2A2A2A;
+  border-radius: 0;
+  background: #050505;
+  box-shadow: none;
+}
+
+#viewSubtitulos2 .subtitle-preview-empty {
+  color: #9DB8FF;
+  background: #050505;
+}
+
+#viewSubtitulos2 .subtitle-preview-cue {
+  color: #F5F7F7;
+  font-family: 'Khand', sans-serif;
+  text-shadow: none;
+}
+
+#viewSubtitulos2 .subtitle-preview-play-btn {
+  border-color: #9DB8FF55;
+  border-radius: 0;
+  background: #121212;
+  color: #D8DBDE;
+}
+
+#viewSubtitulos2 .subtitle-preview-timeline-track {
+  border-color: #2A2A2A;
+  border-radius: 0;
+  background: #121212;
+}
+
+#viewSubtitulos2 .subtitle-preview-timeline-cue {
+  background: #9DB8FF;
+}
+
+#viewSubtitulos2 .subtitle-preview-playhead,
+#viewSubtitulos2 .subtitle-preview-playhead::after {
+  background: #00E88F;
+  border-color: #00FFAA55;
+  border-radius: 0;
+}
+
+#viewSubtitulos2 .subtitle-preview-timecode {
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+}

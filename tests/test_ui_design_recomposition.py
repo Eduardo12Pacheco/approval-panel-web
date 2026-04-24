@@ -41,9 +41,10 @@ def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspac
         'class="approval-side-column"',
         'class="panel-shell news-panel"',
         'class="panel-shell script-workbench"',
-        'class="panel-shell queue-panel"',
-        'class="panel-shell scripts-selection-panel"',
-        'id="queueMeta" class="section-counter"',
+        'class="panel-shell approval-side-panel"',
+        'class="approval-side-section approval-side-section--queue"',
+        'class="approval-side-section approval-side-section--scripts"',
+        'id="queueMeta" class="section-counter hidden"',
         'id="queueList" class="queue-list queue-list--integrated"',
         'id="scriptCards" class="script-selection-list"',
         'id="scriptEditedArea" class="script-area script-area--workspace"',
@@ -122,7 +123,7 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
         'id="countryFilter" data-custom-dropdown',
         'id="sourcesFilter" data-custom-dropdown',
         'id="audioPresetSelect" data-custom-dropdown',
-        'id="subtitleSourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown',
+        'id="subtitle2SourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown',
     ]:
         assert expected_fragment in index_source
 
@@ -139,7 +140,7 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
         '.control-input-shell--search',
         '.control-input-icon',
         'padding-left: 42px;',
-        'margin-inline: auto;',
+        'margin-inline: 0;',
         'background: transparent;',
         'border: 0;',
         '.nav-item__icon svg',
@@ -167,7 +168,7 @@ def test_sidebar_navigation_icons_keep_centered_alignment_at_30px():
         'width: 30px;',
         'height: 30px;',
         'flex: 0 0 30px;',
-        'margin-inline: auto;',
+        'margin-inline: 0;',
         '.nav-item__icon svg {',
     ]:
         assert expected_rule in buttons_source
@@ -177,11 +178,11 @@ def test_expanded_sidebar_separates_branding_from_nav_with_divider():
     layout_source = _read(LAYOUT_PATH)
 
     for expected_rule in [
-        '.sidebar--rail:hover .sidebar-nav,',
-        '.sidebar--rail:focus-within .sidebar-nav {',
-        'margin-top: 20px;',
-        'padding-top: 28px;',
-        'border-top: 1px solid rgba(128, 128, 128, 0.24);',
+        '.sidebar-rail__inner {',
+        'gap: 16px;',
+        'padding: 20px 10px 18px;',
+        '.sidebar-nav {',
+        'margin-top: auto;',
     ]:
         assert expected_rule in layout_source
 
@@ -608,7 +609,7 @@ if (!markup.includes('class="card-title">Messi vuelve a romper marcas en una noc
   throw new Error(`missing compact title markup: ${markup}`);
 }
 
-if (!markup.includes('class="card-meta-row"><span>País: Argentina</span><span>jugador: Messi</span><span>fuentes: 9</span></div>')) {
+if (!markup.includes('class="card-meta-row"><span>Argentina · Messi · 9 fuentes</span></div>')) {
   throw new Error(`meta row does not match compact contract: ${markup}`);
 }
 
@@ -671,7 +672,7 @@ for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Est
         'border-radius: 0;',
         '.script-selection-card.is-selected {',
         'radial-gradient(circle at top left',
-        'rgba(244, 183, 64, 0.18)',
+        'rgba(255, 214, 133, 0.32)',
         'box-shadow:',
     ]:
         assert expected_rule in approval_source

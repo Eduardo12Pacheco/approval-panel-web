@@ -1,0 +1,270 @@
+#viewSubtitulos2 .subtitle2-screen__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#viewSubtitulos2 .subtitle2-master-card .subtitle2-screen__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+#viewSubtitulos2 .subtitle2-screen__header h1 {
+  margin: 2px 0 10px;
+  color: #F5F7F7;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+#viewSubtitulos2 .subtitle2-screen__header p:not(.subtitle2-eyebrow) {
+  max-width: 760px;
+  color: #8B8E93;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+#viewSubtitulos2 .subtitle2-eyebrow,
+#viewSubtitulos2 .subtitle2-section-label {
+  margin: 0;
+  color: #6B6B6B;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading .subtitle2-section-label,
+#viewSubtitulos2 .subtitle2-history-section .subtitle2-section-label {
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle2-health-chip {
+  min-width: 0;
+  justify-self: end;
+  align-self: start;
+  padding: 10px 12px;
+  border: 1px solid #00E88F55;
+  border-radius: 0;
+  background: #03140D;
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  text-align: center;
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+
+#viewSubtitulos2 .subtitle2-health-chip.is-online {
+  border-color: #00E88F55;
+  background: #03140D;
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle2-health-chip.is-offline {
+  border-color: #F7B95555;
+  background: #151515;
+  color: #F7B955;
+}
+
+#viewSubtitulos2 .subtitle2-phase-card,
+#viewSubtitulos2 .subtitle2-master-card,
+#viewSubtitulos2 .subtitle2-side-card,
+#viewSubtitulos2 .subtitle2-upload-source-card,
+#viewSubtitulos2 .subtitle2-editor-card {
+  border: 1px solid #262626;
+  border-radius: 0;
+  background: #0A0A0A;
+}
+
+#viewSubtitulos2 .subtitle2-phase-card {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.22fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  background: #070707;
+  border-color: #232323;
+}
+
+#viewSubtitulos2 .subtitle2-phase-card h3,
+#viewSubtitulos2 .subtitle2-side-card h3,
+#viewSubtitulos2 .subtitle2-card-heading h3,
+#viewSubtitulos2 .subtitle2-history-section h3 {
+  margin: 4px 0 0;
+  color: #F5F7F7;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+#viewSubtitulos2 .subtitle2-side-card h3,
+#viewSubtitulos2 .subtitle2-card-heading h3 {
+  font-size: 26px;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading p,
+#viewSubtitulos2 .subtitle2-side-card .meta,
+#viewSubtitulos2 .subtitle2-history-section .meta,
+#viewSubtitulos2 .meta {
+  color: #8B8E93;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+#viewSubtitulos2 .subtitle-phase-bar {
+  gap: 10px;
+}
+
+#viewSubtitulos2 .subtitle-phase-item {
+  position: relative;
+  border-color: #2A2A2A;
+  border-radius: 0;
+  padding: 13px 10px;
+  background: #121212;
+  color: #777B80;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.2px;
+  overflow: hidden;
+}
+
+#viewSubtitulos2 .subtitle-phase-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #2A2A2A;
+}
+
+#viewSubtitulos2 .subtitle-phase-item.active {
+  border-color: #00FFAA66;
+  background: #03140D;
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-phase-item.active::before {
+  background: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-phase-item.done {
+  border-color: #F7B95555;
+  background: #151515;
+  color: #F7B955;
+}
+
+#viewSubtitulos2 .subtitle-phase-item.done::before {
+  background: #F7B955;
+}
+
+#viewSubtitulos2 .subtitle2-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+#viewSubtitulos2 .subtitle2-master-card {
+  min-height: min(720px, calc(100vh - 250px));
+  padding: 24px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 24px;
+  align-content: stretch;
+  background: #0A0A0A;
+  border-color: #262626;
+}
+
+#viewSubtitulos2 .subtitle2-side-card {
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  position: sticky;
+  top: 18px;
+  background: #0A0A0A;
+  border-color: #262626;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading {
+  display: grid;
+  gap: 6px;
+}
+
+#viewSubtitulos2 .subtitle2-card-heading--inline {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+#viewSubtitulos2 .subtitle2-upload-source-card,
+#viewSubtitulos2 .subtitle2-editor-card {
+  padding: 24px;
+}
+
+#viewSubtitulos2 .subtitle2-upload-source-card {
+  width: min(700px, 100%);
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+  border-color: #2A2A2A;
+  background: #0D0D0D;
+}
+
+#viewSubtitulos2 .subtitle2-editor-card {
+  display: grid;
+  gap: 16px;
+  border-color: #2A2A2A;
+  background: #0D0D0D;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-editor-card {
+  margin: 0 -19px -19px;
+  padding: 0;
+  gap: 0;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle2-card-heading {
+  padding: 24px 24px 26px;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .subtitle-table-scroll {
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+#viewSubtitulos2 #subtitle2PhaseEdition .audio-actions {
+  margin-top: 0;
+  padding: 14px 24px 16px;
+  border-top: 1px solid #262626;
+  background: #0A0A0A;
+}
+
+#viewSubtitulos2 .subtitle-phase-section--centered {
+  min-height: min(610px, calc(100vh - 340px));
+}
+
+#viewSubtitulos2 #subtitle2PhaseUpload.subtitle-phase-section--centered {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+}

@@ -14,12 +14,13 @@ Este orden existe para refactorizar y endurecer el frontend **sin cambios de fea
 1. `index.html`
 2. `js/main.js` (bootstrap mínimo)
 3. `js/modules/composition-root.js` (ensambla dependencias)
-4. `js/modules/app-shell.js` (orquesta UI + integra features)
+4. `js/modules/app-shell.js` (composition shell liviano: estado compartido, navegación, wiring y delegación)
 
 En estilos:
 
 1. `styles.css` (**import-only**)
 2. Imports ordenados a `styles/*` (tokens → base → layout → components → features → responsive)
+3. `styles/features/subtitles/index.css` funciona como fachada import-only del split de Subtítulos.
 
 ---
 
@@ -30,15 +31,17 @@ En estilos:
 ### Núcleo (`js/modules/core`)
 - `auth/session-gate.js` → sesión/login y estado de autenticación.
 - `state/app-store.js` → configuración persistida (localStorage).
-- `bootstrap.js` → wiring de eventos base.
+- `bootstrap.js` → wiring de eventos base compartidos.
 - `http/approval-api.js` y `http/tts-api.js` → clientes API.
 - `ui/*` → utilidades UI puras (`toast`, `word-count`, `escape-html`).
 
 ### Features (`js/modules/features`)
 - `approval/index.js` → flujo panel de aprobación.
+- `approval/cards.js`, `approval/detail-dialog.js`, `approval/queue-monitor.js` → render y helpers UI propios de approval.
 - `scripts/index.js` → edición/publicación de guiones.
-- `audio/index.js` + `audio/runtime/*` → generación audio, tracking/polling y helpers.
-- `subtitles/index.js` + `subtitles/runtime/*` → flujo subtítulos, controladores, servicios y helpers.
+- `scripts/render.js` → render del listado/editor de guiones.
+- `audio/index.js`, `audio/controller.js` + `audio/runtime/*` → generación audio, tracking, SSE, polling, descarga y helpers.
+- `subtitles/index.js`, `subtitles/controller.js` + `subtitles/runtime/*` → flujo Subtítulos 2, sesión remota, tabla, preview, historial y helpers.
 
 ### Shared
 - `shared/dom/selectors.js` → contrato de selectores/IDs del DOM.
@@ -80,7 +83,18 @@ approval-panel-web/
 │     ├─ approval.css
 │     ├─ scripts.css
 │     ├─ audio.css
-│     ├─ subtitles.css
+│     ├─ subtitles.css              # compat histórico; no importado por styles.css
+│     ├─ subtitles/
+│     │  ├─ index.css               # fachada import-only
+│     │  ├─ legacy-base.css
+│     │  ├─ tokens.css
+│     │  ├─ layout.css
+│     │  ├─ upload.css
+│     │  ├─ preview.css
+│     │  ├─ history.css
+│     │  ├─ phases.css
+│     │  ├─ table.css
+│     │  └─ responsive.css
 │     └─ auth.css
 ├─ js/
 │  ├─ main.js
@@ -121,6 +135,7 @@ approval-panel-web/
 
 3. **CSS contract**
    - `styles.css` se mantiene import-only.
+   - `styles/features/subtitles/index.css` también es import-only y preserva el orden original del viejo `subtitles.css` mediante chunks secuenciales.
    - El orden de imports define la cascada (no alterar sin pruebas de paridad).
 
 4. **Parity contract**
@@ -140,7 +155,16 @@ pytest tests/test_phase6_runtime_parity_and_boundaries.py
 pytest tests/test_phase7_runtime_ui_replay_and_rollback.py
 pytest tests/test_phase8_html_css_readme_structure_refactor.py
 pytest tests/test_phase9_appshell_decomposition_archive_legacy.py
+pytest tests/test_subtitle2_parity_polish.py
+pytest tests/test_ui_design_recomposition.py
 ```
+
+Reglas de refactor:
+
+- No mover HTML a templates; `index.html` conserva los IDs y `data-action` como contrato público.
+- No cambiar endpoints, headers, payload keys, toasts ni copy visible.
+- No reintroducir `x-user-email` ni flujos legacy de Subtítulos.
+- No correr builds para validar este proyecto; usar pytest/parity guards.
 
 Si querés corrida completa:
 

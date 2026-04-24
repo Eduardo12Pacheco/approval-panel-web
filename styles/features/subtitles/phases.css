@@ -1,0 +1,22 @@
+#viewSubtitulos2 .subtitle-centered-card {
+  background: #0D0D0D;
+  border-color: #262626;
+}
+
+#viewSubtitulos2 .subtitle-processing-card .subtitle-phase-icon {
+  border-color: #F7B95555;
+  border-radius: 0;
+  background: #151515;
+  color: #F7B955;
+}
+
+#viewSubtitulos2 .subtitle-progress-track {
+  border-color: #2A2A2A;
+  border-radius: 0;
+  background: #121212;
+}
+
+#viewSubtitulos2 .subtitle-progress-fill {
+  border-radius: 0;
+  background: #00E88F;
+}

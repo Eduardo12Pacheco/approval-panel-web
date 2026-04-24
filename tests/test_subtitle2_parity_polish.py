@@ -9,7 +9,25 @@ APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 SUBTITLE_WORKFLOW_PATH = ROOT / "js" / "modules" / "subtitles-workflow.mjs"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
 SUBTITLE_RUNTIME_PRESENTATION_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "presentation.js"
-SUBTITLE_CSS_PATH = ROOT / "styles" / "features" / "subtitles.css"
+SUBTITLE_CONTROLLER_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "controller.js"
+SUBTITLE_CSS_DIR = ROOT / "styles" / "features" / "subtitles"
+
+
+def _read_subtitle_css() -> str:
+    return "\n".join(
+        (SUBTITLE_CSS_DIR / file_name).read_text(encoding="utf-8")
+        for file_name in [
+            "legacy-base.css",
+            "tokens.css",
+            "layout.css",
+            "upload.css",
+            "preview.css",
+            "history.css",
+            "phases.css",
+            "table.css",
+            "responsive.css",
+        ]
+    )
 
 
 def _subtitle2_scoped_css(css: str) -> str:
@@ -99,10 +117,11 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
     app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")
     workflow = SUBTITLE_WORKFLOW_PATH.read_text(encoding="utf-8")
-    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    css = _read_subtitle_css()
     services = SUBTITLE_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
     presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
-    subtitle_runtime_source = "\n".join([app_shell, presentation])
+    controller = SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8")
+    subtitle_runtime_source = "\n".join([app_shell, controller, presentation])
 
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
     assert 'id="subtitle2PreviewEmpty"' in index_html
@@ -190,21 +209,23 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
 
 def test_subtitle2_remote_style_presets_match_backend_contracts():
     workflow = (ROOT / "js" / "modules" / "subtitles-workflow.mjs").read_text(encoding="utf-8")
-    app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")
+    controller = SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8")
+    presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
 
     assert "Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140'])" in workflow
     assert "Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald'])" in workflow
     assert "Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2'])" in workflow
     assert "Object.freeze(['Khand Bold'" not in workflow
-    assert "font_weight" in app_shell
-    assert "style.fontWeight = presentation.fontWeight" in app_shell
+    assert "font_weight" in controller
+    assert "style.fontWeight = presentation.fontWeight" in controller
 
 
 def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_contract_drift():
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
-    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    css = _read_subtitle_css()
     subtitle_runtime_source = "\n".join([
         APP_SHELL_PATH.read_text(encoding="utf-8"),
+        SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8"),
         SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8"),
     ])
 
@@ -303,7 +324,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
 
 
 def test_subtitle2_web_pen_fidelity_uses_square_flat_pencil_tokens():
-    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    css = _read_subtitle_css()
     scoped_css = _subtitle2_scoped_css(css)
 
     for pencil_color in [
@@ -350,7 +371,7 @@ def test_subtitle2_web_pen_fidelity_uses_square_flat_pencil_tokens():
 
 
 def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_tokens():
-    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    css = _read_subtitle_css()
     scoped_css = _subtitle2_scoped_css(css)
 
     for expected_rule in [
@@ -377,7 +398,7 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
 
 def test_subtitle2_upload_slide_keeps_header_health_and_phases_inside_left_card():
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
-    css = SUBTITLE_CSS_PATH.read_text(encoding="utf-8")
+    css = _read_subtitle_css()
     scoped_css = _subtitle2_scoped_css(css)
 
     workspace_start = index_html.index('class="subtitle2-workspace"')

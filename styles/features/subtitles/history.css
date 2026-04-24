@@ -1,0 +1,143 @@
+#viewSubtitulos2 .subtitle2-history-section {
+  display: grid;
+  gap: 12px;
+}
+
+#viewSubtitulos2 .subtitle-history-list {
+  min-height: 118px;
+  padding: 12px;
+  border: 1px solid #262626;
+  border-radius: 0;
+  background: #0A0A0A;
+  color: #8B8E93;
+}
+
+#viewSubtitulos2 .subtitle-history-list button {
+  border: 1px solid #2A2A2A;
+  border-radius: 0;
+  background: #151515;
+  color: #DADDE0;
+}
+
+#viewSubtitulos2 .subtitle-history-item {
+  position: relative;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  justify-content: stretch;
+  border: 1px solid #263047;
+  background: #151515;
+  overflow: hidden;
+}
+
+#viewSubtitulos2 .subtitle-history-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #9DB8FF;
+}
+
+#viewSubtitulos2 .subtitle-history-item__resume {
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 0 10px 16px;
+  display: grid;
+  gap: 4px;
+  justify-content: stretch;
+  border: 0;
+  background: transparent !important;
+  color: inherit;
+  text-align: left;
+}
+
+#viewSubtitulos2 .subtitle-history-item__resume:hover:not(:disabled) {
+  transform: none;
+  filter: none;
+}
+
+#viewSubtitulos2 .subtitle-history-item__id,
+#viewSubtitulos2 .subtitle-history-item__name,
+#viewSubtitulos2 .subtitle-history-item__status {
+  min-width: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+#viewSubtitulos2 .subtitle-history-item__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #F5F7F7;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+#viewSubtitulos2 .subtitle-history-item__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#viewSubtitulos2 .subtitle-history-item__status {
+  display: block;
+  opacity: 0.78;
+  text-transform: lowercase;
+}
+
+#viewSubtitulos2 .subtitle-history-item__rename,
+#viewSubtitulos2 .subtitle-history-item__delete {
+  width: 42px;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 88, 102, 0.32);
+  background: transparent !important;
+  color: #FF5A66;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#viewSubtitulos2 .subtitle-history-item__rename {
+  border-left: 1px solid rgba(157, 184, 255, 0.28);
+  color: #9DB8FF;
+  font-size: 18px;
+}
+
+#viewSubtitulos2 .subtitle-history-item__rename:hover:not(:disabled),
+#viewSubtitulos2 .subtitle-history-item__delete:hover:not(:disabled) {
+  transform: none;
+  filter: brightness(1.15);
+}
+
+#viewSubtitulos2 .subtitle-history-item--editing {
+  border-color: #263C5C;
+  background: #111927;
+  color: #AFC6FF;
+}
+
+#viewSubtitulos2 .subtitle-history-item--done {
+  border-color: #0E4B34;
+  background: #071F16;
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-history-item--done::before {
+  background: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-history-item--active {
+  border-color: #5B431B;
+  background: #21180B;
+  color: #F7B955;
+}
+
+#viewSubtitulos2 .subtitle-history-item--active::before {
+  background: #F7B955;
+}

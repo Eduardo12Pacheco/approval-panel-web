@@ -15,7 +15,7 @@ TOAST_PATH = ROOT / "styles" / "components" / "toast.css"
 APPROVAL_PATH = ROOT / "styles" / "features" / "approval.css"
 SCRIPTS_PATH = ROOT / "styles" / "features" / "scripts.css"
 AUDIO_PATH = ROOT / "styles" / "features" / "audio.css"
-SUBTITLES_PATH = ROOT / "styles" / "features" / "subtitles.css"
+SUBTITLES_PATH = ROOT / "styles" / "features" / "subtitles" / "legacy-base.css"
 AUTH_PATH = ROOT / "styles" / "features" / "auth.css"
 README_PATH = ROOT / "README.md"
 
@@ -68,7 +68,7 @@ def test_styles_entry_order_stays_locked_while_rules_move_to_layer_files():
         "@import './styles/features/approval.css';",
         "@import './styles/features/scripts.css';",
         "@import './styles/features/audio.css';",
-        "@import './styles/features/subtitles.css';",
+        "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
         "@import './styles/components/scrollbars.css';",

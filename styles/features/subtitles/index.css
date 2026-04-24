@@ -1,0 +1,9 @@
+@import './legacy-base.css';
+@import './tokens.css';
+@import './layout.css';
+@import './upload.css';
+@import './preview.css';
+@import './history.css';
+@import './phases.css';
+@import './table.css';
+@import './responsive.css';

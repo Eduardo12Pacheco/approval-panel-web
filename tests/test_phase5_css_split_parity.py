@@ -29,7 +29,7 @@ STYLE_FILES = [
     ROOT / "styles" / "features" / "approval.css",
     ROOT / "styles" / "features" / "scripts.css",
     ROOT / "styles" / "features" / "audio.css",
-    ROOT / "styles" / "features" / "subtitles.css",
+    ROOT / "styles" / "features" / "subtitles" / "index.css",
     ROOT / "styles" / "features" / "auth.css",
     ROOT / "styles" / "responsive.css",
 ]
@@ -73,7 +73,7 @@ def test_styles_entry_is_import_only_with_locked_order():
         "@import './styles/features/approval.css';",
         "@import './styles/features/scripts.css';",
         "@import './styles/features/audio.css';",
-        "@import './styles/features/subtitles.css';",
+        "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
         "@import './styles/components/scrollbars.css';",

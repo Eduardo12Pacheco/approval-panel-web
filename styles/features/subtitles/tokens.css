@@ -1,0 +1,37 @@
+#viewSubtitulos2.subtitle2-screen {
+  --subtitle2-base: #0C0C0C;
+  --subtitle2-base-deep: #070707;
+  --subtitle2-card: #0A0A0A;
+  --subtitle2-panel: #0D0D0D;
+  --subtitle2-stage: #050505;
+  --subtitle2-ink: #151515;
+  --subtitle2-rail: #121212;
+  --subtitle2-border-soft: #232323;
+  --subtitle2-border: #262626;
+  --subtitle2-border-strong: #2A2A2A;
+  --subtitle2-border-hard: #353535;
+  --subtitle2-green: #00E88F;
+  --subtitle2-green-soft: #00E88F55;
+  --subtitle2-mint-soft: #00FFAA55;
+  --subtitle2-amber-soft: #F7B95555;
+  --subtitle2-blue-soft: #9DB8FF55;
+  --subtitle2-mint-line: #00FFAA66;
+  --subtitle2-amber: #F7B955;
+  --subtitle2-blue: #9DB8FF;
+  --subtitle2-yellow: #FACC15;
+  --subtitle2-text: #F5F7F7;
+  --subtitle2-text-soft: #D8DBDE;
+  --subtitle2-muted: #8B8E93;
+  --subtitle2-muted-strong: #6E7278;
+  --subtitle2-label: #6B6B6B;
+  --subtitle2-control: #777B80;
+  --subtitle2-green-ink: #03140D;
+  --subtitle2-silver: #DADDE0;
+  min-height: calc(100vh - 42px);
+  padding: 28px 5px 32px 5px;
+  display: grid;
+  gap: 20px;
+  background: #0C0C0C;
+  color: #F5F7F7;
+  font-family: 'Inter', sans-serif;
+}

@@ -100,19 +100,28 @@ function parseCssRules(cssSource) {
   return rules;
 }
 
-async function getStyleImportPaths() {
-  const stylesEntry = await readFile(path.join(ROOT, 'styles.css'), 'utf-8');
+async function resolveStyleImportPaths(filePath, seen = new Set()) {
+  const normalizedPath = path.resolve(filePath);
+  if (seen.has(normalizedPath)) return [];
+  seen.add(normalizedPath);
+
+  const stylesEntry = await readFile(normalizedPath, 'utf-8');
   const imports = [];
   const importRegex = /@import\s+'([^']+)'\s*;/g;
   let match = importRegex.exec(stylesEntry);
 
   while (match) {
     const rawPath = match[1];
-    imports.push(path.resolve(ROOT, rawPath.replace('./', '')));
+    const importedPath = path.resolve(path.dirname(normalizedPath), rawPath);
+    imports.push(...await resolveStyleImportPaths(importedPath, seen));
     match = importRegex.exec(stylesEntry);
   }
 
-  return imports;
+  return imports.length ? imports : [normalizedPath];
+}
+
+async function getStyleImportPaths() {
+  return resolveStyleImportPaths(path.join(ROOT, 'styles.css'));
 }
 
 async function computeGuardedSelectorStyles() {
