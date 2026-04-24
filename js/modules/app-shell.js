@@ -2100,7 +2100,11 @@ async function deleteSubtitle2HistorySession(sessionId) {
     toast('Proyecto eliminado');
   } catch (error) {
     console.error(error);
-    toast(getErrorMessage(error, 'No se pudo eliminar el proyecto'));
+    const message = getErrorMessage(error, 'No se pudo eliminar el proyecto');
+    const isNetworkDeleteFailure = /failed to fetch|networkerror|load failed/i.test(message);
+    toast(isNetworkDeleteFailure
+      ? 'No se pudo eliminar: el servicio remoto no tiene DELETE/CORS actualizado.'
+      : message);
   }
 }
 
