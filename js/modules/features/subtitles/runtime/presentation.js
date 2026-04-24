@@ -27,14 +27,17 @@ export function buildSubtitleSessionHistoryMarkupRuntime({ items = [], activeSes
   if (!sessions.length) return '<p class="meta">Todavía no hay sesiones remotas.</p>';
   return sessions.map((item) => {
     const sessionId = (item?.id || '').toString();
+    const displayName = (item?.display_name || item?.displayName || sessionId).toString();
     const status = (item?.status || 'unknown').toString();
     const tone = resolveSubtitleHistoryToneRuntime({ sessionId, status, item, activeSessionId });
     return `
     <article class="subtitle-history-item subtitle-history-item--${tone}" aria-current="${tone === 'active' ? 'true' : 'false'}">
       <button type="button" class="secondary subtitle-history-item__resume" data-action="resume-subtitle-session" data-session-id="${escape(sessionId)}">
+        <span class="subtitle-history-item__name">${escape(displayName)}</span>
         <span class="subtitle-history-item__id">${escape(sessionId)}</span>
         <span class="subtitle-history-item__status">${escape(status)}</span>
       </button>
+      <button type="button" class="subtitle-history-item__rename" aria-label="Renombrar proyecto" data-action="rename-subtitle-session" data-session-id="${escape(sessionId)}" data-session-name="${escape(displayName)}">✎</button>
       <button type="button" class="subtitle-history-item__delete" aria-label="Eliminar proyecto" data-action="delete-subtitle-session" data-session-id="${escape(sessionId)}">×</button>
     </article>
   `;

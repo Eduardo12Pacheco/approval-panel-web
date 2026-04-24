@@ -367,6 +367,13 @@ function bindEvents() {
   el.subtitle2PreviewTimeline?.addEventListener('click', onSubtitle2PreviewTimelineClick);
   el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', onSubtitle2PreviewTimelineDragStart);
   el.subtitle2SessionHistory?.addEventListener('click', (ev) => {
+    const renameButton = ev.target.closest('[data-action="rename-subtitle-session"]');
+    if (renameButton) {
+      const sessionId = (renameButton.dataset.sessionId || '').trim();
+      const currentName = (renameButton.dataset.sessionName || sessionId).trim();
+      if (sessionId) void renameSubtitle2HistorySession(sessionId, currentName);
+      return;
+    }
     const deleteButton = ev.target.closest('[data-action="delete-subtitle-session"]');
     if (deleteButton) {
       const sessionId = (deleteButton.dataset.sessionId || '').trim();
@@ -1395,6 +1402,30 @@ async function deleteSubtitle2HistorySession(sessionId) {
     toast(isNetworkDeleteFailure
       ? 'No se pudo eliminar: el servicio remoto no tiene DELETE/CORS actualizado.'
       : message);
+  }
+}
+
+async function renameSubtitle2HistorySession(sessionId, currentName = '') {
+  const nextName = window.prompt('Nombre del proyecto', currentName || sessionId);
+  if (nextName == null) return;
+  const displayName = nextName.trim();
+  if (!displayName) {
+    toast('El nombre no puede estar vacío');
+    return;
+  }
+  try {
+    const renamed = await ttsApi.renameSubtitleSession(sessionId, displayName);
+    state.subtitles2.sessionHistory = state.subtitles2.sessionHistory.map((item) => (
+      item?.id === sessionId
+        ? { ...item, display_name: renamed?.display_name || displayName }
+        : item
+    ));
+    renderSubtitle2SessionHistory();
+    await refreshSubtitle2RemoteStatus();
+    toast('Proyecto renombrado');
+  } catch (error) {
+    console.error(error);
+    toast(getErrorMessage(error, 'No se pudo renombrar el proyecto'));
   }
 }
 

@@ -142,6 +142,31 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     return data;
   }
 
+  async function patch(path, payload) {
+    const baseUrl = resolveBaseUrl();
+    const headers = buildTtsHeaders('application/json');
+    const res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `PATCH ${path} ${res.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
   async function del(path) {
     const baseUrl = resolveBaseUrl();
     const headers = buildTtsHeaders();
@@ -218,6 +243,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     get,
     post,
     put,
+    patch,
     delete: del,
     postForm,
     getBlob,
@@ -234,6 +260,9 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     },
     deleteSubtitleSession(sessionId) {
       return del(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
+    },
+    renameSubtitleSession(sessionId, displayName) {
+      return patch(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`, { display_name: displayName });
     },
     getSubtitleSegments(sessionId) {
       return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`);
