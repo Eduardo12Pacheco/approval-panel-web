@@ -105,6 +105,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'id="subtitle2PreviewEmpty"' in index_html
     assert 'subtitle-table__col--time-range' in index_html
     assert 'subtitle-table__col--delete' in index_html
+    assert 'id="subtitle2PreviewVideo" playsinline preload="auto"' in index_html
     assert 'Start / End' in index_html
     assert '<th aria-label="Eliminar"></th>' in index_html
     assert '<span class="subtitle-table__title">Eliminar</span>' not in index_html
@@ -147,6 +148,9 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'delete-subtitle-row',
         'nudgeSubtitle2TimingBoundary',
         'nudge-subtitle-time',
+        'onSubtitle2PreviewLoadedMetadata',
+        'ensureSubtitle2RowsCoverDuration',
+        'applySubtitle2VideoDuration',
         'data-field="start" data-direction="up"',
         'data-field="end" data-direction="down"',
         'SUBTITLE_TIME_NUDGE_MS = 100',

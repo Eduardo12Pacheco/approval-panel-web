@@ -472,6 +472,7 @@ function bindEvents() {
   el.subtitle2RowsBody?.addEventListener('drop', onSubtitle2DraftDrop);
   el.subtitle2RowsBody?.addEventListener('dragend', onSubtitle2DraftDragEnd);
   el.subtitle2PreviewVideo?.addEventListener('timeupdate', onSubtitle2PreviewTimeUpdate);
+  el.subtitle2PreviewVideo?.addEventListener('loadedmetadata', onSubtitle2PreviewLoadedMetadata);
   el.subtitle2PreviewVideo?.addEventListener('play', () => {
     state.subtitles2.previewPlaying = true;
     renderSubtitle2PreviewPlaybackState();
@@ -1583,6 +1584,7 @@ async function enqueueSubtitle2Save(saveMode) {
   if (hasSubtitle2DraftRows()) {
     throw new Error('Ubicá el subtítulo fantasma antes de guardar');
   }
+  ensureSubtitle2RowsCoverDuration();
   const response = await ttsApi.updateSubtitleSegments(state.subtitles2.sessionId, {
     base_version: state.subtitles2.snapshotVersion,
     save_mode: saveMode,
@@ -1731,7 +1733,7 @@ function nudgeSubtitle2TimingBoundary(rowId, field, direction) {
   const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
   const row = state.subtitles2.rows[index];
   if (!row || row.isDraft) return;
-  const delta = direction === 'up' ? SUBTITLE_TIME_NUDGE_MS : -SUBTITLE_TIME_NUDGE_MS;
+  const delta = direction === 'up' ? -SUBTITLE_TIME_NUDGE_MS : SUBTITLE_TIME_NUDGE_MS;
   const currentStartMs = parseSubtitleTimeToMsRuntime(row.start);
   const currentEndMs = parseSubtitleTimeToMsRuntime(row.end);
 
@@ -2040,11 +2042,40 @@ function renderSubtitle2PreviewTimeline() {
   }
 }
 
+function applySubtitle2VideoDuration(durationSeconds) {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return false;
+  const durationMs = Math.round(durationSeconds * 1000);
+  if (!durationMs || durationMs === state.subtitles2.audioDurationMs) return false;
+  state.subtitles2.audioDurationMs = durationMs;
+  return ensureSubtitle2RowsCoverDuration(durationMs);
+}
+
+function ensureSubtitle2RowsCoverDuration(durationMs = resolveSubtitle2PreviewDurationMs()) {
+  const safeDurationMs = Math.max(0, Number(durationMs) || 0);
+  if (!safeDurationMs || hasSubtitle2DraftRows()) return false;
+  const lastIndex = state.subtitles2.rows.length - 1;
+  const lastRow = state.subtitles2.rows[lastIndex];
+  if (!lastRow) return false;
+  const lastEndMs = parseSubtitleTimeToMsRuntime(lastRow.end);
+  if (lastEndMs >= safeDurationMs) return false;
+  state.subtitles2.rows = state.subtitles2.rows.map((row, index) => (
+    index === lastIndex ? applySubtitleRowPatch(row, { end: formatSubtitleDisplayTimeRuntime(safeDurationMs) }) : row
+  ));
+  state.subtitles2.changeVersion += 1;
+  state.subtitles2.dirty = true;
+  return true;
+}
+
+function onSubtitle2PreviewLoadedMetadata(ev) {
+  const adjusted = applySubtitle2VideoDuration(ev.target?.duration);
+  if (adjusted) renderSubtitles2Table();
+  renderSubtitle2PreviewOverlay();
+}
+
 function onSubtitle2PreviewTimeUpdate(ev) {
   state.subtitles2.previewCurrentMs = Math.round((ev.target?.currentTime || 0) * 1000);
-  if (!state.subtitles2.audioDurationMs && Number.isFinite(ev.target?.duration)) {
-    state.subtitles2.audioDurationMs = Math.round(ev.target.duration * 1000);
-  }
+  const adjusted = applySubtitle2VideoDuration(ev.target?.duration);
+  if (adjusted) renderSubtitles2Table();
   renderSubtitle2PreviewOverlay();
 }
 
@@ -2295,8 +2326,9 @@ async function hydrateSubtitle2Session(sessionId, { render = true } = {}) {
     colorPresets: SUBTITLE_COLOR_PRESETS,
   });
   state.subtitles2.audioDurationMs = Math.max(0, Number(detail?.preview?.duration_ms || 0)) || resolveSubtitle2PreviewDurationMs();
+  const durationAdjusted = ensureSubtitle2RowsCoverDuration(state.subtitles2.audioDurationMs);
   state.subtitles2.savedVersion = state.subtitles2.changeVersion;
-  state.subtitles2.dirty = false;
+  state.subtitles2.dirty = durationAdjusted;
   if (render) renderSubtitles2Workflow();
   return detail;
 }
