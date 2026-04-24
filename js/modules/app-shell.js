@@ -85,6 +85,8 @@ const sessionKey = 'approval-panel-session-v1';
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
 const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 15000;
+const SUBTITLE_TIME_NUDGE_MS = 100;
+const SUBTITLE_TIMING_GAP_MS = 60;
 
 function defaultSettings() {
   return defaultSettingsFactory();
@@ -1686,7 +1688,7 @@ function onSubtitle2TableInput(ev) {
 
 function applySubtitle2TimingInput(rowId, field, rawValue) {
   const valueMs = parseSubtitleTimeToMsRuntime(rawValue);
-  const validation = validateSubtitleTimingPatchRuntime({ rows: state.subtitles2.rows, rowId, field, valueMs });
+  const validation = validateSubtitleTimingPatchRuntime({ rows: state.subtitles2.rows, rowId, field, valueMs, gapMs: SUBTITLE_TIMING_GAP_MS });
   if (!validation.accepted) {
     toast(validation.reason || 'Timing inválido');
     renderSubtitles2Table();
@@ -1701,10 +1703,15 @@ function applySubtitle2TimingInput(rowId, field, rawValue) {
   }
   patchSubtitle2Row(rowId, { end: formatSubtitleDisplayTimeRuntime(valueMs) });
   const nextRow = state.subtitles2.rows[index + 1];
-  if (nextRow) patchSubtitle2Row(nextRow.id, { start: formatSubtitleDisplayTimeRuntime(valueMs + 67) });
+  if (nextRow) patchSubtitle2Row(nextRow.id, { start: formatSubtitleDisplayTimeRuntime(valueMs + SUBTITLE_TIMING_GAP_MS) });
 }
 
 function onSubtitle2TableClick(ev) {
+  const nudgeButton = ev.target.closest('button[data-action="nudge-subtitle-time"]');
+  if (nudgeButton) {
+    nudgeSubtitle2TimingBoundary(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
+    return;
+  }
   const deleteButton = ev.target.closest('button[data-action="delete-subtitle-row"]');
   if (deleteButton) {
     const rowId = deleteButton.dataset.rowId;
@@ -1717,6 +1724,61 @@ function onSubtitle2TableClick(ev) {
   const align = button.dataset.align;
   if (!rowId || !align) return;
   patchSubtitle2Row(rowId, { align });
+}
+
+function nudgeSubtitle2TimingBoundary(rowId, field, direction) {
+  const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
+  const row = state.subtitles2.rows[index];
+  if (!row || row.isDraft) return;
+  const delta = direction === 'up' ? SUBTITLE_TIME_NUDGE_MS : -SUBTITLE_TIME_NUDGE_MS;
+  const currentStartMs = parseSubtitleTimeToMsRuntime(row.start);
+  const currentEndMs = parseSubtitleTimeToMsRuntime(row.end);
+
+  if (field === 'start') {
+    if (index === 0) {
+      toast('El START de la primera frase es fijo en 00:00.00');
+      return;
+    }
+    const previous = state.subtitles2.rows[index - 1];
+    const previousStartMs = parseSubtitleTimeToMsRuntime(previous.start);
+    const nextStartMs = currentStartMs + delta;
+    const previousEndMs = nextStartMs - SUBTITLE_TIMING_GAP_MS;
+    if (previousEndMs <= previousStartMs || nextStartMs >= currentEndMs - SUBTITLE_TIMING_GAP_MS) {
+      toast('No hay margen suficiente para mover el START');
+      return;
+    }
+    state.subtitles2.rows = state.subtitles2.rows.map((item, itemIndex) => {
+      if (itemIndex === index - 1) return applySubtitleRowPatch(item, { end: formatSubtitleDisplayTimeRuntime(previousEndMs) });
+      if (itemIndex === index) return applySubtitleRowPatch(item, { start: formatSubtitleDisplayTimeRuntime(nextStartMs) });
+      return item;
+    });
+    state.subtitles2.changeVersion += 1;
+    state.subtitles2.dirty = true;
+    renderSubtitles2Table();
+    renderSubtitle2PreviewOverlay();
+    updateSubtitle2ButtonsByPhase();
+    return;
+  }
+
+  if (field !== 'end') return;
+  const next = state.subtitles2.rows[index + 1] || null;
+  const nextEndMs = next ? parseSubtitleTimeToMsRuntime(next.end) : null;
+  const nextEndBoundaryMs = currentEndMs + delta;
+  const nextStartMs = nextEndBoundaryMs + SUBTITLE_TIMING_GAP_MS;
+  if (nextEndBoundaryMs <= currentStartMs + SUBTITLE_TIMING_GAP_MS || (next && nextStartMs >= nextEndMs)) {
+    toast('No hay margen suficiente para mover el END');
+    return;
+  }
+  state.subtitles2.rows = state.subtitles2.rows.map((item, itemIndex) => {
+    if (itemIndex === index) return applySubtitleRowPatch(item, { end: formatSubtitleDisplayTimeRuntime(nextEndBoundaryMs) });
+    if (next && itemIndex === index + 1) return applySubtitleRowPatch(item, { start: formatSubtitleDisplayTimeRuntime(nextStartMs) });
+    return item;
+  });
+  state.subtitles2.changeVersion += 1;
+  state.subtitles2.dirty = true;
+  renderSubtitles2Table();
+  renderSubtitle2PreviewOverlay();
+  updateSubtitle2ButtonsByPhase();
 }
 
 function deleteSubtitle2Row(rowId) {
@@ -2160,9 +2222,21 @@ function renderSubtitles2Table() {
       <tr data-row-id="${row.id}" data-draft="${isDraft ? 'true' : 'false'}" class="${isDraft ? 'subtitle-row--draft' : ''}" ${isDraft ? 'draggable="true"' : ''}>
         <td>
           <div class="subtitle-time-range" aria-label="Rango de tiempo">
-            <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" ${isDraft ? 'disabled' : ''} />
+            <div class="subtitle-time-row">
+              <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.start))}" ${isDraft ? 'disabled' : ''} />
+              <div class="subtitle-time-nudge" aria-label="Ajustar Start">
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="up" aria-label="Subir Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌃</button>
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="down" aria-label="Bajar Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌄</button>
+              </div>
+            </div>
             <span class="subtitle-time-range__line" aria-hidden="true"></span>
-            <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
+            <div class="subtitle-time-row">
+              <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escapeHtml(formatSubtitleDisplayTimeRuntime(row.end))}" ${isDraft ? 'disabled' : ''} />
+              <div class="subtitle-time-nudge" aria-label="Ajustar End">
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="up" aria-label="Subir End 00:00.10" ${isDraft ? 'disabled' : ''}>⌃</button>
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft ? 'disabled' : ''}>⌄</button>
+              </div>
+            </div>
           </div>
         </td>
         <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};font-weight:${escapeHtml(row.fontWeight || resolveSubtitleFontWeight(row.fontFamily))};">${escapeHtml(row.phrase)}</textarea></td>

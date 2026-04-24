@@ -428,18 +428,21 @@
 
 .subtitle-table__col--time,
 .subtitle-table__col--time-range {
-  width: 90px;
+  width: 120px;
 }
 
 .subtitle-table__col--phrase {
-  width: 34%;
+  width: 32%;
 }
 
 .subtitle-table__col--size {
-  width: 92px;
+  width: 84px;
 }
 
-.subtitle-table__col--space,
+.subtitle-table__col--space {
+  width: 96px;
+}
+
 .subtitle-table__col--font,
 .subtitle-table__col--color {
   width: 110px;
@@ -1131,7 +1134,19 @@
   min-height: 62px;
   display: grid;
   align-content: center;
-  gap: 7px;
+  gap: 5px;
+}
+
+#viewSubtitulos2 .subtitle-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 5px;
+}
+
+#viewSubtitulos2 .subtitle-time-nudge {
+  display: grid;
+  gap: 2px;
 }
 
 #viewSubtitulos2 .subtitle-time-range__line {
@@ -1151,6 +1166,30 @@
   font-size: 16px;
   font-weight: 500;
   text-align: center;
+}
+
+#viewSubtitulos2 .subtitle-time-nudge button {
+  width: 18px;
+  min-width: 18px;
+  min-height: 17px;
+  padding: 0;
+  border: 1px solid #2A2A2A;
+  background: #101010;
+  color: #D8DBDE;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+#viewSubtitulos2 .subtitle-time-nudge button:hover:not(:disabled) {
+  border-color: #00E88F66;
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-time-nudge button:disabled {
+  color: #4B4F55;
+  opacity: 0.45;
 }
 
 #viewSubtitulos2 .subtitle-time-range input[data-field="end"] {
