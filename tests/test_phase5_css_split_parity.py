@@ -44,7 +44,7 @@ def test_style_guards_baseline_exists_for_protected_views_and_selectors():
         "#viewApproval",
         "#viewScripts",
         "#viewAudio",
-        "#viewSubtitulos",
+        "#viewSubtitulos2",
         ".sidebar",
         ".topbar",
         ".card",
@@ -76,6 +76,7 @@ def test_styles_entry_is_import_only_with_locked_order():
         "@import './styles/features/subtitles.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
+        "@import './styles/components/scrollbars.css';",
     ]
     lines = [line.strip() for line in source.splitlines() if line.strip()]
     assert lines == expected_lines

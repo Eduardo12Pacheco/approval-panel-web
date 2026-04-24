@@ -120,21 +120,11 @@ export function normalizeSubtitleMetaValueForStateRuntime(...candidates) {
 }
 
 export function resolveSubtitlesModeRuntime(rawMode) {
-  const normalized = (rawMode || 'legacy').toString().trim().toLowerCase();
-  return normalized === 'remote-core' ? 'remote-core' : 'legacy';
+  const normalized = (rawMode || 'remote-core').toString().trim().toLowerCase();
+  return normalized === 'legacy' ? 'remote-core' : normalized;
 }
 
 export function buildSubtitleHealthRuntime(rawHealth, mode) {
-  const resolvedMode = resolveSubtitlesModeRuntime(mode);
-  if (resolvedMode === 'legacy') {
-    return {
-      status: 'legacy',
-      tone: 'offline',
-      message: 'Legacy habilitado mientras validamos Subtítulos 2.',
-      banner: 'Estado remoto: legacy activo. El flujo remoto convive sin reemplazar al anterior.',
-    };
-  }
-
   const status = (rawHealth?.status || 'pending').toString().trim().toLowerCase() || 'pending';
   const message = (rawHealth?.message || 'Estado remoto pendiente.').toString().trim();
   const tone = ['online', 'healthy', 'ok', 'available', 'succeeded'].includes(status) ? 'online' : 'offline';

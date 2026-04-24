@@ -7,7 +7,7 @@
 - `#viewApproval`
 - `#viewScripts`
 - `#viewAudio`
-- `#viewSubtitulos`
+- `#viewSubtitulos2`
 
 ## Guarded Selectors
 

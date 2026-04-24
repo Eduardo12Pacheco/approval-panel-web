@@ -133,7 +133,7 @@ def test_runtime_ui_replay_guardrails_expect_pure_helpers_to_live_in_runtime_ser
     assert "normalizeAudioProgressPercent" in audio_controllers_source
 
     assert "normalizeAudioProgressPercent" in app_shell_source
-    assert "extractSubtitleProgressPercentRuntime" in app_shell_source
+    assert "resolveSubtitleProgressPercentRuntime" in app_shell_source
 
 
 def test_app_shell_declares_single_timer_auto_refresh_for_queue_and_drafts():

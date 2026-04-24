@@ -42,7 +42,7 @@ def test_index_html_adds_readability_block_delimiters_without_contract_drift():
         "viewApproval",
         "viewScripts",
         "viewAudio",
-        "viewSubtitulos",
+        "viewSubtitulos2",
         "queueDialog",
         "settingsDialog",
     ]:
@@ -71,6 +71,7 @@ def test_styles_entry_order_stays_locked_while_rules_move_to_layer_files():
         "@import './styles/features/subtitles.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
+        "@import './styles/components/scrollbars.css';",
     ]
 
 

@@ -12,8 +12,8 @@ export const REQUIRED_SELECTOR_IDS = [
   'viewApproval',
   'viewScripts',
   'viewAudio',
-  'viewSubtitulos',
   'viewSubtitulos2',
+  'subtitle2RowsBody',
   'subtitle2ServiceHealthBanner',
   'subtitle2SessionHistory',
   'subtitle2PreviewStage',
@@ -24,7 +24,6 @@ export const REQUIRED_SELECTOR_IDS = [
   'subtitle2AddRowBtn',
   'subtitle2AnotherVideoBtn',
   'audioRunBtn',
-  'subtitleRowsBody',
 ];
 
 const COMPOSITION_ROOT_IMPORT_PATH = './modules/composition-root.js';
@@ -32,8 +31,8 @@ const COMPOSITION_ROOT_BOOT_FN = 'bootCompositionRoot';
 const APP_SHELL_IMPORT_PATH = './app-shell.js';
 const APP_SHELL_BOOT_FN = 'bootApp';
 const AUDIO_RUNTIME_HELPER_IMPORT_TOKEN = 'normalizeAudioProgressPercent';
-const SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN = 'extractSubtitleProgressPercentRuntime';
-export const SUBTITLE_REMOTE_CUTOVER_GATES = ['legacy-coexists', 'remote-core-ready'];
+const SUBTITLES_RUNTIME_HELPER_IMPORT_TOKEN = 'resolveSubtitleProgressPercentRuntime';
+export const SUBTITLE_REMOTE_CUTOVER_GATES = ['remote-core-ready', 'legacy-removed'];
 
 function assertSelectorContracts(indexHtmlSource, failures) {
   for (const selectorId of REQUIRED_SELECTOR_IDS) {

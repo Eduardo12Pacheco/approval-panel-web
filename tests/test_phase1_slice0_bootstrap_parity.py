@@ -21,10 +21,9 @@ REQUIRED_SELECTOR_IDS = [
     "viewApproval",
     "viewScripts",
     "viewAudio",
-    "viewSubtitulos",
     "viewSubtitulos2",
     "audioRunBtn",
-    "subtitleRowsBody",
+    "subtitle2RowsBody",
     "subtitle2ServiceHealthBanner",
     "subtitle2SessionHistory",
     "subtitle2PreviewStage",
@@ -81,11 +80,6 @@ def test_app_shell_keeps_boot_entrypoint_signature():
 def test_app_shell_keeps_existing_test_hooks_contract():
     source = APP_SHELL_PATH.read_text(encoding="utf-8")
     required_hooks = [
-        "pollSubtitleStatusForTesting",
-        "getSubtitlesStateForTesting",
-        "setSubtitlesStateForTesting",
-        "setSubtitlesPhaseForTesting",
-        "resetSubtitlesForTesting",
         "setTtsGetMock",
         "setToastMock",
         "clearMocksForTesting",

@@ -44,9 +44,9 @@ def test_app_shell_delegates_audio_subtitles_flows_via_feature_and_tts_modules()
 
     assert "./core/http/tts-api.js" in source
     assert "./features/audio/index.js" in source
-    assert "./features/subtitles/index.js" in source
+    assert "./features/subtitles/runtime/index.js" in source
 
-    for token in ["createTtsApiClient", "createAudioFeature", "createSubtitlesFeature", "api", "store", "ui", "selectors"]:
+    for token in ["createTtsApiClient", "createAudioFeature", "resolveSubtitleProgressPercentRuntime", "api", "store", "ui", "selectors"]:
         assert token in source, f"Missing Phase-4 delegation token in app-shell: {token}"
 
 

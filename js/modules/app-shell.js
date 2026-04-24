@@ -1,25 +1,16 @@
 import {
-  SUBTITLES_AUTOSAVE_INTERVAL_MS,
   SUBTITLES_POLL_INTERVAL_MS,
   SUBTITLES_PHASES,
-  SUBTITLES_RENDER_WATCHDOG_MS,
   SUBTITLE_COLOR_PRESETS,
   SUBTITLE_FONT_PRESETS,
   SUBTITLE_SIZE_PRESETS,
   applySubtitleRowPatch,
-  createDownloadActionPlan,
-  createReadyActionPlan,
-  createSaveActionPlan,
-  createSnapshotSaveQueue,
   createEmptySubtitleRow,
   createSubtitlesWorkflowMachine,
   getAlignmentButtonState,
   getSubtitlesActionPolicy,
   getSubtitlesPhaseSectionVisibility,
   resolveSubtitleFontWeight,
-  shouldFailRenderByWatchdog,
-  shouldRunAutosave,
-  shouldRunStatusPolling,
 } from './subtitles-workflow.mjs';
 import { renderToast } from './core/ui/toast.js';
 import { escapeHtmlCore } from './core/ui/escape-html.js';
@@ -49,7 +40,6 @@ import {
 import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { buildScriptSelectionCardMarkup, createScriptsFeature } from './features/scripts/index.js';
 import { createAudioFeature } from './features/audio/index.js';
-import { createSubtitlesFeature } from './features/subtitles/index.js';
 import {
   createAudioRuntime,
   getAudioStatusClassRuntime,
@@ -60,17 +50,12 @@ import {
 import {
   buildSubtitleCueMarkersRuntime,
   buildSubtitleHealthRuntime,
-  buildSubtitleInsertRowRuntime,
   buildSubtitlePreviewPresentationRuntime,
   buildSubtitlePreviewUrlRuntime,
   buildSubtitleProcessingMessageRuntime,
-  createSubtitlesRuntime,
   describeSubtitleTranslationEngineRuntime,
-  extractSubtitleAnalyzeMetadataRuntime,
-  extractSubtitleProgressPercentRuntime,
   formatSubtitleDisplayTimeRuntime,
   mapRemoteSubtitleSegmentsToRowsRuntime,
-  normalizeSubtitleMetaValueForStateRuntime,
   parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
   resolveSubtitleTimelineSeekMsRuntime,
@@ -93,22 +78,24 @@ function defaultSettings() {
   return defaultSettingsFactory();
 }
 
-function createLegacySubtitleSeedRows() {
-  return [
-    createEmptySubtitleRow({
-      id: 'row-1',
-      start: '00:00:01.000',
-      end: '00:00:02.500',
-      phrase: 'Texto inicial',
-      size: SUBTITLE_SIZE_PRESETS[0],
-      color: SUBTITLE_COLOR_PRESETS[0],
-      align: 'left',
-    }),
-  ];
-}
-
 function createRemoteSubtitleSeedRows() {
   return [createEmptySubtitleRow({ id: 'row-1', start: '00:00.00', end: '00:02.00', phrase: '' })];
+}
+
+function createEmptySubtitleAnalyzeMetadata() {
+  return {
+    sourceLanguageRequested: null,
+    sourceLanguageEffective: null,
+    detectedLanguage: null,
+    asrModel: null,
+    mtModel: null,
+  };
+}
+
+function normalizeSubtitleMetaValue(value) {
+  if (value == null) return '—';
+  const text = value.toString().trim();
+  return text || '—';
 }
 
 function createRemoteSubtitlesState() {
@@ -167,35 +154,6 @@ const state = {
   audioQueueSyncTimer: null,
   audioQueueSyncInFlight: false,
   approvalAutoRefreshTimer: null,
-  subtitles: {
-    machine: createSubtitlesWorkflowMachine(),
-    rows: createLegacySubtitleSeedRows(),
-    selectedFileName: '',
-    analysisJobId: null,
-    renderJobId: null,
-    analyzeStatus: null,
-    renderStatus: null,
-    analyzeProgressPct: null,
-    renderProgressPct: null,
-    renderArtifactReady: false,
-    renderFailureReason: null,
-    renderProcessingStartedAtMs: null,
-    renderTerminalRefreshDone: false,
-    audioDurationMs: null,
-    snapshotVersion: 0,
-    dirty: false,
-    changeVersion: 0,
-    savedVersion: 0,
-    pollingTimer: null,
-    pollingInFlight: false,
-    autosaveTimer: null,
-    saveQueue: createSnapshotSaveQueue({
-      initialAckVersion: 0,
-      persist: persistSubtitleSnapshotRequest,
-    }),
-    sourceLanguage: 'auto',
-    analyzeMetadata: createEmptySubtitleAnalyzeMetadata(),
-  },
   subtitles2: createRemoteSubtitlesState(),
 };
 
@@ -301,20 +259,6 @@ const audioRuntime = createAudioRuntime({
   },
 });
 
-const subtitlesRuntime = createSubtitlesRuntime({
-  hooks: {
-    onUploadSelected: onSubtitleUploadSelected,
-    onSourceLanguageChanged: onSubtitleSourceLanguageChanged,
-    onSaveClicked: onSubtitleSaveClicked,
-    onReadyClicked: onSubtitleReadyClicked,
-    onDownloadClicked: onSubtitleDownloadClicked,
-    onTableInput: onSubtitleTableInput,
-    onTableClick: onSubtitleTableClick,
-    pollStatus: pollSubtitleStatus,
-    renderWorkflow: renderSubtitlesWorkflow,
-  },
-});
-
 const audioFeature = createAudioFeature({
   api: ttsApi,
   store,
@@ -322,16 +266,6 @@ const audioFeature = createAudioFeature({
   selectors: el,
   handlers: {
     ...audioRuntime,
-  },
-});
-
-const subtitlesFeature = createSubtitlesFeature({
-  api: ttsApi,
-  store,
-  ui: { toast },
-  selectors: el,
-  handlers: {
-    ...subtitlesRuntime,
   },
 });
 
@@ -347,7 +281,6 @@ export function bootCompatibilityShell() {
     el.runQueueBtn.textContent = 'Actualizar cola';
   }
   renderSelectedScriptEditor();
-  renderSubtitlesWorkflow();
   boot();
 }
 
@@ -448,14 +381,6 @@ function bindEvents() {
 
   el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
 
-  el.subtitleUploadInput?.addEventListener('change', subtitlesFeature.onUploadSelected);
-  el.subtitleSourceLanguagePicker?.addEventListener('change', subtitlesFeature.onSourceLanguageChanged);
-  el.subtitleSaveBtn?.addEventListener('click', subtitlesFeature.onSaveClicked);
-  el.subtitleReadyBtn?.addEventListener('click', subtitlesFeature.onReadyClicked);
-  el.subtitleDownloadBtn?.addEventListener('click', subtitlesFeature.onDownloadClicked);
-  el.subtitleRowsBody?.addEventListener('input', subtitlesFeature.onTableInput);
-  el.subtitleRowsBody?.addEventListener('change', subtitlesFeature.onTableInput);
-  el.subtitleRowsBody?.addEventListener('click', subtitlesFeature.onTableClick);
 
   el.subtitle2UploadInput?.addEventListener('change', onSubtitle2UploadSelected);
   el.subtitle2SourceLanguagePicker?.addEventListener('change', onSubtitle2SourceLanguageChanged);
@@ -559,19 +484,17 @@ function bindEvents() {
 
 function setView(view) {
   const requestedView = typeof view === 'string' ? view.trim() : '';
-  const nextView = ['approval', 'audio', 'subtitulos', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
+  const nextView = ['approval', 'scripts', 'audio', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
 
   state.currentView = nextView;
   ensureApprovalAutoRefresh();
   const isApproval = nextView === 'approval';
   const isScripts = nextView === 'scripts';
   const isAudio = nextView === 'audio';
-  const isSubtitulos = nextView === 'subtitulos';
   const isSubtitulos2 = nextView === 'subtitulos2';
   el.viewApproval.classList.toggle('hidden', !isApproval);
   el.viewScripts.classList.toggle('hidden', !isScripts);
   el.viewAudio.classList.toggle('hidden', !isAudio);
-  el.viewSubtitulos.classList.toggle('hidden', !isSubtitulos);
   el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === nextView);
@@ -590,535 +513,10 @@ function setView(view) {
     audioFeature.stopAudioQueueSync();
   }
 
-  if (isSubtitulos) {
-    renderSubtitlesWorkflow();
-  }
 
   if (isSubtitulos2) {
     void refreshSubtitle2RemoteStatus();
     renderSubtitles2Workflow();
-  }
-}
-
-async function onSubtitleUploadSelected() {
-  const file = el.subtitleUploadInput?.files?.[0];
-  if (!file) return;
-
-  state.subtitles.selectedFileName = file.name;
-  resetSubtitlesRunState();
-  renderSubtitlesWorkflow();
-
-  try {
-    await startSubtitleAnalyze(file);
-  } catch (err) {
-    console.error(err);
-    toast(getErrorMessage(err, 'Error iniciando análisis de subtítulos'));
-    resetSubtitlesRunState();
-    renderSubtitlesWorkflow();
-  }
-}
-
-async function onSubtitleSaveClicked() {
-  const phase = state.subtitles.machine.getPhase();
-  const plan = createSaveActionPlan({
-    phase,
-    analysisJobId: state.subtitles.analysisJobId,
-    snapshotVersion: state.subtitles.snapshotVersion,
-  });
-
-  if (!plan.allowed) {
-    toast('Transición inválida: Guardar cambios solo en Edicion');
-    return;
-  }
-
-  if (!state.subtitles.analysisJobId) {
-    toast('No hay análisis activo para guardar');
-    return;
-  }
-
-  if (!state.subtitles.dirty) {
-    toast('No hay cambios para guardar');
-    return;
-  }
-
-  try {
-    await enqueueSubtitleSave('manual');
-    toast('Cambios guardados');
-  } catch (err) {
-    console.error(err);
-    toast(getErrorMessage(err, 'Error guardando subtítulos'));
-  } finally {
-    updateSubtitleButtonsByPhase();
-  }
-}
-
-async function onSubtitleReadyClicked() {
-  const phase = state.subtitles.machine.getPhase();
-  const plan = createReadyActionPlan({
-    phase,
-    analysisJobId: state.subtitles.analysisJobId,
-    snapshotVersion: state.subtitles.snapshotVersion,
-  });
-
-  if (!plan.allowed) {
-    toast('Transición inválida: Listo solo en Edicion');
-    return;
-  }
-
-  if (!state.subtitles.analysisJobId || state.subtitles.snapshotVersion < 1) {
-    toast('Guardá un snapshot válido antes de continuar');
-    return;
-  }
-
-  try {
-    if (state.subtitles.dirty) {
-      await enqueueSubtitleSave('manual');
-    }
-
-    await ttsPost('/api/subtitles/review/approve', {
-      analysis_job_id: state.subtitles.analysisJobId,
-      snapshot_version: state.subtitles.snapshotVersion,
-    });
-
-    const renderRequestId = `sub-render-${Date.now()}`;
-    const renderResponse = await ttsPost('/api/subtitles/render', {
-      analysis_job_id: state.subtitles.analysisJobId,
-      snapshot_version: state.subtitles.snapshotVersion,
-      request_id: renderRequestId,
-      user_email: resolveSubtitlesUserEmail(),
-    });
-
-    const renderJobId = (renderResponse?.job_id || '').toString();
-    if (!renderJobId) {
-      throw new Error('Render no devolvió job_id');
-    }
-
-    state.subtitles.renderJobId = renderJobId;
-    state.subtitles.renderStatus = (renderResponse?.status || 'queued').toString();
-    state.subtitles.renderProgressPct = extractSubtitleProgressPercentRuntime(renderResponse);
-    state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
-    state.subtitles.renderFailureReason = null;
-    state.subtitles.renderProcessingStartedAtMs = Date.now();
-    state.subtitles.renderTerminalRefreshDone = false;
-
-    if (state.subtitles.renderStatus === 'succeeded') {
-      state.subtitles.renderProgressPct = 100;
-      state.subtitles.renderArtifactReady = Boolean(renderResponse?.artifact?.ready);
-      stopSubtitlePolling();
-      transitionSubtitlesPhase('Terminado');
-      renderSubtitleDoneCard();
-      toast('Render terminado');
-      return;
-    }
-
-    if (state.subtitles.renderStatus === 'failed') {
-      const errorMessage = renderResponse?.error?.message || 'El render falló';
-      state.subtitles.renderFailureReason = errorMessage;
-      state.subtitles.renderArtifactReady = false;
-      transitionSubtitlesPhase('Terminado');
-      renderSubtitleDoneCard();
-      toast(errorMessage);
-      return;
-    }
-
-    transitionSubtitlesPhase('Procesando video');
-    startSubtitlePolling({ kind: 'render', jobId: renderJobId });
-    toast('Render iniciado');
-  } catch (err) {
-    console.error(err);
-    toast(getErrorMessage(err, 'Error iniciando render'));
-  } finally {
-    updateSubtitleButtonsByPhase();
-  }
-}
-
-async function onSubtitleDownloadClicked() {
-  const phase = state.subtitles.machine.getPhase();
-  const plan = createDownloadActionPlan({
-    phase,
-    renderJobId: state.subtitles.renderJobId,
-  });
-
-  if (!plan.allowed) {
-    toast('Transición inválida: Descargar video solo en Terminado');
-    return;
-  }
-
-  try {
-    const blob = await ttsGetBlob(plan.path);
-    downloadBlob(blob, `${state.subtitles.renderJobId || 'subtitulos-final'}.mp4`);
-    toast('Descarga iniciada');
-  } catch (err) {
-    console.error(err);
-    toast(getErrorMessage(err, 'Error descargando video'));
-  }
-}
-
-function onSubtitleTableInput(ev) {
-  const target = ev.target;
-  if (!target) return;
-  const rowId = target.dataset.rowId;
-  if (!rowId) return;
-
-  if (target.dataset.field === 'phrase') {
-    patchSubtitleRow(rowId, { phrase: target.value }, { rerender: false });
-    return;
-  }
-  if (target.dataset.field === 'size') {
-    patchSubtitleRow(rowId, { size: target.value });
-    return;
-  }
-  if (target.dataset.field === 'color') {
-    patchSubtitleRow(rowId, { color: target.value });
-    return;
-  }
-  if (target.dataset.field === 'fontFamily') {
-    patchSubtitleRow(rowId, { fontFamily: target.value });
-  }
-}
-
-function onSubtitleTableClick(ev) {
-  const button = ev.target.closest('button[data-field="align"]');
-  if (!button) return;
-  const rowId = button.dataset.rowId;
-  const align = button.dataset.align;
-  if (!rowId || !align) return;
-
-  patchSubtitleRow(rowId, { align });
-}
-
-function onSubtitleSourceLanguageChanged(ev) {
-  const requestedLanguage = (ev.target?.value || 'auto').toString().trim().toLowerCase();
-  if (!SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(requestedLanguage)) return;
-
-  state.subtitles.sourceLanguage = requestedLanguage;
-  renderSubtitleSourceLanguagePicker();
-}
-
-function patchSubtitleRow(rowId, patch, options = {}) {
-  const rerender = options.rerender !== false;
-  state.subtitles.rows = state.subtitles.rows.map((row) => {
-    if (row.id !== rowId) return row;
-    return applySubtitleRowPatch(row, patch);
-  });
-  state.subtitles.changeVersion += 1;
-  state.subtitles.dirty = true;
-  if (rerender) {
-    renderSubtitlesTable();
-  }
-  updateSubtitleButtonsByPhase();
-  syncSubtitleAutosaveTimer();
-}
-
-function transitionSubtitlesPhase(nextPhase) {
-  const moved = state.subtitles.machine.transition(nextPhase);
-  if (!moved) {
-    const current = state.subtitles.machine.getPhase();
-    toast(`Transición inválida: ${current} → ${nextPhase}`);
-    return false;
-  }
-  renderSubtitlesWorkflow();
-  return true;
-}
-
-function renderSubtitlesWorkflow() {
-  renderSubtitlesPhaseBar();
-  renderSubtitlesPhaseSections();
-  renderSubtitleSourceLanguagePicker();
-  renderSubtitleAnalyzeMeta();
-  renderSubtitleProcessingCard();
-  renderSubtitleDoneCard();
-  renderSubtitlesTable();
-  updateSubtitleUploadMeta();
-  updateSubtitleButtonsByPhase();
-  syncSubtitleAutosaveTimer();
-}
-
-function renderSubtitleDoneCard() {
-  const status = (state.subtitles.renderStatus || '').toString().trim().toLowerCase();
-  const isSucceeded = status === 'succeeded';
-  const isFailed = status === 'failed';
-
-  if (el.subtitleDoneTitle) {
-    el.subtitleDoneTitle.textContent = isSucceeded ? 'Video listo' : 'Render fallido';
-  }
-
-  if (el.subtitleDoneMessage) {
-    if (isSucceeded) {
-      el.subtitleDoneMessage.textContent = state.subtitles.renderArtifactReady
-        ? 'Tu video ya está listo. Descargalo manualmente cuando quieras.'
-        : 'Render terminado, esperando disponibilidad del archivo final.';
-    } else if (isFailed) {
-      el.subtitleDoneMessage.textContent = state.subtitles.renderFailureReason || 'El render terminó con error. Revisá el motivo y reintentá.';
-    } else {
-      el.subtitleDoneMessage.textContent = 'Estado final de render.';
-    }
-  }
-}
-
-function renderSubtitleSourceLanguagePicker() {
-  if (!el.subtitleSourceLanguagePicker) return;
-  const selected = (state.subtitles.sourceLanguage || 'auto').toString().toLowerCase();
-  el.subtitleSourceLanguagePicker.value = SUBTITLE_SOURCE_LANGUAGE_ALLOWED.has(selected) ? selected : 'auto';
-  customDropdowns.refreshAll();
-
-  if (el.subtitleSourceLanguageEngineHint) {
-    el.subtitleSourceLanguageEngineHint.textContent = describeSubtitleTranslationEngineRuntime(
-      selected,
-      SUBTITLE_MARIAN_LANGS,
-      SUBTITLE_FALLBACK_LANGS,
-    );
-  }
-}
-
-function renderSubtitleAnalyzeMeta() {
-  if (!el.subtitleAnalyzeMeta) return;
-
-  const metadata = state.subtitles.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
-  const requested = normalizeSubtitleMetaValue(metadata.sourceLanguageRequested);
-  const effective = normalizeSubtitleMetaValue(metadata.sourceLanguageEffective);
-  const detected = normalizeSubtitleMetaValue(metadata.detectedLanguage);
-  const asrModel = normalizeSubtitleMetaValue(metadata.asrModel);
-  const mtModel = normalizeSubtitleMetaValue(metadata.mtModel);
-
-  if (el.subtitleMetaRequested) el.subtitleMetaRequested.textContent = requested;
-  if (el.subtitleMetaEffective) el.subtitleMetaEffective.textContent = effective;
-  if (el.subtitleMetaDetected) el.subtitleMetaDetected.textContent = detected;
-  if (el.subtitleMetaAsrModel) el.subtitleMetaAsrModel.textContent = asrModel;
-  if (el.subtitleMetaMtModel) el.subtitleMetaMtModel.textContent = mtModel;
-
-  const hasAnyMetadata = [requested, effective, detected, asrModel, mtModel].some((value) => value !== '—');
-  el.subtitleAnalyzeMeta.classList.toggle('hidden', !hasAnyMetadata);
-}
-
-function renderSubtitlesPhaseSections() {
-  const current = state.subtitles.machine.getPhase();
-  const visibility = getSubtitlesPhaseSectionVisibility(current);
-  el.subtitlePhaseUpload?.classList.toggle('hidden', !visibility.showUpload);
-  el.subtitlePhaseProcessing?.classList.toggle('hidden', !visibility.showProcessing);
-  el.subtitlePhaseEdition?.classList.toggle('hidden', !visibility.showEdition);
-  el.subtitlePhaseDone?.classList.toggle('hidden', !visibility.showDone);
-}
-
-function renderSubtitleProcessingCard() {
-  const phase = state.subtitles.machine.getPhase();
-  const details = getSubtitleProcessingDetails(phase);
-
-  if (el.subtitleProcessingIcon) {
-    el.subtitleProcessingIcon.textContent = details.icon;
-  }
-  if (el.subtitleProcessingTitle) {
-    el.subtitleProcessingTitle.textContent = details.title;
-  }
-  if (el.subtitleProcessingMessage) {
-    el.subtitleProcessingMessage.textContent = details.message;
-  }
-
-  const percent = details.percent;
-  if (el.subtitleProgressFill) {
-    el.subtitleProgressFill.style.width = `${percent}%`;
-    const progressbar = el.subtitleProgressFill.closest('[role="progressbar"]');
-    progressbar?.setAttribute('aria-valuenow', `${percent}`);
-  }
-  if (el.subtitleProgressPercent) {
-    el.subtitleProgressPercent.textContent = `${percent}%`;
-  }
-}
-
-function getSubtitleProcessingDetails(phase) {
-  if (phase === 'Procesando video') {
-    const status = state.subtitles.renderStatus;
-    const percent = resolveSubtitleProgressPercentRuntime(state.subtitles.renderProgressPct, status);
-    return {
-      icon: '🎬',
-      title: 'Procesando video',
-      message: buildSubtitleProcessingMessageRuntime(status, 'Estamos renderizando el video final…'),
-      percent,
-    };
-  }
-
-  const status = state.subtitles.analyzeStatus;
-  const percent = resolveSubtitleProgressPercentRuntime(state.subtitles.analyzeProgressPct, status);
-  return {
-    icon: '🎧',
-    title: 'Procesando audio',
-    message: buildSubtitleProcessingMessageRuntime(status, 'Estamos analizando el audio…'),
-    percent,
-  };
-}
-
-
-function renderSubtitlesPhaseBar() {
-  const current = state.subtitles.machine.getPhase();
-  const currentIndex = SUBTITLES_PHASES.indexOf(current);
-  el.subtitlePhaseBar?.querySelectorAll('[data-phase]').forEach((node) => {
-    const phase = node.dataset.phase;
-    const idx = SUBTITLES_PHASES.indexOf(phase);
-    node.classList.toggle('active', idx === currentIndex);
-    node.classList.toggle('done', idx > -1 && idx < currentIndex);
-  });
-}
-
-function renderSubtitlesTable() {
-  if (!el.subtitleRowsBody) return;
-
-  const sizeOptions = SUBTITLE_SIZE_PRESETS;
-  const fontOptions = SUBTITLE_FONT_PRESETS;
-  const colorOptions = [
-    { value: '#FFFFFF', label: 'Blanco' },
-    { value: '#FFF000', label: 'Amarillo' },
-    { value: '#00FF5A', label: 'Verde' },
-    { value: '#0CC3F2', label: 'Celeste' },
-  ];
-
-  el.subtitleRowsBody.innerHTML = state.subtitles.rows.map((row) => {
-    const alignment = getAlignmentButtonState(row.align);
-    const startDisplay = formatSubtitleDisplayTimeRuntime(row.start);
-    const endDisplay = formatSubtitleDisplayTimeRuntime(row.end);
-    const sizeSelectOptions = renderSubtitleSelectOptions(sizeOptions, row.size);
-    const fontSelectOptions = renderSubtitleSelectOptions(fontOptions, row.fontFamily);
-    const colorSelectOptions = renderSubtitleSelectOptions(colorOptions, row.color);
-    return `
-      <tr>
-        <td><span class="subtitle-time-pill">${escapeHtml(startDisplay)}</span></td>
-        <td><span class="subtitle-time-pill">${escapeHtml(endDisplay)}</span></td>
-        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escapeHtml(row.fontFamily)};">${escapeHtml(row.phrase)}</textarea></td>
-        <td>
-          <select data-row-id="${row.id}" data-field="size">
-            ${sizeSelectOptions}
-          </select>
-        </td>
-        <td>
-          <select data-row-id="${row.id}" data-field="fontFamily">
-            ${fontSelectOptions}
-          </select>
-        </td>
-        <td>
-          <select data-row-id="${row.id}" data-field="color">
-            ${colorSelectOptions}
-          </select>
-        </td>
-        <td>
-          <div class="subtitle-align-group">
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-pressed="${alignment.left.selected}">Izq</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-pressed="${alignment.center.selected}">Centro</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-pressed="${alignment.right.selected}">Der</button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-
-  customDropdowns.refreshAll();
-}
-
-function renderSubtitleSelectOptions(options, selectedValue) {
-  const selected = (selectedValue || '').toString();
-  const normalized = options.map((option) => {
-    if (typeof option === 'string') {
-      return { value: option, label: option };
-    }
-    return {
-      value: (option?.value || '').toString(),
-      label: (option?.label || option?.value || '').toString(),
-    };
-  });
-
-  if (selected && !normalized.some((option) => option.value === selected)) {
-    normalized.push({ value: selected, label: selected });
-  }
-
-  return normalized
-    .map((option) => {
-      const isSelected = option.value === selected;
-      return `<option value="${escapeHtml(option.value)}"${isSelected ? ' selected' : ''}>${escapeHtml(option.label)}</option>`;
-    })
-    .join('');
-}
-
-function updateSubtitleUploadMeta() {
-  if (!el.subtitleUploadMeta) return;
-  const current = state.subtitles.machine.getPhase();
-  if (!state.subtitles.selectedFileName) {
-    el.subtitleUploadMeta.textContent = `Esperando archivo. Fase: ${current}.`;
-    return;
-  }
-
-  const jobInfo = state.subtitles.renderJobId || state.subtitles.analysisJobId;
-  const suffix = jobInfo ? ` · Job: ${jobInfo}` : '';
-  el.subtitleUploadMeta.textContent = `Archivo: ${state.subtitles.selectedFileName} · Fase: ${current}${suffix}.`;
-}
-
-function updateSubtitleButtonsByPhase() {
-  const current = state.subtitles.machine.getPhase();
-  const policy = getSubtitlesActionPolicy(current);
-  const renderSucceeded = (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded';
-  if (el.subtitleSaveBtn) el.subtitleSaveBtn.disabled = !policy.canSave || !state.subtitles.dirty;
-  if (el.subtitleReadyBtn) {
-    el.subtitleReadyBtn.disabled = !policy.canReady || !state.subtitles.analysisJobId || state.subtitles.snapshotVersion < 1;
-  }
-  if (el.subtitleDownloadBtn) {
-    el.subtitleDownloadBtn.disabled = !policy.canDownload || !state.subtitles.renderJobId || !renderSucceeded || !state.subtitles.renderArtifactReady;
-  }
-}
-
-function resetSubtitlesRunState() {
-  state.subtitles.machine.reset();
-  stopSubtitlePolling();
-  stopSubtitleAutosave();
-  state.subtitles.analysisJobId = null;
-  state.subtitles.renderJobId = null;
-  state.subtitles.analyzeStatus = null;
-  state.subtitles.renderStatus = null;
-  state.subtitles.analyzeProgressPct = null;
-  state.subtitles.renderProgressPct = null;
-  state.subtitles.renderArtifactReady = false;
-  state.subtitles.renderFailureReason = null;
-  state.subtitles.renderProcessingStartedAtMs = null;
-  state.subtitles.renderTerminalRefreshDone = false;
-  state.subtitles.audioDurationMs = null;
-  state.subtitles.snapshotVersion = 0;
-  state.subtitles.dirty = false;
-  state.subtitles.changeVersion = 0;
-  state.subtitles.savedVersion = 0;
-  state.subtitles.saveQueue.setAckVersion(0);
-  state.subtitles.analyzeMetadata = createEmptySubtitleAnalyzeMetadata();
-  state.subtitles.rows = createLegacySubtitleSeedRows();
-}
-
-async function startSubtitleAnalyze(file) {
-  const form = new FormData();
-  form.append('file', file);
-  form.append('source_language', state.subtitles.sourceLanguage || 'auto');
-  form.append('target_language', 'es');
-  form.append('request_id', `sub-analyze-${Date.now()}`);
-  form.append('user_email', resolveSubtitlesUserEmail());
-
-  const response = await ttsPostForm('/api/subtitles/analyze', form);
-  const analyzeJobId = (response?.job_id || '').toString();
-  if (!analyzeJobId) {
-    throw new Error('Analyze no devolvió job_id');
-  }
-
-  state.subtitles.analysisJobId = analyzeJobId;
-  state.subtitles.analyzeStatus = (response?.status || 'queued').toString();
-  applySubtitleAnalyzeMetadata(response, { source_language_requested: state.subtitles.sourceLanguage || 'auto' });
-  transitionSubtitlesPhase('Procesando audio');
-  startSubtitlePolling({ kind: 'analyze', jobId: analyzeJobId });
-}
-
-function startSubtitlePolling({ kind, jobId }) {
-  stopSubtitlePolling();
-  state.subtitles.pollingInFlight = false;
-  const run = () => pollSubtitleStatus(kind, jobId);
-  void run();
-  state.subtitles.pollingTimer = setInterval(run, SUBTITLES_POLL_INTERVAL_MS);
-}
-
-function stopSubtitlePolling() {
-  if (state.subtitles.pollingTimer) {
-    clearInterval(state.subtitles.pollingTimer);
-    state.subtitles.pollingTimer = null;
   }
 }
 
@@ -1162,311 +560,6 @@ async function pollRemoteSubtitleRenderStatus(sessionId) {
     void pollRemoteSubtitleRenderStatus(sessionId);
   }, SUBTITLES_POLL_INTERVAL_MS);
   renderSubtitles2Workflow();
-}
-
-async function pollSubtitleStatus(kind, jobId) {
-  if (state.subtitles.pollingInFlight) return;
-  const phase = state.subtitles.machine.getPhase();
-  const jobStatus = kind === 'render' ? state.subtitles.renderStatus : state.subtitles.analyzeStatus;
-  if (kind === 'render' && shouldFailRenderByWatchdog({
-    phase,
-    jobStatus,
-    processingStartedAtMs: state.subtitles.renderProcessingStartedAtMs,
-    nowMs: Date.now(),
-    watchdogMs: SUBTITLES_RENDER_WATCHDOG_MS,
-  })) {
-    stopSubtitlePolling();
-    state.subtitles.renderStatus = 'failed';
-    state.subtitles.renderArtifactReady = false;
-    state.subtitles.renderFailureReason = 'render_watchdog_timeout';
-    transitionSubtitlesPhase('Terminado');
-    renderSubtitleDoneCard();
-    __emitToast('render_watchdog_timeout');
-    updateSubtitleButtonsByPhase();
-    return;
-  }
-
-  const allowTerminalRefresh = kind === 'render'
-    && (jobStatus || '').toString().trim().toLowerCase() === 'succeeded'
-    && !state.subtitles.renderArtifactReady
-    && !state.subtitles.renderTerminalRefreshDone;
-  if (!shouldRunStatusPolling({ phase, jobStatus })) {
-    if (allowTerminalRefresh) {
-      state.subtitles.renderTerminalRefreshDone = true;
-    } else {
-      stopSubtitlePolling();
-      return;
-    }
-  }
-
-  state.subtitles.pollingInFlight = true;
-  try {
-    const path = kind === 'render'
-      ? `/api/subtitles/render/${jobId}`
-      : `/api/subtitles/analyze/${jobId}`;
-    const status = await __resolveTtsGet()(path);
-    const nextStatus = (status?.status || '').toString();
-
-    if (kind === 'analyze') {
-      state.subtitles.analyzeStatus = nextStatus;
-      state.subtitles.analyzeProgressPct = extractSubtitleProgressPercentRuntime(status);
-      applySubtitleAnalyzeMetadata(status);
-      if (Number.isInteger(status?.snapshot_version)) {
-        state.subtitles.snapshotVersion = Number(status.snapshot_version);
-        state.subtitles.saveQueue.setAckVersion(state.subtitles.snapshotVersion);
-      }
-
-      if (nextStatus === 'succeeded') {
-        await hydrateSubtitlesFromLatestSnapshot();
-        transitionSubtitlesPhase('Edicion');
-        stopSubtitlePolling();
-      }
-      if (nextStatus === 'failed') {
-        stopSubtitlePolling();
-        const errorMessage = status?.error?.message || 'El análisis falló';
-        __emitToast(errorMessage);
-      }
-    } else {
-      state.subtitles.renderStatus = nextStatus;
-      state.subtitles.renderProgressPct = extractSubtitleProgressPercentRuntime(status);
-      state.subtitles.renderArtifactReady = Boolean(status?.artifact?.ready);
-      if (nextStatus === 'processing' || nextStatus === 'queued' || nextStatus === 'running') {
-        if (!Number.isFinite(Number(state.subtitles.renderProcessingStartedAtMs))) {
-          state.subtitles.renderProcessingStartedAtMs = Date.now();
-        }
-      }
-      if (nextStatus === 'succeeded') {
-        transitionSubtitlesPhase('Terminado');
-        renderSubtitleDoneCard();
-        if (state.subtitles.renderArtifactReady) {
-          stopSubtitlePolling();
-        } else {
-          // Keep one terminal refresh cycle available when artifact isn't ready yet.
-        }
-      }
-      if (nextStatus === 'failed') {
-        stopSubtitlePolling();
-        const errorMessage = status?.error?.message || 'El render falló';
-        state.subtitles.renderFailureReason = errorMessage;
-        transitionSubtitlesPhase('Terminado');
-        renderSubtitleDoneCard();
-        __emitToast(errorMessage);
-      }
-
-      const terminalSucceededReady = (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded'
-        && state.subtitles.renderArtifactReady;
-      if (terminalSucceededReady) {
-        stopSubtitlePolling();
-      }
-    }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    state.subtitles.pollingInFlight = false;
-    const terminalReady = kind === 'render'
-      && state.subtitles.machine.getPhase() === 'Terminado'
-      && (state.subtitles.renderStatus || '').toString().trim().toLowerCase() === 'succeeded'
-      && state.subtitles.renderArtifactReady;
-    if (terminalReady && state.subtitles.pollingTimer) {
-      clearInterval(state.subtitles.pollingTimer);
-      state.subtitles.pollingTimer = null;
-    }
-    renderSubtitleAnalyzeMeta();
-    renderSubtitleProcessingCard();
-    updateSubtitleButtonsByPhase();
-    updateSubtitleUploadMeta();
-  }
-}
-
-async function hydrateSubtitlesFromLatestSnapshot() {
-  if (!state.subtitles.analysisJobId) return;
-  try {
-    const latest = await ttsGet(`/api/subtitles/review/snapshots/${state.subtitles.analysisJobId}/latest`);
-    const snapshotVersion = Number(latest?.snapshot_version || 0);
-    state.subtitles.snapshotVersion = snapshotVersion;
-    state.subtitles.saveQueue.setAckVersion(snapshotVersion);
-
-    const latestAudioDuration = Number(latest?.snapshot_json?.audio_duration_ms || 0);
-    state.subtitles.audioDurationMs = Number.isFinite(latestAudioDuration) && latestAudioDuration > 0
-      ? Math.round(latestAudioDuration)
-      : null;
-
-    const rows = mapSnapshotToRows(latest?.snapshot_json);
-    if (rows.length > 0) {
-      state.subtitles.rows = rows;
-    }
-
-    if (!state.subtitles.audioDurationMs || state.subtitles.audioDurationMs <= 0) {
-      const derived = deriveAudioDurationFromRows();
-      state.subtitles.audioDurationMs = derived > 0 ? derived : null;
-    }
-
-    state.subtitles.savedVersion = state.subtitles.changeVersion;
-    state.subtitles.dirty = false;
-  } catch {
-    // Snapshot may not exist yet; keep local seed row.
-  }
-}
-
-function syncSubtitleAutosaveTimer() {
-  const phase = state.subtitles.machine.getPhase();
-  if (shouldRunAutosave({ phase, dirty: state.subtitles.dirty })) {
-    if (!state.subtitles.autosaveTimer) {
-      state.subtitles.autosaveTimer = setInterval(() => {
-        void maybeAutosaveSubtitles();
-      }, SUBTITLES_AUTOSAVE_INTERVAL_MS);
-    }
-    return;
-  }
-  stopSubtitleAutosave();
-}
-
-function stopSubtitleAutosave() {
-  if (state.subtitles.autosaveTimer) {
-    clearInterval(state.subtitles.autosaveTimer);
-    state.subtitles.autosaveTimer = null;
-  }
-}
-
-async function maybeAutosaveSubtitles() {
-  if (!state.subtitles.analysisJobId) return;
-  if (!shouldRunAutosave({ phase: state.subtitles.machine.getPhase(), dirty: state.subtitles.dirty })) return;
-  try {
-    await enqueueSubtitleSave('auto');
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-async function enqueueSubtitleSave(saveMode) {
-  if (!state.subtitles.analysisJobId) {
-    throw new Error('No hay análisis activo para guardar');
-  }
-
-  const revision = state.subtitles.changeVersion;
-  const snapshotJson = collectCurrentSubtitlesSnapshot();
-
-  const result = await state.subtitles.saveQueue.enqueue({
-    analysisJobId: state.subtitles.analysisJobId,
-    snapshotJson,
-    saveMode,
-  });
-
-  state.subtitles.snapshotVersion = result.ackVersion;
-  state.subtitles.saveQueue.setAckVersion(result.ackVersion);
-  state.subtitles.savedVersion = Math.max(state.subtitles.savedVersion, revision);
-  state.subtitles.dirty = state.subtitles.savedVersion < state.subtitles.changeVersion;
-  syncSubtitleAutosaveTimer();
-  return result;
-}
-
-function collectCurrentSubtitlesSnapshot() {
-  const audioDurationMs = resolveCurrentSnapshotAudioDurationMs();
-  return {
-    audio_duration_ms: audioDurationMs,
-    segments: state.subtitles.rows.map((row, index) => ({
-      segment_id: row.id || `segment-${index + 1}`,
-      start_ms: parseSubtitleTimeToMsRuntime(row.start),
-      end_ms: parseSubtitleTimeToMsRuntime(row.end),
-      source_text: row.sourceText,
-      translated_text_es: row.phrase,
-      translated_text: row.phrase,
-      text: row.phrase,
-      style: {
-        font_size: row.size,
-        font_family: row.fontFamily,
-        font_weight: row.fontWeight || resolveSubtitleFontWeight(row.fontFamily),
-        color: row.color,
-        align: row.align,
-        max_width_px: row.maxWidthPx || 1080,
-      },
-    })),
-  };
-}
-
-function mapSnapshotToRows(snapshotJson) {
-  const segments = Array.isArray(snapshotJson?.segments) ? snapshotJson.segments : [];
-  return segments.map((segment, index) => createEmptySubtitleRow({
-    id: (segment?.segment_id || `row-${index + 1}`).toString(),
-    start: formatSubtitleDisplayTimeRuntime(segment?.start ?? segment?.start_ms ?? '00:00.00'),
-    end: formatSubtitleDisplayTimeRuntime(segment?.end ?? segment?.end_ms ?? '00:02.00'),
-    sourceText: (segment?.source_text || '').toString(),
-    phrase: (segment?.translated_text_es || segment?.translated_text || segment?.text || '').toString(),
-    maxWidthPx: Number(segment?.style?.max_width_px || 1080),
-    size: (segment?.style?.font_size || SUBTITLE_SIZE_PRESETS[0]).toString(),
-    fontFamily: (segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0]).toString(),
-    fontWeight: (segment?.style?.font_weight || resolveSubtitleFontWeight(segment?.style?.font_family || SUBTITLE_FONT_PRESETS[0])).toString(),
-    color: (segment?.style?.color || SUBTITLE_COLOR_PRESETS[0]).toString(),
-    align: (segment?.style?.align || 'left').toString(),
-  }));
-}
-
-function deriveAudioDurationFromRows() {
-  if (!Array.isArray(state.subtitles.rows) || state.subtitles.rows.length === 0) return 0;
-  let maxEndMs = 0;
-  for (const row of state.subtitles.rows) {
-    const endMs = parseSubtitleTimeToMsRuntime(row?.end);
-    if (Number.isFinite(endMs) && endMs > maxEndMs) {
-      maxEndMs = endMs;
-    }
-  }
-  return Math.max(0, Math.round(maxEndMs));
-}
-
-function resolveCurrentSnapshotAudioDurationMs() {
-  const declared = Number(state.subtitles.audioDurationMs || 0);
-  const timeline = deriveAudioDurationFromRows();
-  return Math.max(0, Math.round(Math.max(declared, timeline)));
-}
-
-function resolveSubtitlesUserEmail() {
-  const configured = (state.settings.ttsUserEmail || '').trim();
-  return configured || 'reviewer@example.com';
-}
-
-function createEmptySubtitleAnalyzeMetadata() {
-  return {
-    sourceLanguageRequested: null,
-    sourceLanguageEffective: null,
-    detectedLanguage: null,
-    asrModel: null,
-    mtModel: null,
-  };
-}
-
-function applySubtitleAnalyzeMetadata(payload, fallback = null) {
-  const extracted = extractSubtitleAnalyzeMetadataRuntime(payload);
-  const fallbackExtracted = extractSubtitleAnalyzeMetadataRuntime(fallback);
-  const current = state.subtitles.analyzeMetadata || createEmptySubtitleAnalyzeMetadata();
-  state.subtitles.analyzeMetadata = {
-    sourceLanguageRequested: extracted.sourceLanguageRequested || fallbackExtracted.sourceLanguageRequested || current.sourceLanguageRequested,
-    sourceLanguageEffective: extracted.sourceLanguageEffective || fallbackExtracted.sourceLanguageEffective || current.sourceLanguageEffective,
-    detectedLanguage: extracted.detectedLanguage || fallbackExtracted.detectedLanguage || current.detectedLanguage,
-    asrModel: extracted.asrModel || fallbackExtracted.asrModel || current.asrModel,
-    mtModel: extracted.mtModel || fallbackExtracted.mtModel || current.mtModel,
-  };
-}
-
-function normalizeSubtitleMetaValue(value) {
-  if (value == null) return '—';
-  const text = value.toString().trim();
-  return text || '—';
-}
-
-async function persistSubtitleSnapshotRequest(payload) {
-  const response = await ttsPost('/api/subtitles/review/snapshots', payload);
-  return {
-    snapshot_version: Number(response?.snapshot_version || 0),
-  };
-}
-
-function resetSubtitleEditorForAnotherVideo() {
-  resetSubtitlesRunState();
-  if (el.subtitleUploadInput) {
-    el.subtitleUploadInput.value = '';
-  }
-  renderSubtitlesWorkflow();
-  toast('Listo para subtitular otro video');
 }
 
 function stopSubtitle2Polling() {
@@ -3387,52 +2480,6 @@ function __emitToast(message) {
   toast(message);
 }
 
-function getSubtitlesStateForTesting() {
-  return {
-    phase: state.subtitles.machine.getPhase(),
-    analysisJobId: state.subtitles.analysisJobId,
-    renderJobId: state.subtitles.renderJobId,
-    analyzeStatus: state.subtitles.analyzeStatus,
-    renderStatus: state.subtitles.renderStatus,
-    renderProgressPct: state.subtitles.renderProgressPct,
-    renderArtifactReady: state.subtitles.renderArtifactReady,
-    renderFailureReason: state.subtitles.renderFailureReason,
-    renderProcessingStartedAtMs: state.subtitles.renderProcessingStartedAtMs,
-    renderTerminalRefreshDone: state.subtitles.renderTerminalRefreshDone,
-    pollingTimer: state.subtitles.pollingTimer,
-    pollingInFlight: state.subtitles.pollingInFlight,
-  };
-}
-
-function setSubtitlesStateForTesting(patch = {}) {
-  const allowed = [
-    'analysisJobId',
-    'renderJobId',
-    'analyzeStatus',
-    'renderStatus',
-    'renderProgressPct',
-    'renderArtifactReady',
-    'renderFailureReason',
-    'renderProcessingStartedAtMs',
-    'renderTerminalRefreshDone',
-    'pollingTimer',
-    'pollingInFlight',
-  ];
-  for (const key of allowed) {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) {
-      state.subtitles[key] = patch[key];
-    }
-  }
-}
-
-function setSubtitlesPhaseForTesting(phase) {
-  state.subtitles.machine = createSubtitlesWorkflowMachine(phase);
-}
-
-function resetSubtitlesForTesting() {
-  resetSubtitlesRunState();
-}
-
 function setTtsGetMock(mock) {
   __testOverrides.ttsGet = typeof mock === 'function' ? mock : null;
 }
@@ -3447,11 +2494,6 @@ function clearMocksForTesting() {
 }
 
 export const __testHooks = {
-  pollSubtitleStatusForTesting: pollSubtitleStatus,
-  getSubtitlesStateForTesting,
-  setSubtitlesStateForTesting,
-  setSubtitlesPhaseForTesting,
-  resetSubtitlesForTesting,
   setTtsGetMock,
   setToastMock,
   clearMocksForTesting,

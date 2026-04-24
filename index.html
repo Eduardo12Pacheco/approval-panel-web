@@ -68,7 +68,7 @@
                 <span class="nav-item__title">Voz</span>
               </span>
             </button>
-            <button class="nav-item" data-view="subtitulos" title="Subtítulos" aria-label="Subtítulos">
+            <button class="nav-item" data-view="subtitulos2" title="Subtítulos" aria-label="Subtítulos">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
                   <rect x="4.75" y="5.5" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></rect>
@@ -77,17 +77,6 @@
               </span>
               <span class="nav-item__copy">
                 <span class="nav-item__title">Subtítulos</span>
-              </span>
-            </button>
-            <button class="nav-item" data-view="subtitulos2" title="Subtítulos 2" aria-label="Subtítulos 2">
-              <span class="nav-item__icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <rect x="4.75" y="5.5" width="14.5" height="10.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></rect>
-                  <path d="M8 10h3M8 13h3M13.5 10h2.5M13.5 13h2.5M8.75 16v2.25M15.25 16v2.25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
-              </span>
-              <span class="nav-item__copy">
-                <span class="nav-item__title">Subtítulos 2</span>
               </span>
             </button>
           </nav>
@@ -298,142 +287,13 @@
           </div>
         </section>
 
-        <section id="viewSubtitulos" class="view hidden">
-          <header class="topbar">
-            <div>
-              <h1>Subtítulos</h1>
-              <p>Flujo legacy de 5 fases para revisar subtítulos antes del render final.</p>
-            </div>
-          </header>
-
-          <section class="audio-panel">
-            <h3>Fases</h3>
-            <ol id="subtitlePhaseBar" class="subtitle-phase-bar">
-              <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
-              <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
-              <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
-              <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
-              <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
-            </ol>
-          </section>
-
-          <section class="subtitle-flow" id="subtitleFlowContainer">
-            <section id="subtitlePhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">
-              <article class="subtitle-upload-stage">
-                <label class="subtitle-upload-dropzone" for="subtitleUploadInput">
-                  <input id="subtitleUploadInput" type="file" accept=".wav,.mp3,audio/mpeg,audio/wav" />
-                  <div class="subtitle-upload-cta-icon" aria-hidden="true">＋</div>
-                  <div class="subtitle-upload-cta-title">Agregar Audio</div>
-                  <div class="subtitle-upload-cta-sub">Arrastrá un archivo o hacé click para subir</div>
-                </label>
-                <div class="subtitle-source-language">
-                  <p class="subtitle-source-language-title">Idioma origen</p>
-                  <select id="subtitleSourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown data-dropdown-label="Idioma origen" data-dropdown-placeholder="Idioma origen" aria-label="Idioma origen para análisis de subtítulos">
-                    <option value="auto">Detectar automáticamente</option>
-                    <option value="de">Alemán</option>
-                    <option value="ber">Amazigh / Bereber</option>
-                    <option value="ar">Árabe</option>
-                    <option value="ca">Catalán</option>
-                    <option value="cs">Checo</option>
-                    <option value="ko">Coreano</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Francés</option>
-                    <option value="gd">Gaélico escocés</option>
-                    <option value="en">Inglés</option>
-                    <option value="it">Italiano</option>
-                    <option value="nl">Neerlandés</option>
-                    <option value="pap">Papiamento</option>
-                    <option value="pt">Portugués</option>
-                    <option value="tzm">Tamazight (Tzm)</option>
-                    <option value="tr">Turco</option>
-                    <option value="uz">Uzbeko</option>
-                  </select>
-                  <p id="subtitleSourceLanguageEngineHint" class="meta subtitle-source-engine-hint"></p>
-                </div>
-              </article>
-            </section>
-
-            <section id="subtitleAnalyzeMeta" class="audio-panel subtitle-meta-card hidden">
-              <h3>Metadata del análisis</h3>
-              <div class="subtitle-meta-grid">
-                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_requested</span><strong id="subtitleMetaRequested">—</strong></div>
-                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">source_language_effective</span><strong id="subtitleMetaEffective">—</strong></div>
-                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">detected_language</span><strong id="subtitleMetaDetected">—</strong></div>
-                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">asr_model</span><strong id="subtitleMetaAsrModel">—</strong></div>
-                <div class="subtitle-meta-chip"><span class="subtitle-meta-chip__label">mt_model</span><strong id="subtitleMetaMtModel">—</strong></div>
-              </div>
-            </section>
-
-            <section id="subtitlePhaseProcessing" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-              <article class="audio-panel subtitle-centered-card subtitle-processing-card">
-                <div id="subtitleProcessingIcon" class="subtitle-phase-icon" aria-hidden="true">⏳</div>
-                <h3 id="subtitleProcessingTitle">Procesando audio</h3>
-                <p id="subtitleProcessingMessage" class="meta">Estamos analizando tu archivo…</p>
-                <div class="subtitle-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                  <div id="subtitleProgressFill" class="subtitle-progress-fill" style="width: 0%"></div>
-                </div>
-                <p id="subtitleProgressPercent" class="subtitle-progress-percent">0%</p>
-              </article>
-            </section>
-
-            <section id="subtitlePhaseEdition" class="subtitle-phase-section hidden">
-              <article class="audio-panel">
-                <h3>Tabla de edición</h3>
-
-                <datalist id="subtitleSizePresets">
-                  <option value="36"></option>
-                  <option value="42"></option>
-                  <option value="48"></option>
-                </datalist>
-
-                <datalist id="subtitleColorPresets">
-                  <option value="#FFFFFF"></option>
-                  <option value="#FACC15"></option>
-                  <option value="#60A5FA"></option>
-                </datalist>
-
-                <div class="subtitle-table-scroll">
-                  <table class="subtitle-table" id="subtitleRowsTable">
-                    <thead>
-                      <tr>
-                        <th>start</th>
-                        <th>end</th>
-                        <th>Frase</th>
-                        <th>Tamaño</th>
-                        <th>Fuentes</th>
-                        <th>Color</th>
-                        <th>Alineación</th>
-                      </tr>
-                    </thead>
-                    <tbody id="subtitleRowsBody"></tbody>
-                  </table>
-                </div>
-
-                <div class="audio-actions">
-                  <button id="subtitleSaveBtn" class="secondary">Guardar cambios</button>
-                  <button id="subtitleReadyBtn" class="approve">Listo</button>
-                </div>
-              </article>
-            </section>
-
-            <section id="subtitlePhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-              <article class="audio-panel subtitle-centered-card subtitle-success-card">
-                <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">✅</div>
-                <h3 id="subtitleDoneTitle">Video listo</h3>
-                <p id="subtitleDoneMessage" class="meta">Tu video ya está listo. Descargalo manualmente cuando quieras.</p>
-                <button id="subtitleDownloadBtn">Descargar video</button>
-              </article>
-            </section>
-          </section>
-        </section>
-
         <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
           <section class="subtitle2-workspace">
             <section class="subtitle2-master-card">
               <header class="subtitle2-screen__header">
                 <div>
                   <p class="subtitle2-eyebrow">Workstation subtitle pipeline</p>
-                  <h1>Subtítulos 2</h1>
+                  <h1>Subtítulos</h1>
                 </div>
                 <div id="subtitle2ServiceHealthBanner" class="subtitle2-health-chip subtitle-health-banner">
                   Remote Offline

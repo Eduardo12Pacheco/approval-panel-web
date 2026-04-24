@@ -139,7 +139,7 @@ def test_subtitles_and_audio_runtime_modules_exist_and_app_shell_delegates_to_th
     app_shell_source = APP_SHELL_PATH.read_text(encoding="utf-8")
     assert "./features/subtitles/runtime/index.js" in app_shell_source
     assert "./features/audio/runtime/index.js" in app_shell_source
-    assert "createSubtitlesRuntime" in app_shell_source
+    assert "resolveSubtitleProgressPercentRuntime" in app_shell_source
     assert "createAudioRuntime" in app_shell_source
 
 
@@ -165,7 +165,7 @@ def test_phase9_structure_guardrails_expect_runtime_pure_helper_locations_after_
     assert "normalizeAudioProgressPercent" in audio_controllers_source
 
     assert "normalizeAudioProgressPercent" in app_shell_source
-    assert "extractSubtitleProgressPercentRuntime" in app_shell_source
+    assert "resolveSubtitleProgressPercentRuntime" in app_shell_source
 
 
 def test_legacy_app_js_is_archived_with_marker_and_root_file_removed():

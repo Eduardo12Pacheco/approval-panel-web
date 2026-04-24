@@ -23,8 +23,8 @@ const GUARDED_SELECTOR_BASELINE = {
     'border-radius': '18px',
   },
   '.audio-queue-card': {
-    'border-radius': '14px',
-    background: '#1e2430',
+    'border-radius': '0',
+    background: 'linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96))',
   },
   '.subtitle-phase-bar': {
     display: 'grid',

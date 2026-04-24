@@ -1,16 +1,4 @@
-export function createSubtitlesModeAwareFeature({ handlers, getMode }) {
-  const resolveMode = () => (getMode ? getMode() : 'legacy');
-  return {
-    getMode: resolveMode,
-    isLegacyMode: () => resolveMode() === 'legacy',
-    isRemoteCoreMode: () => resolveMode() === 'remote-core',
-    legacy: handlers,
-    'remote-core': handlers,
-  };
-}
-
-export function createSubtitlesFeature({ api, store, ui, selectors, handlers, getMode }) {
-  const modeAware = createSubtitlesModeAwareFeature({ handlers, getMode });
+export function createSubtitlesFeature({ api, store, ui, selectors, handlers }) {
   return {
     onUploadSelected: handlers.onUploadSelected,
     onSourceLanguageChanged: handlers.onSourceLanguageChanged,
@@ -27,6 +15,5 @@ export function createSubtitlesFeature({ api, store, ui, selectors, handlers, ge
       ui,
       selectors,
     },
-    modeAware,
   };
 }
