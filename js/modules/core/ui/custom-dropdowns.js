@@ -59,6 +59,7 @@ export function createCustomDropdownController({ root = document } = {}) {
 
   function open(instance) {
     if (!isConnected(instance?.select) || !isConnected(instance?.wrapper)) return;
+    if (instance.select.disabled) return;
     closeAll(instance);
     instance.wrapper.classList.add('is-open');
     instance.trigger.setAttribute('aria-expanded', 'true');
@@ -87,8 +88,16 @@ export function createCustomDropdownController({ root = document } = {}) {
   function syncInstance(instance) {
     const options = getSelectOptions(instance.select);
     const label = getTriggerLabel(instance.select, options);
+    const isDisabled = Boolean(instance.select.disabled);
     instance.value.textContent = label;
     instance.trigger.dataset.value = label;
+    instance.trigger.disabled = isDisabled;
+    if (isDisabled) {
+      instance.wrapper.classList.add('is-disabled');
+    } else {
+      instance.wrapper.classList.remove('is-disabled');
+    }
+    if (isDisabled) close(instance);
     instance.menu.innerHTML = options.map((option) => {
       const stateClass = option.selected ? ' is-selected' : '';
       return `

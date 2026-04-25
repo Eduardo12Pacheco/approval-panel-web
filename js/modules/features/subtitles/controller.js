@@ -110,8 +110,13 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
   }
 
   function resetSubtitles2RunState() {
+    const previous = state.subtitles2 || {};
     revokeSubtitle2PreviewObjectUrl();
-    state.subtitles2 = createRemoteSubtitlesState();
+    const next = createRemoteSubtitlesState();
+    next.sessionHistory = Array.isArray(previous.sessionHistory) ? previous.sessionHistory : next.sessionHistory;
+    next.serviceHealth = previous.serviceHealth || next.serviceHealth;
+    next.sourceLanguage = previous.sourceLanguage || next.sourceLanguage;
+    state.subtitles2 = next;
   }
 
   function revokeSubtitle2PreviewObjectUrl() {

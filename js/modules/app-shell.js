@@ -56,6 +56,11 @@ const state = {
   settings: loadSettings(),
   items: [],
   queue: [],
+  dismissedQueueJobs: new Set(),
+  searchRefreshRunning: false,
+  searchRefreshStatus: 'Puede tardar aproximadamente 2 minutos.',
+  searchRefreshStatusKind: 'idle',
+  lastSearchRefresh: null,
   selectedCardId: null,
   selectedTopic: null,
   deletingSource: false,
@@ -201,6 +206,7 @@ export function bootCompatibilityShell() {
   if (el.runQueueBtn) {
     el.runQueueBtn.textContent = 'Actualizar cola';
   }
+  renderSearchRefreshState();
   renderSelectedScriptEditor();
   boot();
 }
@@ -301,6 +307,19 @@ function bindEvents() {
   });
 
   el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
+
+  el.queueList?.addEventListener('click', (ev) => {
+    const button = ev.target.closest('[data-action="dismiss-approval-queue-job"]');
+    if (!button) return;
+    const queueId = (button.dataset.queueId || '').trim();
+    if (!queueId) return;
+    state.dismissedQueueJobs.add(queueId);
+    renderQueue();
+  });
+
+  el.searchRefreshBtn?.addEventListener('click', () => {
+    void runSearchRefresh();
+  });
 
 
   el.subtitle2UploadInput?.addEventListener('change', subtitlesController.onUploadSelected);
@@ -485,8 +504,64 @@ async function refreshApprovalMonitorData() {
   ]);
 }
 
+function getSearchRefreshWindowValue() {
+  return el.searchRefreshWindow?.value === '1h' ? '1h' : '24h';
+}
+
+function getSearchRefreshWindowLabel(value) {
+  return value === '1h' ? 'Última hora' : 'Últimas 24 horas';
+}
+
+function renderSearchRefreshState() {
+  if (!el.searchRefreshBtn || !el.searchRefreshStatus) return;
+
+  el.searchRefreshBtn.disabled = state.searchRefreshRunning;
+  el.searchRefreshBtn.textContent = state.searchRefreshRunning ? 'Buscando...' : 'Buscar';
+  if (el.searchRefreshWindow) {
+    el.searchRefreshWindow.disabled = state.searchRefreshRunning;
+    customDropdowns.refreshAll();
+  }
+
+  el.searchRefreshStatus.textContent = state.searchRefreshStatus;
+  el.searchRefreshStatus.classList.toggle('is-running', state.searchRefreshStatusKind === 'running');
+  el.searchRefreshStatus.classList.toggle('is-success', state.searchRefreshStatusKind === 'success');
+  el.searchRefreshStatus.classList.toggle('is-error', state.searchRefreshStatusKind === 'error');
+}
+
+async function runSearchRefresh() {
+  if (state.searchRefreshRunning) return;
+
+  const windowValue = getSearchRefreshWindowValue();
+  const windowLabel = getSearchRefreshWindowLabel(windowValue);
+  state.searchRefreshRunning = true;
+  state.searchRefreshStatusKind = 'running';
+  state.searchRefreshStatus = `Buscando noticias: ${windowLabel}. Esto puede tardar aproximadamente 2 minutos...`;
+  state.lastSearchRefresh = null;
+  renderSearchRefreshState();
+
+  try {
+    const result = await approvalApi.post('/webhook/approval/search-refresh/supabase/v2', { window: windowValue });
+    state.lastSearchRefresh = result;
+    state.searchRefreshStatusKind = 'success';
+    state.searchRefreshStatus = `Búsqueda completada${result?.run_id ? ` · ${result.run_id}` : ''}. Actualizando panel...`;
+    renderSearchRefreshState();
+    toast('Búsqueda completada. Actualizando noticias...');
+    await refreshAll();
+    state.searchRefreshStatus = `Última búsqueda: ${windowLabel}. Panel actualizado.`;
+  } catch (err) {
+    console.error(err);
+    const message = getErrorMessage(err, 'Error ejecutando búsqueda');
+    state.searchRefreshStatusKind = 'error';
+    state.searchRefreshStatus = `Error: ${message}`;
+    toast(message);
+  } finally {
+    state.searchRefreshRunning = false;
+    renderSearchRefreshState();
+  }
+}
+
 function renderQueue() {
-  renderQueueMonitor({ queueItems: state.queue, el, escapeHtml });
+  renderQueueMonitor({ queueItems: state.queue, el, escapeHtml, dismissedQueueIds: state.dismissedQueueJobs });
 }
 
 function renderStats() {

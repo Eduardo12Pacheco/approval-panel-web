@@ -144,3 +144,52 @@ def test_app_shell_declares_single_timer_auto_refresh_for_queue_and_drafts():
     assert "createSingleFlightRunner" in app_shell_source
     assert "refreshQueue({ silent: true })" in app_shell_source
     assert "refreshScriptDrafts({ silent: true })" in app_shell_source
+
+
+def test_approval_queue_monitor_can_dismiss_error_jobs_visually_without_backend_mutation():
+    script = r"""
+import { renderQueueMonitor } from './js/modules/features/approval/queue-monitor.js';
+
+const el = {
+  queueMeta: {
+    textContent: '',
+    hidden: false,
+    classList: { toggle(name, enabled) { this[name] = enabled; } },
+  },
+  queueList: { innerHTML: '' },
+};
+const escapeHtml = (value) => (value ?? '').toString()
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
+const queueItems = [
+  { queue_id: 'errored-job', estado_queue: 'failed', tema_principal: 'Job con error', jugador: 'Jugador A', fuente: 'Fuente A' },
+  { queue_id: 'running-job', estado_queue: 'processing', tema_principal: 'Job activo', jugador: 'Jugador B', fuente: 'Fuente B' },
+];
+
+renderQueueMonitor({ queueItems, el, escapeHtml });
+
+if (!el.queueList.innerHTML.includes('data-action="dismiss-approval-queue-job"')) {
+  throw new Error('missing visual dismiss action');
+}
+if (!el.queueList.innerHTML.includes('data-queue-id="errored-job"')) {
+  throw new Error('missing stable queue id in dismiss action');
+}
+
+renderQueueMonitor({ queueItems, el, escapeHtml, dismissedQueueIds: new Set(['errored-job']) });
+
+if (el.queueList.innerHTML.includes('Job con error')) {
+  throw new Error('dismissed errored job should be hidden visually');
+}
+if (!el.queueList.innerHTML.includes('Job activo')) {
+  throw new Error('non-dismissed job should remain visible');
+}
+if (el.queueMeta.textContent !== '1 job en curso') {
+  throw new Error(`visible queue count drift: ${el.queueMeta.textContent}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

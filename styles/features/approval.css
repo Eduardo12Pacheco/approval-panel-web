@@ -170,6 +170,35 @@
   min-width: 0;
 }
 
+.queue-item__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.queue-item__dismiss {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(217, 87, 100, 0.34);
+  border-radius: 0;
+  background: rgba(43, 11, 16, 0.56);
+  color: #ffb4bf;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.queue-item__dismiss:hover:not(:disabled) {
+  transform: none;
+  filter: brightness(1.15);
+}
+
 .queue-item__eyebrow,
 .script-selection-card__eyebrow {
   margin-bottom: 0;

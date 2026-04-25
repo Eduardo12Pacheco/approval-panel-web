@@ -1,7 +1,7 @@
-export function renderQueueMonitor({ queueItems, el, escapeHtml }) {
+export function renderQueueMonitor({ queueItems, el, escapeHtml, dismissedQueueIds = new Set() }) {
   const queue = queueItems
     .map((item) => buildQueueMonitorCard(item))
-    .filter((item) => item.isVisible);
+    .filter((item) => item.isVisible && !dismissedQueueIds.has(item.id));
 
   el.queueMeta.textContent = queue.length
     ? `${queue.length} job${queue.length === 1 ? '' : 's'} en curso`
@@ -20,7 +20,10 @@ export function renderQueueMonitor({ queueItems, el, escapeHtml }) {
           <div class="meta queue-item__eyebrow">${escapeHtml(item.eyebrow)}</div>
           <strong>${escapeHtml(item.title)}</strong>
         </div>
-        <span class="queue-status-pill queue-status-pill--${item.tone}">${escapeHtml(item.statusLabel)}</span>
+        <div class="queue-item__actions">
+          <span class="queue-status-pill queue-status-pill--${item.tone}">${escapeHtml(item.statusLabel)}</span>
+          <button type="button" class="queue-item__dismiss" data-action="dismiss-approval-queue-job" data-queue-id="${escapeHtml(item.id)}" title="Ocultar job" aria-label="Ocultar job">×</button>
+        </div>
       </div>
       <div class="queue-progress">
         <div class="queue-progress__meta">
@@ -49,7 +52,9 @@ export function buildQueueMonitorCard(item = {}) {
   const eyebrow = [pickFirstNonEmpty(item.jugador, 'Sin jugador'), pickFirstNonEmpty(item.fuente, item.seleccion, 'Sin origen')]
     .filter(Boolean)
     .join(' · ');
+  const id = pickFirstNonEmpty(item.queue_id, item.job_id, item.id, item.uuid, item.cluster_id, `${title}::${eyebrow}`);
   return {
+    id,
     title,
     eyebrow,
     statusLabel: getQueueStatusLabel(normalizedStatus),

@@ -471,3 +471,49 @@ if (empty.artifactReady !== false) throw new Error('editing artifact drift');
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_subtitle2_reset_preserves_remote_health_history_and_language_context():
+    script = r"""
+import { createSubtitlesController } from './js/modules/features/subtitles/controller.js';
+
+let revokedUrl = '';
+const state = {
+  subtitles2: {
+    previewVideoObjectUrl: 'blob:previous-preview',
+    serviceHealth: { status: 'online', message: 'Servicio remoto disponible.' },
+    sessionHistory: [{ id: 'session-1', status: 'succeeded' }],
+    sourceLanguage: 'en',
+  },
+};
+
+const controller = createSubtitlesController({
+  state,
+  el: {},
+  api: {},
+  ui: { toast() {} },
+  helpers: {
+    getErrorMessage(error, fallback) { return fallback; },
+    downloadBlob() {},
+    escapeHtml(value) { return (value ?? '').toString(); },
+  },
+  customDropdowns: { refreshAll() {} },
+  browser: {
+    URL: { revokeObjectURL(url) { revokedUrl = url; } },
+    window: {},
+    setTimeout() {},
+    clearTimeout() {},
+    clearInterval() {},
+  },
+});
+
+controller.resetRunState();
+
+if (revokedUrl !== 'blob:previous-preview') throw new Error(`preview object URL was not revoked: ${revokedUrl}`);
+if (state.subtitles2.serviceHealth.status !== 'online') throw new Error(`health was not preserved: ${state.subtitles2.serviceHealth.status}`);
+if (state.subtitles2.sessionHistory.length !== 1) throw new Error(`history was not preserved: ${state.subtitles2.sessionHistory.length}`);
+if (state.subtitles2.sourceLanguage !== 'en') throw new Error(`source language was not preserved: ${state.subtitles2.sourceLanguage}`);
+if (state.subtitles2.sessionId !== null) throw new Error('active session should be cleared');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

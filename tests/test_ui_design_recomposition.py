@@ -62,6 +62,8 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
 
     for expected_fragment in [
         'class="sidebar sidebar--rail"',
+        '<strong>Editorial System</strong>',
+        '<small>Operations Core</small>',
         'class="topic-dialog-shell"',
         'class="topic-dialog-body"',
         'class="audio-screen"',
@@ -70,6 +72,9 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         'id="audioQueueMeta" class="section-counter"></span>',
         'id="audioQueueList" class="audio-queue-list is-empty"',
         'class="audio-queue-empty">Sin jobs todavía.</p>',
+        '<option value="balanced_default">Voz Balanceada</option>',
+        '<option value="pelotazo_emotivo">Voz Emotivo</option>',
+        '<option value="pelotazo_informativo">Voz Informativa</option>',
         'class="audio-panel audio-panel--queue panel-shell"',
     ]:
         assert expected_fragment in index_source
@@ -80,6 +85,7 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         '--sidebar-expanded: clamp(248px, 22vw, 272px);',
         '.sidebar-rail__label',
         '.approval-shell-grid',
+        '.queue-item__dismiss',
         '.topic-dialog-shell',
         '.script-selection-list',
         '.audio-screen__grid',
