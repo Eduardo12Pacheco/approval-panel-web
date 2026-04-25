@@ -512,6 +512,16 @@ function getSearchRefreshWindowLabel(value) {
   return value === '1h' ? 'Última hora' : 'Últimas 24 horas';
 }
 
+function assertSearchRefreshSucceeded(result) {
+  const status = (result?.status || '').toString().trim().toLowerCase();
+  const promoteStatus = (result?.promote?.status || '').toString().trim().toLowerCase();
+  const errorMessage = (result?.error || result?.message || result?.promote?.error || '').toString().trim();
+
+  if (status !== 'ok' || promoteStatus !== 'succeeded') {
+    throw new Error(errorMessage || 'La búsqueda no terminó correctamente. El panel actual se mantiene sin cambios.');
+  }
+}
+
 function renderSearchRefreshState() {
   if (!el.searchRefreshBtn || !el.searchRefreshStatus) return;
 
@@ -541,6 +551,7 @@ async function runSearchRefresh() {
 
   try {
     const result = await approvalApi.post('/webhook/approval/search-refresh/supabase/v2', { window: windowValue });
+    assertSearchRefreshSucceeded(result);
     state.lastSearchRefresh = result;
     state.searchRefreshStatusKind = 'success';
     state.searchRefreshStatus = `Búsqueda completada${result?.run_id ? ` · ${result.run_id}` : ''}. Actualizando panel...`;

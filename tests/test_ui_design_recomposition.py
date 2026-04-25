@@ -99,6 +99,15 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         assert expected_rule in joined_css
 
 
+def test_search_refresh_requires_promote_success_before_panel_updated_copy():
+    app_shell_source = _read(APP_SHELL_PATH)
+
+    assert 'assertSearchRefreshSucceeded(result);' in app_shell_source
+    assert "promoteStatus !== 'succeeded'" in app_shell_source
+    assert 'El panel actual se mantiene sin cambios' in app_shell_source
+    assert 'Panel actualizado' in app_shell_source
+
+
 def test_sidebar_rail_keeps_collapsed_state_contained_and_removes_scripts_segmentation():
     index_source = _read(INDEX_PATH)
     layout_source = _read(LAYOUT_PATH)
