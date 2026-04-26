@@ -221,6 +221,9 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
         '.ui-dropdown__option.is-selected',
         '.control-input-shell--search',
         '.control-input-icon',
+        'radial-gradient(circle at left center, rgba(0, 232, 143, 0.16), transparent 34%)',
+        'border-color: rgba(0, 232, 143, 0.32);',
+        '.approval-control--search input::placeholder',
         'padding-left: 42px;',
         'margin-inline: 0;',
         'background: transparent;',
@@ -750,7 +753,13 @@ for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Est
     toast_source = _read(TOAST_PATH)
 
     for expected_rule in [
+        '.script-selection-list {',
+        'padding: 0 8px 2px;',
+        'scrollbar-width: none !important;',
+        '.script-selection-list::-webkit-scrollbar {',
         '.script-selection-card {',
+        'justify-self: center;',
+        'width: 100%;',
         'border-radius: 0;',
         '.script-selection-card.is-selected {',
         'radial-gradient(circle at top left',

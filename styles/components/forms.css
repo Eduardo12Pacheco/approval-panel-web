@@ -36,7 +36,7 @@
 }
 
 .control-input-shell--search {
-  color: #5d6268;
+  color: #8de8c1;
 }
 
 .control-input-icon {
@@ -66,17 +66,29 @@
 }
 
 .approval-control--search input {
-  background: #0d0d0d;
+  border-color: rgba(0, 232, 143, 0.32);
+  background:
+    radial-gradient(circle at left center, rgba(0, 232, 143, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(5, 31, 22, 0.98), rgba(3, 18, 14, 0.98));
+  color: #d8fff0;
   padding-left: 42px;
+  box-shadow:
+    inset 0 0 0 1px rgba(158, 247, 207, 0.06),
+    0 0 0 1px rgba(0, 232, 143, 0.08),
+    0 18px 38px rgba(0, 232, 143, 0.08);
 }
 
 .approval-control--search input:focus,
 .approval-control--search input:not(:placeholder-shown) {
+  border-color: rgba(0, 232, 143, 0.52);
+  background:
+    radial-gradient(circle at left center, rgba(0, 232, 143, 0.2), transparent 34%),
+    linear-gradient(180deg, rgba(7, 40, 28, 0.98), rgba(4, 22, 16, 0.98));
   color: var(--text);
 }
 
 .approval-control--search:focus-within .control-input-shell--search {
-  color: #7b8086;
+  color: #b5ffdf;
 }
 
 .approval-control--select select {
@@ -295,6 +307,10 @@
 .control-group--search input::placeholder,
 .script-area::placeholder {
   color: #5d6268;
+}
+
+.approval-control--search input::placeholder {
+  color: #7aa892;
 }
 
 .source-item {

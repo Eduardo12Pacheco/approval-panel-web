@@ -287,22 +287,29 @@
 
 .script-selection-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-auto-rows: max-content;
   align-content: start;
   min-height: 0;
   height: 100%;
-  overflow: auto;
-  padding-right: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px 2px;
+  scrollbar-width: none !important;
+}
+
+.script-selection-list::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .script-selection-card {
   position: relative;
   display: grid;
+  justify-self: center;
   gap: 10px;
   align-content: start;
+  width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.96));
   padding: 15px 16px;
