@@ -69,6 +69,7 @@ const state = {
   selectedScript: null,
   savingScript: false,
   publishingScript: false,
+  downloadingScript: false,
   audioJobId: null,
   audioPollingTimer: null,
   audioPollingToken: null,
@@ -128,6 +129,7 @@ const scriptsFeature = createScriptsFeature({
   store,
   ui: { toast },
   selectors: el,
+  helpers: { downloadBlob },
   callbacks: {
     renderScriptStats,
     renderScriptCards,
@@ -292,6 +294,7 @@ function bindEvents() {
     updateWordCounter(text, el.audioWordCount);
     setView('audio');
   });
+  el.downloadDraftBtn.addEventListener('click', downloadSelectedScriptDocx);
   el.publishDraftBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
     el.publishConfirmDialog.showModal();
@@ -669,6 +672,10 @@ async function saveSelectedScript() {
 
 async function publishSelectedScript() {
   await scriptsFeature.publishSelectedScript();
+}
+
+async function downloadSelectedScriptDocx() {
+  await scriptsFeature.downloadSelectedScriptDocx();
 }
 
 async function removeSourceFromTopic(source) {

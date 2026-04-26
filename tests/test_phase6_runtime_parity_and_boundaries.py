@@ -317,6 +317,153 @@ if (renderStatsCount !== 1 || renderCardsCount !== 1 || renderEditorCount !== 1)
     assert result.returncode == 0, result.stderr
 
 
+def test_scripts_feature_downloads_published_google_doc_as_docx_blob():
+    script = r"""
+import { createScriptsFeature } from './js/modules/features/scripts/index.js';
+
+const state = {
+  selectedScript: {
+    draft_id: 'draft-1',
+    id_noticia: 'news-1',
+    cluster_id: 'cluster-1',
+    doc_id: 'doc-1',
+    jugador: 'Ángel',
+    tema_principal: 'Tema raro / prueba',
+  },
+  downloadingScript: false,
+};
+
+const selectors = {
+  downloadDraftBtn: { disabled: false },
+};
+
+let posted = null;
+let downloaded = null;
+let renderCount = 0;
+const toasts = [];
+
+const feature = createScriptsFeature({
+  api: {
+    async postBlob(path, payload) {
+      posted = { path, payload };
+      return { blob: { size: 123 }, filename: '' };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast(message) { toasts.push(message); } },
+  selectors,
+  helpers: {
+    downloadBlob(blob, filename) {
+      downloaded = { blob, filename };
+    },
+  },
+  callbacks: {
+    renderSelectedScriptEditor() { renderCount += 1; },
+  },
+});
+
+await feature.downloadSelectedScriptDocx();
+
+if (posted?.path !== '/webhook/mvp-script-download-doc/supabase/v1') {
+  throw new Error(`unexpected download endpoint: ${posted?.path}`);
+}
+if (posted.payload.draft_id !== 'draft-1' || posted.payload.id_noticia !== 'news-1' || posted.payload.cluster_id !== 'cluster-1') {
+  throw new Error(`identity payload drift: ${JSON.stringify(posted.payload)}`);
+}
+if (posted.payload.format !== 'docx') throw new Error('missing docx format marker');
+if (downloaded?.filename !== 'Angel - Tema raro prueba.docx') {
+  throw new Error(`fallback filename drift: ${JSON.stringify(downloaded)}`);
+}
+if (state.downloadingScript !== false || renderCount !== 1) {
+  throw new Error(`download state did not reset/render: ${state.downloadingScript}/${renderCount}`);
+}
+if (!toasts.includes('Descarga DOCX iniciada')) {
+  throw new Error(`missing success toast: ${JSON.stringify(toasts)}`);
+}
+
+state.selectedScript = { draft_id: 'draft-2' };
+posted = null;
+await feature.downloadSelectedScriptDocx();
+if (posted !== null) throw new Error('download should not call API without doc_id');
+if (!toasts.includes('Primero publicá el guion para poder descargarlo.')) {
+  throw new Error(`missing unpublished guard toast: ${JSON.stringify(toasts)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_scripts_feature_keeps_published_doc_selected_for_immediate_download():
+    script = r"""
+import { createScriptsFeature } from './js/modules/features/scripts/index.js';
+
+const state = {
+  scriptDrafts: [{ draft_id: 'draft-1' }],
+  selectedScript: {
+    draft_id: 'draft-1',
+    id_noticia: 'news-1',
+    cluster_id: 'cluster-1',
+    guion_draft: 'Texto original suficientemente largo para publicar sin errores.',
+    jugador: 'Jugador',
+    tema_principal: 'Tema',
+  },
+  publishingScript: false,
+};
+
+const selectors = {
+  scriptEditedArea: { value: 'Texto editado suficientemente largo para publicar y descargar después.' },
+  publishConfirmDialog: { closed: false, close() { this.closed = true; } },
+  confirmPublishBtn: { disabled: false },
+};
+
+const postPaths = [];
+let renderCardsCount = 0;
+let renderEditorCount = 0;
+
+const feature = createScriptsFeature({
+  api: {
+    async get(path) {
+      if (path !== '/webhook/mvp-script-drafts-pending/supabase/v2') throw new Error(`unexpected get ${path}`);
+      return { items: [] };
+    },
+    async post(path, payload) {
+      postPaths.push({ path, payload });
+      if (path === '/webhook/mvp-script-publish/supabase/v2') {
+        return { ok: true, draft_id: 'draft-1', id_noticia: 'news-1', cluster_id: 'cluster-1', estado_guion: 'publicado', doc_id: 'doc-1', doc_url: 'https://docs.example/doc-1' };
+      }
+      return { ok: true };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast() {} },
+  selectors,
+  callbacks: {
+    renderScriptStats() {},
+    renderScriptCards() { renderCardsCount += 1; },
+    renderSelectedScriptEditor() { renderEditorCount += 1; },
+  },
+});
+
+await feature.publishSelectedScript();
+
+if (!selectors.publishConfirmDialog.closed) throw new Error('publish confirm dialog was not closed');
+if (postPaths.map((entry) => entry.path).join('|') !== '/webhook/mvp-script-draft-save/supabase/v2|/webhook/mvp-script-publish/supabase/v2') {
+  throw new Error(`publish post sequence drift: ${JSON.stringify(postPaths)}`);
+}
+if (state.selectedScript?.doc_id !== 'doc-1' || state.selectedScript?.estado_guion !== 'publicado') {
+  throw new Error(`published selection not preserved for download: ${JSON.stringify(state.selectedScript)}`);
+}
+if (state.publishingScript !== false || selectors.confirmPublishBtn.disabled !== false) {
+  throw new Error('publish state did not reset');
+}
+if (renderCardsCount < 2 || renderEditorCount < 2) {
+  throw new Error(`expected refresh and restore renders, got cards=${renderCardsCount} editor=${renderEditorCount}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_source_link_resolution_supports_link_and_url_and_app_shell_uses_it():
     script = r"""
 import { resolveApprovalSourceLink } from './js/modules/features/approval/index.js';

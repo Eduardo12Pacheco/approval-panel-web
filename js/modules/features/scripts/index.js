@@ -32,12 +32,35 @@ export function resolveScriptIdentity(row = {}) {
   };
 }
 
-export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
+export function buildScriptDocxFilename(row = {}) {
+  const base = [row.jugador, row.tema_principal]
+    .map((part) => (part || '').toString().trim())
+    .filter(Boolean)
+    .join(' - ')
+    || row.draft_id
+    || row.id_noticia
+    || row.cluster_id
+    || 'guion';
+
+  const safe = base
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._ -]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90)
+    || 'guion';
+
+  return `${safe}.docx`;
+}
+
+export function createScriptsFeature({ api, store, ui, selectors, callbacks, helpers }) {
   const {
     renderScriptStats = () => {},
     renderScriptCards = () => {},
     renderSelectedScriptEditor = () => {},
   } = callbacks || {};
+  const { downloadBlob = () => {} } = helpers || {};
 
   async function refreshScriptDrafts({ silent = false } = {}) {
     const state = store.getState();
@@ -142,13 +165,24 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
         ...ids,
         guion_editado: edited,
       });
-      await api.post('/webhook/mvp-script-publish/supabase/v2', {
+      const published = await api.post('/webhook/mvp-script-publish/supabase/v2', {
         ...ids,
       });
       selectors.publishConfirmDialog.close();
-      state.selectedScript = null;
+      const publishedSelection = {
+        ...state.selectedScript,
+        ...published,
+        ...ids,
+        guion_editado: edited,
+        doc_id: published?.doc_id || state.selectedScript.doc_id || '',
+        doc_url: published?.doc_url || state.selectedScript.doc_url || '',
+        estado_guion: published?.estado_guion || state.selectedScript.estado_guion || 'publicado',
+      };
       ui.toast('Guion publicado correctamente');
       await refreshScriptDrafts();
+      state.selectedScript = publishedSelection;
+      renderScriptCards();
+      renderSelectedScriptEditor();
     } catch (err) {
       console.error(err);
       if (String(err?.message || '').toLowerCase().includes('cluster_id no encontrado')) {
@@ -164,11 +198,40 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks }) {
     }
   }
 
+  async function downloadSelectedScriptDocx() {
+    const state = store.getState();
+    if (!state.selectedScript || state.downloadingScript) return;
+    if (!state.selectedScript.doc_id) {
+      ui.toast('Primero publicá el guion para poder descargarlo.');
+      return;
+    }
+
+    try {
+      state.downloadingScript = true;
+      if (selectors.downloadDraftBtn) selectors.downloadDraftBtn.disabled = true;
+      const ids = resolveScriptIdentity(state.selectedScript);
+      const result = await api.postBlob('/webhook/mvp-script-download-doc/supabase/v1', {
+        ...ids,
+        format: 'docx',
+      });
+      const filename = result.filename || buildScriptDocxFilename(state.selectedScript);
+      downloadBlob(result.blob, filename);
+      ui.toast('Descarga DOCX iniciada');
+    } catch (err) {
+      console.error(err);
+      ui.toast('Error descargando DOCX');
+    } finally {
+      state.downloadingScript = false;
+      renderSelectedScriptEditor();
+    }
+  }
+
   return {
     buildScriptSelectionCardMarkup,
     refreshScriptDrafts,
     openScriptEditor,
     saveSelectedScript,
     publishSelectedScript,
+    downloadSelectedScriptDocx,
   };
 }

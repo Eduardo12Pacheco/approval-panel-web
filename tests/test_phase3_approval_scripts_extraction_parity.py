@@ -29,6 +29,7 @@ def test_approval_api_contract_preserves_secret_header_and_webhook_routes():
     assert "createApprovalApiClient" in source
     assert "get(" in source
     assert "post(" in source
+    assert "postBlob(" in source
 
     for endpoint in [
         "/webhook/approval/pending/supabase/v2",
@@ -37,6 +38,7 @@ def test_approval_api_contract_preserves_secret_header_and_webhook_routes():
         "/webhook/mvp-script-drafts-pending/supabase/v2",
         "/webhook/mvp-script-draft-save/supabase/v2",
         "/webhook/mvp-script-publish/supabase/v2",
+        "/webhook/mvp-script-download-doc/supabase/v1",
     ]:
         assert endpoint in source, f"Missing parity endpoint marker in approval API module: {endpoint}"
 
@@ -71,6 +73,7 @@ def test_selector_facade_owns_dom_query_contract_for_approval_and_scripts_views(
         "scriptEditorDialog",
         "scriptEditedArea",
         "saveDraftBtn",
+        "downloadDraftBtn",
         "publishDraftBtn",
     ]:
         assert selector_id in selectors_source, f"Missing selector in facade: {selector_id}"

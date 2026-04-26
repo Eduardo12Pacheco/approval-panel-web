@@ -57,6 +57,7 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
     el.scriptEditedArea.disabled = true;
     el.viewOriginalBtn.disabled = true;
     el.voiceAiBtn.disabled = true;
+    el.downloadDraftBtn.disabled = true;
     el.publishDraftBtn.disabled = true;
     el.closeScriptEditor.disabled = true;
     updateWordCounter('', el.scriptEditedWordCount);
@@ -66,6 +67,7 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
   el.scriptEditedArea.disabled = false;
   el.viewOriginalBtn.disabled = false;
   el.voiceAiBtn.disabled = false;
+  el.downloadDraftBtn.disabled = !selected.doc_id;
   el.publishDraftBtn.disabled = false;
   el.closeScriptEditor.disabled = false;
 

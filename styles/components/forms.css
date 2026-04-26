@@ -1,16 +1,25 @@
 .approval-controls {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 170px 170px minmax(300px, auto);
-  gap: 12px;
+  grid-template-columns: minmax(320px, 1fr) minmax(150px, 176px) minmax(150px, 184px) minmax(340px, 420px);
+  column-gap: 12px;
+  row-gap: 12px;
   padding: 18px 20px;
-  align-items: end;
+  align-items: start;
 }
 
 .approval-controls__actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: minmax(176px, 1fr) auto;
+  grid-template-areas:
+    "window button"
+    "status status";
+  column-gap: 8px;
+  row-gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-left: 6px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(148, 163, 184, 0.24);
   align-items: end;
 }
 
@@ -78,6 +87,7 @@
 }
 
 .approval-control--search-refresh {
+  grid-area: window;
   min-width: 176px;
 }
 
@@ -89,7 +99,10 @@
 }
 
 .approval-search-refresh__button {
+  grid-area: button;
+  align-self: end;
   min-height: 46px;
+  min-width: 78px;
   border-color: rgba(244, 183, 64, 0.56);
   background:
     linear-gradient(180deg, rgba(255, 169, 56, 0.96), rgba(188, 92, 18, 0.96));
@@ -117,7 +130,9 @@
 }
 
 .approval-search-refresh__status {
-  flex: 1 0 100%;
+  grid-area: status;
+  width: 100%;
+  min-width: 0;
   min-height: 16px;
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;

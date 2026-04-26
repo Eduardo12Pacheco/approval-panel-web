@@ -8,6 +8,14 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .approval-controls__actions {
+    margin-left: 0;
+    padding-top: 14px;
+    padding-left: 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    border-left: 0;
+  }
+
   .approval-shell-grid,
   .audio-screen__grid {
     grid-template-columns: 1fr;
@@ -73,6 +81,18 @@
   .queue-actions,
   .card-actions {
     width: 100%;
+  }
+
+  .approval-controls__actions {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "window"
+      "button"
+      "status";
+  }
+
+  .approval-control--search-refresh {
+    min-width: 0;
   }
 
   .approval-controls__actions button,

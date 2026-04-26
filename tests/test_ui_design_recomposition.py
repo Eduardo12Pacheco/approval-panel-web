@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX_PATH = ROOT / "index.html"
 TOKENS_PATH = ROOT / "styles" / "tokens.css"
 LAYOUT_PATH = ROOT / "styles" / "layout.css"
+RESPONSIVE_PATH = ROOT / "styles" / "responsive.css"
 APPROVAL_PATH = ROOT / "styles" / "features" / "approval.css"
 SCRIPTS_PATH = ROOT / "styles" / "features" / "scripts.css"
 AUDIO_PATH = ROOT / "styles" / "features" / "audio.css"
@@ -48,6 +49,8 @@ def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspac
         'id="queueList" class="queue-list queue-list--integrated"',
         'id="scriptCards" class="script-selection-list"',
         'id="scriptEditedArea" class="script-area script-area--workspace"',
+        'id="downloadDraftBtn" class="secondary button-icon" disabled',
+        '<span>Descargar</span>',
     ]:
         assert expected_fragment in source
 
@@ -106,6 +109,43 @@ def test_search_refresh_requires_promote_success_before_panel_updated_copy():
     assert "promoteStatus !== 'succeeded'" in app_shell_source
     assert 'El panel actual se mantiene sin cambios' in app_shell_source
     assert 'Panel actualizado' in app_shell_source
+
+
+def test_search_refresh_controls_align_with_filter_row_and_visual_separator():
+    index_source = _read(INDEX_PATH)
+    forms_source = _read(FORMS_PATH)
+    responsive_source = _read(RESPONSIVE_PATH)
+
+    for expected_fragment in [
+        'class="approval-controls__actions"',
+        'class="control-group approval-control approval-control--search-refresh"',
+        'id="searchRefreshWindow" data-custom-dropdown',
+        'id="searchRefreshBtn" class="approval-search-refresh__button"',
+        'id="searchRefreshStatus" class="approval-search-refresh__status"',
+    ]:
+        assert expected_fragment in index_source
+
+    for expected_rule in [
+        'grid-template-columns: minmax(320px, 1fr) minmax(150px, 176px) minmax(150px, 184px) minmax(340px, 420px);',
+        'align-items: start;',
+        'grid-template-areas:',
+        '"window button"',
+        '"status status"',
+        'border-left: 1px solid rgba(148, 163, 184, 0.24);',
+        'grid-area: window;',
+        'grid-area: button;',
+        'grid-area: status;',
+    ]:
+        assert expected_rule in forms_source
+
+    for expected_rule in [
+        'border-top: 1px solid rgba(148, 163, 184, 0.22);',
+        'border-left: 0;',
+        '"window"',
+        '"button"',
+        '"status"',
+    ]:
+        assert expected_rule in responsive_source
 
 
 def test_sidebar_rail_keeps_collapsed_state_contained_and_removes_scripts_segmentation():
