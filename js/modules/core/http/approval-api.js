@@ -11,7 +11,7 @@ export const APPROVAL_PARITY_ENDPOINTS = [
 ];
 
 function parseFilenameFromContentDisposition(header = '') {
-  const value = header.toString();
+  const value = (header || '').toString();
   const utfMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
   if (utfMatch?.[1]) return decodeURIComponent(utfMatch[1].trim().replace(/^"|"$/g, ''));
   const asciiMatch = value.match(/filename="?([^";]+)"?/i);

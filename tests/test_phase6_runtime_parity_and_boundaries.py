@@ -48,6 +48,14 @@ const api = createApprovalApiClient({
         json: async () => ({ status: 'error', message: 'business' }),
       };
     }
+    if (url.endsWith('/download-docx')) {
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        blob: async () => ({ kind: 'docx-blob' }),
+      };
+    }
     return {
       ok: true,
       status: 200,
@@ -71,6 +79,13 @@ if (postCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error(
 
 const body = JSON.parse(postCall.options.body);
 if (body.cluster_id !== 'c-1' || body.action !== 'approve') throw new Error('payload drift');
+
+const blobResult = await api.postBlob('/download-docx', { draft_id: 'draft-1' });
+const blobCall = calls[2];
+if (blobCall.options.method !== 'POST') throw new Error('postBlob method drift');
+if (blobCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('postBlob secret header drift');
+if (blobResult.blob.kind !== 'docx-blob') throw new Error('postBlob blob drift');
+if (blobResult.filename !== '') throw new Error('postBlob should tolerate missing Content-Disposition');
 
 let httpErrorCaught = false;
 try {
