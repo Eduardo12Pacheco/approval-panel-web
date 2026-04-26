@@ -113,8 +113,10 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
 
     for expected_fragment in [
         'class="sidebar sidebar--rail"',
-        '<strong>Editorial System</strong>',
-        '<small>Operations Core</small>',
+        '<title>Editorial system</title>',
+        '<link rel="icon" type="image/svg+xml" href="./favicon.svg" />',
+        '<strong>Editorial system</strong>',
+        'brand-icon--editorial-system',
         'class="topic-dialog-shell"',
         'class="topic-dialog-body"',
         'class="audio-screen"',
@@ -240,6 +242,7 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
     assert '▤' not in index_source
     assert '◉' not in index_source
     assert '≣' not in index_source
+    assert 'Operations Core' not in index_source
 
     for expected_rule in [
         '.ui-dropdown',
