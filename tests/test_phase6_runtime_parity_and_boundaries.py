@@ -479,6 +479,82 @@ if (renderCardsCount < 2 || renderEditorCount < 2) {
     assert result.returncode == 0, result.stderr
 
 
+def test_processed_script_cards_persist_dismissal_before_hiding_locally():
+    script = r"""
+import { createScriptsFeature } from './js/modules/features/scripts/index.js';
+import { renderScriptCardsView, renderScriptStatsView } from './js/modules/features/scripts/render.js';
+
+const state = {
+  scriptDrafts: [
+    { draft_id: 'processed-1', estado_guion: 'publicado', doc_id: 'doc-1', seleccion: 'Argentina', jugador: 'Messi', tema_principal: 'Procesado' },
+    { draft_id: 'draft-1', estado_guion: 'borrador_generado', seleccion: 'Ecuador', jugador: 'Caicedo', tema_principal: 'Pendiente' },
+  ],
+  selectedScript: { draft_id: 'processed-1', estado_guion: 'publicado', doc_id: 'doc-1' },
+  dismissedProcessedScripts: new Set(),
+};
+
+let renderCardsCount = 0;
+let renderEditorCount = 0;
+let renderStatsCount = 0;
+const postCalls = [];
+const toasts = [];
+
+const feature = createScriptsFeature({
+  api: {
+    async post(path, payload) {
+      postCalls.push({ path, payload });
+      return { ok: true, draft_id: payload.draft_id, estado_guion: 'publicado' };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast(message) { toasts.push(message); } },
+  selectors: {},
+  callbacks: {
+    renderScriptStats() { renderStatsCount += 1; },
+    renderScriptCards() { renderCardsCount += 1; },
+    renderSelectedScriptEditor() { renderEditorCount += 1; },
+  },
+});
+
+await feature.dismissProcessedScript('processed-1');
+
+if (postCalls.length !== 1) throw new Error(`expected one backend dismissal call, got ${postCalls.length}`);
+if (postCalls[0].path !== '/webhook/mvp-script-draft-save/supabase/v2') {
+  throw new Error(`dismiss endpoint drift: ${postCalls[0].path}`);
+}
+if (postCalls[0].payload.action !== 'dismiss_processed') {
+  throw new Error(`missing persistent dismiss action: ${JSON.stringify(postCalls[0].payload)}`);
+}
+if (postCalls[0].payload.draft_id !== 'processed-1') {
+  throw new Error(`missing persistent dismiss identity: ${JSON.stringify(postCalls[0].payload)}`);
+}
+
+if (!state.dismissedProcessedScripts.has('processed-1')) {
+  throw new Error('processed script dismiss id was not stored locally');
+}
+if (state.scriptDrafts.some((item) => item.draft_id === 'processed-1')) {
+  throw new Error(`persisted dismissed script should be removed from local list: ${JSON.stringify(state.scriptDrafts)}`);
+}
+if (state.selectedScript !== null) throw new Error('selected processed script should close when dismissed');
+if (renderCardsCount !== 1 || renderEditorCount !== 1 || renderStatsCount !== 1) {
+  throw new Error(`dismiss render drift ${renderCardsCount}/${renderEditorCount}/${renderStatsCount}`);
+}
+
+const cardsEl = { innerHTML: '', querySelectorAll: () => [] };
+renderScriptCardsView({ state, el: { scriptCards: cardsEl }, openScriptEditor() {} });
+if (cardsEl.innerHTML.includes('Procesado')) throw new Error(`dismissed processed card is still visible: ${cardsEl.innerHTML}`);
+if (!cardsEl.innerHTML.includes('Pendiente')) throw new Error(`pending card should remain visible: ${cardsEl.innerHTML}`);
+
+const statsEl = { innerHTML: '' };
+renderScriptStatsView({ scriptDrafts: state.scriptDrafts, el: { scriptStats: statsEl } });
+if (!statsEl.innerHTML.includes('<small>Pendientes</small><strong>1</strong>')) throw new Error(`pending stat drift: ${statsEl.innerHTML}`);
+if (!statsEl.innerHTML.includes('<small>Procesados</small><strong>0</strong>')) throw new Error(`processed stat drift: ${statsEl.innerHTML}`);
+if (!toasts.includes('Guion ocultado del panel')) throw new Error(`missing dismiss toast: ${JSON.stringify(toasts)}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_source_link_resolution_supports_link_and_url_and_app_shell_uses_it():
     script = r"""
 import { resolveApprovalSourceLink } from './js/modules/features/approval/index.js';

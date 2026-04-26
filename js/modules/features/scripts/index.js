@@ -9,19 +9,39 @@ export function normalizeScriptDraftRows(payload = {}) {
 }
 
 export function buildScriptSelectionCardMarkup(item = {}, { selected = false } = {}) {
+  const processed = isScriptProcessed(item);
   const selectedClass = selected ? ' is-selected' : '';
+  const processedClass = processed ? ' is-processed' : '';
   const selectedPressed = selected ? 'true' : 'false';
-  const identity = (item.draft_id || item.id_noticia || item.cluster_id || '').toString();
+  const identity = resolveScriptListKey(item);
+  const encodedIdentity = encodeURIComponent(identity);
   const country = escapeHtmlCore((item.seleccion || 'Sin país').toString());
   const player = escapeHtmlCore((item.jugador || 'Sin jugador').toString());
   const title = escapeHtmlCore((item.tema_principal || 'Sin tema').toString());
+  const processedBadge = processed
+    ? '<span class="script-selection-card__status">Procesado</span>'
+    : '';
+  const dismissButton = processed && identity
+    ? `<button class="script-selection-card__dismiss" type="button" data-action="dismiss-processed-script" data-script-id="${encodedIdentity}" aria-label="Ocultar guion procesado">×</button>`
+    : '';
 
   return `
-    <article class="script-selection-card${selectedClass}" data-script-id="${encodeURIComponent(identity)}" role="button" tabindex="0" aria-pressed="${selectedPressed}">
+    <article class="script-selection-card${selectedClass}${processedClass}" data-script-id="${encodedIdentity}" role="button" tabindex="0" aria-pressed="${selectedPressed}">
       <div class="meta script-selection-card__eyebrow">${country} · ${player}</div>
       <div class="topic">${title}</div>
+      ${processedBadge}
+      ${dismissButton}
     </article>
   `;
+}
+
+export function resolveScriptListKey(row = {}) {
+  return (row.draft_id || row.id_noticia || row.cluster_id || '').toString();
+}
+
+export function isScriptProcessed(row = {}) {
+  const status = (row.estado_guion || row.estado || '').toString().trim().toLowerCase();
+  return status === 'publicado' || Boolean(row.doc_id);
 }
 
 export function resolveScriptIdentity(row = {}) {
@@ -97,6 +117,42 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     if (!id) return false;
     const ids = resolveScriptIdentity(row);
     return ids.draft_id === id || ids.id_noticia === id || ids.cluster_id === id;
+  }
+
+  async function dismissProcessedScript(scriptId) {
+    const state = store.getState();
+    const id = (scriptId || '').toString();
+    if (!id) return;
+
+    const row = state.scriptDrafts.find((item) => matchesIdentity(item, id));
+    if (!row || !isScriptProcessed(row)) return;
+
+    const ids = resolveScriptIdentity(row);
+
+    try {
+      await api.post('/webhook/mvp-script-draft-save/supabase/v2', {
+        ...ids,
+        action: 'dismiss_processed',
+      });
+    } catch (err) {
+      console.error(err);
+      ui.toast('Error ocultando guion procesado');
+      return;
+    }
+
+    if (!(state.dismissedProcessedScripts instanceof Set)) {
+      state.dismissedProcessedScripts = new Set();
+    }
+
+    state.dismissedProcessedScripts.add(resolveScriptListKey(row) || id);
+    state.scriptDrafts = state.scriptDrafts.filter((item) => !matchesIdentity(item, id));
+    if (state.selectedScript && matchesIdentity(state.selectedScript, id)) {
+      state.selectedScript = null;
+      renderSelectedScriptEditor();
+    }
+    renderScriptStats();
+    renderScriptCards();
+    ui.toast('Guion ocultado del panel');
   }
 
   async function openScriptEditor(scriptId) {
@@ -233,5 +289,6 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     saveSelectedScript,
     publishSelectedScript,
     downloadSelectedScriptDocx,
+    dismissProcessedScript,
   };
 }

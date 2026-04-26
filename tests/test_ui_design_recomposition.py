@@ -756,6 +756,10 @@ for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Est
         'radial-gradient(circle at top left',
         'rgba(255, 214, 133, 0.32)',
         'box-shadow:',
+        '.script-selection-card.is-processed {',
+        'rgba(0, 232, 143, 0.24)',
+        '.script-selection-card__dismiss {',
+        '.script-selection-card__status {',
     ]:
         assert expected_rule in approval_source
 
@@ -767,3 +771,32 @@ for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Est
         'text-transform: uppercase;',
     ]:
         assert expected_rule in toast_source
+
+
+def test_processed_script_selection_card_gets_green_state_and_manual_dismiss_button():
+    script = r"""
+import { buildScriptSelectionCardMarkup } from './js/modules/features/scripts/index.js';
+
+const markup = buildScriptSelectionCardMarkup({
+  draft_id: 'draft-processed',
+  seleccion: 'Argentina',
+  jugador: 'Messi',
+  tema_principal: 'Guion listo para descargar',
+  estado_guion: 'publicado',
+  doc_id: 'doc-1',
+}, { selected: true });
+
+for (const expected of [
+  'class="script-selection-card is-selected is-processed"',
+  'class="script-selection-card__status">Procesado</span>',
+  'data-action="dismiss-processed-script"',
+  'aria-label="Ocultar guion procesado"',
+  'data-script-id="draft-processed"',
+]) {
+  if (!markup.includes(expected)) {
+    throw new Error(`missing processed card fragment: ${expected} :: ${markup}`);
+  }
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

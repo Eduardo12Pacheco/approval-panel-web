@@ -1,27 +1,44 @@
-import { buildScriptSelectionCardMarkup } from './index.js';
+import {
+  buildScriptSelectionCardMarkup,
+  isScriptProcessed,
+  resolveScriptIdentity,
+  resolveScriptListKey,
+} from './index.js';
 
 export function renderScriptStatsView({ scriptDrafts, el }) {
-  const total = scriptDrafts.length;
-  const inReview = scriptDrafts.filter((i) => (i.estado || '').toLowerCase() === 'en_revision').length;
-  const generated = scriptDrafts.filter((i) => (i.estado || '').toLowerCase() === 'borrador_generado').length;
+  const total = scriptDrafts.filter((i) => !isScriptProcessed(i)).length;
+  const inReview = scriptDrafts.filter((i) => ((i.estado_guion || i.estado || '').toLowerCase()) === 'en_revision').length;
+  const processed = scriptDrafts.filter((i) => isScriptProcessed(i)).length;
 
   el.scriptStats.innerHTML = `
     <div class="stat"><small>Pendientes</small><strong>${total}</strong></div>
     <div class="stat"><small>En revisión</small><strong>${inReview}</strong></div>
-    <div class="stat"><small>Nuevos</small><strong>${generated}</strong></div>
+    <div class="stat"><small>Procesados</small><strong>${processed}</strong></div>
   `;
 }
 
-export function renderScriptCardsView({ state, el, openScriptEditor }) {
-  if (!state.scriptDrafts.length) {
-    el.scriptCards.innerHTML = '<p class="meta">No hay guiones pendientes de edición/publicación.</p>';
+export function renderScriptCardsView({ state, el, openScriptEditor, dismissProcessedScript = () => {} }) {
+  const dismissed = state.dismissedProcessedScripts instanceof Set
+    ? state.dismissedProcessedScripts
+    : new Set();
+  const visibleScripts = state.scriptDrafts.filter((item) => {
+    if (!isScriptProcessed(item)) return true;
+    return !dismissed.has(resolveScriptListKey(item));
+  });
+
+  if (!visibleScripts.length) {
+    el.scriptCards.innerHTML = '<p class="meta">No hay guiones para editar o descargar.</p>';
     return;
   }
 
-  el.scriptCards.innerHTML = state.scriptDrafts.map((item) => {
-    const selectedId = state.selectedScript?.draft_id || state.selectedScript?.id_noticia || state.selectedScript?.cluster_id;
-    const currentId = item.draft_id || item.id_noticia || item.cluster_id;
-    const isSelected = Boolean(selectedId && currentId === selectedId);
+  el.scriptCards.innerHTML = visibleScripts.map((item) => {
+    const selectedIds = resolveScriptIdentity(state.selectedScript || {});
+    const currentIds = resolveScriptIdentity(item);
+    const isSelected = Boolean(
+      (selectedIds.draft_id && currentIds.draft_id === selectedIds.draft_id)
+      || (selectedIds.id_noticia && currentIds.id_noticia === selectedIds.id_noticia)
+      || (selectedIds.cluster_id && currentIds.cluster_id === selectedIds.cluster_id),
+    );
 
     return buildScriptSelectionCardMarkup(item, { selected: isSelected });
   }).join('');
@@ -32,8 +49,18 @@ export function renderScriptCardsView({ state, el, openScriptEditor }) {
       await openScriptEditor(id);
     };
 
-    card.addEventListener('click', openSelectedCard);
+    card.addEventListener('click', async (ev) => {
+      const dismissButton = ev.target.closest('[data-action="dismiss-processed-script"]');
+      if (dismissButton) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        await dismissProcessedScript(decodeURIComponent(dismissButton.dataset.scriptId || ''));
+        return;
+      }
+      await openSelectedCard();
+    });
     card.addEventListener('keydown', async (ev) => {
+      if (ev.target.closest('[data-action="dismiss-processed-script"]')) return;
       if (ev.key !== 'Enter' && ev.key !== ' ') return;
       ev.preventDefault();
       await openSelectedCard();

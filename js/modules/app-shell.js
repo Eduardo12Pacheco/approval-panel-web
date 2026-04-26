@@ -67,6 +67,7 @@ const state = {
   currentView: 'approval',
   scriptDrafts: [],
   selectedScript: null,
+  dismissedProcessedScripts: new Set(),
   savingScript: false,
   publishingScript: false,
   downloadingScript: false,
@@ -647,7 +648,12 @@ function renderScriptStats() {
 }
 
 function renderScriptCards() {
-  renderScriptCardsView({ state, el, openScriptEditor });
+  renderScriptCardsView({
+    state,
+    el,
+    openScriptEditor,
+    dismissProcessedScript: scriptsFeature.dismissProcessedScript,
+  });
 }
 
 function renderSelectedScriptEditor() {

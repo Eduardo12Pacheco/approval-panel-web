@@ -299,6 +299,7 @@
 }
 
 .script-selection-card {
+  position: relative;
   display: grid;
   gap: 10px;
   align-content: start;
@@ -328,6 +329,71 @@
     inset 0 0 0 1px rgba(255, 214, 133, 0.16),
     0 0 0 1px rgba(244, 183, 64, 0.14),
     0 0 58px rgba(244, 183, 64, 0.36);
+}
+
+.script-selection-card.is-processed {
+  padding-right: 52px;
+  background:
+    radial-gradient(circle at top left, rgba(0, 232, 143, 0.24), transparent 42%),
+    linear-gradient(180deg, rgba(7, 32, 22, 0.96), rgba(5, 16, 12, 0.98));
+  border-color: rgba(0, 232, 143, 0.46);
+  box-shadow:
+    inset 0 0 0 1px rgba(158, 247, 207, 0.08),
+    0 0 32px rgba(0, 232, 143, 0.12);
+}
+
+.script-selection-card.is-processed.is-selected {
+  border-color: rgba(158, 247, 207, 0.72);
+  box-shadow:
+    0 20px 38px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(158, 247, 207, 0.16),
+    0 0 0 1px rgba(0, 232, 143, 0.18),
+    0 0 58px rgba(0, 232, 143, 0.28);
+}
+
+.script-selection-card__status {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(0, 232, 143, 0.36);
+  background: rgba(0, 232, 143, 0.12);
+  color: #9ef7cf;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.script-selection-card__dismiss {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(158, 247, 207, 0.32);
+  border-radius: 0;
+  background: rgba(0, 232, 143, 0.1);
+  color: #c8ffe5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.script-selection-card__dismiss:hover:not(:disabled),
+.script-selection-card__dismiss:focus-visible {
+  transform: none;
+  outline: none;
+  filter: brightness(1.2);
+  border-color: rgba(158, 247, 207, 0.58);
 }
 
 .script-selection-card .topic {
