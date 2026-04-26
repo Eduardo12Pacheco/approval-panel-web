@@ -26,7 +26,7 @@ import {
 import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { renderApprovalTopicDetail } from './features/approval/detail-dialog.js';
 import { renderQueueMonitor } from './features/approval/queue-monitor.js';
-import { createScriptsFeature } from './features/scripts/index.js';
+import { createScriptsFeature, resolveScriptTitle } from './features/scripts/index.js';
 import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createAudioController } from './features/audio/controller.js';
@@ -280,7 +280,7 @@ function bindEvents() {
 
   el.viewOriginalBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
-    el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${state.selectedScript.tema_principal || 'Sin tema'} (original)`;
+    el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${resolveScriptTitle(state.selectedScript)} (original)`;
     el.scriptOriginalMeta.textContent = '';
     el.scriptOriginalArea.value = (state.selectedScript.guion_draft || '').toString();
     updateWordCounter(el.scriptOriginalArea.value, el.scriptOriginalWordCount);

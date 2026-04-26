@@ -15,6 +15,9 @@ BUTTONS_PATH = ROOT / "styles" / "components" / "buttons.css"
 TOAST_PATH = ROOT / "styles" / "components" / "toast.css"
 CUSTOM_DROPDOWNS_PATH = ROOT / "js" / "modules" / "core" / "ui" / "custom-dropdowns.js"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
+QUEUE_MONITOR_PATH = ROOT / "js" / "modules" / "features" / "approval" / "queue-monitor.js"
+SCRIPTS_FEATURE_PATH = ROOT / "js" / "modules" / "features" / "scripts" / "index.js"
+SCRIPTS_RENDER_PATH = ROOT / "js" / "modules" / "features" / "scripts" / "render.js"
 
 
 def _read(path: Path) -> str:
@@ -218,6 +221,54 @@ def test_sidebar_rail_keeps_collapsed_state_contained_and_removes_scripts_segmen
         'max-width: 180px;',
     ]:
         assert expected_rule in "\n".join([layout_source, buttons_source])
+
+
+def test_script_selection_highlight_uses_unique_card_identity_instead_of_shared_cluster():
+    scripts_render_source = _read(SCRIPTS_RENDER_PATH)
+    scripts_source = _read(SCRIPTS_FEATURE_PATH)
+    approval_source = _read(APPROVAL_PATH)
+
+    assert 'currentKey === selectedKey' in scripts_render_source
+    assert 'resolveScriptListKey(item) === selectedKey' in scripts_source
+    assert 'currentIds.cluster_id === selectedIds.cluster_id' not in scripts_render_source
+    assert "border-color: rgba(244, 183, 64, 0.58) rgba(244, 183, 64, 0.16);" in approval_source
+    assert '0 16px 28px -24px rgba(244, 183, 64, 0.36)' in approval_source
+    assert '0 -16px 28px -24px rgba(244, 183, 64, 0.28)' in approval_source
+
+
+def test_processed_script_editor_switches_process_button_to_secondary_style():
+    scripts_render_source = _read(SCRIPTS_RENDER_PATH)
+
+    assert 'function setProcessButtonStyle(button, { processed = false } = {})' in scripts_render_source
+    assert 'const isProcessed = isScriptProcessed(selected);' in scripts_render_source
+    assert "button?.classList?.toggle('approve', !processed);" in scripts_render_source
+    assert "button?.classList?.toggle('secondary', processed);" in scripts_render_source
+    assert 'setProcessButtonStyle(el.publishDraftBtn, { processed: isProcessed });' in scripts_render_source
+    assert 'el.downloadDraftBtn.disabled = !selected.doc_id;' in scripts_render_source
+
+
+def test_script_editor_uses_individual_news_headline_before_cluster_title():
+    scripts_source = _read(SCRIPTS_FEATURE_PATH)
+    scripts_render_source = _read(SCRIPTS_RENDER_PATH)
+    app_shell_source = _read(APP_SHELL_PATH)
+
+    assert 'export function resolveScriptTitle(row = {}, fallback = \'Sin tema\')' in scripts_source
+    assert 'row.titulo_noticia,' in scripts_source
+    assert 'row.titular,' in scripts_source
+    assert 'row.tema_principal,' in scripts_source
+    assert 'const title = escapeHtmlCore(resolveScriptTitle(item));' in scripts_source
+    assert 'const base = [row.jugador, resolveScriptTitle(row, \'\')]' in scripts_source
+    assert 'resolveScriptTitle(selected)' in scripts_render_source
+    assert 'selected.tema_principal || \'Sin tema\'' not in scripts_render_source
+    assert 'resolveScriptTitle(state.selectedScript)' in app_shell_source
+    assert 'state.selectedScript.tema_principal || \'Sin tema\'' not in app_shell_source
+
+
+def test_script_queue_cards_prefer_individual_headline_before_cluster_title():
+    queue_source = _read(QUEUE_MONITOR_PATH)
+
+    assert 'item.titulo_noticia, item.titular, item.headline, item.tema_principal' in queue_source
+    assert 'item.tema_principal, item.titular' not in queue_source
 
 
 def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more_closely():

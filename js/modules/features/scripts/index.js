@@ -17,7 +17,7 @@ export function buildScriptSelectionCardMarkup(item = {}, { selected = false } =
   const encodedIdentity = encodeURIComponent(identity);
   const country = escapeHtmlCore((item.seleccion || 'Sin país').toString());
   const player = escapeHtmlCore((item.jugador || 'Sin jugador').toString());
-  const title = escapeHtmlCore((item.tema_principal || 'Sin tema').toString());
+  const title = escapeHtmlCore(resolveScriptTitle(item));
   const processedBadge = processed
     ? '<span class="script-selection-card__status">Procesado</span>'
     : '';
@@ -39,6 +39,21 @@ export function resolveScriptListKey(row = {}) {
   return (row.draft_id || row.id_noticia || row.cluster_id || '').toString();
 }
 
+export function resolveScriptTitle(row = {}, fallback = 'Sin tema') {
+  const title = [
+    row.titulo_noticia,
+    row.titular,
+    row.headline,
+    row.title,
+    row.titulo,
+    row.tema_principal,
+  ]
+    .map((part) => (part || '').toString().trim())
+    .find(Boolean);
+
+  return title || fallback;
+}
+
 export function isScriptProcessed(row = {}) {
   const status = (row.estado_guion || row.estado || '').toString().trim().toLowerCase();
   return status === 'publicado' || Boolean(row.doc_id);
@@ -53,7 +68,7 @@ export function resolveScriptIdentity(row = {}) {
 }
 
 export function buildScriptDocxFilename(row = {}) {
-  const base = [row.jugador, row.tema_principal]
+  const base = [row.jugador, resolveScriptTitle(row, '')]
     .map((part) => (part || '').toString().trim())
     .filter(Boolean)
     .join(' - ')
@@ -89,15 +104,8 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
       state.scriptDrafts = normalizeScriptDraftRows(data);
 
       if (state.selectedScript) {
-        const currentIds = resolveScriptIdentity(state.selectedScript);
-        const refreshedSelection = state.scriptDrafts.find((item) => {
-          const rowIds = resolveScriptIdentity(item);
-          return (
-            (currentIds.draft_id && rowIds.draft_id === currentIds.draft_id)
-            || (currentIds.id_noticia && rowIds.id_noticia === currentIds.id_noticia)
-            || (currentIds.cluster_id && rowIds.cluster_id === currentIds.cluster_id)
-          );
-        });
+        const selectedKey = resolveScriptListKey(state.selectedScript);
+        const refreshedSelection = state.scriptDrafts.find((item) => resolveScriptListKey(item) === selectedKey);
         state.selectedScript = refreshedSelection || null;
       }
 

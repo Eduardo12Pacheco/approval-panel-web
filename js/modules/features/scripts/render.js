@@ -1,9 +1,14 @@
 import {
   buildScriptSelectionCardMarkup,
   isScriptProcessed,
-  resolveScriptIdentity,
   resolveScriptListKey,
+  resolveScriptTitle,
 } from './index.js';
+
+function setProcessButtonStyle(button, { processed = false } = {}) {
+  button?.classList?.toggle('approve', !processed);
+  button?.classList?.toggle('secondary', processed);
+}
 
 export function renderScriptStatsView({ scriptDrafts, el }) {
   const total = scriptDrafts.filter((i) => !isScriptProcessed(i)).length;
@@ -32,13 +37,9 @@ export function renderScriptCardsView({ state, el, openScriptEditor, dismissProc
   }
 
   el.scriptCards.innerHTML = visibleScripts.map((item) => {
-    const selectedIds = resolveScriptIdentity(state.selectedScript || {});
-    const currentIds = resolveScriptIdentity(item);
-    const isSelected = Boolean(
-      (selectedIds.draft_id && currentIds.draft_id === selectedIds.draft_id)
-      || (selectedIds.id_noticia && currentIds.id_noticia === selectedIds.id_noticia)
-      || (selectedIds.cluster_id && currentIds.cluster_id === selectedIds.cluster_id),
-    );
+    const selectedKey = resolveScriptListKey(state.selectedScript || {});
+    const currentKey = resolveScriptListKey(item);
+    const isSelected = Boolean(selectedKey && currentKey && currentKey === selectedKey);
 
     return buildScriptSelectionCardMarkup(item, { selected: isSelected });
   }).join('');
@@ -72,7 +73,7 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
   const hasSelected = Boolean(selected);
 
   el.scriptEditorTitle.textContent = hasSelected
-    ? `${selected.jugador || 'Sin jugador'} · ${selected.tema_principal || 'Sin tema'}`
+    ? `${selected.jugador || 'Sin jugador'} · ${resolveScriptTitle(selected)}`
     : 'Editor de guion';
 
   el.scriptEditorMeta.textContent = hasSelected
@@ -86,16 +87,20 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
     el.voiceAiBtn.disabled = true;
     el.downloadDraftBtn.disabled = true;
     el.publishDraftBtn.disabled = true;
+    setProcessButtonStyle(el.publishDraftBtn, { processed: false });
     el.closeScriptEditor.disabled = true;
     updateWordCounter('', el.scriptEditedWordCount);
     return;
   }
+
+  const isProcessed = isScriptProcessed(selected);
 
   el.scriptEditedArea.disabled = false;
   el.viewOriginalBtn.disabled = false;
   el.voiceAiBtn.disabled = false;
   el.downloadDraftBtn.disabled = !selected.doc_id;
   el.publishDraftBtn.disabled = false;
+  setProcessButtonStyle(el.publishDraftBtn, { processed: isProcessed });
   el.closeScriptEditor.disabled = false;
 
   const nextValue = (selected.guion_editado || selected.guion_draft || '').toString();

@@ -48,7 +48,7 @@ export function buildQueueMonitorCard(item = {}) {
   );
   const normalizedStatus = normalizeQueueStatus(rawStatus);
   const percent = resolveQueueProgressPercent(item, normalizedStatus);
-  const title = pickFirstNonEmpty(item.tema_principal, item.titular, item.jugador, item.cluster_id, item.queue_id, 'Job sin título');
+  const title = pickFirstNonEmpty(item.titulo_noticia, item.titular, item.headline, item.tema_principal, item.jugador, item.cluster_id, item.queue_id, 'Job sin título');
   const eyebrow = [pickFirstNonEmpty(item.jugador, 'Sin jugador'), pickFirstNonEmpty(item.fuente, item.seleccion, 'Sin origen')]
     .filter(Boolean)
     .join(' · ');
