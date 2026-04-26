@@ -767,6 +767,9 @@ for (const forbidden of ['summary', 'chip', 'Estado:', 'borrador_generado', 'Est
         'box-shadow:',
         '.script-selection-card.is-processed {',
         'rgba(0, 232, 143, 0.24)',
+        'border-color: rgba(0, 232, 143, 0.46) rgba(0, 232, 143, 0.14);',
+        'inset 0 1px 0 rgba(158, 247, 207, 0.1)',
+        '0 14px 24px -22px rgba(0, 232, 143, 0.22)',
         '.script-selection-card__dismiss {',
         '.script-selection-card__status {',
     ]:
