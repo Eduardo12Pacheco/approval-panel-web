@@ -49,10 +49,31 @@ def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspac
         'id="queueList" class="queue-list queue-list--integrated"',
         'id="scriptCards" class="script-selection-list"',
         'id="scriptEditedArea" class="script-area script-area--workspace"',
-        'id="downloadDraftBtn" class="secondary button-icon" disabled',
+        '<span>Ver copia del guion</span>',
+        'id="publishDraftBtn" class="approve button-icon" disabled',
+        '<span>Procesar</span>',
+        'id="downloadDraftBtn" class="approve button-icon script-download-button" disabled',
         '<span>Descargar</span>',
+        'M9 1.5H3.5v13h9V5M9 1.5L12.5 5M9 1.5V5h3.5M5 8h6M5 5h2.5M5 11h6',
     ]:
         assert expected_fragment in source
+
+    publish_index = source.index('id="publishDraftBtn"')
+    download_index = source.index('id="downloadDraftBtn"')
+    assert publish_index < download_index
+
+
+def test_download_button_uses_muted_green_until_docx_is_available():
+    buttons_source = _read(BUTTONS_PATH)
+
+    for expected_rule in [
+        'button.script-download-button:disabled',
+        'opacity: 1;',
+        'background: rgba(0, 232, 143, 0.12);',
+        'border-color: rgba(0, 232, 143, 0.32);',
+        'color: rgba(185, 255, 224, 0.62);',
+    ]:
+        assert expected_rule in buttons_source
 
 
 def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classes():

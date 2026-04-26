@@ -132,6 +132,13 @@ button.approve {
   color: #04110c;
 }
 
+button.script-download-button:disabled {
+  opacity: 1;
+  background: rgba(0, 232, 143, 0.12);
+  border-color: rgba(0, 232, 143, 0.32);
+  color: rgba(185, 255, 224, 0.62);
+}
+
 .button-icon {
   gap: 8px;
 }

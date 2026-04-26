@@ -186,7 +186,7 @@
                         <path d="M18.25 13.25l.82 2.18 2.18.82-2.18.82-.82 2.18-.82-2.18-2.18-.82 2.18-.82.82-2.18ZM6 14.75l.54 1.46 1.46.54-1.46.54L6 18.75l-.54-1.46L4 16.75l1.46-.54L6 14.75Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
                       </svg>
                     </span>
-                    <span>Ver original</span>
+                    <span>Ver copia del guion</span>
                   </button>
                   <button id="voiceAiBtn" class="secondary button-icon" disabled>
                     <span class="button-icon__glyph" aria-hidden="true">
@@ -197,7 +197,15 @@
                     </span>
                     <span>Voz con IA</span>
                   </button>
-                  <button id="downloadDraftBtn" class="secondary button-icon" disabled>
+                  <button id="publishDraftBtn" class="approve button-icon" disabled>
+                    <span class="button-icon__glyph" aria-hidden="true">
+                      <svg viewBox="0 0 16 16" focusable="false">
+                        <path fill="none" stroke="currentColor" stroke-linejoin="round" d="M9 1.5H3.5v13h9V5M9 1.5L12.5 5M9 1.5V5h3.5M5 8h6M5 5h2.5M5 11h6"></path>
+                      </svg>
+                    </span>
+                    <span>Procesar</span>
+                  </button>
+                  <button id="downloadDraftBtn" class="approve button-icon script-download-button" disabled>
                     <span class="button-icon__glyph" aria-hidden="true">
                       <svg viewBox="0 0 24 24" focusable="false">
                         <path d="M12 4.75v9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -206,15 +214,6 @@
                       </svg>
                     </span>
                     <span>Descargar</span>
-                  </button>
-                  <button id="publishDraftBtn" class="approve button-icon" disabled>
-                    <span class="button-icon__glyph" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" focusable="false">
-                        <path d="M4.75 11.5 19.25 4.75 14 19.25 11.5 13.25 4.75 11.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
-                        <path d="M11.5 13.25 19.25 4.75" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                      </svg>
-                    </span>
-                    <span>Publicar</span>
                   </button>
                 </div>
               </section>
