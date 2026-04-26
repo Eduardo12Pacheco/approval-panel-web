@@ -139,6 +139,24 @@ button.script-download-button:disabled {
   color: rgba(185, 255, 224, 0.62);
 }
 
+button.script-remove-button {
+  border-color: rgba(217, 87, 100, 0.5);
+  background: rgba(43, 11, 16, 0.34);
+  color: #ffb4bf;
+}
+
+button.script-remove-button:hover:not(:disabled) {
+  border-color: rgba(255, 149, 166, 0.78);
+  background: rgba(78, 18, 28, 0.62);
+  filter: brightness(1.06);
+}
+
+button.script-remove-button:disabled {
+  border-color: rgba(217, 87, 100, 0.24);
+  background: rgba(43, 11, 16, 0.18);
+  color: rgba(255, 180, 191, 0.56);
+}
+
 .button-icon {
   gap: 8px;
 }

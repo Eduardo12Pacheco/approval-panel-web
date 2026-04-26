@@ -332,6 +332,87 @@ if (renderStatsCount !== 1 || renderCardsCount !== 1 || renderEditorCount !== 1)
     assert result.returncode == 0, result.stderr
 
 
+def test_scripts_refresh_preserves_dirty_editor_text_during_auto_polling():
+    script = r"""
+import { createScriptsFeature } from './js/modules/features/scripts/index.js';
+import { renderSelectedScriptEditorView } from './js/modules/features/scripts/render.js';
+
+const state = {
+  scriptDrafts: [],
+  selectedScript: {
+    draft_id: 'draft-1',
+    cluster_id: 'cluster-1',
+    jugador: 'Jugador',
+    tema_principal: 'Tema',
+    guion_editado: 'Texto viejo que viene desde Supabase y no debe pisar edición local.',
+  },
+  scriptEditorDirty: true,
+};
+
+const selectors = {
+  scriptEditorTitle: { textContent: '' },
+  scriptEditorMeta: { textContent: '' },
+  scriptEditedArea: {
+    value: 'Texto local editado con un párrafo borrado que debe sobrevivir al polling.',
+    disabled: false,
+  },
+  viewOriginalBtn: { disabled: false },
+  voiceAiBtn: { disabled: false },
+  downloadDraftBtn: { disabled: false },
+  publishDraftBtn: { disabled: false },
+  closeScriptEditor: { disabled: false },
+  scriptEditedWordCount: { textContent: '' },
+};
+
+let renderEditorCount = 0;
+const feature = createScriptsFeature({
+  api: {
+    async get(path) {
+      if (path !== '/webhook/mvp-script-drafts-pending/supabase/v2') throw new Error(`unexpected get ${path}`);
+      return {
+        items: [{
+          draft_id: 'draft-1',
+          cluster_id: 'cluster-1',
+          jugador: 'Jugador',
+          tema_principal: 'Tema',
+          guion_editado: 'Texto viejo que viene desde Supabase y no debe pisar edición local.',
+        }],
+      };
+    },
+  },
+  store: { getState: () => state },
+  ui: { toast() {} },
+  selectors,
+  callbacks: {
+    renderScriptStats() {},
+    renderScriptCards() {},
+    renderSelectedScriptEditor() {
+      renderEditorCount += 1;
+      renderSelectedScriptEditorView({
+        selected: state.selectedScript,
+        el: selectors,
+        updateWordCounter(value, target) { target.textContent = `Palabras: ${value.split(/\s+/).filter(Boolean).length}`; },
+        preserveCurrentValue: Boolean(state.selectedScript && state.scriptEditorDirty),
+      });
+    },
+  },
+});
+
+await feature.refreshScriptDrafts({ silent: true });
+
+if (renderEditorCount !== 1) throw new Error(`editor should render once, got ${renderEditorCount}`);
+if (selectors.scriptEditedArea.value !== 'Texto local editado con un párrafo borrado que debe sobrevivir al polling.') {
+  throw new Error(`dirty editor text was overwritten: ${selectors.scriptEditedArea.value}`);
+}
+if (state.selectedScript?.draft_id !== 'draft-1') throw new Error('selected script should remain matched after refresh');
+if (selectors.scriptEditedWordCount.textContent !== 'Palabras: 12') {
+  throw new Error(`word count should use preserved local text: ${selectors.scriptEditedWordCount.textContent}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_scripts_feature_downloads_published_google_doc_as_docx_blob():
     script = r"""
 import { createScriptsFeature } from './js/modules/features/scripts/index.js';
@@ -464,6 +545,9 @@ await feature.publishSelectedScript();
 if (!selectors.publishConfirmDialog.closed) throw new Error('publish confirm dialog was not closed');
 if (postPaths.map((entry) => entry.path).join('|') !== '/webhook/mvp-script-draft-save/supabase/v2|/webhook/mvp-script-publish/supabase/v2') {
   throw new Error(`publish post sequence drift: ${JSON.stringify(postPaths)}`);
+}
+if (postPaths[0].payload.guion_editado !== selectors.scriptEditedArea.value.trim()) {
+  throw new Error(`process should save current textarea value before publishing: ${JSON.stringify(postPaths[0].payload)}`);
 }
 if (state.selectedScript?.doc_id !== 'doc-1' || state.selectedScript?.estado_guion !== 'publicado') {
   throw new Error(`published selection not preserved for download: ${JSON.stringify(state.selectedScript)}`);

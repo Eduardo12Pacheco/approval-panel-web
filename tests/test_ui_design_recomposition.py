@@ -49,6 +49,9 @@ def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspac
         'id="queueList" class="queue-list queue-list--integrated"',
         'id="scriptCards" class="script-selection-list"',
         'id="scriptEditedArea" class="script-area script-area--workspace"',
+        'id="closeScriptEditor" class="secondary button-icon script-remove-button" disabled',
+        '<span>Quitar</span>',
+        'M6.75 6.75l10.5 10.5',
         '<span>Ver copia del guion</span>',
         'id="publishDraftBtn" class="approve button-icon" disabled',
         '<span>Procesar</span>',
@@ -72,6 +75,30 @@ def test_download_button_uses_muted_green_until_docx_is_available():
         'background: rgba(0, 232, 143, 0.12);',
         'border-color: rgba(0, 232, 143, 0.32);',
         'color: rgba(185, 255, 224, 0.62);',
+    ]:
+        assert expected_rule in buttons_source
+
+
+def test_remove_script_button_uses_red_quitar_contract():
+    buttons_source = _read(BUTTONS_PATH)
+    index_source = _read(INDEX_PATH)
+
+    for expected_fragment in [
+        'id="closeScriptEditor" class="secondary button-icon script-remove-button" disabled',
+        '<span>Quitar</span>',
+        'M6.75 6.75l10.5 10.5',
+        'M17.25 6.75l-10.5 10.5',
+    ]:
+        assert expected_fragment in index_source
+
+    assert '<span>Limpiar</span>' not in index_source
+
+    for expected_rule in [
+        'button.script-remove-button {',
+        'border-color: rgba(217, 87, 100, 0.5);',
+        'background: rgba(43, 11, 16, 0.34);',
+        'color: #ffb4bf;',
+        'button.script-remove-button:disabled {',
     ]:
         assert expected_rule in buttons_source
 

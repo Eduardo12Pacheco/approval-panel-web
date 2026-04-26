@@ -68,7 +68,7 @@ export function renderScriptCardsView({ state, el, openScriptEditor, dismissProc
   });
 }
 
-export function renderSelectedScriptEditorView({ selected, el, updateWordCounter }) {
+export function renderSelectedScriptEditorView({ selected, el, updateWordCounter, preserveCurrentValue = false }) {
   const hasSelected = Boolean(selected);
 
   el.scriptEditorTitle.textContent = hasSelected
@@ -99,7 +99,7 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
   el.closeScriptEditor.disabled = false;
 
   const nextValue = (selected.guion_editado || selected.guion_draft || '').toString();
-  if (el.scriptEditedArea.value !== nextValue) {
+  if (!preserveCurrentValue && el.scriptEditedArea.value !== nextValue) {
     el.scriptEditedArea.value = nextValue;
   }
 

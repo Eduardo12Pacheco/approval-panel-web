@@ -148,6 +148,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     state.scriptDrafts = state.scriptDrafts.filter((item) => !matchesIdentity(item, id));
     if (state.selectedScript && matchesIdentity(state.selectedScript, id)) {
       state.selectedScript = null;
+      state.scriptEditorDirty = false;
       renderSelectedScriptEditor();
     }
     renderScriptStats();
@@ -163,6 +164,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
       ui.toast('Ese borrador ya no existe o cambió. Actualizá la lista.');
       return;
     }
+    state.scriptEditorDirty = false;
     state.selectedScript = row;
     renderScriptCards();
     renderSelectedScriptEditor();
@@ -189,6 +191,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
         ...ids,
         guion_editado: edited,
       });
+      state.scriptEditorDirty = false;
       ui.toast('Cambios guardados');
       await refreshScriptDrafts();
     } catch (err) {
@@ -225,6 +228,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
         ...ids,
       });
       selectors.publishConfirmDialog.close();
+      state.scriptEditorDirty = false;
       const publishedSelection = {
         ...state.selectedScript,
         ...published,

@@ -67,6 +67,7 @@ const state = {
   currentView: 'approval',
   scriptDrafts: [],
   selectedScript: null,
+  scriptEditorDirty: false,
   dismissedProcessedScripts: new Set(),
   savingScript: false,
   publishingScript: false,
@@ -264,11 +265,16 @@ function bindEvents() {
 
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
+    state.scriptEditorDirty = false;
     renderScriptCards();
     renderSelectedScriptEditor();
   });
 
   el.scriptEditedArea.addEventListener('input', () => {
+    if (state.selectedScript) {
+      const baseline = (state.selectedScript.guion_editado || state.selectedScript.guion_draft || '').toString();
+      state.scriptEditorDirty = el.scriptEditedArea.value !== baseline;
+    }
     updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
   });
 
@@ -657,7 +663,15 @@ function renderScriptCards() {
 }
 
 function renderSelectedScriptEditor() {
-  renderSelectedScriptEditorView({ selected: state.selectedScript, el, updateWordCounter });
+  if (!state.selectedScript) {
+    state.scriptEditorDirty = false;
+  }
+  renderSelectedScriptEditorView({
+    selected: state.selectedScript,
+    el,
+    updateWordCounter,
+    preserveCurrentValue: Boolean(state.selectedScript && state.scriptEditorDirty),
+  });
 }
 
 async function openDetail(clusterId) {
