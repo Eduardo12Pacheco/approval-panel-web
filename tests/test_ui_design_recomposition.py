@@ -287,6 +287,7 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
         'id="countryFilter" data-custom-dropdown',
         'id="sourcesFilter" data-custom-dropdown',
         'id="audioPresetSelect" data-custom-dropdown',
+        'id="voicePresetSelect" data-custom-dropdown',
         'id="subtitle2SourceLanguagePicker" class="subtitle-lang-select" data-custom-dropdown',
     ]:
         assert expected_fragment in index_source

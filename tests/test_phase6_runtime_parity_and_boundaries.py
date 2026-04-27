@@ -544,14 +544,23 @@ if (!processed.voiceAiBtn.title.includes('versión procesada con pronunciación'
 def test_app_shell_voice_ai_uses_processed_pronunciation_guards():
     source = (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")
     audio_runtime_source = (ROOT / "js" / "modules" / "features" / "audio" / "runtime" / "services.js").read_text(encoding="utf-8")
+    index_source = (ROOT / "index.html").read_text(encoding="utf-8")
+    selectors_source = (ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js").read_text(encoding="utf-8")
 
     assert "runVoiceAiFromSelectedScript" in source
+    assert "openVoiceAiPresetDialog" in source
+    assert "confirmVoiceAiPresetSelection" in source
     assert "isScriptProcessed(selected)" in source
     assert "Tenés cambios sin procesar" in source
     assert "selected.guion_pronunciacion" in source
     assert "runAudioGenerationFromText" in source
+    assert "voiceProfile: preset" in source
     assert "runAudioGenerationFromText: audioController.runAudioGenerationFromText" in source
     assert "runAudioGenerationFromText: hooks.runAudioGenerationFromText" in audio_runtime_source
+    assert 'id="voicePresetDialog"' in index_source
+    assert 'id="voicePresetSelect"' in index_source
+    assert "voicePresetDialog" in selectors_source
+    assert "confirmVoicePresetBtn" in selectors_source
 
 
 def test_scripts_feature_downloads_published_google_doc_as_docx_blob():

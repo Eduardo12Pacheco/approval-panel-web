@@ -616,6 +616,23 @@
       </article>
     </dialog>
 
+    <dialog id="voicePresetDialog">
+      <article>
+        <header class="dialog-header">
+          <h2>Elegir preset de voz</h2>
+        </header>
+        <p>Este audio se va a generar desde la versión procesada con pronunciación. Elegí el preset antes de enviarlo a Voz con IA.</p>
+        <label class="editor-label audio-field">
+          <span>Preset de generación</span>
+          <select id="voicePresetSelect" data-custom-dropdown data-dropdown-label="Preset" data-dropdown-placeholder="Preset"></select>
+        </label>
+        <div class="queue-actions">
+          <button id="cancelVoicePresetBtn" class="secondary">Cancelar</button>
+          <button id="confirmVoicePresetBtn" class="approve">Generar voz</button>
+        </div>
+      </article>
+    </dialog>
+
     <div id="toast" class="toast" popover="manual"></div>
 
     <script src="./js/main.js" type="module"></script>
