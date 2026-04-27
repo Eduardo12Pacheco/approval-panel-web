@@ -10,10 +10,10 @@
 
   .approval-controls__actions {
     margin-left: 0;
-    padding-top: 14px;
-    padding-left: 0;
-    border-top: 1px solid rgba(148, 163, 184, 0.22);
-    border-left: 0;
+  }
+
+  .news-panel__filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .approval-shell-grid,
