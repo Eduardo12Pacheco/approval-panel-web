@@ -559,7 +559,6 @@ function assertSearchRefreshSucceeded(result) {
 }
 
 function resolveSearchRefreshCompletionMessage(result, windowLabel) {
-  const runSuffix = result?.run_id ? ` · ${result.run_id}` : '';
   const promote = result?.promote || {};
   const promoted = promote.promoted ?? result?.promoted;
   const noPromoteReason = (promote.no_promote_reason || result?.no_promote_reason || '').toString().trim();
@@ -568,10 +567,10 @@ function resolveSearchRefreshCompletionMessage(result, windowLabel) {
     const reasonCopy = noPromoteReason === 'no_staged_clusters'
       ? 'No hubo clusters nuevos para publicar.'
       : 'No se publicaron cambios nuevos.';
-    return `Última búsqueda: ${windowLabel}${runSuffix}. ${reasonCopy}`;
+    return `Última elección: ${windowLabel}. ${reasonCopy}`;
   }
 
-  return `Última búsqueda: ${windowLabel}${runSuffix}. Panel actualizado.`;
+  return `Última elección: ${windowLabel}. Panel actualizado.`;
 }
 
 function renderSearchRefreshState() {
@@ -606,7 +605,7 @@ async function runSearchRefresh() {
     assertSearchRefreshSucceeded(result);
     state.lastSearchRefresh = result;
     state.searchRefreshStatusKind = 'success';
-    state.searchRefreshStatus = `Búsqueda completada${result?.run_id ? ` · ${result.run_id}` : ''}. Actualizando panel...`;
+    state.searchRefreshStatus = 'Búsqueda completada. Actualizando panel...';
     renderSearchRefreshState();
     toast('Búsqueda completada. Actualizando noticias...');
     await refreshAll();
