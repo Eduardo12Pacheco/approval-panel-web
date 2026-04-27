@@ -1,6 +1,6 @@
 .approval-controls {
   display: grid;
-  grid-template-columns: minmax(560px, 760px);
+  grid-template-columns: minmax(760px, 1000px);
   justify-content: start;
   column-gap: 12px;
   row-gap: 12px;
@@ -10,11 +10,11 @@
 
 .approval-controls__actions {
   display: grid;
-  grid-template-columns: minmax(220px, 340px) auto;
+  grid-template-columns: minmax(220px, 340px) auto minmax(280px, 1fr);
   grid-template-areas:
-    "window button"
-    "status status";
-  column-gap: 8px;
+    "window button note"
+    "status status note";
+  column-gap: 14px;
   row-gap: 8px;
   width: 100%;
   min-width: 0;
@@ -137,6 +137,35 @@
   cursor: wait;
   opacity: 0.72;
   filter: saturate(0.82);
+}
+
+.approval-refresh-note {
+  grid-area: note;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 430px;
+  color: #8f949b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.approval-refresh-note__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  color: #9aa0a8;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-style: italic;
+  box-shadow: 0 0 18px rgba(148, 163, 184, 0.08);
 }
 
 .approval-search-refresh__status {
