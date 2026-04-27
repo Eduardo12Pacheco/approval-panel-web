@@ -698,7 +698,7 @@ function renderLastNewsSearchMeta() {
   if (!el.lastNewsSearchMeta) return;
   const formatted = formatNewsSearchTimestamp(state.lastNewsSearchAt);
   el.lastNewsSearchMeta.hidden = !formatted;
-  el.lastNewsSearchMeta.textContent = formatted ? `Última búsqueda: ${formatted}` : '';
+  el.lastNewsSearchMeta.textContent = formatted ? `Última actualización: ${formatted}` : '';
 }
 
 function renderScriptStats() {
