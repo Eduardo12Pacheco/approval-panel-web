@@ -57,7 +57,9 @@
 
 .news-panel__results-summary {
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "refresh count";
+  column-gap: 16px;
   width: 100%;
   align-items: start;
   justify-items: start;
@@ -66,6 +68,7 @@
 }
 
 .news-panel__results-summary .section-counter--news {
+  grid-area: count;
   justify-self: end;
 }
 
@@ -83,6 +86,8 @@
 }
 
 .section-last-refresh {
+  grid-area: refresh;
+  justify-self: start;
   color: #00e88f;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.86rem;
