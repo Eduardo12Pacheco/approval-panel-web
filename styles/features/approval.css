@@ -65,6 +65,10 @@
   text-align: left;
 }
 
+.news-panel__results-summary .section-counter--news {
+  justify-self: end;
+}
+
 .news-panel .section-heading p {
   color: var(--muted);
   font-size: 0.9rem;
