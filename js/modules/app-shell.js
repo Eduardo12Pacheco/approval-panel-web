@@ -532,6 +532,22 @@ function assertSearchRefreshSucceeded(result) {
   }
 }
 
+function resolveSearchRefreshCompletionMessage(result, windowLabel) {
+  const runSuffix = result?.run_id ? ` · ${result.run_id}` : '';
+  const promote = result?.promote || {};
+  const promoted = promote.promoted ?? result?.promoted;
+  const noPromoteReason = (promote.no_promote_reason || result?.no_promote_reason || '').toString().trim();
+
+  if (promoted === false) {
+    const reasonCopy = noPromoteReason === 'no_staged_clusters'
+      ? 'No hubo clusters nuevos para publicar.'
+      : 'No se publicaron cambios nuevos.';
+    return `Última búsqueda: ${windowLabel}${runSuffix}. ${reasonCopy}`;
+  }
+
+  return `Última búsqueda: ${windowLabel}${runSuffix}. Panel actualizado.`;
+}
+
 function renderSearchRefreshState() {
   if (!el.searchRefreshBtn || !el.searchRefreshStatus) return;
 
@@ -568,7 +584,7 @@ async function runSearchRefresh() {
     renderSearchRefreshState();
     toast('Búsqueda completada. Actualizando noticias...');
     await refreshAll();
-    state.searchRefreshStatus = `Última búsqueda: ${windowLabel}. Panel actualizado.`;
+    state.searchRefreshStatus = resolveSearchRefreshCompletionMessage(result, windowLabel);
   } catch (err) {
     console.error(err);
     const message = getErrorMessage(err, 'Error ejecutando búsqueda');

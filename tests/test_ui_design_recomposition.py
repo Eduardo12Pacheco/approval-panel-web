@@ -161,6 +161,8 @@ def test_search_refresh_requires_promote_success_before_panel_updated_copy():
     assert 'assertSearchRefreshSucceeded(result);' in app_shell_source
     assert "promoteStatus !== 'succeeded'" in app_shell_source
     assert 'El panel actual se mantiene sin cambios' in app_shell_source
+    assert 'resolveSearchRefreshCompletionMessage(result, windowLabel)' in app_shell_source
+    assert 'No hubo clusters nuevos para publicar.' in app_shell_source
     assert 'Panel actualizado' in app_shell_source
 
 
