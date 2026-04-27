@@ -105,7 +105,7 @@
               <button id="searchRefreshBtn" class="approval-search-refresh__button" type="button">Actualizar noticias de hoy</button>
               <aside class="approval-refresh-note" aria-label="Alcance de la actualización">
                 <span class="approval-refresh-note__icon" aria-hidden="true">i</span>
-                <span>Importa noticias de todos los jugadores preregistrados.</span>
+                <span>Importa noticias de todos los jugadores y de las selecciones preregistradas.</span>
               </aside>
               <span id="searchRefreshStatus" class="approval-search-refresh__status">Puede tardar aproximadamente 2 minutos.</span>
               <button id="openQueueBtn" class="secondary legacy-only">Abrir cola legacy</button>
@@ -117,9 +117,12 @@
           <div class="approval-shell-grid">
             <div class="approval-primary-column">
               <section class="panel-shell news-panel">
+                <header class="news-panel__filters-heading">
+                  <h2>Noticias anteriores</h2>
+                </header>
+
                 <div class="news-panel__filters" aria-label="Filtros de noticias">
-                  <label class="control-group control-group--search approval-control approval-control--search">
-                    <span class="control-label">Buscar noticia, jugador o tema</span>
+                  <label class="control-group control-group--search approval-control approval-control--search" aria-label="Filtrar noticias anteriores">
                     <span class="control-input-shell control-input-shell--search">
                       <span class="control-input-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false">
@@ -150,16 +153,10 @@
                   </label>
                 </div>
 
-                <header class="section-heading section-heading--tight">
-                  <div>
-                    <h2>Noticias anteriores</h2>
-                    <p>Solo titulares, rápidos de escanear y seleccionar.</p>
-                  </div>
-                  <span class="section-counter-stack section-counter-stack--news">
-                    <span id="cardsMeta" class="section-counter section-counter--news">0 resultados</span>
-                    <span id="lastNewsSearchMeta" class="section-last-refresh" hidden></span>
-                  </span>
-                </header>
+                <div class="news-panel__results-summary" aria-live="polite">
+                  <span id="cardsMeta" class="section-counter section-counter--news">0 resultados</span>
+                  <span id="lastNewsSearchMeta" class="section-last-refresh" hidden></span>
+                </div>
                 <main id="cards" class="cards cards--news"></main>
               </section>
 

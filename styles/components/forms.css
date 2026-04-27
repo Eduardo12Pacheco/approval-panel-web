@@ -34,7 +34,7 @@
 }
 
 .control-input-shell--search {
-  color: #8de8c1;
+  color: #9aa0a8;
 }
 
 .control-input-icon {
@@ -64,29 +64,22 @@
 }
 
 .approval-control--search input {
-  border-color: rgba(0, 232, 143, 0.32);
-  background:
-    radial-gradient(circle at left center, rgba(0, 232, 143, 0.16), transparent 34%),
-    linear-gradient(180deg, rgba(5, 31, 22, 0.98), rgba(3, 18, 14, 0.98));
-  color: #d8fff0;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #121212;
+  color: var(--text);
   padding-left: 42px;
-  box-shadow:
-    inset 0 0 0 1px rgba(158, 247, 207, 0.06),
-    0 0 0 1px rgba(0, 232, 143, 0.08),
-    0 18px 38px rgba(0, 232, 143, 0.08);
+  box-shadow: none;
 }
 
 .approval-control--search input:focus,
 .approval-control--search input:not(:placeholder-shown) {
-  border-color: rgba(0, 232, 143, 0.52);
-  background:
-    radial-gradient(circle at left center, rgba(0, 232, 143, 0.2), transparent 34%),
-    linear-gradient(180deg, rgba(7, 40, 28, 0.98), rgba(4, 22, 16, 0.98));
+  border-color: rgba(255, 255, 255, 0.18);
+  background: #151515;
   color: var(--text);
 }
 
 .approval-control--search:focus-within .control-input-shell--search {
-  color: #b5ffdf;
+  color: #d7d7d7;
 }
 
 .approval-control--select select {
