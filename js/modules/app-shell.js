@@ -59,7 +59,7 @@ const state = {
   queue: [],
   dismissedQueueJobs: new Set(),
   searchRefreshRunning: false,
-  searchRefreshStatus: 'Puede tardar aproximadamente 2 minutos.',
+  searchRefreshStatus: 'Puede tardar aproximadamente 3 minutos.',
   searchRefreshStatusKind: 'idle',
   lastSearchRefresh: null,
   lastNewsSearchAt: loadLastNewsSearchAt(),

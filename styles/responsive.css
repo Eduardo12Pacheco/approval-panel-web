@@ -12,8 +12,8 @@
     margin-left: 0;
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "window"
       "button"
+      "window"
       "note"
       "status";
   }

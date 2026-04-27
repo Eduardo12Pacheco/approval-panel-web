@@ -58,8 +58,11 @@
 .news-panel__results-summary {
   display: grid;
   gap: 10px;
+  width: 100%;
+  align-items: start;
   justify-items: start;
   margin-bottom: 18px;
+  text-align: left;
 }
 
 .news-panel .section-heading p {

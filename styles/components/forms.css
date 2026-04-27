@@ -10,9 +10,9 @@
 
 .approval-controls__actions {
   display: grid;
-  grid-template-columns: minmax(220px, 340px) auto minmax(280px, 1fr);
+  grid-template-columns: auto minmax(220px, 340px) minmax(280px, 1fr);
   grid-template-areas:
-    "window button note"
+    "button window note"
     "status status note";
   column-gap: 14px;
   row-gap: 8px;
