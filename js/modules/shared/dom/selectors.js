@@ -8,6 +8,7 @@ export function getDomSelectors(doc = document) {
     stats: doc.getElementById('stats'),
     cards: doc.getElementById('cards'),
     cardsMeta: doc.getElementById('cardsMeta'),
+    lastNewsSearchMeta: doc.getElementById('lastNewsSearchMeta'),
     searchInput: doc.getElementById('searchInput'),
     countryFilter: doc.getElementById('countryFilter'),
     sourcesFilter: doc.getElementById('sourcesFilter'),

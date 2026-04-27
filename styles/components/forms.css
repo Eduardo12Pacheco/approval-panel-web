@@ -1,7 +1,7 @@
 .approval-controls {
   display: grid;
-  grid-template-columns: minmax(320px, 420px);
-  justify-content: end;
+  grid-template-columns: minmax(560px, 760px);
+  justify-content: start;
   column-gap: 12px;
   row-gap: 12px;
   padding: 18px 20px;
@@ -10,7 +10,7 @@
 
 .approval-controls__actions {
   display: grid;
-  grid-template-columns: minmax(176px, 1fr) auto;
+  grid-template-columns: minmax(220px, 340px) auto;
   grid-template-areas:
     "window button"
     "status status";
@@ -112,7 +112,7 @@
   grid-area: button;
   align-self: end;
   min-height: 46px;
-  min-width: 78px;
+  min-width: 260px;
   border-color: rgba(244, 183, 64, 0.56);
   background:
     linear-gradient(180deg, rgba(255, 169, 56, 0.96), rgba(188, 92, 18, 0.96));
@@ -149,7 +149,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   line-height: 1.35;
-  text-align: right;
+  text-align: left;
 }
 
 .approval-search-refresh__status.is-running {

@@ -102,7 +102,7 @@
                   <option value="24h" selected>Últimas 24 horas</option>
                 </select>
               </label>
-              <button id="searchRefreshBtn" class="approval-search-refresh__button" type="button">Buscar</button>
+              <button id="searchRefreshBtn" class="approval-search-refresh__button" type="button">Actualizar noticias de hoy</button>
               <span id="searchRefreshStatus" class="approval-search-refresh__status">Puede tardar aproximadamente 2 minutos.</span>
               <button id="openQueueBtn" class="secondary legacy-only">Abrir cola legacy</button>
             </div>
@@ -148,10 +148,13 @@
 
                 <header class="section-heading section-heading--tight">
                   <div>
-                    <h2>Noticias</h2>
+                    <h2>Noticias anteriores</h2>
                     <p>Solo titulares, rápidos de escanear y seleccionar.</p>
                   </div>
-                  <span id="cardsMeta" class="section-counter section-counter--news">0 resultados</span>
+                  <span class="section-counter-stack section-counter-stack--news">
+                    <span id="cardsMeta" class="section-counter section-counter--news">0 resultados</span>
+                    <span id="lastNewsSearchMeta" class="section-last-refresh" hidden></span>
+                  </span>
                 </header>
                 <main id="cards" class="cards cards--news"></main>
               </section>

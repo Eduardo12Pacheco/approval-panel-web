@@ -10,6 +10,11 @@
 
   .approval-controls__actions {
     margin-left: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "window"
+      "button"
+      "status";
   }
 
   .news-panel__filters {
@@ -83,15 +88,11 @@
     width: 100%;
   }
 
-  .approval-controls__actions {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "window"
-      "button"
-      "status";
+  .approval-control--search-refresh {
+    min-width: 0;
   }
 
-  .approval-control--search-refresh {
+  .approval-search-refresh__button {
     min-width: 0;
   }
 

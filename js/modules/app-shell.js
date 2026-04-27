@@ -44,6 +44,7 @@ import { getDomSelectors } from './shared/dom/selectors.js';
 
 const storageKey = 'approval-panel-settings-v1';
 const sessionKey = 'approval-panel-session-v1';
+const lastNewsSearchKey = 'approval-panel-last-news-search-at-v1';
 
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
@@ -61,6 +62,7 @@ const state = {
   searchRefreshStatus: 'Puede tardar aproximadamente 2 minutos.',
   searchRefreshStatusKind: 'idle',
   lastSearchRefresh: null,
+  lastNewsSearchAt: loadLastNewsSearchAt(),
   selectedCardId: null,
   selectedTopic: null,
   deletingSource: false,
@@ -235,6 +237,24 @@ function loadSettings() {
     storageKey,
     defaultsFactory: defaultSettings,
   });
+}
+
+function loadLastNewsSearchAt() {
+  try {
+    return localStorage.getItem(lastNewsSearchKey) || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLastNewsSearchAt(value) {
+  try {
+    if (value) {
+      localStorage.setItem(lastNewsSearchKey, value);
+    } else {
+      localStorage.removeItem(lastNewsSearchKey);
+    }
+  } catch {}
 }
 
 function saveSettings(next) {
@@ -520,6 +540,14 @@ function getSearchRefreshWindowLabel(value) {
   return value === '1h' ? 'Última hora' : 'Últimas 24 horas';
 }
 
+function formatNewsSearchTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (input) => String(input).padStart(2, '0');
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function assertSearchRefreshSucceeded(result) {
   const status = (result?.status || '').toString().trim().toLowerCase();
   const promoteStatus = (result?.promote?.status || '').toString().trim().toLowerCase();
@@ -550,7 +578,7 @@ function renderSearchRefreshState() {
   if (!el.searchRefreshBtn || !el.searchRefreshStatus) return;
 
   el.searchRefreshBtn.disabled = state.searchRefreshRunning;
-  el.searchRefreshBtn.textContent = state.searchRefreshRunning ? 'Buscando...' : 'Buscar';
+  el.searchRefreshBtn.textContent = state.searchRefreshRunning ? 'Actualizando...' : 'Actualizar noticias de hoy';
   if (el.searchRefreshWindow) {
     el.searchRefreshWindow.disabled = state.searchRefreshRunning;
     customDropdowns.refreshAll();
@@ -582,6 +610,9 @@ async function runSearchRefresh() {
     renderSearchRefreshState();
     toast('Búsqueda completada. Actualizando noticias...');
     await refreshAll();
+    state.lastNewsSearchAt = new Date().toISOString();
+    saveLastNewsSearchAt(state.lastNewsSearchAt);
+    renderCards();
     state.searchRefreshStatus = resolveSearchRefreshCompletionMessage(result, windowLabel);
   } catch (err) {
     console.error(err);
@@ -638,6 +669,7 @@ function filteredItems() {
 function renderCards() {
   const list = filteredItems();
   el.cardsMeta.textContent = `${list.length} resultado${list.length === 1 ? '' : 's'}`;
+  renderLastNewsSearchMeta();
 
   if (!list.length) {
     el.cards.innerHTML = '<p class="meta">No hay temas para mostrar con esos filtros.</p>';
@@ -661,6 +693,13 @@ function renderCards() {
       await openDetail(id);
     });
   });
+}
+
+function renderLastNewsSearchMeta() {
+  if (!el.lastNewsSearchMeta) return;
+  const formatted = formatNewsSearchTimestamp(state.lastNewsSearchAt);
+  el.lastNewsSearchMeta.hidden = !formatted;
+  el.lastNewsSearchMeta.textContent = formatted ? `Última búsqueda: ${formatted}` : '';
 }
 
 function renderScriptStats() {

@@ -53,6 +53,25 @@
   line-height: 1.45;
 }
 
+.section-counter-stack--news {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  min-width: max-content;
+}
+
+.section-last-refresh {
+  color: #00e88f;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-align: right;
+  text-shadow: 0 0 12px rgba(0, 232, 143, 0.42);
+  text-transform: uppercase;
+}
+
 .script-workbench {
   min-height: 0;
 }
