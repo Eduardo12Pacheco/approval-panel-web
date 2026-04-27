@@ -26,7 +26,7 @@ import {
 import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { renderApprovalTopicDetail } from './features/approval/detail-dialog.js';
 import { renderQueueMonitor } from './features/approval/queue-monitor.js';
-import { createScriptsFeature, resolveScriptTitle } from './features/scripts/index.js';
+import { createScriptsFeature, isScriptProcessed, resolveScriptTitle } from './features/scripts/index.js';
 import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createAudioController } from './features/audio/controller.js';
@@ -175,6 +175,7 @@ const audioController = createAudioController({
 const audioRuntime = createAudioRuntime({
   hooks: {
     runAudioGeneration: audioController.runAudioGeneration,
+    runAudioGenerationFromText: audioController.runAudioGenerationFromText,
     startAudioTracking: audioController.startAudioTracking,
     applyAudioJobStatus: audioController.applyAudioJobStatus,
     startAudioStatusStream: audioController.startAudioStatusStream,
@@ -292,14 +293,7 @@ function bindEvents() {
   el.cancelPublishBtn.addEventListener('click', () => el.publishConfirmDialog.close());
   el.confirmPublishBtn.addEventListener('click', publishSelectedScript);
   el.voiceAiBtn.addEventListener('click', () => {
-    const text = (el.scriptEditedArea.value || '').trim();
-    if (!text) {
-      toast('No hay texto listo para enviar a Voz con IA');
-      return;
-    }
-    el.audioTextArea.value = text;
-    updateWordCounter(text, el.audioWordCount);
-    setView('audio');
+    void runVoiceAiFromSelectedScript();
   });
   el.downloadDraftBtn.addEventListener('click', downloadSelectedScriptDocx);
   el.publishDraftBtn.addEventListener('click', () => {
@@ -712,6 +706,52 @@ async function publishSelectedScript() {
 
 async function downloadSelectedScriptDocx() {
   await scriptsFeature.downloadSelectedScriptDocx();
+}
+
+function buildVoiceAiJobTitle(script = {}) {
+  return [script.jugador, resolveScriptTitle(script, '')]
+    .map((part) => (part || '').toString().trim())
+    .filter(Boolean)
+    .join(' · ')
+    .slice(0, 120)
+    || script.draft_id
+    || script.id_noticia
+    || script.cluster_id
+    || 'voz-ia-guion';
+}
+
+async function runVoiceAiFromSelectedScript() {
+  const selected = state.selectedScript;
+  if (!selected) {
+    toast('Seleccioná un guion antes de generar voz');
+    return;
+  }
+
+  if (!isScriptProcessed(selected)) {
+    toast('Primero procesá el guion para usar la versión con pronunciación.');
+    return;
+  }
+
+  if (state.scriptEditorDirty) {
+    toast('Tenés cambios sin procesar. Procesá de nuevo antes de generar voz.');
+    return;
+  }
+
+  const pronunciationText = (selected.guion_pronunciacion || '').toString().trim();
+  if (!pronunciationText) {
+    toast('Este guion no tiene versión de pronunciación. Procesalo de nuevo para generar voz.');
+    return;
+  }
+
+  el.audioTextArea.value = pronunciationText;
+  updateWordCounter(pronunciationText, el.audioWordCount);
+  setView('audio');
+
+  await audioFeature.runAudioGenerationFromText({
+    text: pronunciationText,
+    voiceProfile: el.audioPresetSelect.value,
+    title: buildVoiceAiJobTitle(selected),
+  });
 }
 
 async function removeSourceFromTopic(source) {

@@ -31,7 +31,7 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
     return getBlob(path);
   }
 
-  async function runAudioGeneration() {
+  async function runAudioGenerationFromText({ text, voiceProfile = null, title = 'manual-ui' } = {}) {
     if (state.audioRunning) return;
 
     const ttsBaseUrl = (state.settings.ttsBaseUrl || '').trim();
@@ -45,13 +45,13 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
       return;
     }
 
-    const text = el.audioTextArea.value.trim();
-    if (text.length < 20) {
+    const normalizedText = (text || '').toString().trim();
+    if (normalizedText.length < 20) {
       toast('El texto es demasiado corto para generar audio');
       return;
     }
 
-    const preset = (el.audioPresetSelect.value || 'balanced_default').trim();
+    const preset = (voiceProfile || el.audioPresetSelect.value || 'balanced_default').trim();
     const requestId = `ui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
@@ -60,14 +60,19 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
       el.audioRunBtn.disabled = true;
 
       const data = await ttsPost('/api/tts/jobs', {
-        text,
+        text: normalizedText,
         voice_profile: preset,
         request_id: requestId,
-        title: 'manual-ui',
+        title,
       });
+
+      if (!data?.job_id) {
+        throw new Error('La API de audio no devolvió job_id');
+      }
 
       state.audioJobId = data.job_id;
       ensureAudioJob(data.job_id, {
+        title,
         status: data.status || 'queued',
         progress: { stage: 'queued', percent: 0 },
         created_at: new Date().toISOString(),
@@ -83,6 +88,14 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
       state.audioRunning = false;
       el.audioRunBtn.disabled = false;
     }
+  }
+
+  async function runAudioGeneration() {
+    return runAudioGenerationFromText({
+      text: el.audioTextArea.value,
+      voiceProfile: el.audioPresetSelect.value,
+      title: 'manual-ui',
+    });
   }
 
   function startAudioTracking(jobId) {
@@ -214,11 +227,15 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
           : 'audio-progress-fill--processing';
       const canDownload = status === 'done';
 
+      const displayTitle = job.title || job.job_id;
+      const secondaryId = job.title ? `<p class="meta">${escapeHtml(job.job_id)}</p>` : '';
+
       return `
         <article class="audio-queue-card" data-job-id="${job.job_id}">
           <header class="audio-queue-card-header">
             <div>
-              <p class="audio-queue-card-title">${escapeHtml(job.job_id)}</p>
+              <p class="audio-queue-card-title">${escapeHtml(displayTitle)}</p>
+              ${secondaryId}
             </div>
             <button class="audio-card-close" data-action="dismiss-audio-job" data-job-id="${job.job_id}" title="Ocultar job" aria-label="Ocultar job">
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -533,6 +550,7 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
 
   return {
     runAudioGeneration,
+    runAudioGenerationFromText,
     startAudioTracking,
     applyAudioJobStatus,
     startAudioStatusStream,

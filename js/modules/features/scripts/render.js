@@ -85,6 +85,7 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
     el.scriptEditedArea.disabled = true;
     el.viewOriginalBtn.disabled = true;
     el.voiceAiBtn.disabled = true;
+    el.voiceAiBtn.title = '';
     el.downloadDraftBtn.disabled = true;
     el.publishDraftBtn.disabled = true;
     setProcessButtonStyle(el.publishDraftBtn, { processed: false });
@@ -97,7 +98,10 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
 
   el.scriptEditedArea.disabled = false;
   el.viewOriginalBtn.disabled = false;
-  el.voiceAiBtn.disabled = false;
+  el.voiceAiBtn.disabled = !isProcessed;
+  el.voiceAiBtn.title = isProcessed
+    ? 'Generar voz desde la versión procesada con pronunciación'
+    : 'Primero procesá el guion para habilitar Voz con IA';
   el.downloadDraftBtn.disabled = !selected.doc_id;
   el.publishDraftBtn.disabled = false;
   setProcessButtonStyle(el.publishDraftBtn, { processed: isProcessed });

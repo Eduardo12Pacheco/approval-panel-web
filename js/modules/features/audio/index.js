@@ -1,6 +1,7 @@
 export function createAudioFeature({ api, store, ui, selectors, handlers }) {
   return {
     runAudioGeneration: handlers.runAudioGeneration,
+    runAudioGenerationFromText: handlers.runAudioGenerationFromText,
     startAudioTracking: handlers.startAudioTracking,
     applyAudioJobStatus: handlers.applyAudioJobStatus,
     startAudioStatusStream: handlers.startAudioStatusStream,

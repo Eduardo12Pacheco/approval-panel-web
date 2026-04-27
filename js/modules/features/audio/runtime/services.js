@@ -38,6 +38,7 @@ export function getAudioStatusClassRuntime(status) {
 export function createAudioRuntimeServices({ hooks }) {
   return {
     runAudioGeneration: hooks.runAudioGeneration,
+    runAudioGenerationFromText: hooks.runAudioGenerationFromText,
     startAudioTracking: hooks.startAudioTracking,
     applyAudioJobStatus: hooks.applyAudioJobStatus,
     startAudioStatusStream: hooks.startAudioStatusStream,

@@ -156,6 +156,94 @@ if (!missingCredsCaught) throw new Error('missing creds path not enforced');
     assert result.returncode == 0, result.stderr
 
 
+def test_audio_controller_can_create_named_job_from_canonical_script_text():
+    script = r"""
+import { createAudioController } from './js/modules/features/audio/controller.js';
+
+const posted = [];
+const toasts = [];
+const classTokens = new Set();
+const state = {
+  settings: {
+    ttsBaseUrl: 'http://localhost:8088',
+    ttsApiKey: 'api-key-1',
+    ttsBasicUser: 'user',
+    ttsBasicPass: 'pass',
+  },
+  audioRunning: false,
+  audioJobId: null,
+  audioPollingTimer: null,
+  audioPollingToken: null,
+  audioPollingInFlight: false,
+  audioPollingErrorStreak: 0,
+  audioStreamController: null,
+  audioJobs: {},
+  audioJobOrder: [],
+  dismissedAudioJobs: new Set(),
+};
+
+const el = {
+  audioRunBtn: { disabled: false },
+  audioPresetSelect: { value: 'balanced_default' },
+  audioTextArea: { value: '' },
+  audioQueueMeta: { textContent: '' },
+  audioQueueList: {
+    innerHTML: '',
+    classList: {
+      add(token) { classTokens.add(token); },
+      remove(token) { classTokens.delete(token); },
+    },
+  },
+};
+
+const controller = createAudioController({
+  state,
+  el,
+  api: {
+    async post(path, payload) {
+      posted.push({ path, payload });
+      return { job_id: 'job-voice-1', status: 'queued' };
+    },
+  },
+  ui: { toast(message) { toasts.push(message); } },
+  helpers: {
+    escapeHtml(value) { return String(value); },
+    getErrorMessage(err, fallback) { return err?.message || fallback; },
+    resolveTtsGet() {
+      return async () => ({ job_id: 'job-voice-1', status: 'done', progress: { stage: 'done', percent: 100 } });
+    },
+    getBlob() { throw new Error('not used'); },
+  },
+  browser: {
+    fetchImpl: async () => ({ ok: false, body: null }),
+    AbortController: class { constructor() { this.signal = {}; } abort() {} },
+    setInterval() { return 0; },
+    clearInterval() {},
+    URL: { createObjectURL() { return ''; }, revokeObjectURL() {} },
+    document: { createElement() { return {}; }, body: { appendChild() {}, removeChild() {} } },
+  },
+});
+
+await controller.runAudioGenerationFromText({
+  text: 'Texto canónico de pronunciación suficientemente largo para generar audio.',
+  voiceProfile: 'voz_balanceada',
+  title: 'Jugador · Tema procesado',
+});
+
+if (posted[0]?.path !== '/api/tts/jobs') throw new Error(`unexpected tts path ${posted[0]?.path}`);
+if (posted[0].payload.text !== 'Texto canónico de pronunciación suficientemente largo para generar audio.') {
+  throw new Error(`text drift ${JSON.stringify(posted[0].payload)}`);
+}
+if (posted[0].payload.voice_profile !== 'voz_balanceada') throw new Error('voice profile drift');
+if (posted[0].payload.title !== 'Jugador · Tema procesado') throw new Error('title drift');
+if (state.audioJobOrder[0] !== 'job-voice-1') throw new Error(`job was not inserted into queue ${JSON.stringify(state.audioJobOrder)}`);
+if (!el.audioQueueList.innerHTML.includes('Jugador · Tema procesado')) throw new Error('queue should render human title');
+if (!toasts.includes('Job enviado. Comienza el procesamiento...')) throw new Error(`missing queued toast ${JSON.stringify(toasts)}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve_without_false_negative_toast():
     script = r"""
 import { createApprovalFeature, orderApprovalItemsByLowestAvg } from './js/modules/features/approval/index.js';
@@ -411,6 +499,59 @@ if (selectors.scriptEditedWordCount.textContent !== 'Palabras: 12') {
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_script_voice_button_requires_processed_script_contract():
+    script = r"""
+import { renderSelectedScriptEditorView } from './js/modules/features/scripts/render.js';
+
+function makeSelectors() {
+  return {
+    scriptEditorTitle: { textContent: '' },
+    scriptEditorMeta: { textContent: '' },
+    scriptEditedArea: { value: '', disabled: false },
+    viewOriginalBtn: { disabled: false },
+    voiceAiBtn: { disabled: false, title: '' },
+    downloadDraftBtn: { disabled: false },
+    publishDraftBtn: { disabled: false, classList: { toggle() {} } },
+    closeScriptEditor: { disabled: false },
+    scriptEditedWordCount: { textContent: '' },
+  };
+}
+
+const unprocessed = makeSelectors();
+renderSelectedScriptEditorView({
+  selected: { draft_id: 'draft-1', jugador: 'Jugador', tema_principal: 'Tema', guion_editado: 'Texto válido sin procesar todavía.' },
+  el: unprocessed,
+  updateWordCounter(value, target) { target.textContent = value; },
+});
+if (unprocessed.voiceAiBtn.disabled !== true) throw new Error('voice should be disabled before processing');
+if (!unprocessed.voiceAiBtn.title.includes('Primero procesá')) throw new Error(`missing disabled hint ${unprocessed.voiceAiBtn.title}`);
+
+const processed = makeSelectors();
+renderSelectedScriptEditorView({
+  selected: { draft_id: 'draft-1', doc_id: 'doc-1', estado_guion: 'publicado', jugador: 'Jugador', tema_principal: 'Tema', guion_editado: 'Texto procesado.' },
+  el: processed,
+  updateWordCounter(value, target) { target.textContent = value; },
+});
+if (processed.voiceAiBtn.disabled !== false) throw new Error('voice should be enabled after processing');
+if (!processed.voiceAiBtn.title.includes('versión procesada con pronunciación')) throw new Error(`missing processed hint ${processed.voiceAiBtn.title}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_app_shell_voice_ai_uses_processed_pronunciation_guards():
+    source = (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")
+    audio_runtime_source = (ROOT / "js" / "modules" / "features" / "audio" / "runtime" / "services.js").read_text(encoding="utf-8")
+
+    assert "runVoiceAiFromSelectedScript" in source
+    assert "isScriptProcessed(selected)" in source
+    assert "Tenés cambios sin procesar" in source
+    assert "selected.guion_pronunciacion" in source
+    assert "runAudioGenerationFromText" in source
+    assert "runAudioGenerationFromText: audioController.runAudioGenerationFromText" in source
+    assert "runAudioGenerationFromText: hooks.runAudioGenerationFromText" in audio_runtime_source
 
 
 def test_scripts_feature_downloads_published_google_doc_as_docx_blob():
