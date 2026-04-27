@@ -244,6 +244,56 @@ if (!toasts.includes('Job enviado. Comienza el procesamiento...')) throw new Err
     assert result.returncode == 0, result.stderr
 
 
+def test_audio_controller_summarizes_missing_sox_errors():
+    script = r"""
+import { createAudioController } from './js/modules/features/audio/controller.js';
+
+const toasts = [];
+const state = {
+  settings: { ttsBaseUrl: 'http://localhost:8088', ttsApiKey: 'api-key-1', ttsBasicUser: 'user', ttsBasicPass: 'pass' },
+  audioJobId: 'job-sox-1',
+  audioJobs: { 'job-sox-1': { job_id: 'job-sox-1', status: 'running', progress: { stage: 'loading_model', percent: 10 } } },
+  audioJobOrder: ['job-sox-1'],
+  dismissedAudioJobs: new Set(),
+  audioStreamController: null,
+  audioPollingTimer: 42,
+};
+
+const el = {
+  audioQueueMeta: { textContent: '' },
+  audioQueueList: { innerHTML: '', classList: { add() {}, remove() {} } },
+};
+
+const controller = createAudioController({
+  state,
+  el,
+  api: { post() { throw new Error('not used'); } },
+  ui: { toast(message) { toasts.push(message); } },
+  helpers: {
+    escapeHtml(value) { return String(value); },
+    getErrorMessage(err, fallback) { return err?.message || fallback; },
+    resolveTtsGet() { return async () => ({}); },
+    getBlob() { throw new Error('not used'); },
+  },
+  browser: { clearInterval() {} },
+});
+
+controller.applyAudioJobStatus('job-sox-1', {
+  job_id: 'job-sox-1',
+  status: 'error',
+  progress: { stage: 'error', percent: 10 },
+  error: { message: '"sox" no se reconoce como un comando interno o externo.\nSoX could not be found!\nIf you do not have SoX...' },
+}, { stopTrackingOnTerminal: true });
+
+if (toasts[0] !== 'Falta SoX en el servidor de audio. Instalalo y reiniciá el worker TTS.') {
+  throw new Error(`unexpected sox toast ${JSON.stringify(toasts)}`);
+}
+if (toasts[0].length > 100) throw new Error('toast should stay compact');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve_without_false_negative_toast():
     script = r"""
 import { createApprovalFeature, orderApprovalItemsByLowestAvg } from './js/modules/features/approval/index.js';

@@ -31,6 +31,18 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
     return getBlob(path);
   }
 
+  function getFriendlyAudioErrorMessage(message, fallback = 'El job de audio falló') {
+    const raw = (message || '').toString().trim();
+    if (!raw) return fallback;
+
+    const lower = raw.toLowerCase();
+    if (lower.includes('sox') && (lower.includes('could not be found') || lower.includes('no se reconoce'))) {
+      return 'Falta SoX en el servidor de audio. Instalalo y reiniciá el worker TTS.';
+    }
+
+    return raw.length > 220 ? `${raw.slice(0, 217)}...` : raw;
+  }
+
   async function runAudioGenerationFromText({ text, voiceProfile = null, title = 'manual-ui' } = {}) {
     if (state.audioRunning) return;
 
@@ -140,7 +152,7 @@ export function createAudioController({ state, el, api, ui, helpers, browser = g
         stopAudioTracking();
       }
       if (becameTerminalNow) {
-        const msg = data?.error?.message || `El job terminó en estado ${status}`;
+        const msg = getFriendlyAudioErrorMessage(data?.error?.message, `El job terminó en estado ${status}`);
         toast(msg);
       }
       return { terminal: true, status };

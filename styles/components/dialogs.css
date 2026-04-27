@@ -20,6 +20,29 @@ dialog {
   overflow: hidden;
 }
 
+#voicePresetDialog {
+  width: min(720px, 92vw);
+  max-height: none;
+  overflow: visible;
+}
+
+#voicePresetDialog article {
+  overflow: visible;
+}
+
+#voicePresetDialog .audio-field {
+  margin: 16px 0 20px;
+}
+
+#voicePresetDialog .ui-dropdown {
+  z-index: 2;
+}
+
+#voicePresetDialog .ui-dropdown__menu {
+  max-height: 180px;
+  z-index: 80;
+}
+
 dialog::backdrop {
   background: rgba(5, 5, 5, 0.78);
   backdrop-filter: blur(4px);

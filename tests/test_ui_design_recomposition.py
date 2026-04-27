@@ -11,6 +11,7 @@ APPROVAL_PATH = ROOT / "styles" / "features" / "approval.css"
 SCRIPTS_PATH = ROOT / "styles" / "features" / "scripts.css"
 AUDIO_PATH = ROOT / "styles" / "features" / "audio.css"
 FORMS_PATH = ROOT / "styles" / "components" / "forms.css"
+DIALOGS_PATH = ROOT / "styles" / "components" / "dialogs.css"
 BUTTONS_PATH = ROOT / "styles" / "components" / "buttons.css"
 TOAST_PATH = ROOT / "styles" / "components" / "toast.css"
 CUSTOM_DROPDOWNS_PATH = ROOT / "js" / "modules" / "core" / "ui" / "custom-dropdowns.js"
@@ -58,6 +59,9 @@ def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspac
         '<span>Ver copia del guion</span>',
         'id="publishDraftBtn" class="approve button-icon" disabled',
         '<span>Procesar</span>',
+        '<h2>Confirmar Reproceso?</h2>',
+        '¿Estás seguro de procesar nuevamente este guion? Esta acción generará Google Doc + TXT y marcará el estado como procesado.',
+        'id="confirmPublishBtn" class="approve">Si, procesar</button>',
         'id="downloadDraftBtn" class="approve button-icon script-download-button" disabled',
         '<span>Descargar</span>',
         'M9 1.5H3.5v13h9V5M9 1.5L12.5 5M9 1.5V5h3.5M5 8h6M5 5h2.5M5 11h6',
@@ -276,6 +280,7 @@ def test_script_queue_cards_prefer_individual_headline_before_cluster_title():
 def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more_closely():
     index_source = _read(INDEX_PATH)
     forms_source = _read(FORMS_PATH)
+    dialogs_source = _read(DIALOGS_PATH)
     buttons_source = _read(BUTTONS_PATH)
     custom_dropdowns_source = _read(CUSTOM_DROPDOWNS_PATH)
 
@@ -297,6 +302,10 @@ def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more
     assert '◉' not in index_source
     assert '≣' not in index_source
     assert 'Operations Core' not in index_source
+
+    assert '#voicePresetDialog' in dialogs_source
+    assert 'overflow: visible;' in dialogs_source
+    assert '#voicePresetDialog .ui-dropdown__menu' in dialogs_source
 
     for expected_rule in [
         '.ui-dropdown',
