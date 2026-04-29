@@ -1,6 +1,8 @@
 import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './index.js';
 
+const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com'];
+
 function formatCount(value, singular, plural = `${singular}s`) {
   const count = Number(value || 0);
   return `${count} ${count === 1 ? singular : plural}`;
@@ -25,6 +27,28 @@ function getStatusLabel(status = '') {
   if (normalized === 'no_candidates') return 'Sin imágenes';
   if (normalized === 'pending') return 'Procesando';
   return status || 'Sin estado';
+}
+
+function isBlockedImageCandidate(candidate = {}) {
+  const haystack = [
+    candidate.domain,
+    candidate.source,
+    candidate.link,
+    candidate.google_url,
+    candidate.image_url,
+    candidate.thumbnail_url,
+  ]
+    .map((part) => (part || '').toString().toLowerCase())
+    .join(' ');
+
+  return BLOCKED_IMAGE_DOMAIN_PARTS.some((blocked) => haystack.includes(blocked));
+}
+
+function resolveCandidateDimensions(candidate = {}) {
+  const width = Number(candidate.image_width || candidate.imageWidth || candidate.width || candidate.thumbnail_width || candidate.thumbnailWidth || 0);
+  const height = Number(candidate.image_height || candidate.imageHeight || candidate.height || candidate.thumbnail_height || candidate.thumbnailHeight || 0);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return '';
+  return `${Math.round(width)} × ${Math.round(height)} px`;
 }
 
 function buildProjectCard(project = {}) {
@@ -84,23 +108,53 @@ function buildFutureProjectCard() {
 }
 
 function buildCandidateCard(candidate = {}) {
-  const imageUrl = (candidate.thumbnail_url || candidate.image_url || '').toString();
+  const imageUrl = (candidate.image_url || candidate.thumbnail_url || '').toString();
+  const fallbackImageUrl = (candidate.thumbnail_url && candidate.thumbnail_url !== imageUrl ? candidate.thumbnail_url : '').toString();
   const fullImageUrl = (candidate.image_url || candidate.thumbnail_url || '').toString();
   const sourceLink = (candidate.link || candidate.google_url || fullImageUrl || '').toString();
   const order = Number(candidate.order || candidate.position || 0);
   const title = escapeHtmlCore((candidate.title || `Imagen ${order || ''}`).toString());
   const safeHref = escapeHtmlCore(sourceLink || fullImageUrl || '#');
+  const sizeLabel = escapeHtmlCore(resolveCandidateDimensions(candidate) || 'Calculando…');
 
   return `
     <article class="video-image-card">
       <a class="video-image-card__media" href="${safeHref}" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen ${order || ''}: ${title}">
         ${imageUrl
-          ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" referrerpolicy="no-referrer" />`
+          ? `<img src="${escapeHtmlCore(imageUrl)}"${fallbackImageUrl ? ` data-fallback-src="${escapeHtmlCore(fallbackImageUrl)}"` : ''} alt="${title}" loading="lazy" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
-        <span class="video-image-card__badge">#${order || '—'}</span>
+        <span class="video-image-card__size" data-image-size>${sizeLabel}</span>
       </a>
     </article>
   `;
+}
+
+function hydrateImageSizeBadges(root) {
+  root?.querySelectorAll?.('.video-image-card__media img')?.forEach((img) => {
+    const badge = img.closest('.video-image-card')?.querySelector('[data-image-size]');
+    if (!badge) return;
+
+    const setSize = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        badge.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+        return;
+      }
+      badge.textContent = 'Sin tamaño';
+    };
+
+    img.addEventListener('load', setSize);
+    img.addEventListener('error', () => {
+      const fallback = img.dataset.fallbackSrc || '';
+      if (fallback && img.dataset.fallbackUsed !== 'true') {
+        img.dataset.fallbackUsed = 'true';
+        img.src = fallback;
+        return;
+      }
+      badge.textContent = 'Sin preview';
+    });
+
+    if (img.complete) setSize();
+  });
 }
 
 export function renderVideoProjectsListView({ state, el, openVideoProject }) {
@@ -166,7 +220,8 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
   const status = escapeHtmlCore(getStatusLabel(project.status));
   const query = escapeHtmlCore((project.search_query || project.image_search_meta?.query || 'Sin query registrada').toString());
   const fetchedAt = project.image_fetched_at || project.image_search_meta?.fetched_at || project.updated_at;
-  const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
+  const allCandidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
+  const candidates = allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate));
   const segments = Array.isArray(project.segments) ? project.segments : [];
   const loading = Boolean(state.videoProjectDetailLoading);
 
@@ -233,4 +288,5 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
   el.videoProjectDetail
     .querySelector('[data-action="back-to-video-projects"]')
     ?.addEventListener('click', closeVideoProject);
+  hydrateImageSizeBadges(el.videoProjectDetail);
 }

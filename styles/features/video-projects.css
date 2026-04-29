@@ -320,10 +320,10 @@
   filter: brightness(1.08);
 }
 
-.video-image-card__badge {
+.video-image-card__size {
   position: absolute;
-  inset: 8px auto auto 8px;
-  padding: 4px 7px;
+  inset: auto 8px 8px auto;
+  padding: 5px 8px;
   background: rgba(0, 0, 0, 0.68);
   border: 1px solid rgba(0, 232, 143, 0.32);
   color: var(--accent);
@@ -331,6 +331,17 @@
   font-size: 0.66rem;
   letter-spacing: 0.06em;
   line-height: 1;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.video-image-card__media:hover .video-image-card__size,
+.video-image-card__media:focus .video-image-card__size {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .video-segments-list {
