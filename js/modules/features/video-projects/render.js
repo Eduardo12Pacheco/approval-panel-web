@@ -44,11 +44,70 @@ function isBlockedImageCandidate(candidate = {}) {
   return BLOCKED_IMAGE_DOMAIN_PARTS.some((blocked) => haystack.includes(blocked));
 }
 
+function toPositiveNumber(value) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? next : 0;
+}
+
+function parseGoogleImageDimensions(candidate = {}) {
+  const googleUrl = (candidate.google_url || candidate.googleUrl || '').toString();
+  if (!googleUrl) return null;
+
+  try {
+    const url = new URL(googleUrl);
+    const width = toPositiveNumber(url.searchParams.get('w'));
+    const height = toPositiveNumber(url.searchParams.get('h'));
+    if (width && height) return { width, height, source: 'google_url' };
+  } catch {}
+
+  return null;
+}
+
+function resolveCandidateDimensionInfo(candidate = {}) {
+  const imageWidth = toPositiveNumber(candidate.image_width || candidate.imageWidth || candidate.width);
+  const imageHeight = toPositiveNumber(candidate.image_height || candidate.imageHeight || candidate.height);
+  if (imageWidth && imageHeight) return { width: imageWidth, height: imageHeight, source: 'image' };
+
+  const googleDimensions = parseGoogleImageDimensions(candidate);
+  if (googleDimensions) return googleDimensions;
+
+  const thumbnailWidth = toPositiveNumber(candidate.thumbnail_width || candidate.thumbnailWidth);
+  const thumbnailHeight = toPositiveNumber(candidate.thumbnail_height || candidate.thumbnailHeight);
+  if (thumbnailWidth && thumbnailHeight) return { width: thumbnailWidth, height: thumbnailHeight, source: 'thumbnail' };
+
+  return null;
+}
+
 function resolveCandidateDimensions(candidate = {}) {
-  const width = Number(candidate.image_width || candidate.imageWidth || candidate.width || candidate.thumbnail_width || candidate.thumbnailWidth || 0);
-  const height = Number(candidate.image_height || candidate.imageHeight || candidate.height || candidate.thumbnail_height || candidate.thumbnailHeight || 0);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return '';
-  return `${Math.round(width)} × ${Math.round(height)} px`;
+  const dimensions = resolveCandidateDimensionInfo(candidate);
+  if (!dimensions) return '';
+  return `${Math.round(dimensions.width)} × ${Math.round(dimensions.height)} px`;
+}
+
+function getCandidateQualityScore(candidate = {}) {
+  const dimensions = resolveCandidateDimensionInfo(candidate);
+  if (!dimensions) return 0;
+
+  const area = dimensions.width * dimensions.height;
+  const longestSide = Math.max(dimensions.width, dimensions.height);
+  const sourceWeight = dimensions.source === 'thumbnail' ? 0.12 : 1;
+  return (area + longestSide) * sourceWeight;
+}
+
+function orderCandidatesByQuality(candidates = []) {
+  return [...candidates]
+    .map((candidate, index) => ({
+      candidate,
+      index,
+      score: getCandidateQualityScore(candidate),
+      position: Number(candidate.position || candidate.order || index + 1),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.position !== b.position) return a.position - b.position;
+      return a.index - b.index;
+    })
+    .map(({ candidate }) => candidate);
 }
 
 function buildProjectCard(project = {}) {
@@ -221,7 +280,7 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
   const query = escapeHtmlCore((project.search_query || project.image_search_meta?.query || 'Sin query registrada').toString());
   const fetchedAt = project.image_fetched_at || project.image_search_meta?.fetched_at || project.updated_at;
   const allCandidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
-  const candidates = allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate));
+  const candidates = orderCandidatesByQuality(allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate)));
   const segments = Array.isArray(project.segments) ? project.segments : [];
   const loading = Boolean(state.videoProjectDetailLoading);
 
