@@ -45,6 +45,7 @@ export function getDomSelectors(doc = document) {
     viewSubtitulos2: doc.getElementById('viewSubtitulos2'),
     videoProjectsRefreshBtn: doc.getElementById('videoProjectsRefreshBtn'),
     videoProjectsMeta: doc.getElementById('videoProjectsMeta'),
+    videoProjectsCatalog: doc.getElementById('videoProjectsCatalog'),
     videoProjectsList: doc.getElementById('videoProjectsList'),
     videoProjectDetail: doc.getElementById('videoProjectDetail'),
     scriptStats: doc.getElementById('scriptStats'),

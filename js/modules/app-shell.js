@@ -771,7 +771,11 @@ function renderVideoProjects() {
 }
 
 function renderSelectedVideoProject() {
-  renderSelectedVideoProjectView({ state, el });
+  renderSelectedVideoProjectView({
+    state,
+    el,
+    closeVideoProject,
+  });
 }
 
 async function openDetail(clusterId) {
@@ -788,6 +792,14 @@ async function openScriptEditor(clusterId) {
 
 async function openVideoProject(projectId) {
   await videoProjectsFeature.openVideoProject(projectId);
+  el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+}
+
+function closeVideoProject() {
+  state.selectedVideoProject = null;
+  state.videoProjectDetailLoading = false;
+  renderVideoProjects();
+  renderSelectedVideoProject();
 }
 
 async function saveSelectedScript() {

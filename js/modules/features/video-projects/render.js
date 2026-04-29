@@ -27,30 +27,58 @@ function getStatusLabel(status = '') {
   return status || 'Sin estado';
 }
 
-function buildProjectCard(project = {}, { selected = false } = {}) {
+function buildProjectCard(project = {}) {
   const id = resolveVideoProjectKey(project);
   const encodedId = encodeURIComponent(id);
   const title = escapeHtmlCore(resolveVideoProjectTitle(project));
   const player = escapeHtmlCore((project.jugador || 'Sin jugador').toString());
   const country = escapeHtmlCore((project.seleccion || 'Sin selección').toString());
   const imageUrl = (project.first_image_url || '').toString();
-  const selectedClass = selected ? ' is-selected' : '';
   const status = escapeHtmlCore(getStatusLabel(project.status));
   const statusName = escapeHtmlCore((project.status || 'unknown').toString());
+  const createdAt = project.published_at || project.created_at || project.updated_at;
 
   return `
-    <article class="video-project-card${selectedClass}" data-project-id="${encodedId}" role="button" tabindex="0" aria-pressed="${selected ? 'true' : 'false'}">
-      <div class="video-project-card__thumb">
-        ${imageUrl
-          ? `<img src="${escapeHtmlCore(imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
-          : '<span aria-hidden="true">VP</span>'}
-      </div>
+    <article class="video-project-card" data-project-id="${encodedId}">
+      <header class="video-project-card__header">
+        <div>
+          <div class="video-project-card__eyebrow">Proyecto automático</div>
+          <h3>${title}</h3>
+        </div>
+        <span class="video-project-status" data-status="${statusName}">${status}</span>
+      </header>
+
       <div class="video-project-card__body">
-        <div class="video-project-card__eyebrow">${country} · ${player}</div>
-        <h3>${title}</h3>
-        <p>${formatCount(project.image_count, 'imagen', 'imágenes')} · ${formatCount(project.segment_count, 'segmento')}</p>
+        <div class="video-project-card__thumb">
+          ${imageUrl
+            ? `<img src="${escapeHtmlCore(imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
+            : '<span aria-hidden="true">VP</span>'}
+        </div>
+        <div class="video-project-card__copy">
+          <p>Creado automáticamente desde el guion procesado. Listo para abrir flujo visual.</p>
+          <div class="video-project-card__meta">
+            <span>Jugador: <strong>${player}</strong></span>
+            <span>País: <strong>${country}</strong></span>
+            <span>${formatCount(project.image_count, 'imagen', 'imágenes')}</span>
+            <span>${formatDateLabel(createdAt)}</span>
+          </div>
+        </div>
       </div>
-      <span class="video-project-status" data-status="${statusName}">${status}</span>
+
+      <button class="video-project-card__open" type="button" data-action="open-video-project" data-project-id="${encodedId}">
+        Abrir proyecto
+      </button>
+    </article>
+  `;
+}
+
+function buildFutureProjectCard() {
+  return `
+    <article class="video-project-card video-project-card--placeholder" aria-label="Próximo proyecto">
+      <div class="video-project-card__eyebrow">Proyecto automático</div>
+      <h3>Nuevo proyecto aparecerá acá</h3>
+      <p>Cuando proceses otro guion, se crea automáticamente un proyecto con ese mismo título.</p>
+      <span class="video-project-card__plus" aria-hidden="true">＋</span>
     </article>
   `;
 }
@@ -83,7 +111,6 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
   if (!el.videoProjectsList) return;
 
   const projects = Array.isArray(state.videoProjects) ? state.videoProjects : [];
-  const selectedKey = resolveVideoProjectKey(state.selectedVideoProject || {});
   const loading = Boolean(state.videoProjectsLoading);
 
   if (el.videoProjectsMeta) {
@@ -102,16 +129,20 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
     return;
   }
 
-  el.videoProjectsList.innerHTML = projects
-    .map((project) => buildProjectCard(project, { selected: selectedKey && selectedKey === resolveVideoProjectKey(project) }))
-    .join('');
+  el.videoProjectsList.innerHTML = [
+    ...projects.map((project) => buildProjectCard(project)),
+    buildFutureProjectCard(),
+  ].join('');
 
   el.videoProjectsList.querySelectorAll('.video-project-card[data-project-id]').forEach((card) => {
     const open = async () => {
       await openVideoProject(decodeURIComponent(card.dataset.projectId || ''));
     };
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', async (ev) => {
+    card.addEventListener('click', async (ev) => {
+      if (ev.target.closest('a')) return;
+      await open();
+    });
+    card.querySelector('[data-action="open-video-project"]')?.addEventListener('keydown', async (ev) => {
       if (ev.key !== 'Enter' && ev.key !== ' ') return;
       ev.preventDefault();
       await open();
@@ -119,20 +150,19 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
   });
 }
 
-export function renderSelectedVideoProjectView({ state, el }) {
+export function renderSelectedVideoProjectView({ state, el, closeVideoProject }) {
   if (!el.videoProjectDetail) return;
 
   const project = state.selectedVideoProject;
   if (!project) {
-    el.videoProjectDetail.innerHTML = `
-      <div class="video-project-detail__empty">
-        <span>Fase 1</span>
-        <h2>Elegí un proyecto</h2>
-        <p>Cuando proceses un guion, n8n ya habrá buscado imágenes en Serper. Entrás al proyecto y las ves acá, sin esperar otra búsqueda.</p>
-      </div>
-    `;
+    el.videoProjectsCatalog?.classList.remove('hidden');
+    el.videoProjectDetail.classList.add('hidden');
+    el.videoProjectDetail.innerHTML = '';
     return;
   }
+
+  el.videoProjectsCatalog?.classList.add('hidden');
+  el.videoProjectDetail.classList.remove('hidden');
 
   const title = escapeHtmlCore(resolveVideoProjectTitle(project));
   const player = escapeHtmlCore((project.jugador || 'Sin jugador').toString());
@@ -147,6 +177,7 @@ export function renderSelectedVideoProjectView({ state, el }) {
   el.videoProjectDetail.innerHTML = `
     <header class="video-project-detail__header">
       <div>
+        <button class="video-project-detail__back" type="button" data-action="back-to-video-projects">← Proyectos</button>
         <p class="video-projects-eyebrow">Proyecto · ${country} · ${player}</p>
         <h2>${title}</h2>
         <p class="video-project-detail__summary">Las imágenes de la fase 1 vienen persistidas desde el procesamiento del guion.</p>
@@ -202,4 +233,8 @@ export function renderSelectedVideoProjectView({ state, el }) {
       </aside>
     </section>
   `;
+
+  el.videoProjectDetail
+    .querySelector('[data-action="back-to-video-projects"]')
+    ?.addEventListener('click', closeVideoProject);
 }
