@@ -58,6 +58,17 @@
                 <span class="nav-item__title">Guiones</span>
               </span>
             </button>
+            <button class="nav-item" data-view="scripts" title="Proyectos" aria-label="Proyectos de video">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M4.75 6.5a2 2 0 0 1 2-2h10.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6.75a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"></path>
+                  <path d="M8 9.25h5.5M8 12h8M8 14.75h4.75M16.25 9.25v5.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Proyectos</span>
+              </span>
+            </button>
             <button class="nav-item" data-view="audio" title="Voz" aria-label="Voz">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -256,11 +267,33 @@
           </div>
         </section>
 
-        <section id="viewScripts" class="view hidden scripts-view">
-          <article class="panel-shell scripts-view__placeholder">
-            <h1>Edición de guiones</h1>
-            <p>La edición principal ahora vive dentro del <strong>Approval panel</strong> junto con la cola y la búsqueda. Esta vista queda como acceso auxiliar mientras se conserva la lógica existente.</p>
-          </article>
+        <section id="viewScripts" class="view hidden scripts-view video-projects-view">
+          <header class="panel-shell video-projects-hero">
+            <div>
+              <p class="video-projects-eyebrow">Video edit pipeline</p>
+              <h1>Proyectos de edición</h1>
+              <p>Acá aparecen los guiones ya procesados. Entrás al proyecto y la fase 1 muestra las imágenes que Serper buscó durante el procesamiento.</p>
+            </div>
+            <button id="videoProjectsRefreshBtn" class="secondary button-icon" type="button">
+              <span class="button-icon__glyph" aria-hidden="true">↻</span>
+              <span>Actualizar</span>
+            </button>
+          </header>
+
+          <section class="video-projects-layout">
+            <aside class="panel-shell video-projects-list-panel">
+              <header class="video-projects-list-panel__header">
+                <div>
+                  <p class="video-projects-eyebrow">Proyectos</p>
+                  <h2>Guiones aprobados</h2>
+                </div>
+                <span id="videoProjectsMeta" class="section-counter">0 proyectos</span>
+              </header>
+              <main id="videoProjectsList" class="video-projects-list" aria-live="polite"></main>
+            </aside>
+
+            <article id="videoProjectDetail" class="panel-shell video-project-detail" aria-live="polite"></article>
+          </section>
         </section>
 
         <section id="viewAudio" class="view hidden">

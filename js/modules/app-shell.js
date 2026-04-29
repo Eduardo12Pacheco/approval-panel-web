@@ -28,6 +28,9 @@ import { renderApprovalTopicDetail } from './features/approval/detail-dialog.js'
 import { renderQueueMonitor } from './features/approval/queue-monitor.js';
 import { createScriptsFeature, isScriptProcessed, resolveScriptTitle } from './features/scripts/index.js';
 import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
+import { createVideoProjectsApiClient } from './features/video-projects/api.js';
+import { createVideoProjectsFeature } from './features/video-projects/index.js';
+import { renderSelectedVideoProjectView, renderVideoProjectsListView } from './features/video-projects/render.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createAudioController } from './features/audio/controller.js';
 import {
@@ -74,6 +77,10 @@ const state = {
   savingScript: false,
   publishingScript: false,
   downloadingScript: false,
+  videoProjects: [],
+  selectedVideoProject: null,
+  videoProjectsLoading: false,
+  videoProjectDetailLoading: false,
   audioJobId: null,
   audioPollingTimer: null,
   audioPollingToken: null,
@@ -141,8 +148,24 @@ const scriptsFeature = createScriptsFeature({
   },
 });
 
+const videoProjectsApi = createVideoProjectsApiClient({
+  fetchImpl: fetch,
+});
+
+const videoProjectsFeature = createVideoProjectsFeature({
+  api: videoProjectsApi,
+  store,
+  ui: { toast },
+  selectors: el,
+  callbacks: {
+    renderVideoProjects,
+    renderSelectedVideoProject,
+  },
+});
+
 const runQueueRefresh = createSingleFlightRunner((options) => approvalFeature.refreshQueue(options));
 const runScriptDraftsRefresh = createSingleFlightRunner((options) => scriptsFeature.refreshScriptDrafts(options));
+const runVideoProjectsRefresh = createSingleFlightRunner((options) => videoProjectsFeature.refreshVideoProjects(options));
 
 const ttsApi = createTtsApiClient({
   getSettings: () => state.settings,
@@ -215,6 +238,7 @@ export function bootCompatibilityShell() {
   }
   renderSearchRefreshState();
   renderSelectedScriptEditor();
+  renderSelectedVideoProject();
   boot();
 }
 
@@ -323,6 +347,10 @@ function bindEvents() {
   el.publishDraftBtn.addEventListener('click', () => {
     if (!state.selectedScript) return;
     el.publishConfirmDialog.showModal();
+  });
+
+  el.videoProjectsRefreshBtn?.addEventListener('click', () => {
+    void refreshVideoProjects();
   });
 
   el.audioTextArea.addEventListener('input', () => {
@@ -488,6 +516,10 @@ function setView(view) {
     audioFeature.stopAudioQueueSync();
   }
 
+  if (isScripts) {
+    void refreshVideoProjects({ silent: true });
+    renderSelectedVideoProject();
+  }
 
   if (isSubtitulos2) {
     void subtitlesController.refreshRemoteStatus();
@@ -500,7 +532,7 @@ function hydrateSettingsForm() {
 }
 
 async function refreshAll() {
-  await Promise.all([refreshPending(), refreshQueue(), refreshScriptDrafts()]);
+  await Promise.all([refreshPending(), refreshQueue(), refreshScriptDrafts(), refreshVideoProjects({ silent: true })]);
 }
 
 async function refreshPending() {
@@ -513,6 +545,10 @@ async function refreshQueue(options = {}) {
 
 async function refreshScriptDrafts(options = {}) {
   await runScriptDraftsRefresh(options);
+}
+
+async function refreshVideoProjects(options = {}) {
+  await runVideoProjectsRefresh(options);
 }
 
 function ensureApprovalAutoRefresh() {
@@ -726,6 +762,18 @@ function renderSelectedScriptEditor() {
   });
 }
 
+function renderVideoProjects() {
+  renderVideoProjectsListView({
+    state,
+    el,
+    openVideoProject,
+  });
+}
+
+function renderSelectedVideoProject() {
+  renderSelectedVideoProjectView({ state, el });
+}
+
 async function openDetail(clusterId) {
   await approvalFeature.openDetail(clusterId);
 }
@@ -738,12 +786,19 @@ async function openScriptEditor(clusterId) {
   await scriptsFeature.openScriptEditor(clusterId);
 }
 
+async function openVideoProject(projectId) {
+  await videoProjectsFeature.openVideoProject(projectId);
+}
+
 async function saveSelectedScript() {
   await scriptsFeature.saveSelectedScript();
 }
 
 async function publishSelectedScript() {
   await scriptsFeature.publishSelectedScript();
+  if (state.selectedScript && isScriptProcessed(state.selectedScript)) {
+    await refreshVideoProjects({ silent: true });
+  }
 }
 
 async function downloadSelectedScriptDocx() {
