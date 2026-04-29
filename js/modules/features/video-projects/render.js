@@ -84,25 +84,21 @@ function buildFutureProjectCard() {
 }
 
 function buildCandidateCard(candidate = {}) {
-  const title = escapeHtmlCore((candidate.title || candidate.source || candidate.domain || 'Imagen Serper').toString());
-  const domain = escapeHtmlCore((candidate.domain || candidate.source || 'Google Images').toString());
   const imageUrl = (candidate.thumbnail_url || candidate.image_url || '').toString();
   const fullImageUrl = (candidate.image_url || candidate.thumbnail_url || '').toString();
   const sourceLink = (candidate.link || candidate.google_url || fullImageUrl || '').toString();
   const order = Number(candidate.order || candidate.position || 0);
+  const title = escapeHtmlCore((candidate.title || `Imagen ${order || ''}`).toString());
+  const safeHref = escapeHtmlCore(sourceLink || fullImageUrl || '#');
 
   return `
     <article class="video-image-card">
-      <a class="video-image-card__media" href="${escapeHtmlCore(sourceLink || fullImageUrl)}" target="_blank" rel="noopener noreferrer">
+      <a class="video-image-card__media" href="${safeHref}" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen ${order || ''}: ${title}">
         ${imageUrl
           ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
+        <span class="video-image-card__badge">#${order || '—'}</span>
       </a>
-      <div class="video-image-card__copy">
-        <span class="video-image-card__order">#${order || '—'}</span>
-        <h4>${title}</h4>
-        <p>${domain}</p>
-      </div>
     </article>
   `;
 }
