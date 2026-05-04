@@ -27,7 +27,7 @@ function safeProjectPathPart(value = '') {
 function md5ProjectStorageKey(value = '') {
   const input = unescape(encodeURIComponent((value || '').toString()));
   const rotateLeft = (x, c) => (x << c) | (x >>> (32 - c));
-  const add = (x, y) => (x + y) | 0;
+  const add = (x, y) => ((x || 0) + (y || 0)) | 0;
   const cmn = (q, a, b, x, s, t) => add(rotateLeft(add(add(a, q), add(x, t)), s), b);
   const ff = (a, b, c, d, x, s, t) => cmn((b & c) | (~b & d), a, b, x, s, t);
   const gg = (a, b, c, d, x, s, t) => cmn((b & d) | (c & ~d), a, b, x, s, t);
