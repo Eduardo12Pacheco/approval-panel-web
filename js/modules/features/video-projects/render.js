@@ -255,7 +255,7 @@ function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
 
   return `
     <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-selected="${isSelected}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} imagen ${order || ''}: ${title}">
-      <span class="video-image-card__checkbox" aria-hidden="true">&nbsp;</span>
+      <span class="video-image-card__checkbox" aria-hidden="true"></span>
       <div class="video-image-card__media" aria-hidden="true">
         ${imageUrl
           ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
@@ -519,11 +519,11 @@ export function renderSelectedVideoProjectView({
         <div class="video-project-section-heading video-project-section-heading--compact">
           <div>
             <span class="video-projects-eyebrow">Guion pipeado</span>
-            <h3>Segmentos</h3>
+            <h3>Segmentos${segments.length ? ` (${segments.length})` : ''}</h3>
           </div>
         </div>
         <ol class="video-segments-list">
-          ${segments.slice(0, 8).map((segment) => `
+          ${segments.map((segment) => `
             <li>
               <span>${escapeHtmlCore((segment.order || '').toString().padStart(2, '0'))}</span>
               <p>${escapeHtmlCore((segment.text || '').toString())}</p>
