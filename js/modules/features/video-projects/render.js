@@ -519,7 +519,7 @@ export function renderSelectedVideoProjectView({
               <span class="video-projects-eyebrow">Custom</span>
               <h3>Mis imágenes</h3>
             </div>
-            <p>${formatCount(customCandidates.length, 'imagen')}</p>
+            <p>${formatCount(customCandidates.length, 'imagen', 'imágenes')}</p>
           </div>
           <p class="video-project-custom-images__help">Subí JPG/PNG/WebP (hasta 15MB c/u). Se guardan solo en este proyecto y se auto-seleccionan.</p>
           <label class="video-project-custom-images__upload">
