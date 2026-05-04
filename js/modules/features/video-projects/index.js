@@ -16,11 +16,21 @@ export function resolveVideoProjectTitle(row = {}, fallback = 'Proyecto sin tít
     .find(Boolean) || fallback;
 }
 
+const SAVE_DEBOUNCE_MS = 400;
+const AUDIO_KINDS = new Set(['voice', 'background']);
+
+function setVideoProjectStep(project, step) {
+  if (!project) return;
+  project._videoProjectStep = step === 'audio' ? 'audio' : 'images';
+}
+
 export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   const {
     renderVideoProjects = () => {},
     renderSelectedVideoProject = () => {},
   } = callbacks || {};
+
+  let saveTimer = null;
 
   async function refreshVideoProjects({ silent = false } = {}) {
     const state = store.getState();
@@ -69,6 +79,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         return;
       }
       state.selectedVideoProject = detail;
+      setVideoProjectStep(state.selectedVideoProject, 'images');
       renderVideoProjects();
       renderSelectedVideoProject();
     } catch (err) {
@@ -80,8 +91,101 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
   }
 
+  function toggleImageSelection(candidateImageUrl) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const id = (candidateImageUrl || '').toString().trim();
+    if (!id) return;
+
+    const draftId = resolveVideoProjectKey(project);
+    const selected = Array.isArray(project.selected_images) ? [...project.selected_images] : [];
+
+    const idx = selected.indexOf(id);
+    if (idx >= 0) {
+      selected.splice(idx, 1);
+    } else {
+      selected.push(id);
+    }
+
+    project.selected_images = selected;
+    project.selected_count = selected.length;
+
+    renderSelectedVideoProject();
+
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      void (async () => {
+        try {
+          await api.saveVideoProjectSelections({ draftId, selectedImageIds: selected });
+        } catch (err) {
+          console.error(err);
+        }
+      })();
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  function goToAudioStep() {
+    const project = store.getState().selectedVideoProject;
+    if (!project) return;
+    setVideoProjectStep(project, 'audio');
+    renderSelectedVideoProject();
+  }
+
+  function goToImagesStep() {
+    const project = store.getState().selectedVideoProject;
+    if (!project) return;
+    setVideoProjectStep(project, 'images');
+    renderSelectedVideoProject();
+  }
+
+  async function uploadProjectAudio(kind, file) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project || !AUDIO_KINDS.has(kind)) return;
+
+    const draftId = resolveVideoProjectKey(project);
+    if (!draftId) return;
+
+    const uploadKey = kind === 'background' ? '_backgroundAudioUploading' : '_voiceAudioUploading';
+    project[uploadKey] = true;
+    project._audioUploadError = '';
+    renderSelectedVideoProject();
+
+    try {
+      const audio = await api.uploadAudioFile({ draftId, kind, file });
+      if (kind === 'background') {
+        project.background_audio = audio;
+      } else {
+        project.voice_audio = audio;
+      }
+
+      const result = await api.saveVideoProjectAudio({
+        draftId,
+        voiceAudio: project.voice_audio || {},
+        backgroundAudio: project.background_audio || {},
+      });
+
+      project.voice_audio = result.voice_audio || project.voice_audio || {};
+      project.background_audio = result.background_audio || project.background_audio || {};
+      ui.toast(kind === 'background' ? 'Música de fondo subida' : 'Audio de voz subido');
+    } catch (err) {
+      console.error(err);
+      project._audioUploadError = err?.message || 'No se pudo subir el audio';
+      ui.toast('Error subiendo audio');
+    } finally {
+      project[uploadKey] = false;
+      renderSelectedVideoProject();
+    }
+  }
+
   return {
     refreshVideoProjects,
     openVideoProject,
+    toggleImageSelection,
+    goToAudioStep,
+    goToImagesStep,
+    uploadProjectAudio,
   };
 }

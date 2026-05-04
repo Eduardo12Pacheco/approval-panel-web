@@ -775,6 +775,10 @@ function renderSelectedVideoProject() {
     state,
     el,
     closeVideoProject,
+    toggleImageSelection: videoProjectsFeature.toggleImageSelection,
+    goToAudioStep: videoProjectsFeature.goToAudioStep,
+    goToImagesStep: videoProjectsFeature.goToImagesStep,
+    uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
   });
 }
 

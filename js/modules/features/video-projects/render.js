@@ -244,7 +244,7 @@ function buildFutureProjectCard() {
   `;
 }
 
-function buildCandidateCard(candidate = {}, index = 0) {
+function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   const imageUrl = resolveCandidateImageUrl(candidate);
   const fullImageUrl = imageUrl;
   const directImageLink = (imageUrl || candidate.original_url || candidate.link || '').toString();
@@ -253,15 +253,56 @@ function buildCandidateCard(candidate = {}, index = 0) {
   const safeHref = escapeHtmlCore(directImageLink || fullImageUrl || '#');
   const sizeLabel = escapeHtmlCore(resolveCandidateDimensions(candidate) || 'Calculando…');
   const qualityScore = getCandidateQualityScore(candidate);
+  const candidateId = escapeHtmlCore(imageUrl || '');
+  const isSelected = candidateId && Array.isArray(selectedImageUrls) && selectedImageUrls.includes(imageUrl);
 
   return `
-    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}">
+    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-selected="${isSelected}">
+      <button class="video-image-card__checkbox" type="button" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} ${title}" data-action="toggle-image-selection">&nbsp;</button>
       <a class="video-image-card__media" href="${safeHref}" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen directa ${order || ''}: ${title}">
         ${imageUrl
           ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
         <span class="video-image-card__size" data-image-size>${sizeLabel}</span>
       </a>
+    </article>
+  `;
+}
+
+function buildSelectedImagesSummary(selectedCount = 0) {
+  return `
+    <div class="video-project-next-panel">
+      <div>
+        <span class="video-projects-eyebrow">Selección</span>
+        <strong>${formatCount(selectedCount, 'imagen', 'imágenes')} seleccionada${selectedCount === 1 ? '' : 's'}</strong>
+        <p>Cuando estés conforme, avanzá para cargar voz y música de fondo.</p>
+      </div>
+      <button class="video-project-primary-action" type="button" data-action="video-project-next-audio" ${selectedCount ? '' : 'disabled'}>
+        Siguiente: audios →
+      </button>
+    </div>
+  `;
+}
+
+function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false }) {
+  const hasAudio = Boolean(audio?.public_url || audio?.path);
+  const fileName = escapeHtmlCore((audio?.name || 'Sin archivo seleccionado').toString());
+  const publicUrl = escapeHtmlCore((audio?.public_url || '').toString());
+  const sizeMb = Number(audio?.size || 0) > 0 ? `${(Number(audio.size) / 1024 / 1024).toFixed(1)} MB` : '';
+
+  return `
+    <article class="video-audio-card" data-audio-kind="${escapeHtmlCore(kind)}">
+      <div class="video-audio-card__copy">
+        <span class="video-projects-eyebrow">${escapeHtmlCore(label)}</span>
+        <strong>${fileName}</strong>
+        <p>${escapeHtmlCore(help)}</p>
+        ${hasAudio ? `<small>Subido${sizeMb ? ` · ${escapeHtmlCore(sizeMb)}` : ''}</small>` : '<small>Pendiente</small>'}
+      </div>
+      ${hasAudio && publicUrl ? `<audio controls src="${publicUrl}"></audio>` : ''}
+      <label class="video-audio-card__upload">
+        <input type="file" accept="audio/*" data-action="upload-project-audio" data-audio-kind="${escapeHtmlCore(kind)}" ${uploading ? 'disabled' : ''} />
+        <span>${uploading ? 'Subiendo…' : hasAudio ? 'Reemplazar archivo' : 'Subir archivo'}</span>
+      </label>
     </article>
   `;
 }
@@ -348,7 +389,15 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
   });
 }
 
-export function renderSelectedVideoProjectView({ state, el, closeVideoProject }) {
+export function renderSelectedVideoProjectView({
+  state,
+  el,
+  closeVideoProject,
+  toggleImageSelection,
+  goToAudioStep,
+  goToImagesStep,
+  uploadProjectAudio,
+}) {
   if (!el.videoProjectDetail) return;
 
   const videoProjectsHero = el.viewScripts?.querySelector('.video-projects-hero');
@@ -373,8 +422,15 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
   const fetchedAt = project.image_fetched_at || project.image_search_meta?.fetched_at || project.updated_at;
   const allCandidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
   const candidates = orderCandidatesByQuality(allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate)));
+  const selectedImageUrls = Array.isArray(project.selected_images) ? project.selected_images : [];
   const segments = Array.isArray(project.segments) ? project.segments : [];
   const loading = Boolean(state.videoProjectDetailLoading);
+  const currentStep = project._videoProjectStep === 'audio' ? 'audio' : 'images';
+  const voiceAudio = project.voice_audio && typeof project.voice_audio === 'object' ? project.voice_audio : {};
+  const backgroundAudio = project.background_audio && typeof project.background_audio === 'object' ? project.background_audio : {};
+  const voiceUploading = Boolean(project._voiceAudioUploading);
+  const backgroundUploading = Boolean(project._backgroundAudioUploading);
+  const canPreparePreview = Boolean(selectedImageUrls.length && voiceAudio.public_url && backgroundAudio.public_url);
 
   el.videoProjectDetail.innerHTML = `
     <header class="video-project-detail__header">
@@ -387,8 +443,8 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
     </header>
 
     <ol class="video-phase-rail" aria-label="Fases del proyecto">
-      <li class="is-active"><span>01</span>Imágenes</li>
-      <li><span>02</span>Selección</li>
+      <li class="${currentStep === 'images' ? 'is-active' : ''}"><span>01</span>Imágenes</li>
+      <li class="${currentStep === 'audio' ? 'is-active' : ''}"><span>02</span>Audios</li>
       <li><span>03</span>Edición</li>
       <li><span>04</span>Render</li>
     </ol>
@@ -404,6 +460,7 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
 
     <section class="video-project-detail__workspace">
       <div class="video-project-detail__main">
+        ${currentStep === 'images' ? `
         <div class="video-project-section-heading">
           <div>
             <span class="video-projects-eyebrow">Fase 1</span>
@@ -412,8 +469,45 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
           <p>${formatCount(candidates.length || project.image_count, 'candidato')}</p>
         </div>
         ${candidates.length
-          ? `<div class="video-image-grid">${candidates.map((candidate, index) => buildCandidateCard(candidate, index)).join('')}</div>`
+          ? `<div class="video-image-grid">${candidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
           : '<p class="video-projects-empty">Todavía no hay candidatos guardados para este proyecto. Si el estado dice Error Serper, revisá la ejecución del workflow.</p>'}
+        ${buildSelectedImagesSummary(selectedImageUrls.length)}
+        ` : `
+        <div class="video-project-section-heading">
+          <div>
+            <span class="video-projects-eyebrow">Fase 2</span>
+            <h3>Audio de voz y música de fondo</h3>
+          </div>
+          <button class="video-project-secondary-action" type="button" data-action="video-project-back-images">← Volver a imágenes</button>
+        </div>
+        <div class="video-audio-grid">
+          ${buildAudioAssetCard({
+            kind: 'voice',
+            label: 'Audio de voz',
+            help: 'Subí la voz final que se va a sincronizar con los segmentos del guion.',
+            audio: voiceAudio,
+            uploading: voiceUploading,
+          })}
+          ${buildAudioAssetCard({
+            kind: 'background',
+            label: 'Música de fondo',
+            help: 'Subí la pista de fondo. Después vamos a controlar volumen y mezcla en la preview.',
+            audio: backgroundAudio,
+            uploading: backgroundUploading,
+          })}
+        </div>
+        ${project._audioUploadError ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(project._audioUploadError)}</p>` : ''}
+        <div class="video-project-next-panel">
+          <div>
+            <span class="video-projects-eyebrow">Siguiente paso</span>
+            <strong>${canPreparePreview ? 'Listo para preparar preview' : 'Faltan archivos para continuar'}</strong>
+            <p>Necesitamos imágenes seleccionadas, voz y música antes de pasar a edición/preview.</p>
+          </div>
+          <button class="video-project-primary-action" type="button" data-action="video-project-prepare-preview" ${canPreparePreview ? '' : 'disabled'}>
+            Preparar preview →
+          </button>
+        </div>
+        `}
       </div>
 
       <aside class="video-project-detail__side">
@@ -439,4 +533,42 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
     .querySelector('[data-action="back-to-video-projects"]')
     ?.addEventListener('click', closeVideoProject);
   hydrateImageSizeBadges(el.videoProjectDetail);
+
+  el.videoProjectDetail
+    .querySelector('[data-action="video-project-next-audio"]')
+    ?.addEventListener('click', () => goToAudioStep?.());
+
+  el.videoProjectDetail
+    .querySelector('[data-action="video-project-back-images"]')
+    ?.addEventListener('click', () => goToImagesStep?.());
+
+  el.videoProjectDetail
+    .querySelector('[data-action="video-project-prepare-preview"]')
+    ?.addEventListener('click', () => {
+      // Placeholder for the RemotionEditor bridge. Keeping it explicit prevents a fake integration.
+      window.alert('Preview todavía no está conectado. Próximo paso: puente con RemotionEditor.');
+    });
+
+  if (typeof uploadProjectAudio === 'function') {
+    el.videoProjectDetail.querySelectorAll('[data-action="upload-project-audio"]').forEach((input) => {
+      input.addEventListener('change', async () => {
+        const [file] = input.files || [];
+        const kind = input.dataset.audioKind;
+        if (!file || !kind) return;
+        await uploadProjectAudio(kind, file);
+      });
+    });
+  }
+
+  if (typeof toggleImageSelection === 'function') {
+    el.videoProjectDetail.querySelectorAll('.video-image-card__checkbox').forEach((checkbox) => {
+      checkbox.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const card = checkbox.closest('.video-image-card');
+        const candidateId = card?.dataset.candidateId;
+        if (candidateId) toggleImageSelection(candidateId);
+      });
+    });
+  }
 }
