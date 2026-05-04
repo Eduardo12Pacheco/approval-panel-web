@@ -382,7 +382,6 @@ export function renderSelectedVideoProjectView({ state, el, closeVideoProject })
         <button class="video-project-detail__back" type="button" data-action="back-to-video-projects">← Proyectos</button>
         <p class="video-projects-eyebrow">Proyecto · ${country} · ${player}</p>
         <h2>${title}</h2>
-        <p class="video-project-detail__summary">Las imágenes de la fase 1 vienen persistidas desde el procesamiento del guion.</p>
       </div>
       <span class="video-project-status video-project-status--large" data-status="${escapeHtmlCore((project.status || '').toString())}">${status}</span>
     </header>
