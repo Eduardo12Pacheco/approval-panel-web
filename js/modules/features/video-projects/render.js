@@ -206,7 +206,6 @@ function buildProjectCard(project = {}) {
     <article class="video-project-card" data-project-id="${encodedId}">
       <header class="video-project-card__header">
         <div>
-          <div class="video-project-card__eyebrow">Proyecto automático</div>
           <h3>${title}</h3>
         </div>
         <span class="video-project-status" data-status="${statusName}">${status}</span>
@@ -238,7 +237,6 @@ function buildProjectCard(project = {}) {
 function buildFutureProjectCard() {
   return `
     <article class="video-project-card video-project-card--placeholder" aria-label="Próximo proyecto">
-      <div class="video-project-card__eyebrow">Proyecto automático</div>
       <h3>Nuevo proyecto aparecerá acá</h3>
       <p>Cuando proceses otro guion, se crea automáticamente un proyecto con ese mismo título.</p>
       <span class="video-project-card__plus" aria-hidden="true">＋</span>
@@ -353,14 +351,17 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
 export function renderSelectedVideoProjectView({ state, el, closeVideoProject }) {
   if (!el.videoProjectDetail) return;
 
+  const videoProjectsHero = el.viewScripts?.querySelector('.video-projects-hero');
   const project = state.selectedVideoProject;
   if (!project) {
+    videoProjectsHero?.classList.remove('hidden');
     el.videoProjectsCatalog?.classList.remove('hidden');
     el.videoProjectDetail.classList.add('hidden');
     el.videoProjectDetail.innerHTML = '';
     return;
   }
 
+  videoProjectsHero?.classList.add('hidden');
   el.videoProjectsCatalog?.classList.add('hidden');
   el.videoProjectDetail.classList.remove('hidden');
 
