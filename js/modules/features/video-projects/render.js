@@ -219,7 +219,6 @@ function buildProjectCard(project = {}) {
             : '<span aria-hidden="true">VP</span>'}
         </div>
         <div class="video-project-card__copy">
-          <p>Creado automáticamente desde el guion procesado. Listo para abrir flujo visual.</p>
           <div class="video-project-card__meta">
             <span>Jugador: <strong>${player}</strong></span>
             <span>País: <strong>${country}</strong></span>
