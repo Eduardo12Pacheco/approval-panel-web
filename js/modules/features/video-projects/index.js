@@ -18,6 +18,8 @@ export function resolveVideoProjectTitle(row = {}, fallback = 'Proyecto sin tít
 
 const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_KINDS = new Set(['voice', 'background']);
+const CUSTOM_IMAGE_MAX_SIZE_BYTES = 15 * 1024 * 1024;
+const CUSTOM_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 function setVideoProjectStep(project, step) {
   if (!project) return;
@@ -31,6 +33,31 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+
+  function detectImageDimensions(file) {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+
+      img.onload = () => {
+        const width = Number(img.naturalWidth || 0);
+        const height = Number(img.naturalHeight || 0);
+        URL.revokeObjectURL(objectUrl);
+        if (!width || !height) {
+          reject(new Error(`No pudimos leer dimensiones de ${file.name || 'imagen'}`));
+          return;
+        }
+        resolve({ width, height });
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error(`Archivo inválido o corrupto: ${file.name || 'imagen'}`));
+      };
+
+      img.src = objectUrl;
+    });
+  }
 
   async function refreshVideoProjects({ silent = false } = {}) {
     const state = store.getState();
@@ -180,6 +207,82 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
   }
 
+  async function uploadCustomImages(files) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const draftId = resolveVideoProjectKey(project);
+    if (!draftId) {
+      ui.toast('No se pudo identificar draft_id del proyecto');
+      return;
+    }
+
+    const inputFiles = Array.from(files || []);
+    if (!inputFiles.length) return;
+
+    const acceptedFiles = [];
+    for (const file of inputFiles) {
+      if (!CUSTOM_IMAGE_ALLOWED_MIME_TYPES.has((file?.type || '').toLowerCase())) continue;
+      if (Number(file?.size || 0) <= 0 || Number(file?.size || 0) > CUSTOM_IMAGE_MAX_SIZE_BYTES) continue;
+      acceptedFiles.push(file);
+    }
+
+    if (!acceptedFiles.length) {
+      project._customImageUploadError = 'Solo JPG/PNG/WebP de hasta 15MB.';
+      ui.toast('Formato inválido o archivo demasiado pesado');
+      renderSelectedVideoProject();
+      return;
+    }
+
+    project._customImagesUploading = true;
+    project._customImageUploadError = '';
+    renderSelectedVideoProject();
+
+    try {
+      const candidates = [];
+      for (const file of acceptedFiles) {
+        const dimensions = await detectImageDimensions(file);
+        const upload = await api.uploadCustomImageFile({ draftId, file });
+        candidates.push({
+          provider: 'user-upload',
+          source: 'user-upload',
+          storage_bucket: upload.storage_bucket,
+          storage_path: upload.storage_path,
+          storage_public_url: upload.storage_public_url,
+          mime_type: file.type,
+          image_width: dimensions.width,
+          image_height: dimensions.height,
+          file_size: Number(file.size || 0),
+          file_name: file.name || '',
+          title: file.name || '',
+        });
+      }
+
+      const result = await api.addVideoProjectCustomImages({
+        draftId,
+        customCandidates: candidates,
+      });
+
+      project.image_candidates = Array.isArray(result?.image_candidates)
+        ? result.image_candidates
+        : (project.image_candidates || []);
+      project.selected_images = Array.isArray(result?.selected_images)
+        ? result.selected_images
+        : (project.selected_images || []);
+      project.selected_count = Number(project.selected_images.length || 0);
+
+      ui.toast(`Imágenes custom subidas (${Number(result?.added_count || candidates.length)})`);
+    } catch (err) {
+      console.error(err);
+      project._customImageUploadError = err?.message || 'No se pudieron subir las imágenes custom';
+      ui.toast('Error subiendo imágenes custom');
+    } finally {
+      project._customImagesUploading = false;
+      renderSelectedVideoProject();
+    }
+  }
+
   return {
     refreshVideoProjects,
     openVideoProject,
@@ -187,5 +290,6 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     goToAudioStep,
     goToImagesStep,
     uploadProjectAudio,
+    uploadCustomImages,
   };
 }

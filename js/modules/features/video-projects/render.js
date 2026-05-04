@@ -119,6 +119,12 @@ function resolveCandidateImageUrl(candidate = {}) {
   return resolveStoragePublicUrl(candidate) || resolveLegacyCandidateUrl(candidate);
 }
 
+function resolveCandidateFallbackUrl(candidate = {}, primaryUrl = '') {
+  const legacyUrl = resolveLegacyCandidateUrl(candidate);
+  if (!legacyUrl || legacyUrl === primaryUrl) return '';
+  return legacyUrl;
+}
+
 function resolveProjectThumbnailUrl(project = {}) {
   const firstImageUrl = (project.first_image_url || '').toString().trim();
   if (firstImageUrl) return firstImageUrl;
@@ -246,19 +252,21 @@ function buildFutureProjectCard() {
 
 function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   const imageUrl = resolveCandidateImageUrl(candidate);
+  const fallbackUrl = resolveCandidateFallbackUrl(candidate, imageUrl);
   const order = Number(candidate.order || candidate.position || 0);
   const title = escapeHtmlCore((candidate.title || `Imagen ${order || ''}`).toString());
   const sizeLabel = escapeHtmlCore(resolveCandidateDimensions(candidate) || 'Calculando…');
   const qualityScore = getCandidateQualityScore(candidate);
   const candidateId = escapeHtmlCore(imageUrl || '');
   const isSelected = candidateId && Array.isArray(selectedImageUrls) && selectedImageUrls.includes(imageUrl);
+  const provider = escapeHtmlCore((candidate.provider || candidate.source || 'unknown').toString());
 
   return `
-    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-selected="${isSelected}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} imagen ${order || ''}: ${title}">
+    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-candidate-provider="${provider}" data-selected="${isSelected}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} imagen ${order || ''}: ${title}">
       <span class="video-image-card__checkbox" aria-hidden="true"></span>
       <div class="video-image-card__media" aria-hidden="true">
         ${imageUrl
-          ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
+          ? `<img src="${escapeHtmlCore(imageUrl)}" ${fallbackUrl ? `data-fallback-src="${escapeHtmlCore(fallbackUrl)}"` : ''} alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
         <span class="video-image-card__size" data-image-size>${sizeLabel}</span>
       </div>
@@ -310,12 +318,31 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
   `;
 }
 
-function hydrateImageSizeBadges(root) {
+function hydrateImageSizeBadges(root, { onBrokenCandidate } = {}) {
   root?.querySelectorAll?.('.video-image-card__media img')?.forEach((img) => {
     const card = img.closest('.video-image-card');
     const grid = img.closest('.video-image-grid');
     const badge = card?.querySelector('[data-image-size]');
     if (!badge) return;
+
+    const removeBrokenCard = () => {
+      const candidateId = card?.dataset.candidateId || '';
+      const wasSelected = card?.dataset.selected === 'true';
+
+      if (card) {
+        card.dataset.qualityScore = '0';
+        card.dataset.broken = 'true';
+        card.remove();
+      }
+
+      if (grid) scheduleImageGridQualitySort(grid);
+
+      const provider = (card?.dataset?.candidateProvider || '').toLowerCase();
+      const isCustom = provider === 'user-upload';
+      if (!isCustom && wasSelected && candidateId && typeof onBrokenCandidate === 'function') {
+        setTimeout(() => onBrokenCandidate(candidateId), 0);
+      }
+    };
 
     const setSize = () => {
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -330,22 +357,27 @@ function hydrateImageSizeBadges(root) {
       badge.textContent = 'Sin tamaño';
     };
 
-    img.addEventListener('load', setSize);
-    img.addEventListener('error', () => {
+    const handleImageError = () => {
       const fallback = img.dataset.fallbackSrc || '';
       if (fallback && img.dataset.fallbackUsed !== 'true') {
         img.dataset.fallbackUsed = 'true';
         img.src = fallback;
         return;
       }
-      if (card) {
-        card.dataset.qualityScore = '0';
-        scheduleImageGridQualitySort(grid);
-      }
-      badge.textContent = 'Sin preview';
-    });
 
-    if (img.complete) setSize();
+      removeBrokenCard();
+    };
+
+    img.addEventListener('load', setSize);
+    img.addEventListener('error', handleImageError);
+
+    if (img.complete) {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setSize();
+      } else {
+        handleImageError();
+      }
+    }
   });
 }
 
@@ -400,6 +432,7 @@ export function renderSelectedVideoProjectView({
   goToAudioStep,
   goToImagesStep,
   uploadProjectAudio,
+  uploadCustomImages,
 }) {
   if (!el.videoProjectDetail) return;
 
@@ -425,6 +458,8 @@ export function renderSelectedVideoProjectView({
   const fetchedAt = project.image_fetched_at || project.image_search_meta?.fetched_at || project.updated_at;
   const allCandidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
   const candidates = orderCandidatesByQuality(allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate)));
+  const googleCandidates = candidates.filter((candidate) => (candidate.provider || candidate.source || '').toString() !== 'user-upload');
+  const customCandidates = candidates.filter((candidate) => (candidate.provider || candidate.source || '').toString() === 'user-upload');
   const selectedImageUrls = Array.isArray(project.selected_images) ? project.selected_images : [];
   const segments = Array.isArray(project.segments) ? project.segments : [];
   const requiredImageCount = Math.max(segments.length, 1);
@@ -464,18 +499,39 @@ export function renderSelectedVideoProjectView({
     ${loading ? '<p class="video-projects-empty">Cargando fase 1…</p>' : ''}
 
     <section class="video-project-detail__workspace">
-      <div class="video-project-detail__main">
-        ${currentStep === 'images' ? `
+       <div class="video-project-detail__main">
+         ${currentStep === 'images' ? `
         <div class="video-project-section-heading">
           <div>
             <span class="video-projects-eyebrow">Fase 1</span>
             <h3>Imágenes encontradas en Google</h3>
           </div>
-          <p>${formatCount(candidates.length || project.image_count, 'candidato')}</p>
+          <p>${formatCount(googleCandidates.length || project.image_count, 'candidato')}</p>
         </div>
-        ${candidates.length
-          ? `<div class="video-image-grid">${candidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
+        ${googleCandidates.length
+          ? `<div class="video-image-grid">${googleCandidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
           : '<p class="video-projects-empty">Todavía no hay candidatos guardados para este proyecto. Si el estado dice Error Serper, revisá la ejecución del workflow.</p>'}
+
+        <section class="video-project-custom-images" aria-label="Mis imágenes">
+          <div class="video-project-custom-images__separator" aria-hidden="true"></div>
+          <div class="video-project-section-heading video-project-section-heading--compact">
+            <div>
+              <span class="video-projects-eyebrow">Custom</span>
+              <h3>Mis imágenes</h3>
+            </div>
+            <p>${formatCount(customCandidates.length, 'imagen')}</p>
+          </div>
+          <p class="video-project-custom-images__help">Subí JPG/PNG/WebP (hasta 15MB c/u). Se guardan solo en este proyecto y se auto-seleccionan.</p>
+          <label class="video-project-custom-images__upload">
+            <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-custom-images" multiple ${project._customImagesUploading ? 'disabled' : ''} />
+            <span>${project._customImagesUploading ? 'Subiendo imágenes…' : 'Subir mis imágenes'}</span>
+          </label>
+          ${project._customImageUploadError ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(project._customImageUploadError)}</p>` : ''}
+          ${customCandidates.length
+            ? `<div class="video-image-grid video-image-grid--custom">${customCandidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
+            : '<p class="video-projects-empty">Todavía no subiste imágenes custom para este proyecto.</p>'}
+        </section>
+
         ${buildSelectedImagesSummary(selectedImageUrls.length, segments.length)}
         ` : `
         <div class="video-project-section-heading">
@@ -537,7 +593,9 @@ export function renderSelectedVideoProjectView({
   el.videoProjectDetail
     .querySelector('[data-action="back-to-video-projects"]')
     ?.addEventListener('click', closeVideoProject);
-  hydrateImageSizeBadges(el.videoProjectDetail);
+  hydrateImageSizeBadges(el.videoProjectDetail, {
+    onBrokenCandidate: (candidateId) => toggleImageSelection?.(candidateId),
+  });
 
   el.videoProjectDetail
     .querySelector('[data-action="video-project-next-audio"]')
@@ -562,6 +620,16 @@ export function renderSelectedVideoProjectView({
         if (!file || !kind) return;
         await uploadProjectAudio(kind, file);
       });
+    });
+  }
+
+  if (typeof uploadCustomImages === 'function') {
+    el.videoProjectDetail.querySelector('[data-action="upload-custom-images"]')?.addEventListener('change', async (ev) => {
+      const input = ev.currentTarget;
+      const files = input?.files ? Array.from(input.files) : [];
+      if (!files.length) return;
+      await uploadCustomImages(files);
+      input.value = '';
     });
   }
 

@@ -779,6 +779,7 @@ function renderSelectedVideoProject() {
     goToAudioStep: videoProjectsFeature.goToAudioStep,
     goToImagesStep: videoProjectsFeature.goToImagesStep,
     uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
+    uploadCustomImages: videoProjectsFeature.uploadCustomImages,
   });
 }
 

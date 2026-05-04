@@ -2,7 +2,9 @@ const SUPABASE_URL = 'https://ulzcthcdakjfretjdakd.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_RDUiyePyvXCkdU5k17Ue6g_nmxgSsQf';
 const VIDEO_PROJECTS_RPC = '/rest/v1/rpc/get_video_edit_projects';
 const SAVE_AUDIO_RPC = '/rest/v1/rpc/save_video_project_audio';
+const ADD_CUSTOM_IMAGES_RPC = '/rest/v1/rpc/add_video_project_custom_images';
 const VIDEO_PROJECT_AUDIO_BUCKET = 'video-project-audio';
+const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 
 function sanitizePathPart(value = '') {
   return (value || '')
@@ -14,15 +16,29 @@ function sanitizePathPart(value = '') {
     .slice(0, 90) || 'audio';
 }
 
+function safeProjectPathPart(value = '') {
+  return (value || '')
+    .toString()
+    .trim()
+    .replace(/[\\/]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'project';
+}
+
 function encodeStoragePath(path = '') {
   return path.split('/').map(encodeURIComponent).join('/');
 }
 
 function buildAudioPath({ draftId, kind, file }) {
-  const safeDraftId = sanitizePathPart(draftId);
+  const safeDraftId = safeProjectPathPart(draftId);
   const safeKind = kind === 'background' ? 'background' : 'voice';
   const safeName = sanitizePathPart(file?.name || `${safeKind}-audio`);
   return `projects/${safeDraftId}/${safeKind}/${Date.now()}-${safeName}`;
+}
+
+function buildCustomImagePath({ draftId, file }) {
+  const safeDraftId = safeProjectPathPart(draftId);
+  const safeName = sanitizePathPart(file?.name || 'custom-image');
+  return `projects/${safeDraftId}/custom/${Date.now()}-${safeName}`;
 }
 
 function buildPublicStorageUrl(bucket, path) {
@@ -150,6 +166,78 @@ export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
     return buildAudioMetadata({ path, kind: normalizedKind, file });
   }
 
+  async function uploadCustomImageFile({ draftId, file }) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+    if (!file) throw new Error('image file is required');
+
+    const path = buildCustomImagePath({ draftId: id, file });
+    const response = await fetchImpl(
+      `${SUPABASE_URL}/storage/v1/object/${VIDEO_CANDIDATES_TEMP_BUCKET}/${encodeStoragePath(path)}`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body: file,
+      },
+    );
+
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+
+    if (!response.ok) {
+      const message = data?.message || data?.error || data?.raw || `Custom image upload ${response.status}`;
+      throw new Error(message);
+    }
+
+    return {
+      storage_bucket: VIDEO_CANDIDATES_TEMP_BUCKET,
+      storage_path: path,
+      storage_public_url: buildPublicStorageUrl(VIDEO_CANDIDATES_TEMP_BUCKET, path),
+    };
+  }
+
+  async function addVideoProjectCustomImages({ draftId, customCandidates = [] } = {}) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+    if (!Array.isArray(customCandidates) || !customCandidates.length) {
+      throw new Error('customCandidates is required');
+    }
+
+    const response = await fetchImpl(`${SUPABASE_URL}${ADD_CUSTOM_IMAGES_RPC}`, {
+      method: 'POST',
+      headers: rpcHeaders,
+      body: JSON.stringify({
+        p_draft_id: id,
+        p_custom_candidates: customCandidates,
+      }),
+    });
+
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+
+    if (!response.ok || data?.ok === false) {
+      const message = data?.message || data?.error || data?.raw || `Add custom images RPC ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
   async function saveVideoProjectAudio({ draftId, voiceAudio = {}, backgroundAudio = {} } = {}) {
     const id = (draftId || '').toString().trim();
     if (!id) throw new Error('draftId is required');
@@ -186,5 +274,7 @@ export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
     saveVideoProjectSelections,
     uploadAudioFile,
     saveVideoProjectAudio,
+    uploadCustomImageFile,
+    addVideoProjectCustomImages,
   };
 }
