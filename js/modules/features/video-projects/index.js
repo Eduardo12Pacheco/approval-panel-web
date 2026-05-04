@@ -247,6 +247,8 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         candidates.push({
           provider: 'user-upload',
           source: 'user-upload',
+          draft_id: draftId,
+          project_storage_key: upload.project_storage_key,
           storage_bucket: upload.storage_bucket,
           storage_path: upload.storage_path,
           storage_public_url: upload.storage_public_url,
