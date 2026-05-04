@@ -36,6 +36,20 @@
   color: var(--muted);
 }
 
+.video-projects-hero .button-icon {
+  min-height: 46px;
+  padding: 12px 18px;
+  font-size: 0.78rem;
+  gap: 10px;
+}
+
+.video-projects-hero .button-icon__glyph {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  font-size: 1.1rem;
+}
+
 .video-projects-eyebrow,
 .video-project-card__eyebrow,
 .video-project-detail__meta-grid span {
