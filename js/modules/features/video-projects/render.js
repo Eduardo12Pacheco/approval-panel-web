@@ -246,38 +246,41 @@ function buildFutureProjectCard() {
 
 function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   const imageUrl = resolveCandidateImageUrl(candidate);
-  const fullImageUrl = imageUrl;
-  const directImageLink = (imageUrl || candidate.original_url || candidate.link || '').toString();
   const order = Number(candidate.order || candidate.position || 0);
   const title = escapeHtmlCore((candidate.title || `Imagen ${order || ''}`).toString());
-  const safeHref = escapeHtmlCore(directImageLink || fullImageUrl || '#');
   const sizeLabel = escapeHtmlCore(resolveCandidateDimensions(candidate) || 'Calculando…');
   const qualityScore = getCandidateQualityScore(candidate);
   const candidateId = escapeHtmlCore(imageUrl || '');
   const isSelected = candidateId && Array.isArray(selectedImageUrls) && selectedImageUrls.includes(imageUrl);
 
   return `
-    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-selected="${isSelected}">
-      <button class="video-image-card__checkbox" type="button" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} ${title}" data-action="toggle-image-selection">&nbsp;</button>
-      <a class="video-image-card__media" href="${safeHref}" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagen directa ${order || ''}: ${title}">
+    <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-selected="${isSelected}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} imagen ${order || ''}: ${title}">
+      <span class="video-image-card__checkbox" aria-hidden="true">&nbsp;</span>
+      <div class="video-image-card__media" aria-hidden="true">
         ${imageUrl
           ? `<img src="${escapeHtmlCore(imageUrl)}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
         <span class="video-image-card__size" data-image-size>${sizeLabel}</span>
-      </a>
+      </div>
     </article>
   `;
 }
 
-function buildSelectedImagesSummary(selectedCount = 0) {
+function buildSelectedImagesSummary(selectedCount = 0, segmentCount = 0) {
+  const requiredCount = Math.max(Number(segmentCount || 0), 1);
+  const missingCount = Math.max(requiredCount - Number(selectedCount || 0), 0);
+  const canContinue = missingCount === 0;
+
   return `
     <div class="video-project-next-panel">
       <div>
         <span class="video-projects-eyebrow">Selección</span>
-        <strong>${formatCount(selectedCount, 'imagen', 'imágenes')} seleccionada${selectedCount === 1 ? '' : 's'}</strong>
-        <p>Cuando estés conforme, avanzá para cargar voz y música de fondo.</p>
+        <strong>${formatCount(selectedCount, 'imagen', 'imágenes')} seleccionada${selectedCount === 1 ? '' : 's'} · ${requiredCount} requerida${requiredCount === 1 ? '' : 's'}</strong>
+        <p>${canContinue
+          ? 'Ya tenés imágenes suficientes para cubrir todos los segmentos pipeados.'
+          : `Falta${missingCount === 1 ? '' : 'n'} ${formatCount(missingCount, 'imagen', 'imágenes')} para avanzar sin huecos.`}</p>
       </div>
-      <button class="video-project-primary-action" type="button" data-action="video-project-next-audio" ${selectedCount ? '' : 'disabled'}>
+      <button class="video-project-primary-action" type="button" data-action="video-project-next-audio" ${canContinue ? '' : 'disabled'}>
         Siguiente: audios →
       </button>
     </div>
@@ -424,13 +427,15 @@ export function renderSelectedVideoProjectView({
   const candidates = orderCandidatesByQuality(allCandidates.filter((candidate) => !isBlockedImageCandidate(candidate)));
   const selectedImageUrls = Array.isArray(project.selected_images) ? project.selected_images : [];
   const segments = Array.isArray(project.segments) ? project.segments : [];
+  const requiredImageCount = Math.max(segments.length, 1);
+  const hasEnoughSelectedImages = selectedImageUrls.length >= requiredImageCount;
   const loading = Boolean(state.videoProjectDetailLoading);
   const currentStep = project._videoProjectStep === 'audio' ? 'audio' : 'images';
   const voiceAudio = project.voice_audio && typeof project.voice_audio === 'object' ? project.voice_audio : {};
   const backgroundAudio = project.background_audio && typeof project.background_audio === 'object' ? project.background_audio : {};
   const voiceUploading = Boolean(project._voiceAudioUploading);
   const backgroundUploading = Boolean(project._backgroundAudioUploading);
-  const canPreparePreview = Boolean(selectedImageUrls.length && voiceAudio.public_url && backgroundAudio.public_url);
+  const canPreparePreview = Boolean(hasEnoughSelectedImages && voiceAudio.public_url && backgroundAudio.public_url);
 
   el.videoProjectDetail.innerHTML = `
     <header class="video-project-detail__header">
@@ -471,7 +476,7 @@ export function renderSelectedVideoProjectView({
         ${candidates.length
           ? `<div class="video-image-grid">${candidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
           : '<p class="video-projects-empty">Todavía no hay candidatos guardados para este proyecto. Si el estado dice Error Serper, revisá la ejecución del workflow.</p>'}
-        ${buildSelectedImagesSummary(selectedImageUrls.length)}
+        ${buildSelectedImagesSummary(selectedImageUrls.length, segments.length)}
         ` : `
         <div class="video-project-section-heading">
           <div>
@@ -501,7 +506,7 @@ export function renderSelectedVideoProjectView({
           <div>
             <span class="video-projects-eyebrow">Siguiente paso</span>
             <strong>${canPreparePreview ? 'Listo para preparar preview' : 'Faltan archivos para continuar'}</strong>
-            <p>Necesitamos imágenes seleccionadas, voz y música antes de pasar a edición/preview.</p>
+            <p>Necesitamos cubrir ${requiredImageCount} segmento${requiredImageCount === 1 ? '' : 's'} con imágenes, voz y música antes de pasar a edición/preview.</p>
           </div>
           <button class="video-project-primary-action" type="button" data-action="video-project-prepare-preview" ${canPreparePreview ? '' : 'disabled'}>
             Preparar preview →
@@ -561,13 +566,21 @@ export function renderSelectedVideoProjectView({
   }
 
   if (typeof toggleImageSelection === 'function') {
-    el.videoProjectDetail.querySelectorAll('.video-image-card__checkbox').forEach((checkbox) => {
-      checkbox.addEventListener('click', (ev) => {
+    const toggleCard = (card) => {
+      const candidateId = card?.dataset.candidateId;
+      if (candidateId) toggleImageSelection(candidateId);
+    };
+
+    el.videoProjectDetail.querySelectorAll('.video-image-card[data-candidate-id]').forEach((card) => {
+      card.addEventListener('click', (ev) => {
         ev.preventDefault();
-        ev.stopPropagation();
-        const card = checkbox.closest('.video-image-card');
-        const candidateId = card?.dataset.candidateId;
-        if (candidateId) toggleImageSelection(candidateId);
+        toggleCard(card);
+      });
+
+      card.addEventListener('keydown', (ev) => {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        ev.preventDefault();
+        toggleCard(card);
       });
     });
   }
