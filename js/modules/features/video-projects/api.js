@@ -137,7 +137,7 @@ function encodeStoragePath(path = '') {
 }
 
 function buildAudioPath({ draftId, kind, file }) {
-  const safeDraftId = safeProjectPathPart(draftId);
+  const safeDraftId = md5ProjectStorageKey(draftId);
   const safeKind = kind === 'background' ? 'background' : 'voice';
   const safeName = sanitizePathPart(file?.name || `${safeKind}-audio`);
   return `projects/${safeDraftId}/${safeKind}/${Date.now()}-${safeName}`;
