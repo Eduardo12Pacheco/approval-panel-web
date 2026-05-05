@@ -1,3 +1,5 @@
+import { findDefaultBackgroundMusicTrack } from './default-background-music.js';
+
 export function normalizeVideoProjectRows(payload = {}) {
   const candidates = [payload?.projects, payload?.items, payload?.rows, payload?.data];
   for (const candidate of candidates) {
@@ -321,6 +323,58 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       ui.toast('Error subiendo audio');
     } finally {
       project[uploadKey] = false;
+      renderSelectedVideoProject();
+    }
+  }
+
+  async function selectDefaultBackgroundMusic(trackId) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const draftId = resolveVideoProjectKey(project);
+    if (!draftId) return;
+
+    const track = findDefaultBackgroundMusicTrack(trackId);
+    if (!track) {
+      ui.toast('Música por defecto no encontrada');
+      return;
+    }
+
+    project._backgroundAudioUploading = true;
+    project._audioUploadError = '';
+    renderSelectedVideoProject();
+
+    try {
+      project.background_audio = {
+        kind: 'background',
+        bucket: 'video-project-audio',
+        path: track.path,
+        public_url: track.public_url,
+        name: track.label,
+        file_name: track.fileName,
+        size: 0,
+        mime_type: track.mime_type,
+        source: 'default-background-music',
+        default_track_id: track.id,
+        selected_at: new Date().toISOString(),
+      };
+
+      const result = await api.saveVideoProjectAudio({
+        draftId,
+        voiceAudio: project.voice_audio || {},
+        backgroundAudio: project.background_audio || {},
+      });
+
+      project.voice_audio = result.voice_audio || project.voice_audio || {};
+      project.background_audio = result.background_audio || project.background_audio || {};
+      ui.toast(`Música seleccionada: ${track.label}`);
+    } catch (err) {
+      console.error(err);
+      project._audioUploadError = err?.message || 'No se pudo seleccionar la música por defecto';
+      ui.toast('Error seleccionando música');
+    } finally {
+      project._backgroundAudioUploading = false;
       renderSelectedVideoProject();
     }
   }
@@ -749,6 +803,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     goToAudioStep,
     goToImagesStep,
     uploadProjectAudio,
+    selectDefaultBackgroundMusic,
     uploadCustomImages,
     preparePreview,
     refreshPreview,

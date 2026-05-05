@@ -602,6 +602,29 @@
   width: 100%;
 }
 
+.video-audio-card__default-select {
+  display: grid;
+  gap: 8px;
+}
+
+.video-audio-card__default-select span {
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.video-audio-card__default-select select {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
 .video-audio-card__upload input {
   position: absolute;
   width: 1px;

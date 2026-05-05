@@ -779,6 +779,7 @@ function renderSelectedVideoProject() {
     goToAudioStep: videoProjectsFeature.goToAudioStep,
     goToImagesStep: videoProjectsFeature.goToImagesStep,
     uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
+    selectDefaultBackgroundMusic: videoProjectsFeature.selectDefaultBackgroundMusic,
     uploadCustomImages: videoProjectsFeature.uploadCustomImages,
     preparePreview: videoProjectsFeature.preparePreview,
     refreshPreview: videoProjectsFeature.refreshPreview,

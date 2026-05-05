@@ -1,4 +1,5 @@
 import { escapeHtmlCore } from '../../core/ui/escape-html.js';
+import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from './default-background-music.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './index.js';
 
 const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'facebook.com', 'fbcdn.net', 'instagram.com', 'cdninstagram.com'];
@@ -320,6 +321,20 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
   const fileName = escapeHtmlCore((audio?.name || 'Sin archivo seleccionado').toString());
   const publicUrl = escapeHtmlCore((audio?.public_url || '').toString());
   const sizeMb = Number(audio?.size || 0) > 0 ? `${(Number(audio.size) / 1024 / 1024).toFixed(1)} MB` : '';
+  const selectedDefaultTrackId = (audio?.default_track_id || '').toString();
+  const defaultMusicSelector = kind === 'background'
+    ? `
+      <label class="video-audio-card__default-select">
+        <span>Música por defecto</span>
+        <select data-action="select-default-background-music" ${uploading ? 'disabled' : ''}>
+          <option value="">Elegí una música del sistema…</option>
+          ${DEFAULT_BACKGROUND_MUSIC_TRACKS.map((track) => `
+            <option value="${escapeHtmlCore(track.id)}" ${track.id === selectedDefaultTrackId ? 'selected' : ''}>${escapeHtmlCore(track.label)}</option>
+          `).join('')}
+        </select>
+      </label>
+    `
+    : '';
 
   return `
     <article class="video-audio-card" data-audio-kind="${escapeHtmlCore(kind)}">
@@ -330,6 +345,7 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
         ${hasAudio ? `<small>Subido${sizeMb ? ` · ${escapeHtmlCore(sizeMb)}` : ''}</small>` : '<small>Pendiente</small>'}
       </div>
       ${hasAudio && publicUrl ? `<audio controls src="${publicUrl}"></audio>` : ''}
+      ${defaultMusicSelector}
       <label class="video-audio-card__upload">
         <input type="file" accept="audio/*" data-action="upload-project-audio" data-audio-kind="${escapeHtmlCore(kind)}" ${uploading ? 'disabled' : ''} />
         <span>${uploading ? 'Subiendo…' : hasAudio ? 'Reemplazar archivo' : 'Subir archivo'}</span>
@@ -684,6 +700,7 @@ export function renderSelectedVideoProjectView({
   goToAudioStep,
   goToImagesStep,
   uploadProjectAudio,
+  selectDefaultBackgroundMusic,
   uploadCustomImages,
   preparePreview,
   refreshPreview,
@@ -930,6 +947,14 @@ export function renderSelectedVideoProjectView({
           if (!file || !kind) return;
           await uploadProjectAudio(kind, file);
         });
+      });
+    }
+
+    if (typeof selectDefaultBackgroundMusic === 'function') {
+      el.videoProjectDetail.querySelector('[data-action="select-default-background-music"]')?.addEventListener('change', async (ev) => {
+        const trackId = ev.currentTarget?.value || '';
+        if (!trackId) return;
+        await selectDefaultBackgroundMusic(trackId);
       });
     }
 
