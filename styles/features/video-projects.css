@@ -24,7 +24,7 @@
 
 .video-projects-hero h1 {
   margin: 4px 0 8px;
-  font-size: clamp(2rem, 1.45rem + 1.2vw, 2.5rem);
+  font-size: clamp(2.45rem, 1.7rem + 1.8vw, 3.35rem);
 }
 
 .video-projects-hero p,
@@ -58,6 +58,11 @@
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.video-projects-list-panel .section-counter {
+  font-size: clamp(0.96rem, 0.78rem + 0.42vw, 1.18rem);
+  font-weight: 800;
 }
 
 .video-projects-layout {
@@ -683,6 +688,7 @@
   position: static;
   min-height: 52vh;
   padding: 24px;
+  align-content: start;
 }
 
 .video-projects-list-panel__header {
@@ -693,6 +699,7 @@
   display: grid;
   grid-template-columns: 1fr;
   align-items: stretch;
+  align-content: start;
   gap: 18px;
   min-height: 156px;
   padding: 16px;
@@ -754,14 +761,16 @@
 
 .video-project-card__open {
   width: 100%;
-  min-height: 36px;
+  min-height: 32px;
+  padding: 7px 10px;
   border: 1px solid rgba(0, 232, 143, 0.45);
   background: var(--accent);
   color: #03130c;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.08em;
+  line-height: 1;
   text-transform: uppercase;
   cursor: pointer;
 }
