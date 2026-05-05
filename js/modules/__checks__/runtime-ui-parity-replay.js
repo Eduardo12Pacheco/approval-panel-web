@@ -65,10 +65,11 @@ function replaySettingsScenario() {
     ...defaults,
     baseUrl: 'http://localhost:9999',
     secret: 'abc',
+    remotionApiUrl: 'http://127.0.0.1:3037',
   };
   saveSettingsToStorage({ storage, storageKey, nextSettings: next });
   const loadedSaved = loadSettingsFromStorage({ storage, storageKey, defaultsFactory: defaultSettingsFactory });
-  if (loadedSaved.baseUrl !== 'http://localhost:9999' || loadedSaved.secret !== 'abc') {
+  if (loadedSaved.baseUrl !== 'http://localhost:9999' || loadedSaved.secret !== 'abc' || loadedSaved.remotionApiUrl !== 'http://127.0.0.1:3037') {
     return { ok: false, reason: 'settings save/load drift' };
   }
 
@@ -79,9 +80,10 @@ function replaySettingsScenario() {
     ttsApiKeyInput: { value: '' },
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
+    remotionApiUrlInput: { value: '' },
   };
   hydrateSettingsFormValues({ el, settings: loadedSaved });
-  if (el.baseUrlInput.value !== 'http://localhost:9999') {
+  if (el.baseUrlInput.value !== 'http://localhost:9999' || el.remotionApiUrlInput.value !== 'http://127.0.0.1:3037') {
     return { ok: false, reason: 'settings hydrate drift' };
   }
 

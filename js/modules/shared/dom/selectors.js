@@ -35,6 +35,7 @@ export function getDomSelectors(doc = document) {
     ttsApiKeyInput: doc.getElementById('ttsApiKeyInput'),
     ttsBasicUserInput: doc.getElementById('ttsBasicUserInput'),
     ttsBasicPassInput: doc.getElementById('ttsBasicPassInput'),
+    remotionApiUrlInput: doc.getElementById('remotionApiUrlInput'),
     saveSettingsBtn: doc.getElementById('saveSettingsBtn'),
     closeSettings: doc.getElementById('closeSettings'),
     toast: doc.getElementById('toast'),

@@ -6,6 +6,7 @@ export function defaultSettingsFactory() {
     ttsApiKey: '',
     ttsBasicUser: '',
     ttsBasicPass: '',
+    remotionApiUrl: 'http://127.0.0.1:3037',
   };
 }
 
@@ -32,4 +33,7 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.ttsApiKeyInput.value = settings.ttsApiKey;
   el.ttsBasicUserInput.value = settings.ttsBasicUser;
   el.ttsBasicPassInput.value = settings.ttsBasicPass;
+  if (el.remotionApiUrlInput) {
+    el.remotionApiUrlInput.value = settings.remotionApiUrl || 'http://127.0.0.1:3037';
+  }
 }

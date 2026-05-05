@@ -21,9 +21,94 @@ const AUDIO_KINDS = new Set(['voice', 'background']);
 const CUSTOM_IMAGE_MAX_SIZE_BYTES = 15 * 1024 * 1024;
 const CUSTOM_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+function normalizeEditorState(editorState = {}) {
+  if (!editorState || typeof editorState !== 'object') return {};
+  return {
+    phase: editorState.phase || 'idle',
+    remotion_project_id: editorState.remotion_project_id || '',
+    remotion_api_url: editorState.remotion_api_url || '',
+    preview_url: editorState.preview_url || '',
+    final_url: editorState.final_url || '',
+    composition_hash: editorState.composition_hash || '',
+    last_preview_hash: editorState.last_preview_hash || '',
+    dirty: Boolean(editorState.dirty),
+    export_status: editorState.export_status || 'idle',
+    error: editorState.error || '',
+    timed_rows: Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [],
+    updated_at: editorState.updated_at || new Date().toISOString(),
+  };
+}
+
+function resolveRemotionClient({ api, store }) {
+  return api.createRemotionClient({
+    resolveBaseUrl: () => store.getState()?.settings?.remotionApiUrl || '',
+  });
+}
+
+function buildApprovalSeedPayload(project = {}) {
+  const draftId = resolveVideoProjectKey(project);
+  const selected_images = Array.isArray(project.selected_images) ? project.selected_images : [];
+  const segments = Array.isArray(project.segments)
+    ? project.segments.map((segment, index) => ({
+      id: segment?.id || `row-${index + 1}`,
+      phrase: (segment?.text || segment?.phrase || '').toString().trim(),
+    })).filter((segment) => segment.phrase)
+    : [];
+
+  return {
+    draft_id: draftId,
+    project_id: draftId,
+    title: resolveVideoProjectTitle(project),
+    guion_piped: (project.guion_piped || '').toString(),
+    segments,
+    selected_images,
+    voice_audio: project.voice_audio || null,
+    background_audio: project.background_audio || null,
+    defaults: {
+      fps: 30,
+      preview: { width: 1280, height: 720 },
+      final: { width: 1920, height: 1080 },
+    },
+  };
+}
+
 function setVideoProjectStep(project, step) {
   if (!project) return;
   project._videoProjectStep = step === 'audio' ? 'audio' : 'images';
+}
+
+function hashString(input) {
+  let hash = 2166136261;
+  for (const char of String(input)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function computeCompositionHash(project) {
+  const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
+  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  const payload = JSON.stringify({ rows, globalAudio });
+  return hashString(payload);
+}
+
+function buildCompositionPayload(project) {
+  const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
+  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  return {
+    rows: rows.map((row) => ({
+      id: row.id,
+      selectedAssetId: row.selectedAssetId || null,
+      motion: row.motion || 'slow-zoom-in',
+      dust: { enabled: Boolean(row.dust?.enabled) },
+      filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+      transition: row.transition || 'none',
+      startTime: row.startTime,
+      endTime: row.endTime,
+    })),
+    audio: globalAudio,
+  };
 }
 
 export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
@@ -33,6 +118,15 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+
+  async function persistEditorState(project, patch = {}) {
+    if (!project) return;
+    const draftId = resolveVideoProjectKey(project);
+    if (!draftId) return;
+    const merged = normalizeEditorState({ ...(project.editor_state || {}), ...patch, updated_at: new Date().toISOString() });
+    project.editor_state = merged;
+    await api.saveVideoProjectEditorState({ draftId, editorState: merged });
+  }
 
   function detectImageDimensions(file) {
     return new Promise((resolve, reject) => {
@@ -70,9 +164,16 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       if (state.selectedVideoProject) {
         const selectedKey = resolveVideoProjectKey(state.selectedVideoProject);
         const refreshed = state.videoProjects.find((item) => resolveVideoProjectKey(item) === selectedKey);
-        state.selectedVideoProject = refreshed
-          ? { ...state.selectedVideoProject, ...refreshed }
-          : null;
+        if (refreshed) {
+          const priorEditorState = state.selectedVideoProject.editor_state;
+          state.selectedVideoProject = { ...state.selectedVideoProject, ...refreshed };
+          // Preserve/reopen editor state from server if present
+          if (refreshed.editor_state && typeof refreshed.editor_state === 'object') {
+            state.selectedVideoProject.editor_state = normalizeEditorState(refreshed.editor_state);
+          } else if (priorEditorState) {
+            state.selectedVideoProject.editor_state = normalizeEditorState(priorEditorState);
+          }
+        }
       }
 
       renderVideoProjects();
@@ -106,6 +207,23 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         return;
       }
       state.selectedVideoProject = detail;
+      state.selectedVideoProject.editor_state = normalizeEditorState(state.selectedVideoProject.editor_state || {});
+      // Hydrate ephemeral editing state from persisted editor_state for reopen support
+      const es = state.selectedVideoProject.editor_state;
+      if (Array.isArray(es.timed_rows) && es.timed_rows.length) {
+        state.selectedVideoProject._editorRows = es.timed_rows.map((row) => ({
+          id: row.id,
+          phrase: row.phrase,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          selectedAssetId: row.selectedAssetId || null,
+          motion: row.motion || 'slow-zoom-in',
+          dust: { enabled: Boolean(row.dust?.enabled) },
+          filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+          transition: row.transition || 'none',
+        }));
+      }
+      state.selectedVideoProject._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
       setVideoProjectStep(state.selectedVideoProject, 'images');
       renderVideoProjects();
       renderSelectedVideoProject();
@@ -285,6 +403,345 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
   }
 
+  async function preparePreview() {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const remotion = resolveRemotionClient({ api, store });
+    const seed = buildApprovalSeedPayload(project);
+
+    try {
+      await persistEditorState(project, {
+        phase: 'preparing',
+        dirty: false,
+        error: '',
+        remotion_api_url: state.settings?.remotionApiUrl || '',
+      });
+      renderSelectedVideoProject();
+
+      const created = await remotion.createFromApproval(seed);
+      if (created?.alignmentStatus?.status !== 'ready') {
+        const detail = created?.alignmentStatus?.details || created?.alignmentStatus?.warning || '';
+        throw new Error(`Alineación de audio pendiente. Esperando Whisper...${detail ? ` (${detail})` : ''}`);
+      }
+      const remotionProjectId = created?.projectId || created?.snapshot?.project?.projectId;
+      if (!remotionProjectId) throw new Error('Remotion no devolvió projectId');
+
+      const status = await remotion.status(remotionProjectId);
+      const timedRows = Array.isArray(status?.project?.rows)
+        ? status.project.rows.map((row) => ({
+          id: row.id,
+          phrase: row.phrase,
+          startTime: row.startTime,
+          endTime: row.endTime,
+          selectedAssetId: row.selectedAssetId,
+          motion: row.motion || 'slow-zoom-in',
+          dust: { enabled: Boolean(row.dust?.enabled) },
+          filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+          transition: row.transition || 'none',
+        }))
+        : [];
+
+      project._editorRows = timedRows;
+      project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+
+      await persistEditorState(project, {
+        phase: 'preview_rendering',
+        remotion_project_id: remotionProjectId,
+        timed_rows: timedRows,
+      });
+      renderSelectedVideoProject();
+
+      const preview = await remotion.renderPreview(remotionProjectId);
+      const refreshedStatus = await remotion.status(remotionProjectId);
+      const previewUrl = refreshedStatus?.preview?.outputPath
+        ? `${state.settings?.remotionApiUrl || ''}/api/projects/${encodeURIComponent(remotionProjectId)}/download/final`
+        : '';
+
+      const compositionHash = computeCompositionHash(project);
+
+      await persistEditorState(project, {
+        phase: 'preview_ready',
+        remotion_project_id: remotionProjectId,
+        preview_url: previewUrl,
+        composition_hash: compositionHash,
+        last_preview_hash: compositionHash,
+        dirty: false,
+        error: '',
+        export_status: 'idle',
+        diagnostics: preview?.diagnostics || refreshedStatus?.diagnostics || null,
+      });
+      ui.toast('Preview preparada');
+    } catch (err) {
+      console.error(err);
+      await persistEditorState(project, {
+        phase: 'error',
+        error: err?.message || 'No se pudo preparar preview',
+      });
+      ui.toast('Error preparando preview');
+    } finally {
+      renderSelectedVideoProject();
+    }
+  }
+
+  async function refreshPreview() {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const remotion = resolveRemotionClient({ api, store });
+    const remotionProjectId = project.editor_state?.remotion_project_id;
+    if (!remotionProjectId) {
+      ui.toast('No hay proyecto Remotion vinculado');
+      return;
+    }
+
+    try {
+      await persistEditorState(project, {
+        phase: 'preview_rendering',
+        error: '',
+      });
+      renderSelectedVideoProject();
+
+      // Push current composition edits to Remotion before re-rendering
+      const composition = buildCompositionPayload(project);
+      await remotion.updateComposition(remotionProjectId, composition);
+
+      const preview = await remotion.renderPreview(remotionProjectId);
+      const refreshedStatus = await remotion.status(remotionProjectId);
+      const previewUrl = refreshedStatus?.preview?.outputPath
+        ? `${state.settings?.remotionApiUrl || ''}/api/projects/${encodeURIComponent(remotionProjectId)}/download/final`
+        : '';
+
+      const compositionHash = computeCompositionHash(project);
+
+      await persistEditorState(project, {
+        phase: 'preview_ready',
+        preview_url: previewUrl,
+        last_preview_hash: compositionHash,
+        dirty: false,
+        error: '',
+        diagnostics: preview?.diagnostics || refreshedStatus?.diagnostics || null,
+      });
+      ui.toast('Preview actualizada');
+    } catch (err) {
+      console.error(err);
+      await persistEditorState(project, {
+        phase: 'error',
+        error: err?.message || 'No se pudo actualizar preview',
+      });
+      ui.toast('Error actualizando preview');
+    } finally {
+      renderSelectedVideoProject();
+    }
+  }
+
+  async function exportFinal() {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const editorState = project.editor_state || {};
+    if (editorState.dirty) {
+      const proceed = window.confirm('La preview está desactualizada. ¿Exportar igual? Es recomendable actualizar la preview antes de exportar.');
+      if (!proceed) return;
+    }
+
+    const remotion = resolveRemotionClient({ api, store });
+    const remotionProjectId = editorState.remotion_project_id;
+    if (!remotionProjectId) {
+      ui.toast('No hay proyecto Remotion vinculado');
+      return;
+    }
+
+    try {
+      await persistEditorState(project, {
+        phase: 'final_rendering',
+        export_status: 'rendering',
+        error: '',
+      });
+      renderSelectedVideoProject();
+
+      // Push latest composition before final render
+      const composition = buildCompositionPayload(project);
+      await remotion.updateComposition(remotionProjectId, composition);
+
+      const result = await remotion.renderFinal(remotionProjectId);
+      const finalUrl = remotion.finalDownloadUrl(remotionProjectId);
+
+      await persistEditorState(project, {
+        phase: 'final_ready',
+        final_url: finalUrl,
+        export_status: 'ready',
+        dirty: false,
+        error: '',
+        diagnostics: result?.diagnostics || null,
+      });
+      ui.toast('Exportación lista. Descargá el video final.');
+    } catch (err) {
+      console.error(err);
+      await persistEditorState(project, {
+        phase: 'error',
+        export_status: 'error',
+        error: err?.message || 'No se pudo exportar el video final',
+      });
+      ui.toast('Error exportando video final');
+    } finally {
+      renderSelectedVideoProject();
+    }
+  }
+
+  function updateRow(rowId, patch) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project || !rowId) return;
+
+    const rows = Array.isArray(project._editorRows) ? project._editorRows : [];
+    const index = rows.findIndex((r) => r.id === rowId);
+    if (index === -1) return;
+
+    const current = rows[index];
+    const next = {
+      ...current,
+      ...(patch.motion !== undefined ? { motion: patch.motion } : {}),
+      ...(patch.dust !== undefined ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
+      ...(patch.transition !== undefined ? { transition: patch.transition } : {}),
+      ...(patch.selectedAssetId !== undefined ? { selectedAssetId: patch.selectedAssetId || null } : {}),
+    };
+
+    rows[index] = next;
+    project._editorRows = rows;
+
+    const compositionHash = computeCompositionHash(project);
+    const lastPreviewHash = project.editor_state?.last_preview_hash || '';
+    const isDirty = compositionHash !== lastPreviewHash;
+
+    project.editor_state = normalizeEditorState({
+      ...project.editor_state,
+      dirty: isDirty,
+      phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
+    });
+
+    renderSelectedVideoProject();
+
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      void persistEditorState(project, {
+        timed_rows: rows,
+        dirty: isDirty,
+        phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
+      });
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  async function uploadAndAssignImage(rowId, file) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project || !rowId || !file) return;
+
+    const draftId = resolveVideoProjectKey(project);
+    if (!draftId) {
+      ui.toast('No se pudo identificar draft_id del proyecto');
+      return;
+    }
+
+    if (!CUSTOM_IMAGE_ALLOWED_MIME_TYPES.has((file?.type || '').toLowerCase())) {
+      ui.toast('Solo JPG/PNG/WebP');
+      return;
+    }
+    if (Number(file?.size || 0) <= 0 || Number(file?.size || 0) > CUSTOM_IMAGE_MAX_SIZE_BYTES) {
+      ui.toast('Archivo demasiado pesado (máx 15MB)');
+      return;
+    }
+
+    project._rowImageUploading = rowId;
+    renderSelectedVideoProject();
+
+    try {
+      const dimensions = await detectImageDimensions(file);
+      const upload = await api.uploadCustomImageFile({ draftId, file });
+      const candidate = {
+        provider: 'user-upload',
+        source: 'user-upload',
+        draft_id: draftId,
+        project_storage_key: upload.project_storage_key,
+        storage_bucket: upload.storage_bucket,
+        storage_path: upload.storage_path,
+        storage_public_url: upload.storage_public_url,
+        mime_type: file.type,
+        image_width: dimensions.width,
+        image_height: dimensions.height,
+        file_size: Number(file.size || 0),
+        file_name: file.name || '',
+        title: file.name || '',
+      };
+
+      const result = await api.addVideoProjectCustomImages({
+        draftId,
+        customCandidates: [candidate],
+      });
+
+      project.image_candidates = Array.isArray(result?.image_candidates)
+        ? result.image_candidates
+        : (project.image_candidates || []);
+      project.selected_images = Array.isArray(result?.selected_images)
+        ? result.selected_images
+        : (project.selected_images || []);
+      project.selected_count = Number(project.selected_images.length || 0);
+
+      // Auto-assign the newly uploaded image to the row by its public URL
+      const newPublicUrl = upload.storage_public_url || '';
+      updateRow(rowId, { selectedAssetId: newPublicUrl });
+      ui.toast('Imagen asignada a la fila');
+    } catch (err) {
+      console.error(err);
+      ui.toast('Error subiendo imagen para la fila');
+    } finally {
+      project._rowImageUploading = null;
+      renderSelectedVideoProject();
+    }
+  }
+
+  function updateGlobalAudio(kind, patch) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+    if (!AUDIO_KINDS.has(kind)) return;
+
+    const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+    const next = {
+      ...current,
+      [kind === 'voice' ? 'voice' : 'music']: {
+        volume: Number.isFinite(patch.volume) ? Math.max(0, Math.min(1, patch.volume)) : current[kind]?.volume,
+        muted: patch.muted !== undefined ? Boolean(patch.muted) : current[kind]?.muted,
+      },
+    };
+    project._globalAudio = next;
+
+    const compositionHash = computeCompositionHash(project);
+    const lastPreviewHash = project.editor_state?.last_preview_hash || '';
+    const isDirty = compositionHash !== lastPreviewHash;
+
+    project.editor_state = normalizeEditorState({
+      ...project.editor_state,
+      dirty: isDirty,
+      phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
+      global_audio: next,
+    });
+
+    renderSelectedVideoProject();
+
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      void persistEditorState(project, {
+        dirty: isDirty,
+        phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
+        global_audio: next,
+      });
+    }, SAVE_DEBOUNCE_MS);
+  }
+
   return {
     refreshVideoProjects,
     openVideoProject,
@@ -293,5 +750,11 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     goToImagesStep,
     uploadProjectAudio,
     uploadCustomImages,
+    preparePreview,
+    refreshPreview,
+    exportFinal,
+    updateRow,
+    uploadAndAssignImage,
+    updateGlobalAudio,
   };
 }

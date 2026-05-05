@@ -64,6 +64,7 @@ export function bindCoreEvents({
         ttsApiKey: el.ttsApiKeyInput.value.trim(),
         ttsBasicUser: el.ttsBasicUserInput.value.trim(),
         ttsBasicPass: el.ttsBasicPassInput.value,
+        remotionApiUrl: el.remotionApiUrlInput?.value?.trim() || defaults.remotionApiUrl,
       });
     el.settingsDialog.close();
     toast('Configuración guardada');

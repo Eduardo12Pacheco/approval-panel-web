@@ -3,6 +3,7 @@ const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_RDUiyePyvXCkdU5k17Ue6g_nmxgSsQf
 const VIDEO_PROJECTS_RPC = '/rest/v1/rpc/get_video_edit_projects';
 const SAVE_AUDIO_RPC = '/rest/v1/rpc/save_video_project_audio';
 const ADD_CUSTOM_IMAGES_RPC = '/rest/v1/rpc/add_video_project_custom_images';
+const SAVE_EDITOR_STATE_RPC = '/rest/v1/rpc/save_video_project_editor_state';
 const VIDEO_PROJECT_AUDIO_BUCKET = 'video-project-audio';
 const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 
@@ -377,13 +378,75 @@ export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
     return data;
   }
 
+  async function saveVideoProjectEditorState({ draftId, editorState = {} } = {}) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+
+    const response = await fetchImpl(`${SUPABASE_URL}${SAVE_EDITOR_STATE_RPC}`, {
+      method: 'POST',
+      headers: rpcHeaders,
+      body: JSON.stringify({
+        p_draft_id: id,
+        p_editor_state: editorState || {},
+      }),
+    });
+
+    const raw = await response.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+
+    if (!response.ok || data?.ok === false) {
+      const message = data?.message || data?.error || data?.raw || `Save editor state RPC ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
+  function createRemotionClient({ resolveBaseUrl }) {
+    const ensureBaseUrl = () => {
+      const base = (typeof resolveBaseUrl === 'function' ? resolveBaseUrl() : '').toString().trim();
+      if (!base) throw new Error('Remotion API URL no configurada');
+      return base.replace(/\/+$/, '');
+    };
+
+    const jsonFetch = async (endpoint, { method = 'GET', body } = {}) => {
+      const response = await fetchImpl(`${ensureBaseUrl()}${endpoint}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) {
+        throw new Error(payload?.error?.message || payload?.message || `Remotion API ${response.status}`);
+      }
+      return payload?.data || {};
+    };
+
+    return {
+      createFromApproval: (payload) => jsonFetch('/api/projects/create-from-approval', { method: 'POST', body: payload }),
+      updateComposition: (projectId, payload) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/composition`, { method: 'PUT', body: payload }),
+      renderPreview: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/render-preview`, { method: 'POST', body: {} }),
+      renderFinal: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/render-final`, { method: 'POST', body: {} }),
+      status: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/status`),
+      diagnostics: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/diagnostics`),
+      finalDownloadUrl: (projectId) => `${ensureBaseUrl()}/api/projects/${encodeURIComponent(projectId)}/download/final`,
+    };
+  }
+
   return {
     listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: false }),
     getVideoProject: (draftId) => callVideoProjectsRpc({ draftId, limit: 1, includeDetail: true }),
     saveVideoProjectSelections,
     uploadAudioFile,
     saveVideoProjectAudio,
+    saveVideoProjectEditorState,
     uploadCustomImageFile,
     addVideoProjectCustomImages,
+    createRemotionClient,
   };
 }

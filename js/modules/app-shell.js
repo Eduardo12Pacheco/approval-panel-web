@@ -780,6 +780,13 @@ function renderSelectedVideoProject() {
     goToImagesStep: videoProjectsFeature.goToImagesStep,
     uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
     uploadCustomImages: videoProjectsFeature.uploadCustomImages,
+    preparePreview: videoProjectsFeature.preparePreview,
+    refreshPreview: videoProjectsFeature.refreshPreview,
+    exportFinal: videoProjectsFeature.exportFinal,
+    updateRow: videoProjectsFeature.updateRow,
+    uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
+    updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
+    renderSelectedVideoProject,
   });
 }
 
