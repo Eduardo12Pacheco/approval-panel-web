@@ -61,7 +61,6 @@ export function getDomSelectors(doc = document) {
     viewOriginalBtn: doc.getElementById('viewOriginalBtn'),
     voiceAiBtn: doc.getElementById('voiceAiBtn'),
     downloadDraftBtn: doc.getElementById('downloadDraftBtn'),
-    scriptPublishMonitor: doc.getElementById('scriptPublishMonitor'),
     publishDraftBtn: doc.getElementById('publishDraftBtn'),
     scriptOriginalDialog: doc.getElementById('scriptOriginalDialog'),
     closeOriginalDialog: doc.getElementById('closeOriginalDialog'),

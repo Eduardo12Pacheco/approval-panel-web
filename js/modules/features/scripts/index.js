@@ -52,7 +52,7 @@ export function normalizeScriptDraftRows(payload = {}) {
   return [];
 }
 
-export function buildScriptSelectionCardMarkup(item = {}, { selected = false } = {}) {
+export function buildScriptSelectionCardMarkup(item = {}, { selected = false, publishJob = null } = {}) {
   const processed = isScriptProcessed(item);
   const selectedClass = selected ? ' is-selected' : '';
   const processedClass = processed ? ' is-processed' : '';
@@ -62,15 +62,20 @@ export function buildScriptSelectionCardMarkup(item = {}, { selected = false } =
   const country = escapeHtmlCore((item.seleccion || 'Sin país').toString());
   const player = escapeHtmlCore((item.jugador || 'Sin jugador').toString());
   const title = escapeHtmlCore(resolveScriptTitle(item));
+  const publishState = resolveScriptPublishCardState(item, publishJob);
   const processedBadge = processed
     ? '<span class="script-selection-card__status">Procesado</span>'
-    : '';
+    : (publishState.failed
+      ? '<span class="script-selection-card__status script-selection-card__status--failed">ERROR</span>'
+      : (publishState.locked ? `<span class="script-selection-card__status script-selection-card__status--progress">${escapeHtmlCore(publishState.label)}</span>` : ''));
   const dismissButton = processed && identity
     ? `<button class="script-selection-card__dismiss" type="button" data-action="dismiss-processed-script" data-script-id="${encodedIdentity}" aria-label="Ocultar guion procesado">×</button>`
     : '';
+  const lockedClass = publishState.locked ? ' is-locked' : '';
+  const disabledAttr = publishState.locked ? ' aria-disabled="true"' : '';
 
   return `
-    <article class="script-selection-card${selectedClass}${processedClass}" data-script-id="${encodedIdentity}" role="button" tabindex="0" aria-pressed="${selectedPressed}">
+    <article class="script-selection-card${selectedClass}${processedClass}${lockedClass}" data-script-id="${encodedIdentity}" role="button" tabindex="0" aria-pressed="${selectedPressed}"${disabledAttr}>
       <div class="meta script-selection-card__eyebrow">${country} · ${player}</div>
       <div class="topic">${title}</div>
       ${processedBadge}
@@ -111,6 +116,31 @@ export function resolveScriptIdentity(row = {}) {
   };
 }
 
+export function scriptPublishJobMatchesRow(job = {}, row = {}) {
+  if (!job || !row) return false;
+  const jobIds = resolveScriptIdentity(job);
+  const rowIds = resolveScriptIdentity(row);
+  const pairs = [
+    [jobIds.draft_id, rowIds.draft_id],
+    [jobIds.id_noticia, rowIds.id_noticia],
+    [jobIds.cluster_id, rowIds.cluster_id],
+  ];
+  return pairs.some(([a, b]) => a && b && a === b);
+}
+
+export function resolveScriptPublishCardState(row = {}, job = null) {
+  if (!job || !scriptPublishJobMatchesRow(job, row)) {
+    return { locked: false, failed: false, label: '' };
+  }
+  const status = (job.status || '').toString().trim().toLowerCase();
+  if (status === 'completed') return { locked: false, failed: false, label: '' };
+  if (status === 'failed') return { locked: true, failed: true, label: 'ERROR' };
+  const stageMeta = getScriptPublishStageMeta(job.stage, status);
+  const pct = Number.isFinite(Number(job.percent)) ? Number(job.percent) : stageMeta.percent;
+  const safePct = Math.max(0, Math.min(100, Math.round(pct)));
+  return { locked: true, failed: false, label: `${safePct}%` };
+}
+
 export function buildScriptDocxFilename(row = {}) {
   const base = [row.jugador, resolveScriptTitle(row, '')]
     .map((part) => (part || '').toString().trim())
@@ -138,7 +168,6 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     renderScriptStats = () => {},
     renderScriptCards = () => {},
     renderSelectedScriptEditor = () => {},
-    renderScriptPublishMonitor = () => {},
   } = callbacks || {};
   const { downloadBlob = () => {} } = helpers || {};
 
@@ -155,7 +184,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     const state = store.getState();
     if (!next) {
       state.scriptPublishJob = null;
-      renderScriptPublishMonitor();
+      renderScriptCards();
       return;
     }
 
@@ -166,7 +195,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
       stage: stageMeta.stage,
       percent: Number.isFinite(Number(next.percent)) ? Number(next.percent) : stageMeta.percent,
     };
-    renderScriptPublishMonitor();
+    renderScriptCards();
   }
 
   async function syncPublishJobStatus(jobId) {
@@ -207,6 +236,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
           doc_url: resultRow.doc_url || selected.doc_url || '',
         };
         await refreshScriptDrafts({ silent: true });
+        setScriptPublishJob(null);
         renderSelectedScriptEditor();
         ui.toast('Guion procesado correctamente');
       } else if (status === 'failed') {
@@ -373,6 +403,7 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
       if (asyncJobId) {
         setScriptPublishJob({
           job_id: asyncJobId,
+          ...ids,
           status: (published?.status || 'queued').toString().toLowerCase(),
           stage: (published?.stage || published?.status || 'queued').toString().toLowerCase(),
           message: published?.message || 'Job en cola',

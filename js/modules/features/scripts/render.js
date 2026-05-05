@@ -2,6 +2,7 @@ import {
   buildScriptSelectionCardMarkup,
   getScriptPublishStageMeta,
   isScriptProcessed,
+  resolveScriptPublishCardState,
   resolveScriptListKey,
   resolveScriptTitle,
 } from './index.js';
@@ -43,12 +44,15 @@ export function renderScriptCardsView({ state, el, openScriptEditor, dismissProc
     const currentKey = resolveScriptListKey(item);
     const isSelected = Boolean(selectedKey && currentKey && currentKey === selectedKey);
 
-    return buildScriptSelectionCardMarkup(item, { selected: isSelected });
+    return buildScriptSelectionCardMarkup(item, { selected: isSelected, publishJob: state.scriptPublishJob });
   }).join('');
 
   el.scriptCards.querySelectorAll('.script-selection-card[data-script-id]').forEach((card) => {
     const openSelectedCard = async () => {
       const id = decodeURIComponent(card.dataset.scriptId);
+      const row = state.scriptDrafts.find((item) => resolveScriptListKey(item) === id);
+      const publishState = resolveScriptPublishCardState(row || {}, state.scriptPublishJob);
+      if (publishState.locked) return;
       await openScriptEditor(id);
     };
 

@@ -144,58 +144,6 @@
   margin-top: 16px;
 }
 
-.script-publish-monitor {
-  margin-top: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(17, 17, 17, 0.92);
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.script-publish-monitor.hidden {
-  display: none;
-}
-
-.script-publish-monitor__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.script-publish-monitor__pill {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 4px 8px;
-}
-
-.script-publish-monitor__pill.is-running { color: #9ef7cf; border-color: rgba(0, 232, 143, 0.28); }
-.script-publish-monitor__pill.is-done { color: #b3e5ff; border-color: rgba(71, 188, 255, 0.35); }
-.script-publish-monitor__pill.is-failed { color: #ffb4bf; border-color: rgba(217, 87, 100, 0.35); }
-
-.script-publish-monitor__track {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.script-publish-monitor__fill { height: 100%; }
-.script-publish-monitor__fill.is-running { background: linear-gradient(90deg, rgba(0, 232, 143, 0.68), rgba(86, 255, 187, 0.96)); }
-.script-publish-monitor__fill.is-done { background: linear-gradient(90deg, rgba(71, 188, 255, 0.68), rgba(145, 221, 255, 0.96)); }
-.script-publish-monitor__fill.is-failed { background: linear-gradient(90deg, rgba(217, 87, 100, 0.78), rgba(255, 149, 166, 0.96)); }
-
-.script-publish-monitor__job,
-.script-publish-monitor__meta,
-.script-publish-monitor__error {
-  margin: 0;
-}
-
-.script-publish-monitor__error {
-  color: #ffb4bf;
-}
-
 .queue-actions {
   display: flex;
   gap: 8px;
@@ -469,6 +417,17 @@
     0 -16px 28px -24px rgba(0, 232, 143, 0.24);
 }
 
+.script-selection-card.is-locked {
+  cursor: not-allowed;
+  opacity: 0.92;
+}
+
+.script-selection-card.is-locked:hover,
+.script-selection-card.is-locked:focus-visible {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 .script-selection-card__status {
   justify-self: start;
   display: inline-flex;
@@ -483,6 +442,18 @@
   letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.script-selection-card__status--progress {
+  border-color: rgba(71, 188, 255, 0.34);
+  background: rgba(71, 188, 255, 0.12);
+  color: #b3e5ff;
+}
+
+.script-selection-card__status--failed {
+  border-color: rgba(217, 87, 100, 0.38);
+  background: rgba(217, 87, 100, 0.14);
+  color: #ffb4bf;
 }
 
 .script-selection-card__dismiss {
