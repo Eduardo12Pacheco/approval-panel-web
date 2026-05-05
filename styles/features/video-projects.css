@@ -147,6 +147,15 @@
   display: block;
 }
 
+.video-image-card__media img {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.video-image-card__media img[src] {
+  opacity: 1;
+}
+
 .video-project-card__body {
   min-width: 0;
 }
@@ -365,6 +374,26 @@
   background: var(--surface-soft);
   cursor: pointer;
   overflow: hidden;
+}
+
+.video-image-grid--skeleton {
+  pointer-events: none;
+}
+
+.video-image-card--skeleton {
+  cursor: default;
+}
+
+.video-image-card--skeleton .video-image-card__media {
+  min-height: 180px;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0.04) 8%, rgba(255, 255, 255, 0.11) 18%, rgba(255, 255, 255, 0.04) 33%);
+  background-size: 220% 100%;
+  animation: videoImageSkeletonPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes videoImageSkeletonPulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
 .video-image-card:focus-visible {

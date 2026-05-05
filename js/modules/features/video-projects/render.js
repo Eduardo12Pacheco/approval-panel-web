@@ -176,32 +176,6 @@ function getImageNaturalQualityScore(img) {
   return width * height + Math.max(width, height);
 }
 
-function scheduleImageGridQualitySort(grid) {
-  if (!grid || grid.dataset.qualitySortScheduled === 'true') return;
-
-  grid.dataset.qualitySortScheduled = 'true';
-
-  const sort = () => {
-    grid.dataset.qualitySortScheduled = 'false';
-
-    [...grid.querySelectorAll('.video-image-card')]
-      .sort((a, b) => {
-        const scoreDiff = Number(b.dataset.qualityScore || 0) - Number(a.dataset.qualityScore || 0);
-        if (scoreDiff !== 0) return scoreDiff;
-
-        return Number(a.dataset.originalIndex || 0) - Number(b.dataset.originalIndex || 0);
-      })
-      .forEach((card) => grid.appendChild(card));
-  };
-
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(sort);
-    return;
-  }
-
-  setTimeout(sort, 0);
-}
-
 function orderCandidatesByQuality(candidates = []) {
   return [...candidates]
     .map((candidate, index) => ({
@@ -212,7 +186,6 @@ function orderCandidatesByQuality(candidates = []) {
     }))
     .sort((a, b) => {
       if (a.position !== b.position) return a.position - b.position;
-      if (b.score !== a.score) return b.score - a.score;
       return a.index - b.index;
     })
     .map(({ candidate }) => candidate);
@@ -357,7 +330,6 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
 function hydrateImageSizeBadges(root, { onBrokenCandidate } = {}) {
   root?.querySelectorAll?.('.video-image-card__media img')?.forEach((img) => {
     const card = img.closest('.video-image-card');
-    const grid = img.closest('.video-image-grid');
     const badge = card?.querySelector('[data-image-size]');
     if (!badge) return;
 
@@ -370,8 +342,6 @@ function hydrateImageSizeBadges(root, { onBrokenCandidate } = {}) {
         card.dataset.broken = 'true';
         card.remove();
       }
-
-      if (grid) scheduleImageGridQualitySort(grid);
 
       const provider = (card?.dataset?.candidateProvider || '').toLowerCase();
       const isCustom = provider === 'user-upload';
@@ -386,7 +356,6 @@ function hydrateImageSizeBadges(root, { onBrokenCandidate } = {}) {
         const score = getImageNaturalQualityScore(img);
         if (score > 0 && card) {
           card.dataset.qualityScore = score.toString();
-          scheduleImageGridQualitySort(grid);
         }
         return;
       }
@@ -649,7 +618,7 @@ function buildPreviewPreparingPanel(editorState) {
   `;
 }
 
-export function renderVideoProjectsListView({ state, el, openVideoProject }) {
+export function renderVideoProjectsListView({ state, el, openVideoProject, prefetchProjectDetail }) {
   if (!el.videoProjectsList) return;
 
   const projects = Array.isArray(state.videoProjects) ? state.videoProjects : [];
@@ -677,9 +646,18 @@ export function renderVideoProjectsListView({ state, el, openVideoProject }) {
   ].join('');
 
   el.videoProjectsList.querySelectorAll('.video-project-card[data-project-id]').forEach((card) => {
+    const projectId = decodeURIComponent(card.dataset.projectId || '');
     const open = async () => {
-      await openVideoProject(decodeURIComponent(card.dataset.projectId || ''));
+      await openVideoProject(projectId);
     };
+
+    if (typeof prefetchProjectDetail === 'function') {
+      const prefetch = () => prefetchProjectDetail(projectId);
+      card.addEventListener('mouseenter', prefetch, { once: true });
+      card.addEventListener('focusin', prefetch, { once: true });
+      card.addEventListener('touchstart', prefetch, { once: true });
+    }
+
     card.addEventListener('click', async (ev) => {
       if (ev.target.closest('a')) return;
       await open();
@@ -741,6 +719,8 @@ export function renderSelectedVideoProjectView({
   const requiredImageCount = Math.max(segments.length, 1);
   const hasEnoughSelectedImages = selectedImageUrls.length >= requiredImageCount;
   const loading = Boolean(state.videoProjectDetailLoading);
+  const preparingImages = Boolean(state.videoProjectDetailImagesPreparing);
+  const detailPending = loading || preparingImages;
   const currentStep = project._videoProjectStep === 'audio' ? 'audio' : 'images';
   const voiceAudio = project.voice_audio && typeof project.voice_audio === 'object' ? project.voice_audio : {};
   const backgroundAudio = project.background_audio && typeof project.background_audio === 'object' ? project.background_audio : {};
@@ -768,7 +748,13 @@ export function renderSelectedVideoProjectView({
           </div>
           <p>${formatCount(googleCandidates.length || project.image_count, 'candidato')}</p>
         </div>
-        ${googleCandidates.length
+        ${detailPending
+          ? `
+            <div class="video-image-grid video-image-grid--skeleton" aria-hidden="true">
+              ${new Array(12).fill(0).map(() => '<article class="video-image-card video-image-card--skeleton"><div class="video-image-card__media"></div></article>').join('')}
+            </div>
+          `
+          : googleCandidates.length
           ? `<div class="video-image-grid">${googleCandidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
           : '<p class="video-projects-empty">Todavía no hay candidatos guardados para este proyecto. Si el estado dice Error Serper, revisá la ejecución del workflow.</p>'}
 
@@ -900,12 +886,12 @@ export function renderSelectedVideoProjectView({
 
     <section class="video-project-detail__meta-grid">
       <div><span>Query Serper</span><strong>${query}</strong></div>
-      <div><span>Ventana</span><strong>Última semana</strong></div>
+      <div><span>Ventana</span><strong>Último día</strong></div>
       <div><span>Imágenes</span><strong>${candidates.length || Number(project.image_count || 0)}</strong></div>
       <div><span>Actualizado</span><strong>${escapeHtmlCore(formatDateLabel(fetchedAt))}</strong></div>
     </section>
 
-    ${loading ? '<p class="video-projects-empty">Cargando fase 1…</p>' : ''}
+    ${detailPending ? '<p class="video-projects-empty">Cargando imágenes del proyecto…</p>' : ''}
 
     <section class="video-project-detail__workspace">
       <div class="video-project-detail__main">

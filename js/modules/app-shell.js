@@ -27,7 +27,7 @@ import { buildApprovalNewsCardMarkup } from './features/approval/cards.js';
 import { renderApprovalTopicDetail } from './features/approval/detail-dialog.js';
 import { renderQueueMonitor } from './features/approval/queue-monitor.js';
 import { createScriptsFeature, isScriptProcessed, resolveScriptTitle } from './features/scripts/index.js';
-import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
+import { renderScriptCardsView, renderScriptPublishMonitorView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
 import { createVideoProjectsApiClient } from './features/video-projects/api.js';
 import { createVideoProjectsFeature } from './features/video-projects/index.js';
 import { renderSelectedVideoProjectView, renderVideoProjectsListView } from './features/video-projects/render.js';
@@ -73,6 +73,9 @@ const state = {
   scriptDrafts: [],
   selectedScript: null,
   scriptEditorDirty: false,
+  scriptPublishJob: null,
+  scriptPublishPollingTimer: null,
+  scriptPublishPollingInFlight: false,
   dismissedProcessedScripts: new Set(),
   savingScript: false,
   publishingScript: false,
@@ -145,6 +148,7 @@ const scriptsFeature = createScriptsFeature({
     renderScriptStats,
     renderScriptCards,
     renderSelectedScriptEditor,
+    renderScriptPublishMonitor,
   },
 });
 
@@ -760,6 +764,14 @@ function renderSelectedScriptEditor() {
     updateWordCounter,
     preserveCurrentValue: Boolean(state.selectedScript && state.scriptEditorDirty),
   });
+  renderScriptPublishMonitor();
+}
+
+function renderScriptPublishMonitor() {
+  renderScriptPublishMonitorView({
+    state,
+    el,
+  });
 }
 
 function renderVideoProjects() {
@@ -767,6 +779,7 @@ function renderVideoProjects() {
     state,
     el,
     openVideoProject,
+    prefetchProjectDetail: videoProjectsFeature.prefetchProjectDetail,
   });
 }
 
@@ -811,6 +824,7 @@ async function openVideoProject(projectId) {
 function closeVideoProject() {
   state.selectedVideoProject = null;
   state.videoProjectDetailLoading = false;
+  state.videoProjectDetailImagesPreparing = false;
   renderVideoProjects();
   renderSelectedVideoProject();
 }

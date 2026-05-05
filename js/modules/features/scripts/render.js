@@ -1,9 +1,11 @@
 import {
   buildScriptSelectionCardMarkup,
+  getScriptPublishStageMeta,
   isScriptProcessed,
   resolveScriptListKey,
   resolveScriptTitle,
 } from './index.js';
+import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 
 function setProcessButtonStyle(button, { processed = false } = {}) {
   button?.classList?.toggle('approve', !processed);
@@ -118,4 +120,38 @@ export function renderSelectedScriptEditorView({ selected, el, updateWordCounter
 export function renderOriginalScriptDialogMeta(selected) {
   if (!selected) return '';
   return '';
+}
+
+export function renderScriptPublishMonitorView({ state, el }) {
+  if (!el.scriptPublishMonitor) return;
+
+  const job = state.scriptPublishJob;
+  if (!job || !job.job_id) {
+    el.scriptPublishMonitor.classList.add('hidden');
+    el.scriptPublishMonitor.innerHTML = '';
+    return;
+  }
+
+  const stageMeta = getScriptPublishStageMeta(job.stage, job.status);
+  const percent = Number.isFinite(Number(job.percent)) ? Number(job.percent) : stageMeta.percent;
+  const statusLabel = escapeHtmlCore(stageMeta.label);
+  const jobId = escapeHtmlCore(job.job_id);
+  const message = escapeHtmlCore((job.message || '').toString().trim());
+  const error = escapeHtmlCore((job.error || '').toString().trim());
+  const isFailed = (job.status || '').toLowerCase() === 'failed';
+  const isDone = (job.status || '').toLowerCase() === 'completed';
+
+  el.scriptPublishMonitor.classList.remove('hidden');
+  el.scriptPublishMonitor.innerHTML = `
+    <header class="script-publish-monitor__header">
+      <strong>Procesamiento en segundo plano</strong>
+      <span class="script-publish-monitor__pill ${isFailed ? 'is-failed' : (isDone ? 'is-done' : 'is-running')}">${statusLabel}</span>
+    </header>
+    <p class="meta script-publish-monitor__job">Job: ${jobId}</p>
+    <div class="script-publish-monitor__track">
+      <div class="script-publish-monitor__fill ${isFailed ? 'is-failed' : (isDone ? 'is-done' : 'is-running')}" style="width:${Math.max(0, Math.min(100, percent))}%"></div>
+    </div>
+    <p class="meta script-publish-monitor__meta">${message || (isFailed ? 'Falló el procesamiento' : 'Actualizando estado...')}</p>
+    ${error ? `<p class="meta script-publish-monitor__error">${error}</p>` : ''}
+  `;
 }

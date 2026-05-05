@@ -22,6 +22,10 @@ const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_KINDS = new Set(['voice', 'background']);
 const CUSTOM_IMAGE_MAX_SIZE_BYTES = 15 * 1024 * 1024;
 const CUSTOM_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
+const DETAIL_CACHE_MAX_ENTRIES = 24;
+const DETAIL_PREFETCH_VISIBLE_LIMIT = 6;
+const DETAIL_PRELOAD_MAX_IMAGES = 32;
 
 function normalizeEditorState(editorState = {}) {
   if (!editorState || typeof editorState !== 'object') return {};
@@ -79,6 +83,27 @@ function setVideoProjectStep(project, step) {
   project._videoProjectStep = step === 'audio' ? 'audio' : 'images';
 }
 
+function hydrateSelectedProjectState(project) {
+  if (!project) return;
+  project.editor_state = normalizeEditorState(project.editor_state || {});
+  const es = project.editor_state;
+  if (Array.isArray(es.timed_rows) && es.timed_rows.length) {
+    project._editorRows = es.timed_rows.map((row) => ({
+      id: row.id,
+      phrase: row.phrase,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      selectedAssetId: row.selectedAssetId || null,
+      motion: row.motion || 'slow-zoom-in',
+      dust: { enabled: Boolean(row.dust?.enabled) },
+      filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+      transition: row.transition || 'none',
+    }));
+  }
+  project._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  setVideoProjectStep(project, 'images');
+}
+
 function hashString(input) {
   let hash = 2166136261;
   for (const char of String(input)) {
@@ -120,6 +145,101 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+  const detailCache = new Map();
+  const detailInFlight = new Map();
+
+  function getCachedProjectDetail(projectId) {
+    const key = (projectId || '').toString();
+    if (!key) return null;
+    const cached = detailCache.get(key);
+    if (!cached) return null;
+    if (Date.now() - cached.cachedAt > DETAIL_CACHE_TTL_MS) {
+      detailCache.delete(key);
+      return null;
+    }
+    return cached.detail;
+  }
+
+  function setCachedProjectDetail(projectId, detail) {
+    const key = (projectId || '').toString();
+    if (!key || !detail || typeof detail !== 'object') return;
+    if (detailCache.size >= DETAIL_CACHE_MAX_ENTRIES) {
+      const oldestKey = detailCache.keys().next().value;
+      if (oldestKey) detailCache.delete(oldestKey);
+    }
+    detailCache.set(key, { detail, cachedAt: Date.now() });
+  }
+
+  function collectCandidateUrls(project = {}) {
+    const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
+    const urls = [];
+    for (const candidate of candidates) {
+      const url = (
+        candidate?.storage_public_url
+        || candidate?.public_url
+        || candidate?.storage_url
+        || candidate?.cached_url
+        || candidate?.image_url
+        || candidate?.imageUrl
+        || candidate?.thumbnail_url
+        || candidate?.thumbnailUrl
+        || ''
+      ).toString().trim();
+      if (!url || urls.includes(url)) continue;
+      urls.push(url);
+    }
+    return urls;
+  }
+
+  async function preloadProjectCandidateImages(project = {}, { max = DETAIL_PRELOAD_MAX_IMAGES } = {}) {
+    const urls = collectCandidateUrls(project).slice(0, Math.max(0, Number(max || 0)));
+    if (!urls.length) return;
+
+    await Promise.allSettled(urls.map((url) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = url;
+    })));
+  }
+
+  async function fetchAndCacheProjectDetail(projectId, { preloadImages = true } = {}) {
+    const id = (projectId || '').toString();
+    if (!id) return null;
+
+    if (detailInFlight.has(id)) return detailInFlight.get(id);
+
+    const request = (async () => {
+      const data = await api.getVideoProject(id);
+      const [detail] = normalizeVideoProjectRows(data);
+      if (!detail) return null;
+      setCachedProjectDetail(id, detail);
+      if (preloadImages) await preloadProjectCandidateImages(detail);
+      return detail;
+    })();
+
+    detailInFlight.set(id, request);
+    try {
+      return await request;
+    } finally {
+      detailInFlight.delete(id);
+    }
+  }
+
+  function prefetchProjectDetail(projectId) {
+    const id = (projectId || '').toString();
+    if (!id || getCachedProjectDetail(id) || detailInFlight.has(id)) return;
+    void fetchAndCacheProjectDetail(id, { preloadImages: true }).catch(() => {});
+  }
+
+  function prefetchListedVideoProjects() {
+    const projects = Array.isArray(store.getState()?.videoProjects) ? store.getState().videoProjects : [];
+    projects
+      .slice(0, DETAIL_PREFETCH_VISIBLE_LIMIT)
+      .map((project) => resolveVideoProjectKey(project))
+      .filter(Boolean)
+      .forEach((projectId) => prefetchProjectDetail(projectId));
+  }
 
   async function persistEditorState(project, patch = {}) {
     if (!project) return;
@@ -180,6 +300,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
       renderVideoProjects();
       renderSelectedVideoProject();
+      prefetchListedVideoProjects();
     } catch (err) {
       console.error(err);
       if (!silent) ui.toast('Error cargando proyectos de edición');
@@ -195,38 +316,36 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     if (!id) return;
 
     const listRow = state.videoProjects.find((item) => resolveVideoProjectKey(item) === id);
+    const cachedDetail = getCachedProjectDetail(id);
+    if (cachedDetail) {
+      state.selectedVideoProject = cachedDetail;
+      hydrateSelectedProjectState(state.selectedVideoProject);
+      state.videoProjectDetailLoading = false;
+      state.videoProjectDetailImagesPreparing = false;
+      renderVideoProjects();
+      renderSelectedVideoProject();
+      return;
+    }
+
     state.selectedVideoProject = listRow || { draft_id: id, project_id: id };
     state.videoProjectDetailLoading = true;
+    state.videoProjectDetailImagesPreparing = true;
     renderVideoProjects();
     renderSelectedVideoProject();
 
     try {
-      const data = await api.getVideoProject(id);
-      const [detail] = normalizeVideoProjectRows(data);
+      const detail = await fetchAndCacheProjectDetail(id, { preloadImages: false });
       if (!detail) {
         ui.toast('Ese proyecto todavía no existe o fue deshabilitado');
         state.selectedVideoProject = listRow || null;
         return;
       }
       state.selectedVideoProject = detail;
-      state.selectedVideoProject.editor_state = normalizeEditorState(state.selectedVideoProject.editor_state || {});
-      // Hydrate ephemeral editing state from persisted editor_state for reopen support
-      const es = state.selectedVideoProject.editor_state;
-      if (Array.isArray(es.timed_rows) && es.timed_rows.length) {
-        state.selectedVideoProject._editorRows = es.timed_rows.map((row) => ({
-          id: row.id,
-          phrase: row.phrase,
-          startTime: row.startTime,
-          endTime: row.endTime,
-          selectedAssetId: row.selectedAssetId || null,
-          motion: row.motion || 'slow-zoom-in',
-          dust: { enabled: Boolean(row.dust?.enabled) },
-          filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
-          transition: row.transition || 'none',
-        }));
-      }
-      state.selectedVideoProject._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
-      setVideoProjectStep(state.selectedVideoProject, 'images');
+      hydrateSelectedProjectState(state.selectedVideoProject);
+      renderVideoProjects();
+      renderSelectedVideoProject();
+      await preloadProjectCandidateImages(state.selectedVideoProject);
+      state.videoProjectDetailImagesPreparing = false;
       renderVideoProjects();
       renderSelectedVideoProject();
     } catch (err) {
@@ -234,6 +353,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       ui.toast('Error abriendo proyecto de edición');
     } finally {
       state.videoProjectDetailLoading = false;
+      state.videoProjectDetailImagesPreparing = false;
       renderSelectedVideoProject();
     }
   }
@@ -799,6 +919,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   return {
     refreshVideoProjects,
     openVideoProject,
+    prefetchProjectDetail,
     toggleImageSelection,
     goToAudioStep,
     goToImagesStep,
