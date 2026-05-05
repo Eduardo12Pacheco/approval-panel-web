@@ -6,7 +6,7 @@ export function defaultSettingsFactory() {
     ttsApiKey: '',
     ttsBasicUser: '',
     ttsBasicPass: '',
-    remotionApiUrl: 'http://127.0.0.1:3037',
+    remotionApiUrl: 'https://remotion-api.automatizacionedun8n.me',
   };
 }
 
