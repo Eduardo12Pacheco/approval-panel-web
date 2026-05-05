@@ -1,7 +1,7 @@
 import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './index.js';
 
-const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com'];
+const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'facebook.com', 'fbcdn.net', 'instagram.com', 'cdninstagram.com'];
 const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 const VIDEO_CANDIDATES_TEMP_PUBLIC_BASE = 'https://ulzcthcdakjfretjdakd.supabase.co/storage/v1/object/public/video-candidates-temp';
 
@@ -883,7 +883,7 @@ export function renderSelectedVideoProjectView({
 
     <section class="video-project-detail__meta-grid">
       <div><span>Query Serper</span><strong>${query}</strong></div>
-      <div><span>Ventana</span><strong>Últimas 24 horas</strong></div>
+      <div><span>Ventana</span><strong>Última semana</strong></div>
       <div><span>Imágenes</span><strong>${candidates.length || Number(project.image_count || 0)}</strong></div>
       <div><span>Actualizado</span><strong>${escapeHtmlCore(formatDateLabel(fetchedAt))}</strong></div>
     </section>
