@@ -210,8 +210,8 @@ function orderCandidatesByQuality(candidates = []) {
       position: Number(candidate.position || candidate.order || index + 1),
     }))
     .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
       if (a.position !== b.position) return a.position - b.position;
+      if (b.score !== a.score) return b.score - a.score;
       return a.index - b.index;
     })
     .map(({ candidate }) => candidate);
