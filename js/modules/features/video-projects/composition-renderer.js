@@ -327,6 +327,8 @@ export class CompositionRenderer {
   // ── Phase 4: Playback control fields ─────────────────────
   /** @type {number|null} — rAF handle for cancellation */
   #rafId;
+  /** @type {number} — invalidates stale async audio-start attempts */
+  #audioStartToken;
 
   /**
    * @param {{ container: HTMLDivElement, fps?: number }} options
@@ -346,6 +348,7 @@ export class CompositionRenderer {
 
     // Phase 4: Playback control
     this.#rafId = null;
+    this.#audioStartToken = 0;
 
     // Build DOM immediately
     this.#dom = buildCompositionDOM(container);
@@ -466,12 +469,42 @@ export class CompositionRenderer {
   async play() {
     if (this.#isPlaying) return;
 
+    this.#isPlaying = true;
+
+    // Start rAF master loop immediately (do not block on audio fetch/decode)
+    this.#startRafLoop();
+
+    // Audio startup continues in background and will attach when ready.
+    this.#scheduleAudioStart();
+  }
+
+  /**
+   * Schedule async audio startup for the current playback intent.
+   * Increments token to invalidate previous pending start attempts.
+   */
+  #scheduleAudioStart() {
+    const token = ++this.#audioStartToken;
+    void this.#startAudioForToken(token);
+  }
+
+  /**
+   * Initialize and start audio if the token is still current.
+   * Guards against play/pause/seek races while init() is pending.
+   * @param {number} token
+   */
+  async #startAudioForToken(token) {
     // Lazy AudioContext init (browser autoplay policy)
     const audioOk = await this.#audio.init();
+
+    // If playback intent changed while init/decode was pending, abort.
+    if (!audioOk || token !== this.#audioStartToken || !this.#isPlaying) return;
 
     if (audioOk && this.#audio.ctx) {
       // Resume suspended AudioContext
       await this.#audio.resume();
+
+      // Abort if intent changed during resume().
+      if (token !== this.#audioStartToken || !this.#isPlaying) return;
 
       // Create fresh AudioBufferSourceNodes (single-use pattern)
       this.#audio.stopSources();
@@ -493,11 +526,6 @@ export class CompositionRenderer {
       // Schedule music fade-in and fade-out
       this.#audio.scheduleFade(this.#currentTime, this.duration);
     }
-
-    this.#isPlaying = true;
-
-    // Start rAF master loop
-    this.#startRafLoop();
   }
 
   /**
@@ -506,6 +534,9 @@ export class CompositionRenderer {
    */
   pause() {
     if (!this.#isPlaying) return;
+
+    // Invalidate pending async audio-start attempts.
+    this.#audioStartToken += 1;
 
     // Sync currentTime from audio context before stopping
     if (this.#audio.ctx && this.#audio.ctx.state === 'running') {
@@ -537,6 +568,9 @@ export class CompositionRenderer {
     this.#currentTime = Math.max(0, Math.min(seconds, maxTime));
 
     if (wasPlaying) {
+      // Invalidate pending async starts from old position.
+      this.#audioStartToken += 1;
+
       // Update audio position — restart sources at new offset
       // AudioBufferSourceNode cannot seek; must stop and recreate.
       this.#audio.stopSources();
@@ -557,6 +591,9 @@ export class CompositionRenderer {
 
         // Reschedule music fade for new position
         this.#audio.scheduleFade(this.#currentTime, this.duration);
+      } else {
+        // Audio may still be initializing/decoding — re-arm startup at new time.
+        this.#scheduleAudioStart();
       }
     }
 
@@ -568,6 +605,9 @@ export class CompositionRenderer {
    * Clean up all DOM and resources.
    */
   destroy() {
+    // Invalidate pending async audio-start attempts.
+    this.#audioStartToken += 1;
+
     this.pause();
 
     // Audio cleanup
