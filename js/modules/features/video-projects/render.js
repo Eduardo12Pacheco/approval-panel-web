@@ -24,9 +24,13 @@ function formatDateLabel(value) {
 }
 
 function formatSeconds(value) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return '0.00s';
-  return `${n.toFixed(2)}s`;
+  const raw = Number(value || 0);
+  if (!Number.isFinite(raw)) return '00:00.00';
+  const totalCentiseconds = Math.max(0, Math.round(raw * 100));
+  const minutes = Math.floor(totalCentiseconds / 6000);
+  const seconds = Math.floor((totalCentiseconds % 6000) / 100);
+  const centiseconds = totalCentiseconds % 100;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}`;
 }
 
 function getStatusLabel(status = '') {
@@ -476,9 +480,9 @@ function buildPreviewTimeline(rows = [], selectedRowId = null) {
           const position = Math.min((start / totalDuration) * 100, 100);
           const isSelected = selectedRowId === row.id;
           return `
-            <button class="video-preview-timeline__marker ${isSelected ? 'is-selected' : ''}" type="button" data-action="select-row" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(start.toString())}" style="--pos:${position}%;" title="${escapeHtmlCore(`${formatSeconds(start)} · ${(row.phrase || '').toString()}`)}">
+            <span class="video-preview-timeline__marker ${isSelected ? 'is-selected' : ''}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(start.toString())}" style="--pos:${position}%;" title="${escapeHtmlCore(`${formatSeconds(start)} · ${(row.phrase || '').toString()}`)}">
               <span>${index + 1}</span>
-            </button>
+            </span>
           `;
         }).join('')}
         <div class="video-preview-timeline__playhead" data-preview-playhead></div>
@@ -1237,7 +1241,7 @@ export function renderSelectedVideoProjectView({
       if (scrubber) {
         let scrubbing = false;
         scrubber.addEventListener('pointerdown', (ev) => {
-          if (ev.target.closest('[data-action="select-row"]')) return;
+          ev.preventDefault();
           scrubbing = true;
           scrubber.setPointerCapture?.(ev.pointerId);
           seekPreviewFromPointer(ev);
