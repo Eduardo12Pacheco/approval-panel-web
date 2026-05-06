@@ -20,9 +20,18 @@ function parseFilenameFromContentDisposition(header = '') {
 }
 
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
+  function getSupabaseAuthHeaders(settings) {
+    const key = (settings.supabasePublishableKey || '').trim();
+    if (!key) return {};
+    return {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    };
+  }
+
   async function get(path) {
     const settings = getSettings();
-    const headers = {};
+    const headers = { ...getSupabaseAuthHeaders(settings) };
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
     const res = await fetchImpl(`${settings.baseUrl}${path}`, {
@@ -40,7 +49,10 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
 
   async function post(path, payload) {
     const settings = getSettings();
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {
+      'Content-Type': 'application/json',
+      ...getSupabaseAuthHeaders(settings),
+    };
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
     const res = await fetchImpl(`${settings.baseUrl}${path}`, {
@@ -71,7 +83,10 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
 
   async function postBlob(path, payload) {
     const settings = getSettings();
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {
+      'Content-Type': 'application/json',
+      ...getSupabaseAuthHeaders(settings),
+    };
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
     const res = await fetchImpl(`${settings.baseUrl}${path}`, {
