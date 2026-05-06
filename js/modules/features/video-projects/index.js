@@ -30,6 +30,7 @@ const DETAIL_PRELOAD_MAX_IMAGES = 32;
 
 function normalizeEditorState(editorState = {}) {
   if (!editorState || typeof editorState !== 'object') return {};
+  const globalAudio = normalizeGlobalAudioState(editorState.global_audio);
   return {
     phase: editorState.phase || 'idle',
     remotion_project_id: editorState.remotion_project_id || '',
@@ -42,7 +43,23 @@ function normalizeEditorState(editorState = {}) {
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
     timed_rows: Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [],
+    global_audio: globalAudio,
     updated_at: editorState.updated_at || new Date().toISOString(),
+  };
+}
+
+function normalizeGlobalAudioState(globalAudio = {}) {
+  const voiceVolume = Number(globalAudio?.voice?.volume);
+  const musicVolume = Number(globalAudio?.music?.volume);
+  return {
+    voice: {
+      volume: Number.isFinite(voiceVolume) ? Math.max(0, Math.min(1, voiceVolume)) : 1,
+      muted: Boolean(globalAudio?.voice?.muted),
+    },
+    music: {
+      volume: Number.isFinite(musicVolume) ? Math.max(0, Math.min(1, musicVolume)) : 0.16,
+      muted: Boolean(globalAudio?.music?.muted),
+    },
   };
 }
 
@@ -118,7 +135,7 @@ function hydrateSelectedProjectState(project) {
   const es = project.editor_state;
   const timedRows = normalizeRemotionRows(es.timed_rows);
   if (timedRows.length) project._editorRows = timedRows;
-  project._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  project._globalAudio = normalizeGlobalAudioState(es.global_audio);
   // Default to browser composition when editor rows are available
   if (project._useCompositionPreview === undefined) {
     project._useCompositionPreview = timedRows.length > 0;
@@ -137,14 +154,14 @@ function hashString(input) {
 
 function computeCompositionHash(project) {
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
-  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  const globalAudio = normalizeGlobalAudioState(project._globalAudio);
   const payload = JSON.stringify({ rows, globalAudio });
   return hashString(payload);
 }
 
 function buildCompositionPayload(project) {
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
-  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  const globalAudio = normalizeGlobalAudioState(project._globalAudio);
   return {
     rows: rows.map((row) => ({
       id: row.id,
@@ -922,7 +939,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
     const normalizedKind = kind === 'voice' ? 'voice' : 'music';
 
-    const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+    const current = normalizeGlobalAudioState(project._globalAudio);
     const next = {
       ...current,
       [normalizedKind]: {
@@ -930,7 +947,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         muted: patch.muted !== undefined ? Boolean(patch.muted) : current[normalizedKind]?.muted,
       },
     };
-    project._globalAudio = next;
+    project._globalAudio = normalizeGlobalAudioState(next);
 
     const compositionHash = computeCompositionHash(project);
     const lastPreviewHash = project.editor_state?.last_preview_hash || '';
@@ -940,7 +957,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       ...project.editor_state,
       dirty: isDirty,
       phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
-      global_audio: next,
+      global_audio: project._globalAudio,
     });
 
     renderSelectedVideoProject();
@@ -950,7 +967,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       void persistEditorState(project, {
         dirty: isDirty,
         phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
-        global_audio: next,
+        global_audio: project._globalAudio,
       });
     }, SAVE_DEBOUNCE_MS);
   }

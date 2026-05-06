@@ -98,13 +98,14 @@ export class AudioManager {
   /**
    * Configure audio volumes and fade durations.
    * Called from preload() before fetchBuffers.
-   * @param {{ voiceVolume?: number, voiceMuted?: boolean, musicVolume?: number,
+   * @param {{ voiceVolume?: number, voiceMuted?: boolean, musicVolume?: number, musicMuted?: boolean,
    *           musicFadeInSeconds?: number, musicFadeOutSeconds?: number }} config
    */
-  configure({ voiceVolume, voiceMuted, musicVolume, musicFadeInSeconds, musicFadeOutSeconds } = {}) {
+  configure({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds } = {}) {
     if (voiceVolume !== undefined) this.#voiceVolume = voiceVolume;
     if (voiceMuted !== undefined) this.#voiceMuted = voiceMuted;
     if (musicVolume !== undefined) this.#musicVolume = musicVolume;
+    if (musicMuted !== undefined) this.#musicMuted = musicMuted;
     if (musicFadeInSeconds !== undefined) this.#musicFadeInSeconds = musicFadeInSeconds;
     if (musicFadeOutSeconds !== undefined) this.#musicFadeOutSeconds = musicFadeOutSeconds;
   }

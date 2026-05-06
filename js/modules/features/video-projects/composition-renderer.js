@@ -17,9 +17,8 @@ import { AudioManager } from './audio-manager.js';
 // • pointerEvents/capture: Universal support for pointer events API.
 //
 // KNOWN LIMITATIONS:
-// • "pan-left"/"pan-right" motion effects are Remotion-only (use OffthreadVideo
-//   + Remotion's interpolate on video element position). Browser preview falls
-//   back to slow-zoom-in for these motion values — acceptable for preview purposes.
+// • "pan-left"/"pan-right" are not implemented in browser preview.
+//   They intentionally fall back to slow-zoom-in to keep behavior stable.
 // • Dust overlay uses a lightweight WebM (480×270, 5s loop) for browser preview.
 //   Full-resolution dust (1920×1080) is only used in Remotion final render.
 //   Asset path: approval-panel-web/assets/dust-preview.webm
@@ -97,23 +96,23 @@ export function interpolateLinear(start, end, progress) {
 
 /**
  * Resolve zoom range constants for a given motion string.
- * SOURCE: Composition.tsx line 192 — ternary on segment.motion
- *   "still" → 1.0, "slow-zoom" → 1.04, anything else → 1.08
- *
- * NOTE: The editor dropdown also offers "slow-zoom-out", "pan-left",
- * "pan-right", "none". Remotion treats all of these as the default
- * (1.08) except "none" which we map to "still" for browser preview.
- * Pan effects are Remotion-only (OffthreadVideo + interpolate) and
- * cannot be replicated with CSS static-image zoom. This is an
- * accepted visual parity trade-off documented in Phase 6.
+ * Contract-aligned motion semantics:
+ * - still/none => 1.0 → 1.0
+ * - slow-zoom => 1.0 → 1.04
+ * - slow-zoom-in => 1.0 → 1.08
+ * - slow-zoom-out => 1.08 → 1.0
+ * - pan-left/pan-right => fallback to slow-zoom-in
  *
  * @param {string} motion — 'slow-zoom', 'slow-zoom-in', 'still', 'none', etc.
  * @returns {{ from: number, to: number }}
  */
 function resolveZoomRange(motion) {
-  if (motion === 'slow-zoom') return ZOOM_SLOW;
-  if (motion === 'still' || motion === 'none') return { from: 1.0, to: 1.0 };
-  // Default: slow-zoom-in (matches Remotion's else branch)
+  const normalized = (motion || '').toString().trim().toLowerCase();
+  if (normalized === 'still' || normalized === 'none') return { from: 1.0, to: 1.0 };
+  if (normalized === 'slow-zoom') return ZOOM_SLOW;
+  if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0 };
+  if (normalized === 'slow-zoom-in') return ZOOM_SLOW_IN;
+  if (normalized === 'pan-left' || normalized === 'pan-right') return ZOOM_SLOW_IN;
   return ZOOM_SLOW_IN;
 }
 
@@ -360,12 +359,12 @@ export class CompositionRenderer {
    * Preload assets (dust WebM, logo, voice, music).
    * Call once on editor open.
    * @param {{ dustWebmUrl?: string, logoUrl?: string, voiceUrl?: string, musicUrl?: string,
-   *           voiceVolume?: number, voiceMuted?: boolean, musicVolume?: number,
+   *           voiceVolume?: number, voiceMuted?: boolean, musicVolume?: number, musicMuted?: boolean,
    *           musicFadeInSeconds?: number, musicFadeOutSeconds?: number,
    *           rows?: Array }} assets
    * @returns {Promise<void>}
    */
-  async preload({ dustWebmUrl, logoUrl, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {
+  async preload({ dustWebmUrl, logoUrl, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {
     // Guard: if preload is already in progress, return the existing promise
     if (this._preloadInProgress) {
       return this._preloadInProgress;
@@ -383,6 +382,7 @@ export class CompositionRenderer {
         voiceVolume,
         voiceMuted,
         musicVolume,
+        musicMuted,
         musicFadeInSeconds,
         musicFadeOutSeconds,
       });

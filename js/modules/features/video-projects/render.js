@@ -626,21 +626,12 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
             <option value="false" ${row.logo?.enabled === false ? 'selected' : ''}>Desactivado</option>
           </select>
         </div>
-        <div class="video-editor-control">
-          <label>Transición</label>
-          <select data-action="update-row-transition" data-row-id="${escapeHtmlCore(row.id)}">
-            <option value="none" ${row.transition === 'none' ? 'selected' : ''}>Ninguna</option>
-            <option value="fade" ${row.transition === 'fade' ? 'selected' : ''}>Fade</option>
-            <option value="slide-left" ${row.transition === 'slide-left' ? 'selected' : ''}>Slide left</option>
-            <option value="slide-right" ${row.transition === 'slide-right' ? 'selected' : ''}>Slide right</option>
-          </select>
-        </div>
       </div>
     `
     : `
       <div class="video-editor-detail__section">
         <span class="video-projects-eyebrow">Detalles de efectos</span>
-        <p class="video-projects-empty">Seleccioná una fila de la tabla para editar imagen, movimiento, polvo, logo y transición.</p>
+        <p class="video-projects-empty">Seleccioná una fila de la tabla para editar imagen, movimiento, polvo y logo.</p>
       </div>
     `;
 
@@ -1183,6 +1174,7 @@ export function renderSelectedVideoProjectView({
             voiceVolume: globalAudioData.voice?.volume ?? 1,
             voiceMuted: globalAudioData.voice?.muted ?? false,
             musicVolume: globalAudioData.music?.volume ?? 0.16,
+            musicMuted: globalAudioData.music?.muted ?? false,
             musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
             musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
             rows: compositionRows,
@@ -1490,15 +1482,6 @@ export function renderSelectedVideoProjectView({
           const rowId = select.dataset.rowId;
           if (!rowId) return;
           updateRow?.(rowId, { logo: { enabled: select.value === 'true' } });
-        });
-      });
-
-      // Row transition update
-      el.videoProjectDetail.querySelectorAll('[data-action="update-row-transition"]').forEach((select) => {
-        select.addEventListener('change', () => {
-          const rowId = select.dataset.rowId;
-          if (!rowId) return;
-          updateRow?.(rowId, { transition: select.value });
         });
       });
 
