@@ -1,10 +1,21 @@
 import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from './default-background-music.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './index.js';
+import { CompositionRenderer } from './composition-renderer.js';
 
 const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'facebook.com', 'fbcdn.net', 'instagram.com', 'cdninstagram.com'];
 const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 const VIDEO_CANDIDATES_TEMP_PUBLIC_BASE = 'https://ulzcthcdakjfretjdakd.supabase.co/storage/v1/object/public/video-candidates-temp';
+
+// Module-scoped composition renderer — persists across re-renders
+let _compositionRenderer = null;
+
+function destroyCompositionRenderer() {
+  if (_compositionRenderer) {
+    try { _compositionRenderer.destroy(); } catch {}
+    _compositionRenderer = null;
+  }
+}
 
 function formatCount(value, singular, plural = `${singular}s`) {
   const count = Number(value || 0);
@@ -442,15 +453,34 @@ function buildPhaseBadge(phase, dirty) {
   return `<span class="video-project-phase-badge" data-phase="${escapeHtmlCore(phase)}">${escapeHtmlCore(label)}${dirtyBadge}</span>`;
 }
 
-function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selectedRowId = null }) {
+function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selectedRowId = null, useComposition = false }) {
   const activeSelectedRowId = selectedRowId || rows[0]?.id || null;
-  if (!previewUrl) {
+  const hasRows = Array.isArray(rows) && rows.length > 0;
+
+  // No preview URL AND no rows → empty state
+  if (!previewUrl && !hasRows) {
     return `
       <div class="video-preview-monitor video-preview-monitor--empty">
         <p>Todavía no hay preview. Prepará o actualizá la preview para ver el video.</p>
       </div>
     `;
   }
+
+  // Browser composition mode — render composition container instead of <video>
+  if (useComposition && hasRows) {
+    return `
+      <div class="video-preview-monitor video-preview-monitor--composition">
+        <div class="video-preview-stage" data-composition-container></div>
+        ${buildPreviewTimeline(rows, activeSelectedRowId)}
+        <div class="video-preview-monitor__footer">
+          <span>Preview composición</span>
+          ${previewUrl ? `<button class="video-preview-toggle-remotion" type="button" data-action="toggle-composition-mode">Usar preview Remotion</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  // Remotion video preview (fallback)
   return `
     <div class="video-preview-monitor">
       <div class="video-preview-stage">
@@ -459,6 +489,7 @@ function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selecte
       ${buildPreviewTimeline(rows, activeSelectedRowId)}
       <div class="video-preview-monitor__footer">
         <span>Preview Remotion</span>
+        ${hasRows ? '<button class="video-preview-toggle-remotion" type="button" data-action="toggle-composition-mode">Usar composición</button>' : ''}
         <a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview</a>
       </div>
     </div>
@@ -545,7 +576,7 @@ function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageRe
 
 function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpdate, project = {}, rowIndex = 0 }) {
   const voice = globalAudio?.voice || { volume: 1, muted: false };
-  const music = globalAudio?.music || { volume: 0.15, muted: false };
+  const music = globalAudio?.music || { volume: 0.16, muted: false };
   const detailImageUrl = row ? resolveRowImageUrl(row, rowIndex, project) : '';
 
   const rowControls = row
@@ -619,8 +650,8 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
           </label>
         </div>
         <div class="video-editor-control">
-          <label>Volumen música · ${Math.round((music.volume || 0.15) * 100)}%</label>
-          <input type="range" min="0" max="1" step="0.05" data-action="update-global-audio" data-audio-kind="music" data-field="volume" value="${music.volume || 0.15}" />
+          <label>Volumen música · ${Math.round((music.volume || 0.16) * 100)}%</label>
+          <input type="range" min="0" max="1" step="0.05" data-action="update-global-audio" data-audio-kind="music" data-field="volume" value="${music.volume || 0.16}" />
           <label class="video-editor-check">
             <input type="checkbox" data-action="update-global-audio" data-audio-kind="music" data-field="muted" ${music.muted ? 'checked' : ''} />
             Mute música
@@ -672,6 +703,7 @@ function buildEditorShell(project, options = {}) {
     onRefreshPreview,
     onExportFinal,
     rowImageUploading,
+    useComposition = false,
   } = options;
 
   const activeSelectedRowId = selectedRowId || editorRows[0]?.id || null;
@@ -707,7 +739,7 @@ function buildEditorShell(project, options = {}) {
                 <h4>Vista previa</h4>
               </div>
             </div>
-            ${buildPreviewMonitor({ previewUrl: editorState.preview_url, remotionProjectId: editorState.remotion_project_id, rows: editorRows, selectedRowId: activeSelectedRowId })}
+            ${buildPreviewMonitor({ previewUrl: editorState.preview_url, remotionProjectId: editorState.remotion_project_id, rows: editorRows, selectedRowId: activeSelectedRowId, useComposition })}
           </div>
 
           <div class="video-editor-shell__card video-editor-shell__card--table">
@@ -832,6 +864,7 @@ export function renderSelectedVideoProjectView({
   const videoProjectsHero = el.viewScripts?.querySelector('.video-projects-hero');
   const project = state.selectedVideoProject;
   if (!project) {
+    destroyCompositionRenderer();
     videoProjectsHero?.classList.remove('hidden');
     el.videoProjectsCatalog?.classList.remove('hidden');
     el.videoProjectDetail.classList.add('hidden');
@@ -870,7 +903,7 @@ export function renderSelectedVideoProjectView({
   const editorPhase = (editorState.phase || 'idle').toString();
   const timedRows = Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [];
   const editorRows = Array.isArray(project._editorRows) ? project._editorRows : timedRows;
-  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
   const inEditorPhase = ['preparing', 'preview_rendering', 'preview_ready', 'editing_dirty', 'final_rendering', 'final_ready', 'error'].includes(editorPhase);
 
   let mainContent = '';
@@ -986,6 +1019,7 @@ export function renderSelectedVideoProjectView({
         globalAudio,
         editorState,
         rowImageUploading: project._rowImageUploading || null,
+        useComposition: Boolean(project._useCompositionPreview && editorRows.length),
       });
     }
 
@@ -1118,15 +1152,63 @@ export function renderSelectedVideoProjectView({
   } else {
     // Editor phase event hydration
     if (editorPhase === 'preview_ready' || editorPhase === 'editing_dirty' || editorPhase === 'final_ready' || editorPhase === 'error') {
+      const useComposition = Boolean(project._useCompositionPreview && editorRows.length);
+
+      // ── 5.1/5.2: Composition renderer lifecycle ──
+      if (useComposition) {
+        const compositionContainer = el.videoProjectDetail.querySelector('[data-composition-container]');
+        if (compositionContainer) {
+          destroyCompositionRenderer();
+          _compositionRenderer = new CompositionRenderer({ container: compositionContainer });
+
+          // Resolve asset URLs for preload
+          const voiceUrl = project.voice_audio?.public_url || '';
+          const musicUrl = project.background_audio?.public_url || '';
+          const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+
+          // Preload assets and update with current rows
+          _compositionRenderer.preload({
+            voiceUrl,
+            musicUrl,
+            voiceVolume: globalAudioData.voice?.volume ?? 1,
+            voiceMuted: globalAudioData.voice?.muted ?? false,
+            musicVolume: globalAudioData.music?.volume ?? 0.16,
+            musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
+            musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+          }).then(() => {
+            _compositionRenderer?.update({ rows: editorRows });
+            // Seek to saved position if any
+            const seekTime = Number(project._previewSeekTime);
+            if (Number.isFinite(seekTime) && seekTime > 0) {
+              _compositionRenderer?.seek(seekTime);
+            }
+          });
+        }
+      } else {
+        destroyCompositionRenderer();
+      }
+
+      // ── 5.5: Dirty flag preservation — composition preview changes don't mark dirty ──
+      // The dirty flag is managed by updateRow() and updateGlobalAudio() in index.js,
+      // which only fire on DATA changes (not preview rendering). No additional work needed here.
+
       const selectEditorRow = (rowId, startTime) => {
         if (!rowId) return;
         project._selectedEditorRowId = rowId;
         const nextTime = Number(startTime);
-        if (Number.isFinite(nextTime)) project._previewSeekTime = nextTime;
+        if (Number.isFinite(nextTime)) {
+          project._previewSeekTime = nextTime;
+          // ── Task 5.1 (selectEditorRow): seek composition to row's startTime ──
+          if (_compositionRenderer) {
+            _compositionRenderer.seek(nextTime);
+          }
+        }
         renderSelectedVideoProject?.();
       };
 
       const restorePreviewSeekTime = () => {
+        // Only needed for <video> mode — composition handles seek in preload callback
+        if (_compositionRenderer) return;
         const video = el.videoProjectDetail.querySelector('[data-preview-video]');
         const seekTime = Number(project._previewSeekTime);
         if (!video || !Number.isFinite(seekTime)) return;
@@ -1137,6 +1219,7 @@ export function renderSelectedVideoProjectView({
         else video.addEventListener('loadedmetadata', applySeek, { once: true });
       };
 
+      // ── Shared transport elements ──
       const previewVideo = el.videoProjectDetail.querySelector('[data-preview-video]');
       const scrubber = el.videoProjectDetail.querySelector('[data-preview-scrubber]');
       const playButton = el.videoProjectDetail.querySelector('[data-action="toggle-preview-play"]');
@@ -1147,9 +1230,10 @@ export function renderSelectedVideoProjectView({
         return editorRows.find((row) => time >= Number(row.startTime || 0) && time < Number(row.endTime || 0)) || editorRows[editorRows.length - 1];
       };
 
+      // ── Timeline update — works with both video and composition ──
       const updatePreviewTimeline = (currentTime, durationValue) => {
         const configuredDuration = Number(scrubber?.dataset.duration || 0);
-        const duration = Math.max(Number(durationValue || previewVideo?.duration || configuredDuration || 0), configuredDuration, 1);
+        const duration = Math.max(Number(durationValue || previewVideo?.duration || _compositionRenderer?.duration || configuredDuration || 0), configuredDuration, 1);
         const pct = Math.max(0, Math.min((Number(currentTime || 0) / duration) * 100, 100));
         const progressEl = el.videoProjectDetail.querySelector('[data-preview-progress]');
         const playheadEl = el.videoProjectDetail.querySelector('[data-preview-playhead]');
@@ -1167,6 +1251,7 @@ export function renderSelectedVideoProjectView({
         });
       };
 
+      // ── rAF timeline loop — works with both video and composition ──
       let previewTimelineFrame = 0;
       const stopPreviewTimelineLoop = () => {
         if (!previewTimelineFrame) return;
@@ -1176,68 +1261,138 @@ export function renderSelectedVideoProjectView({
       const startPreviewTimelineLoop = () => {
         stopPreviewTimelineLoop();
         const tick = () => {
-          if (!previewVideo) return;
-          updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
-          if (!previewVideo.paused && !previewVideo.ended) {
-            previewTimelineFrame = window.requestAnimationFrame(tick);
+          if (_compositionRenderer) {
+            updatePreviewTimeline(_compositionRenderer.currentTime, _compositionRenderer.duration);
+            if (_compositionRenderer.isPlaying) {
+              previewTimelineFrame = window.requestAnimationFrame(tick);
+            }
+          } else if (previewVideo) {
+            updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+            if (!previewVideo.paused && !previewVideo.ended) {
+              previewTimelineFrame = window.requestAnimationFrame(tick);
+            }
           }
         };
         previewTimelineFrame = window.requestAnimationFrame(tick);
       };
 
+      // ── Scrubber seek — works with both video and composition ──
       const seekPreviewFromPointer = (ev) => {
-        if (!previewVideo || !scrubber) return;
+        if (!scrubber) return;
         const rect = scrubber.getBoundingClientRect();
         if (!rect.width) return;
         const pct = Math.max(0, Math.min((ev.clientX - rect.left) / rect.width, 1));
         const configuredDuration = Number(scrubber.dataset.duration || 0);
-        const duration = Math.max(Number(previewVideo.duration || 0), configuredDuration, 1);
-        const nextTime = pct * duration;
-        previewVideo.currentTime = nextTime;
-        project._previewSeekTime = nextTime;
-        updatePreviewTimeline(nextTime, duration);
+
+        if (_compositionRenderer) {
+          // ── 5.4: Wire scrubber to CompositionRenderer.seek() ──
+          const duration = Math.max(_compositionRenderer.duration, configuredDuration, 1);
+          const nextTime = pct * duration;
+          _compositionRenderer.seek(nextTime);
+          project._previewSeekTime = nextTime;
+          updatePreviewTimeline(nextTime, duration);
+        } else if (previewVideo) {
+          const duration = Math.max(Number(previewVideo.duration || 0), configuredDuration, 1);
+          const nextTime = pct * duration;
+          previewVideo.currentTime = nextTime;
+          project._previewSeekTime = nextTime;
+          updatePreviewTimeline(nextTime, duration);
+        }
       };
 
       restorePreviewSeekTime();
       updatePreviewTimeline(Number(project._previewSeekTime || 0));
 
-      previewVideo?.addEventListener('loadedmetadata', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
-      previewVideo?.addEventListener('timeupdate', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
-      previewVideo?.addEventListener('play', () => {
-        playButton?.classList.add('is-playing');
-        if (playIcon) playIcon.textContent = '❚❚';
-        startPreviewTimelineLoop();
-      });
-      previewVideo?.addEventListener('pause', () => {
-        playButton?.classList.remove('is-playing');
-        if (playIcon) playIcon.textContent = '▶';
-        stopPreviewTimelineLoop();
-        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
-      });
-      previewVideo?.addEventListener('ended', () => {
-        playButton?.classList.remove('is-playing');
-        if (playIcon) playIcon.textContent = '▶';
-        stopPreviewTimelineLoop();
-        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
-      });
+      // ── 5.3: Wire play/pause button to CompositionRenderer ──
+      if (_compositionRenderer) {
+        // Composition mode: play/pause via CompositionRenderer
+        const handleCompositionPlay = async () => {
+          if (!_compositionRenderer) return;
+          if (_compositionRenderer.isPlaying) {
+            _compositionRenderer.pause();
+          } else {
+            await _compositionRenderer.play();
+          }
+        };
 
-      previewVideo?.addEventListener('click', async () => {
-        if (previewVideo.paused) {
-          try { await previewVideo.play(); } catch {}
-        } else {
-          previewVideo.pause();
+        playButton?.addEventListener('click', handleCompositionPlay);
+
+        // Click on stage to toggle play
+        const stage = el.videoProjectDetail.querySelector('.composition-stage');
+        stage?.addEventListener('click', handleCompositionPlay);
+
+        // Update play icon on composition state changes
+        const updatePlayIcon = () => {
+          if (!_compositionRenderer) return;
+          if (_compositionRenderer.isPlaying) {
+            playButton?.classList.add('is-playing');
+            if (playIcon) playIcon.textContent = '❚❚';
+            startPreviewTimelineLoop();
+          } else {
+            playButton?.classList.remove('is-playing');
+            if (playIcon) playIcon.textContent = '▶';
+            stopPreviewTimelineLoop();
+            updatePreviewTimeline(_compositionRenderer.currentTime, _compositionRenderer.duration);
+          }
+        };
+
+        // Poll composition state for icon updates (lightweight, ~10Hz)
+        let playStatePollId = 0;
+        const pollPlayState = () => {
+          if (!_compositionRenderer) return;
+          const wasPlaying = playButton?.classList.contains('is-playing');
+          if (wasPlaying !== _compositionRenderer.isPlaying) {
+            updatePlayIcon();
+          }
+          playStatePollId = window.setTimeout(pollPlayState, 100);
+        };
+        pollPlayState();
+
+        // Start timeline loop if composition is already playing
+        if (_compositionRenderer.isPlaying) {
+          startPreviewTimelineLoop();
         }
-      });
+      } else if (previewVideo) {
+        // ── Video mode: existing <video> event wiring ──
+        previewVideo?.addEventListener('loadedmetadata', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+        previewVideo?.addEventListener('timeupdate', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+        previewVideo?.addEventListener('play', () => {
+          playButton?.classList.add('is-playing');
+          if (playIcon) playIcon.textContent = '❚❚';
+          startPreviewTimelineLoop();
+        });
+        previewVideo?.addEventListener('pause', () => {
+          playButton?.classList.remove('is-playing');
+          if (playIcon) playIcon.textContent = '▶';
+          stopPreviewTimelineLoop();
+          updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+        });
+        previewVideo?.addEventListener('ended', () => {
+          playButton?.classList.remove('is-playing');
+          if (playIcon) playIcon.textContent = '▶';
+          stopPreviewTimelineLoop();
+          updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+        });
 
-      playButton?.addEventListener('click', async () => {
-        if (!previewVideo) return;
-        if (previewVideo.paused) {
-          try { await previewVideo.play(); } catch {}
-        } else {
-          previewVideo.pause();
-        }
-      });
+        previewVideo?.addEventListener('click', async () => {
+          if (previewVideo.paused) {
+            try { await previewVideo.play(); } catch {}
+          } else {
+            previewVideo.pause();
+          }
+        });
 
+        playButton?.addEventListener('click', async () => {
+          if (!previewVideo) return;
+          if (previewVideo.paused) {
+            try { await previewVideo.play(); } catch {}
+          } else {
+            previewVideo.pause();
+          }
+        });
+      }
+
+      // ── Scrubber pointer events (shared for both modes) ──
       if (scrubber) {
         let scrubbing = false;
         scrubber.addEventListener('pointerdown', (ev) => {
@@ -1260,6 +1415,13 @@ export function renderSelectedVideoProjectView({
           scrubbing = false;
         });
       }
+
+      // ── Toggle composition/Remotion mode ──
+      el.videoProjectDetail.querySelector('[data-action="toggle-composition-mode"]')?.addEventListener('click', () => {
+        project._useCompositionPreview = !useComposition;
+        destroyCompositionRenderer();
+        renderSelectedVideoProject?.();
+      });
 
       // Row selection
       el.videoProjectDetail.querySelectorAll('[data-action="select-row"]').forEach((btn) => {

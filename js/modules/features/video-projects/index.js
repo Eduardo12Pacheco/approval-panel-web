@@ -118,7 +118,11 @@ function hydrateSelectedProjectState(project) {
   const es = project.editor_state;
   const timedRows = normalizeRemotionRows(es.timed_rows);
   if (timedRows.length) project._editorRows = timedRows;
-  project._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  project._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  // Default to browser composition when editor rows are available
+  if (project._useCompositionPreview === undefined) {
+    project._useCompositionPreview = timedRows.length > 0;
+  }
   setVideoProjectStep(project, 'images');
 }
 
@@ -133,14 +137,14 @@ function hashString(input) {
 
 function computeCompositionHash(project) {
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
-  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
   const payload = JSON.stringify({ rows, globalAudio });
   return hashString(payload);
 }
 
 function buildCompositionPayload(project) {
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
-  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+  const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
   return {
     rows: rows.map((row) => ({
       id: row.id,
@@ -629,7 +633,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');
 
       project._editorRows = timedRows;
-      project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+      project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
 
       await persistEditorState(project, {
         phase: 'preview_rendering',
@@ -918,7 +922,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
     const normalizedKind = kind === 'voice' ? 'voice' : 'music';
 
-    const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
+    const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
     const next = {
       ...current,
       [normalizedKind]: {

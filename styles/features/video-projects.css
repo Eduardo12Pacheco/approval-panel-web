@@ -867,6 +867,7 @@
 }
 
 .video-preview-monitor {
+  --video-preview-content-width: min(100%, calc(min(58vh, 620px) * 16 / 9));
   display: grid;
   gap: 12px;
   margin-bottom: 18px;
@@ -876,6 +877,8 @@
 }
 
 .video-preview-stage {
+  width: var(--video-preview-content-width);
+  margin-inline: auto;
   overflow: hidden;
   border: 1px solid #161616;
   background: #000;
@@ -919,6 +922,8 @@
 }
 
 .video-preview-transport {
+  width: var(--video-preview-content-width);
+  margin-inline: auto;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;
   gap: 12px;
@@ -1154,6 +1159,7 @@
 }
 
 .video-editor-shell__card--preview .video-preview-monitor {
+  --video-preview-content-width: min(100%, calc(min(60vh, 620px) * 16 / 9));
   margin-bottom: 0;
   background: #050505;
 }
@@ -1575,4 +1581,99 @@
     column-count: 1;
     column-width: auto;
   }
+}
+
+/* ── Composition Preview Layers (Phase 5) ── */
+
+.video-preview-monitor--composition {
+  position: relative;
+}
+
+.video-preview-monitor--composition .video-preview-stage {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Composition stage — filled by CompositionRenderer */
+.composition-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+/* Layer base — all composition layers are absolutely positioned */
+.composition-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Background layer */
+.composition-layer--bg {
+  background: #101828;
+}
+
+/* Segment image layer — object-fit cover, will-change transform for zoom */
+.composition-layer--image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Dust video overlay — screen blend mode */
+.composition-layer--dust {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: screen;
+  opacity: 0.36;
+}
+
+/* Dust CSS fallback — radial gradient pattern */
+.composition-layer--dust-fallback {
+  mix-blend-mode: screen;
+  opacity: 0.28;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.20) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.12) 0 1px, transparent 2px);
+  background-size: 140px 140px, 220px 220px;
+}
+
+/* Logo overlay — positioned top-left */
+.composition-layer--logo {
+  object-fit: contain;
+  opacity: 0.94;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+}
+
+/* Outro overlay — dark background with centered text */
+.composition-layer--outro {
+  display: grid;
+  place-items: center;
+  background: #11100e;
+}
+
+/* Toggle button between composition and Remotion */
+.video-preview-toggle-remotion {
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 232, 143, 0.35);
+  background: rgba(0, 232, 143, 0.08);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.video-preview-toggle-remotion:hover,
+.video-preview-toggle-remotion:focus {
+  border-color: rgba(0, 232, 143, 0.62);
+  background: rgba(0, 232, 143, 0.14);
+  outline: none;
 }
