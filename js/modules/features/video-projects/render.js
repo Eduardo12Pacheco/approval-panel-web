@@ -636,7 +636,12 @@ export function renderVideoProjectsListView({ state, el, openVideoProject, prefe
   }
 
   if (!projects.length) {
-    el.videoProjectsList.innerHTML = '<p class="video-projects-empty">Todavía no hay proyectos. Procesá un guion y acá va a aparecer automáticamente.</p>';
+    el.videoProjectsList.innerHTML = `
+      <div class="video-projects-empty video-projects-empty--catalog-card">
+        <p>Todavía no hay proyectos. Procesá un guion y acá va a aparecer automáticamente.</p>
+        <span class="video-projects-empty__plus" aria-hidden="true">+</span>
+      </div>
+    `;
     return;
   }
 

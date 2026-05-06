@@ -60,6 +60,12 @@
   text-transform: uppercase;
 }
 
+.video-projects-list-panel__header .video-projects-eyebrow {
+  font-size: clamp(0.86rem, 0.7rem + 0.38vw, 1.08rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
 .video-projects-list-panel .section-counter {
   font-size: clamp(0.96rem, 0.78rem + 0.42vw, 1.18rem);
   font-weight: 800;
@@ -678,6 +684,37 @@
   padding: 18px;
   border: 1px dashed var(--border-strong);
   background: rgba(255, 255, 255, 0.015);
+}
+
+.video-projects-empty--catalog-card {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  max-width: 430px;
+  padding: 28px 26px 24px;
+  border-style: solid;
+  background:
+    linear-gradient(135deg, rgba(0, 232, 143, 0.055), transparent 62%),
+    rgba(255, 255, 255, 0.02);
+  text-align: center;
+}
+
+.video-projects-empty--catalog-card p {
+  max-width: 34ch;
+  margin: 0;
+}
+
+.video-projects-empty__plus {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(0, 232, 143, 0.28);
+  color: rgba(0, 232, 143, 0.46);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .video-projects-layout {
