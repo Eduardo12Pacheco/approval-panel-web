@@ -157,7 +157,7 @@ function buildAudioMetadata({ path, kind, file }) {
   return {
     kind,
     bucket: VIDEO_PROJECT_AUDIO_BUCKET,
-    path,
+    storage_path: path,
     public_url: buildPublicStorageUrl(VIDEO_PROJECT_AUDIO_BUCKET, path),
     name: file?.name || '',
     size: Number(file?.size || 0),
