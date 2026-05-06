@@ -20,18 +20,9 @@ function parseFilenameFromContentDisposition(header = '') {
 }
 
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
-  function getSupabaseAuthHeaders(settings) {
-    const key = (settings.supabasePublishableKey || '').trim();
-    if (!key) return {};
-    return {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    };
-  }
-
   async function get(path) {
     const settings = getSettings();
-    const headers = { ...getSupabaseAuthHeaders(settings) };
+    const headers = {};
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
     const res = await fetchImpl(`${settings.baseUrl}${path}`, {
@@ -51,7 +42,6 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
     const settings = getSettings();
     const headers = {
       'Content-Type': 'application/json',
-      ...getSupabaseAuthHeaders(settings),
     };
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
@@ -85,7 +75,6 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
     const settings = getSettings();
     const headers = {
       'Content-Type': 'application/json',
-      ...getSupabaseAuthHeaders(settings),
     };
     if (settings.secret) headers['x-approval-secret'] = settings.secret;
 
