@@ -6,6 +6,7 @@ import { CompositionRenderer } from './composition-renderer.js';
 const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'facebook.com', 'fbcdn.net', 'instagram.com', 'cdninstagram.com'];
 const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 const VIDEO_CANDIDATES_TEMP_PUBLIC_BASE = 'https://ulzcthcdakjfretjdakd.supabase.co/storage/v1/object/public/video-candidates-temp';
+const COMPOSITION_DUST_PREVIEW_URL = './assets/dust-preview.webm';
 
 // Module-scoped composition renderer — persists across re-renders
 let _compositionRenderer = null;
@@ -197,6 +198,13 @@ function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
   });
 
   return matchedCandidate ? resolveCandidateImageUrl(matchedCandidate) : '';
+}
+
+function buildCompositionRows(rows = [], project = {}) {
+  return (Array.isArray(rows) ? rows : []).map((row, index) => ({
+    ...row,
+    image: row.image || resolveRowImageUrl(row, index, project),
+  }));
 }
 
 function resolveCandidateFallbackUrl(candidate = {}, primaryUrl = '') {
@@ -1165,9 +1173,11 @@ export function renderSelectedVideoProjectView({
           const voiceUrl = project.voice_audio?.public_url || '';
           const musicUrl = project.background_audio?.public_url || '';
           const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+          const compositionRows = buildCompositionRows(editorRows, project);
 
           // Preload assets and update with current rows
           _compositionRenderer.preload({
+            dustWebmUrl: COMPOSITION_DUST_PREVIEW_URL,
             voiceUrl,
             musicUrl,
             voiceVolume: globalAudioData.voice?.volume ?? 1,
@@ -1175,8 +1185,9 @@ export function renderSelectedVideoProjectView({
             musicVolume: globalAudioData.music?.volume ?? 0.16,
             musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
             musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+            rows: compositionRows,
           }).then(() => {
-            _compositionRenderer?.update({ rows: editorRows });
+            _compositionRenderer?.update({ rows: compositionRows });
             // Seek to saved position if any
             const seekTime = Number(project._previewSeekTime);
             if (Number.isFinite(seekTime) && seekTime > 0) {
