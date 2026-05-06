@@ -45,6 +45,21 @@ function normalizeEditorState(editorState = {}) {
   };
 }
 
+function normalizeRemotionRows(rows = []) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row, index) => ({
+    id: (row?.id || `row-${index + 1}`).toString(),
+    phrase: (row?.phrase || row?.caption || '').toString(),
+    startTime: Number(row?.startTime ?? 0),
+    endTime: Number(row?.endTime ?? 0),
+    selectedAssetId: row?.selectedAssetId || null,
+    motion: row?.motion || 'slow-zoom-in',
+    dust: { enabled: Boolean(row?.dust?.enabled) },
+    filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
+    transition: row?.transition || 'none',
+  })).filter((row) => row.id);
+}
+
 function resolveRemotionClient({ api, store }) {
   return api.createRemotionClient({
     resolveBaseUrl: () => store.getState()?.settings?.remotionApiUrl || '',
@@ -98,19 +113,8 @@ function hydrateSelectedProjectState(project) {
   if (!project) return;
   project.editor_state = normalizeEditorState(project.editor_state || {});
   const es = project.editor_state;
-  if (Array.isArray(es.timed_rows) && es.timed_rows.length) {
-    project._editorRows = es.timed_rows.map((row) => ({
-      id: row.id,
-      phrase: row.phrase,
-      startTime: row.startTime,
-      endTime: row.endTime,
-      selectedAssetId: row.selectedAssetId || null,
-      motion: row.motion || 'slow-zoom-in',
-      dust: { enabled: Boolean(row.dust?.enabled) },
-      filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
-      transition: row.transition || 'none',
-    }));
-  }
+  const timedRows = normalizeRemotionRows(es.timed_rows);
+  if (timedRows.length) project._editorRows = timedRows;
   project._globalAudio = es.global_audio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
   setVideoProjectStep(project, 'images');
 }
@@ -614,20 +618,11 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       const remotionProjectId = created?.projectId || created?.snapshot?.project?.projectId;
       if (!remotionProjectId) throw new Error('Remotion no devolvió projectId');
 
+      const createdRows = normalizeRemotionRows(created?.snapshot?.project?.rows);
       const status = await remotion.status(remotionProjectId);
-      const timedRows = Array.isArray(status?.project?.rows)
-        ? status.project.rows.map((row) => ({
-          id: row.id,
-          phrase: row.phrase,
-          startTime: row.startTime,
-          endTime: row.endTime,
-          selectedAssetId: row.selectedAssetId,
-          motion: row.motion || 'slow-zoom-in',
-          dust: { enabled: Boolean(row.dust?.enabled) },
-          filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
-          transition: row.transition || 'none',
-        }))
-        : [];
+      const statusRows = normalizeRemotionRows(status?.project?.rows);
+      const timedRows = createdRows.length ? createdRows : statusRows;
+      if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');
 
       project._editorRows = timedRows;
       project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
@@ -641,9 +636,9 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
       const preview = await remotion.renderPreview(remotionProjectId);
       const refreshedStatus = await remotion.status(remotionProjectId);
-      const previewUrl = refreshedStatus?.preview?.outputPath
-        ? remotion.previewDownloadUrl(remotionProjectId)
-        : '';
+      const previewReady = Boolean(refreshedStatus?.preview?.exists || refreshedStatus?.preview?.outputPath);
+      if (!previewReady) throw new Error('Remotion no generó el archivo de preview.');
+      const previewUrl = remotion.previewDownloadUrl(remotionProjectId);
 
       const compositionHash = computeCompositionHash(project);
 
@@ -684,6 +679,27 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
 
     try {
+      if (!Array.isArray(project._editorRows) || !project._editorRows.length) {
+        const currentRows = normalizeRemotionRows(project.editor_state?.timed_rows);
+        if (currentRows.length) {
+          project._editorRows = currentRows;
+        } else {
+          const currentStatus = await remotion.status(remotionProjectId);
+          const recoveredRows = normalizeRemotionRows(currentStatus?.project?.rows);
+          if (recoveredRows.length) {
+            project._editorRows = recoveredRows;
+            project.editor_state = normalizeEditorState({
+              ...project.editor_state,
+              timed_rows: recoveredRows,
+            });
+          }
+        }
+      }
+
+      if (!Array.isArray(project._editorRows) || !project._editorRows.length) {
+        throw new Error('No hay filas cronometradas para actualizar la preview.');
+      }
+
       await persistEditorState(project, {
         phase: 'preview_rendering',
         error: '',
@@ -696,9 +712,9 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
       const preview = await remotion.renderPreview(remotionProjectId);
       const refreshedStatus = await remotion.status(remotionProjectId);
-      const previewUrl = refreshedStatus?.preview?.outputPath
-        ? remotion.previewDownloadUrl(remotionProjectId)
-        : '';
+      const previewReady = Boolean(refreshedStatus?.preview?.exists || refreshedStatus?.preview?.outputPath);
+      if (!previewReady) throw new Error('Remotion no generó el archivo de preview.');
+      const previewUrl = remotion.previewDownloadUrl(remotionProjectId);
 
       const compositionHash = computeCompositionHash(project);
 
