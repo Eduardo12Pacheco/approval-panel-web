@@ -145,7 +145,6 @@ export function isVideoSource(src) {
  *     dustFallback: HTMLDivElement,
  *     logo: HTMLImageElement,
  *     logoVideo: HTMLVideoElement,
- *     logoPlaceholder: HTMLDivElement,
  *     outro: HTMLDivElement,
  *     outroText: HTMLDivElement
  *   }
@@ -206,14 +205,6 @@ export function buildCompositionDOM(container) {
   logoVideo.playsInline = true;
   stage.appendChild(logoVideo);
 
-  // Logo placeholder variant — matches Remotion when logo.src is absent
-  // SOURCE: Composition.tsx lines 153-171 — default "LOGO" pill
-  const logoPlaceholder = document.createElement('div');
-  logoPlaceholder.className = 'composition-layer composition-layer--logo-placeholder';
-  logoPlaceholder.style.cssText = 'position:absolute;left:56px;top:44px;border:3px solid rgba(255,255,255,0.78);border-radius:999px;padding:14px 22px;color:white;font-family:Inter,sans-serif;font-size:28px;font-weight:900;letter-spacing:0.12em;pointer-events:none;visibility:hidden;';
-  logoPlaceholder.textContent = 'LOGO';
-  stage.appendChild(logoPlaceholder);
-
   // Layer 5: Outro overlay
   // SOURCE: Composition.tsx lines 268-272 — outro styling
   const outro = document.createElement('div');
@@ -229,7 +220,7 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, image, dust, dustFallback, logo, logoVideo, logoPlaceholder, outro, outroText },
+    layers: { bg, image, dust, dustFallback, logo, logoVideo, outro, outroText },
   };
 }
 
@@ -719,7 +710,6 @@ export class CompositionRenderer {
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
-      layers.logoPlaceholder.style.visibility = 'hidden';
       layers.outro.style.visibility = 'hidden';
       this.#activeSegmentKey = null;
       return;
@@ -732,7 +722,6 @@ export class CompositionRenderer {
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
-      layers.logoPlaceholder.style.visibility = 'hidden';
       layers.outro.style.visibility = 'visible';
       this.#activeSegmentKey = null;
       return;
@@ -789,7 +778,6 @@ export class CompositionRenderer {
       if (isVideoSource(this._logoUrl)) {
         // Video logo — use <video> element
         layers.logo.style.visibility = 'hidden';
-        layers.logoPlaceholder.style.visibility = 'hidden';
         layers.logoVideo.style.visibility = 'visible';
         if (layers.logoVideo.src !== this._logoUrl) {
           layers.logoVideo.src = this._logoUrl;
@@ -797,21 +785,14 @@ export class CompositionRenderer {
       } else {
         // Static image logo — use <img> element
         layers.logoVideo.style.visibility = 'hidden';
-        layers.logoPlaceholder.style.visibility = 'hidden';
         layers.logo.style.visibility = 'visible';
         if (layers.logo.src !== this._logoUrl) {
           layers.logo.src = this._logoUrl;
         }
       }
-    } else if (logoEnabled) {
-      // No logo asset configured — match Remotion's default placeholder pill
-      layers.logo.style.visibility = 'hidden';
-      layers.logoVideo.style.visibility = 'hidden';
-      layers.logoPlaceholder.style.visibility = 'visible';
     } else {
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
-      layers.logoPlaceholder.style.visibility = 'hidden';
     }
   }
 
