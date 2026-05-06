@@ -1306,7 +1306,7 @@
 .video-editor-table td {
   padding: 12px 12px;
   border-bottom: 1px solid var(--border);
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
 }
 
@@ -1317,8 +1317,10 @@
   background: #080808;
   color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
   text-transform: uppercase;
 }
 
@@ -1365,11 +1367,12 @@
 .video-editor-row__time-end::before {
   content: '';
   position: absolute;
-  left: 0;
+  left: 50%;
   top: 0;
   width: 62px;
   height: 1px;
   background: rgba(255, 255, 255, 0.22);
+  transform: translateX(-50%);
 }
 
 .video-editor-row__time-start {
@@ -1394,6 +1397,7 @@
 
 .video-editor-row__thumb {
   display: block;
+  margin: 0 auto;
   width: 176px;
   height: 108px;
   border: 1px solid #2b2b2b;
@@ -1403,7 +1407,7 @@
 }
 
 .video-editor-row__thumb--missing {
-  display: grid;
+  display: inline-grid;
   place-items: center;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.62rem;
@@ -1429,7 +1433,7 @@
 .video-editor-row__actions {
   width: 120px;
   min-width: 120px;
-  text-align: left;
+  text-align: center;
   vertical-align: middle;
 }
 
