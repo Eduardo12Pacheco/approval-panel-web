@@ -480,7 +480,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       project.background_audio = {
         kind: 'background',
         bucket: 'video-project-audio',
-        path: track.path,
+        storage_path: track.path,
         public_url: track.public_url,
         name: track.label,
         file_name: track.fileName,
