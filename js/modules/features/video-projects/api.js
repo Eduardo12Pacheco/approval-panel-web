@@ -415,11 +415,19 @@ export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
     };
 
     const jsonFetch = async (endpoint, { method = 'GET', body } = {}) => {
-      const response = await fetchImpl(`${ensureBaseUrl()}${endpoint}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      const baseUrl = ensureBaseUrl();
+      const url = `${baseUrl}${endpoint}`;
+      let response;
+      try {
+        response = await fetchImpl(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (error) {
+        const reason = error?.message ? ` ${error.message}` : '';
+        throw new Error(`No se pudo conectar con Remotion API (${url}). Verificá túnel/API/CORS.${reason}`.trim());
+      }
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.ok === false) {
         throw new Error(payload?.error?.message || payload?.message || `Remotion API ${response.status}`);
@@ -434,6 +442,7 @@ export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
       renderFinal: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/render-final`, { method: 'POST', body: {} }),
       status: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/status`),
       diagnostics: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/diagnostics`),
+      previewDownloadUrl: (projectId) => `${ensureBaseUrl()}/api/projects/${encodeURIComponent(projectId)}/download/preview`,
       finalDownloadUrl: (projectId) => `${ensureBaseUrl()}/api/projects/${encodeURIComponent(projectId)}/download/final`,
     };
   }

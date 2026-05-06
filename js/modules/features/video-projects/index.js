@@ -78,6 +78,17 @@ function buildApprovalSeedPayload(project = {}) {
   };
 }
 
+function validateRemotionAudioInputs(project = {}) {
+  const voiceUrl = (project?.voice_audio?.public_url || '').toString().trim();
+  const backgroundUrl = (project?.background_audio?.public_url || '').toString().trim();
+  if (!voiceUrl) {
+    throw new Error('Falta el audio de voz (voice_audio.public_url). Subí y guardá el audio antes de preparar la preview.');
+  }
+  if (!backgroundUrl) {
+    throw new Error('Falta la música de fondo (background_audio.public_url). Subí y guardá el audio antes de preparar la preview.');
+  }
+}
+
 function setVideoProjectStep(project, step) {
   if (!project) return;
   project._videoProjectStep = step === 'audio' ? 'audio' : 'images';
@@ -586,6 +597,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const seed = buildApprovalSeedPayload(project);
 
     try {
+      validateRemotionAudioInputs(project);
       await persistEditorState(project, {
         phase: 'preparing',
         dirty: false,
@@ -630,7 +642,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       const preview = await remotion.renderPreview(remotionProjectId);
       const refreshedStatus = await remotion.status(remotionProjectId);
       const previewUrl = refreshedStatus?.preview?.outputPath
-        ? `${state.settings?.remotionApiUrl || ''}/api/projects/${encodeURIComponent(remotionProjectId)}/download/final`
+        ? remotion.previewDownloadUrl(remotionProjectId)
         : '';
 
       const compositionHash = computeCompositionHash(project);
@@ -685,7 +697,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       const preview = await remotion.renderPreview(remotionProjectId);
       const refreshedStatus = await remotion.status(remotionProjectId);
       const previewUrl = refreshedStatus?.preview?.outputPath
-        ? `${state.settings?.remotionApiUrl || ''}/api/projects/${encodeURIComponent(remotionProjectId)}/download/final`
+        ? remotion.previewDownloadUrl(remotionProjectId)
         : '';
 
       const compositionHash = computeCompositionHash(project);

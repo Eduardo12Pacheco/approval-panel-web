@@ -87,6 +87,20 @@ function replaySettingsScenario() {
     return { ok: false, reason: 'settings hydrate drift' };
   }
 
+  const elWithEmptyRemotion = {
+    baseUrlInput: { value: '' },
+    secretInput: { value: '' },
+    ttsBaseUrlInput: { value: '' },
+    ttsApiKeyInput: { value: '' },
+    ttsBasicUserInput: { value: '' },
+    ttsBasicPassInput: { value: '' },
+    remotionApiUrlInput: { value: '' },
+  };
+  hydrateSettingsFormValues({ el: elWithEmptyRemotion, settings: { ...loadedSaved, remotionApiUrl: '' } });
+  if (elWithEmptyRemotion.remotionApiUrlInput.value !== 'https://remotion-api.automatizacionedun8n.me') {
+    return { ok: false, reason: 'settings remotion fallback drift' };
+  }
+
   return { ok: true };
 }
 
