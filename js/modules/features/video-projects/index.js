@@ -55,6 +55,7 @@ function normalizeRemotionRows(rows = []) {
     selectedAssetId: row?.selectedAssetId || null,
     motion: row?.motion || 'slow-zoom-in',
     dust: { enabled: Boolean(row?.dust?.enabled) },
+    logo: { enabled: row?.logo?.enabled !== false },
     filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
     transition: row?.transition || 'none',
   })).filter((row) => row.id);
@@ -144,6 +145,7 @@ function buildCompositionPayload(project) {
       selectedAssetId: row.selectedAssetId || null,
       motion: row.motion || 'slow-zoom-in',
       dust: { enabled: Boolean(row.dust?.enabled) },
+      logo: { enabled: row.logo?.enabled !== false },
       filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
       transition: row.transition || 'none',
       startTime: row.startTime,
@@ -808,6 +810,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       ...current,
       ...(patch.motion !== undefined ? { motion: patch.motion } : {}),
       ...(patch.dust !== undefined ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
+      ...(patch.logo !== undefined ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
       ...(patch.transition !== undefined ? { transition: patch.transition } : {}),
       ...(patch.selectedAssetId !== undefined ? { selectedAssetId: patch.selectedAssetId || null } : {}),
     };
@@ -909,7 +912,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project) return;
-    if (!AUDIO_KINDS.has(kind)) return;
+    if (!AUDIO_KINDS.has(kind) && kind !== 'music') return;
 
     const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
     const next = {

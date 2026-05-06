@@ -394,7 +394,8 @@ function buildPhaseBadge(phase, dirty) {
   return `<span class="video-project-phase-badge" data-phase="${escapeHtmlCore(phase)}">${escapeHtmlCore(label)}${dirtyBadge}</span>`;
 }
 
-function buildPreviewMonitor({ previewUrl, remotionProjectId }) {
+function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selectedRowId = null }) {
+  const activeSelectedRowId = selectedRowId || rows[0]?.id || null;
   if (!previewUrl) {
     return `
       <div class="video-preview-monitor video-preview-monitor--empty">
@@ -404,7 +405,42 @@ function buildPreviewMonitor({ previewUrl, remotionProjectId }) {
   }
   return `
     <div class="video-preview-monitor">
-      <video controls preload="metadata" src="${escapeHtmlCore(previewUrl)}"></video>
+      <video controls playsinline preload="metadata" src="${escapeHtmlCore(previewUrl)}" data-preview-video></video>
+      <div class="video-preview-monitor__footer">
+        <span>Preview Remotion</span>
+        <a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview</a>
+      </div>
+      ${buildPreviewTimeline(rows, activeSelectedRowId)}
+    </div>
+  `;
+}
+
+function buildPreviewTimeline(rows = [], selectedRowId = null) {
+  if (!rows.length) return '';
+  const totalDuration = Math.max(...rows.map((row) => Number(row.endTime || 0)), 1);
+
+  return `
+    <div class="video-preview-timeline" aria-label="Línea de tiempo de la preview">
+      <div class="video-preview-timeline__track">
+        <div class="video-preview-timeline__progress" data-preview-progress></div>
+        ${rows.map((row, index) => {
+          const start = Math.max(0, Number(row.startTime || 0));
+          const end = Math.max(start, Number(row.endTime || start));
+          const width = Math.max(((end - start) / totalDuration) * 100, 1.2);
+          const left = Math.min((start / totalDuration) * 100, 100);
+          const isSelected = selectedRowId === row.id;
+          return `
+            <button class="video-preview-timeline__segment ${isSelected ? 'is-selected' : ''}" type="button" data-action="select-row" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(start.toString())}" style="--start:${left}%;--width:${width}%;" title="${escapeHtmlCore(`${formatSeconds(start)} - ${formatSeconds(end)} · ${(row.phrase || '').toString()}`)}">
+              <span>${index + 1}</span>
+            </button>
+          `;
+        }).join('')}
+        <div class="video-preview-timeline__playhead" data-preview-playhead></div>
+      </div>
+      <div class="video-preview-timeline__labels">
+        <span>0.00s</span>
+        <span>${escapeHtmlCore(formatSeconds(totalDuration))}</span>
+      </div>
     </div>
   `;
 }
@@ -415,41 +451,42 @@ function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageRe
   }
 
   return `
-    <table class="video-editor-table">
-      <thead>
-        <tr>
-          <th>Tiempo</th>
-          <th>Frase</th>
-          <th>Imagen</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows.map((row, index) => {
-          const isSelected = selectedRowId === row.id;
-          const selectedClass = isSelected ? 'is-selected' : '';
-          const uploadingThisRow = rowImageUploading === row.id;
-          return `
-            <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-index="${index}">
-              <td class="video-editor-row__time">${escapeHtmlCore(`${formatSeconds(row.startTime)} - ${formatSeconds(row.endTime)}`)}</td>
-              <td class="video-editor-row__phrase">${escapeHtmlCore((row.phrase || '').toString())}</td>
-              <td class="video-editor-row__image">
-                ${row.selectedAssetId
-                  ? `<span class="video-editor-row__image-tag">${escapeHtmlCore((row.selectedAssetId || '').toString().slice(0, 24))}</span>`
-                  : '<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">Sin imagen</span>'}
-              </td>
-              <td class="video-editor-row__actions">
-                <button class="secondary" type="button" data-action="select-row" data-row-id="${escapeHtmlCore(row.id)}">${isSelected ? 'Seleccionada' : 'Editar'}</button>
-                <label class="video-editor-row__upload-label">
-                  <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" ${uploadingThisRow ? 'disabled' : ''} />
-                  <span>${uploadingThisRow ? 'Subiendo…' : 'Subir imagen'}</span>
-                </label>
-              </td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
+    <div class="video-editor-table-wrap">
+      <table class="video-editor-table">
+        <thead>
+          <tr>
+            <th>Tiempo</th>
+            <th>Frase</th>
+            <th>Imagen</th>
+            <th>Cambiar</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row, index) => {
+            const isSelected = selectedRowId === row.id;
+            const selectedClass = isSelected ? 'is-selected' : '';
+            const uploadingThisRow = rowImageUploading === row.id;
+            return `
+              <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(String(Number(row.startTime || 0)))}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">
+                <td class="video-editor-row__time"><span>${escapeHtmlCore(formatSeconds(row.startTime))}</span><span>${escapeHtmlCore(formatSeconds(row.endTime))}</span></td>
+                <td class="video-editor-row__phrase">${escapeHtmlCore((row.phrase || '').toString())}</td>
+                <td class="video-editor-row__image">
+                  ${row.selectedAssetId
+                    ? `<span class="video-editor-row__image-tag">${escapeHtmlCore((row.selectedAssetId || '').toString().slice(0, 28))}</span>`
+                    : '<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">Sin foto</span>'}
+                </td>
+                <td class="video-editor-row__actions">
+                  <label class="video-editor-row__upload-label">
+                    <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" ${uploadingThisRow ? 'disabled' : ''} />
+                    <span>${uploadingThisRow ? 'Subiendo…' : 'Cambiar'}</span>
+                  </label>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -460,8 +497,16 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
   const rowControls = row
     ? `
       <div class="video-editor-detail__section">
-        <span class="video-projects-eyebrow">Fila seleccionada</span>
-        <strong>${escapeHtmlCore((row.phrase || 'Fila').toString().slice(0, 40))}</strong>
+        <span class="video-projects-eyebrow">Detalles de efectos</span>
+        <strong>${escapeHtmlCore((row.phrase || 'Fila').toString().slice(0, 64))}</strong>
+        <p class="video-editor-detail__time">${escapeHtmlCore(`${formatSeconds(row.startTime)} → ${formatSeconds(row.endTime)}`)}</p>
+        <div class="video-editor-detail__asset-row">
+          <span class="video-editor-row__image-tag ${row.selectedAssetId ? '' : 'video-editor-row__image-tag--missing'}">${escapeHtmlCore((row.selectedAssetId || 'Sin imagen asignada').toString().slice(0, 40))}</span>
+          <label class="video-editor-row__upload-label video-editor-row__upload-label--detail">
+            <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" />
+            <span>Cambiar imagen</span>
+          </label>
+        </div>
         <div class="video-editor-control">
           <label>Movimiento</label>
           <select data-action="update-row-motion" data-row-id="${escapeHtmlCore(row.id)}">
@@ -480,6 +525,13 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
           </select>
         </div>
         <div class="video-editor-control">
+          <label>Logo</label>
+          <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
+            <option value="true" ${row.logo?.enabled !== false ? 'selected' : ''}>Activado</option>
+            <option value="false" ${row.logo?.enabled === false ? 'selected' : ''}>Desactivado</option>
+          </select>
+        </div>
+        <div class="video-editor-control">
           <label>Transición</label>
           <select data-action="update-row-transition" data-row-id="${escapeHtmlCore(row.id)}">
             <option value="none" ${row.transition === 'none' ? 'selected' : ''}>Ninguna</option>
@@ -492,8 +544,8 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
     `
     : `
       <div class="video-editor-detail__section">
-        <span class="video-projects-eyebrow">Fila seleccionada</span>
-        <p class="video-projects-empty">Seleccioná una fila para editar movimiento, polvo y transición.</p>
+        <span class="video-projects-eyebrow">Detalles de efectos</span>
+        <p class="video-projects-empty">Seleccioná una fila de la tabla para editar imagen, movimiento, polvo, logo y transición.</p>
       </div>
     `;
 
@@ -566,32 +618,57 @@ function buildEditorShell(project, options = {}) {
     rowImageUploading,
   } = options;
 
-  const selectedRow = editorRows.find((r) => r.id === selectedRowId) || null;
+  const activeSelectedRowId = selectedRowId || editorRows[0]?.id || null;
+  const selectedRow = editorRows.find((r) => r.id === activeSelectedRowId) || null;
 
   return `
-    <div class="video-project-section-heading">
-      <div>
-        <span class="video-projects-eyebrow">Fase 4</span>
-        <h3>Edición · ${buildPhaseBadge(editorState.phase, editorState.dirty)}</h3>
-      </div>
-    </div>
+    <section class="video-editor-shell" data-editor-phase="${escapeHtmlCore((editorState.phase || 'idle').toString())}">
+      <header class="video-editor-shell__header">
+        <div>
+          <p class="video-projects-eyebrow">Preview Editor · Proyecto</p>
+          <h3>${escapeHtmlCore(resolveVideoProjectTitle(project))}</h3>
+        </div>
+        <div class="video-editor-shell__header-actions">
+          ${buildPhaseBadge(editorState.phase, editorState.dirty)}
+        </div>
+      </header>
 
-    ${buildPreviewMonitor({ previewUrl: editorState.preview_url, remotionProjectId: editorState.remotion_project_id })}
+      <ol class="video-editor-shell__phase-bar" aria-label="Fases del editor">
+        <li><span>01</span>Imágenes</li>
+        <li><span>02</span>Audio</li>
+        <li class="is-active"><span>03</span>Preview</li>
+        <li class="${['preview_ready', 'editing_dirty', 'final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>04</span>Edición</li>
+        <li class="${['final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>05</span>Render/Export</li>
+      </ol>
 
-    <section class="video-editor-workspace">
-      <div class="video-editor-main">
-        <div class="video-project-section-heading video-project-section-heading--compact">
-          <div>
-            <span class="video-projects-eyebrow">Filas cronometradas</span>
-            <h4>${formatCount(editorRows.length, 'fila')}</h4>
+      <section class="video-editor-shell__workspace">
+        <div class="video-editor-shell__left">
+          <div class="video-editor-shell__card video-editor-shell__card--preview">
+            <div class="video-project-section-heading video-project-section-heading--compact">
+              <div>
+                <span class="video-projects-eyebrow">Preview Card — Top</span>
+                <h4>Vista previa</h4>
+              </div>
+            </div>
+            ${buildPreviewMonitor({ previewUrl: editorState.preview_url, remotionProjectId: editorState.remotion_project_id, rows: editorRows, selectedRowId: activeSelectedRowId })}
+          </div>
+
+          <div class="video-editor-shell__card video-editor-shell__card--table">
+            <div class="video-project-section-heading video-project-section-heading--compact">
+              <div>
+                <span class="video-projects-eyebrow">Table Card — Bottom</span>
+                <h4>${formatCount(editorRows.length, 'fila')}</h4>
+              </div>
+            </div>
+            ${buildEditorRowsTable(editorRows, { selectedRowId: activeSelectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading })}
           </div>
         </div>
-        ${buildEditorRowsTable(editorRows, { selectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading })}
-      </div>
-      <aside class="video-editor-side">
-        ${buildEditorDetailRail({ row: selectedRow, globalAudio })}
-        ${buildEditorStatusPanel({ editorState, onRefreshPreview, onExportFinal })}
-      </aside>
+
+        <aside class="video-editor-shell__right">
+          ${buildEditorDetailRail({ row: selectedRow, globalAudio })}
+          ${buildEditorStatusPanel({ editorState, onRefreshPreview, onExportFinal })}
+        </aside>
+      </section>
     </section>
   `;
 }
@@ -741,6 +818,7 @@ export function renderSelectedVideoProjectView({
 
   let mainContent = '';
   let sideContent = '';
+  const editorShellMode = inEditorPhase && (editorPhase === 'preview_ready' || editorPhase === 'editing_dirty' || editorPhase === 'final_ready' || editorPhase === 'error');
 
   if (!inEditorPhase) {
     // Phases 01/02: images and audio setup
@@ -854,21 +932,23 @@ export function renderSelectedVideoProjectView({
       });
     }
 
-    sideContent = `
-      <div class="video-project-section-heading video-project-section-heading--compact">
-        <div>
-          <span class="video-projects-eyebrow">Estado</span>
-          <h3>${buildPhaseBadge(editorPhase, editorState.dirty)}</h3>
+    sideContent = editorShellMode
+      ? ''
+      : `
+        <div class="video-project-section-heading video-project-section-heading--compact">
+          <div>
+            <span class="video-projects-eyebrow">Estado</span>
+            <h3>${buildPhaseBadge(editorPhase, editorState.dirty)}</h3>
+          </div>
         </div>
-      </div>
-      <div class="video-editor-meta">
-        <div><span>Proyecto Remotion</span><strong>${escapeHtmlCore((editorState.remotion_project_id || '—').toString())}</strong></div>
-        <div><span>Filas</span><strong>${editorRows.length}</strong></div>
-        <div><span>Preview</span><strong>${editorState.preview_url ? 'Lista' : 'Pendiente'}</strong></div>
-        <div><span>Exportación</span><strong>${editorState.export_status === 'ready' ? 'Lista' : 'Pendiente'}</strong></div>
-      </div>
-      ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
-    `;
+        <div class="video-editor-meta">
+          <div><span>Proyecto Remotion</span><strong>${escapeHtmlCore((editorState.remotion_project_id || '—').toString())}</strong></div>
+          <div><span>Filas</span><strong>${editorRows.length}</strong></div>
+          <div><span>Preview</span><strong>${editorState.preview_url ? 'Lista' : 'Pendiente'}</strong></div>
+          <div><span>Exportación</span><strong>${editorState.export_status === 'ready' ? 'Lista' : 'Pendiente'}</strong></div>
+        </div>
+        ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
+      `;
   }
 
   el.videoProjectDetail.innerHTML = `
@@ -881,7 +961,7 @@ export function renderSelectedVideoProjectView({
       <span class="video-project-status video-project-status--large" data-status="${escapeHtmlCore((project.status || '').toString())}">${status}</span>
     </header>
 
-    <ol class="video-phase-rail" aria-label="Fases del proyecto">
+    <ol class="video-phase-rail ${editorShellMode ? 'video-phase-rail--hidden' : ''}" aria-label="Fases del proyecto">
       <li class="${!inEditorPhase && currentStep === 'images' ? 'is-active' : ''}"><span>01</span>Imágenes</li>
       <li class="${!inEditorPhase && currentStep === 'audio' ? 'is-active' : ''}"><span>02</span>Audios</li>
       <li class="${inEditorPhase ? 'is-active' : ''}"><span>03</span>Preview</li>
@@ -889,7 +969,7 @@ export function renderSelectedVideoProjectView({
       <li class="${['final_rendering', 'final_ready'].includes(editorPhase) ? 'is-active' : ''}"><span>05</span>Exportación</li>
     </ol>
 
-    <section class="video-project-detail__meta-grid">
+    <section class="video-project-detail__meta-grid ${editorShellMode ? 'video-project-detail__meta-grid--hidden' : ''}">
       <div><span>Query Serper</span><strong>${query}</strong></div>
       <div><span>Ventana</span><strong>Último día</strong></div>
       <div><span>Imágenes</span><strong>${candidates.length || Number(project.image_count || 0)}</strong></div>
@@ -898,11 +978,11 @@ export function renderSelectedVideoProjectView({
 
     ${detailPending ? '<p class="video-projects-empty">Cargando imágenes del proyecto…</p>' : ''}
 
-    <section class="video-project-detail__workspace">
+    <section class="video-project-detail__workspace ${editorShellMode ? 'video-project-detail__workspace--editor-shell' : ''}">
       <div class="video-project-detail__main">
         ${mainContent}
       </div>
-      <aside class="video-project-detail__side">
+      <aside class="video-project-detail__side ${editorShellMode ? 'video-project-detail__side--hidden' : ''}">
         ${sideContent}
       </aside>
     </section>
@@ -981,13 +1061,59 @@ export function renderSelectedVideoProjectView({
   } else {
     // Editor phase event hydration
     if (editorPhase === 'preview_ready' || editorPhase === 'editing_dirty' || editorPhase === 'final_ready' || editorPhase === 'error') {
+      const selectEditorRow = (rowId, startTime) => {
+        if (!rowId) return;
+        project._selectedEditorRowId = rowId;
+        const nextTime = Number(startTime);
+        if (Number.isFinite(nextTime)) project._previewSeekTime = nextTime;
+        renderSelectedVideoProject?.();
+      };
+
+      const restorePreviewSeekTime = () => {
+        const video = el.videoProjectDetail.querySelector('[data-preview-video]');
+        const seekTime = Number(project._previewSeekTime);
+        if (!video || !Number.isFinite(seekTime)) return;
+        const applySeek = () => {
+          try { video.currentTime = seekTime; } catch {}
+        };
+        if (video.readyState >= 1) applySeek();
+        else video.addEventListener('loadedmetadata', applySeek, { once: true });
+      };
+
+      restorePreviewSeekTime();
+
+      el.videoProjectDetail.querySelector('[data-preview-video]')?.addEventListener('timeupdate', (ev) => {
+        const currentTime = Number(ev.currentTarget?.currentTime || 0);
+        const duration = Math.max(Number(ev.currentTarget?.duration || 0), 1);
+        const pct = Math.max(0, Math.min((currentTime / duration) * 100, 100));
+        const progressEl = el.videoProjectDetail.querySelector('[data-preview-progress]');
+        const playheadEl = el.videoProjectDetail.querySelector('[data-preview-playhead]');
+        if (progressEl) progressEl.style.width = `${pct}%`;
+        if (playheadEl) playheadEl.style.left = `${pct}%`;
+        const currentRow = editorRows.find((row) => currentTime >= Number(row.startTime || 0) && currentTime < Number(row.endTime || 0));
+        if (!currentRow) return;
+        el.videoProjectDetail.querySelectorAll('.video-preview-timeline__segment').forEach((segment) => {
+          segment.classList.toggle('is-current', segment.dataset.rowId === currentRow.id);
+        });
+      });
+
       // Row selection
       el.videoProjectDetail.querySelectorAll('[data-action="select-row"]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const rowId = btn.dataset.rowId;
-          if (!rowId) return;
-          project._selectedEditorRowId = rowId;
-          renderSelectedVideoProject?.();
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          selectEditorRow(btn.dataset.rowId, btn.dataset.startTime);
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => {
+        rowEl.addEventListener('click', (ev) => {
+          if (ev.target.closest('button, input, label, select, a')) return;
+          selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime);
+        });
+        rowEl.addEventListener('keydown', (ev) => {
+          if (ev.key !== 'Enter' && ev.key !== ' ') return;
+          ev.preventDefault();
+          selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime);
         });
       });
 
@@ -1017,6 +1143,15 @@ export function renderSelectedVideoProjectView({
           const rowId = select.dataset.rowId;
           if (!rowId) return;
           updateRow?.(rowId, { dust: { enabled: select.value === 'true' } });
+        });
+      });
+
+      // Row logo update
+      el.videoProjectDetail.querySelectorAll('[data-action="update-row-logo"]').forEach((select) => {
+        select.addEventListener('change', () => {
+          const rowId = select.dataset.rowId;
+          if (!rowId) return;
+          updateRow?.(rowId, { logo: { enabled: select.value === 'true' } });
         });
       });
 
