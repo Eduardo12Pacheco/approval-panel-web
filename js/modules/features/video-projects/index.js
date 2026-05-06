@@ -20,6 +20,7 @@ export function resolveVideoProjectTitle(row = {}, fallback = 'Proyecto sin tít
 
 const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_KINDS = new Set(['voice', 'background']);
+const AUDIO_CONTROL_KINDS = new Set(['voice', 'music', 'background']);
 const CUSTOM_IMAGE_MAX_SIZE_BYTES = 15 * 1024 * 1024;
 const CUSTOM_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const DETAIL_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -49,6 +50,7 @@ function normalizeRemotionRows(rows = []) {
   if (!Array.isArray(rows)) return [];
   return rows.map((row, index) => ({
     id: (row?.id || `row-${index + 1}`).toString(),
+    index: Number(row?.index ?? index),
     phrase: (row?.phrase || row?.caption || '').toString(),
     startTime: Number(row?.startTime ?? 0),
     endTime: Number(row?.endTime ?? 0),
@@ -912,14 +914,16 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project) return;
-    if (!AUDIO_KINDS.has(kind) && kind !== 'music') return;
+    if (!AUDIO_CONTROL_KINDS.has(kind)) return;
+
+    const normalizedKind = kind === 'voice' ? 'voice' : 'music';
 
     const current = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.15, muted: false } };
     const next = {
       ...current,
-      [kind === 'voice' ? 'voice' : 'music']: {
-        volume: Number.isFinite(patch.volume) ? Math.max(0, Math.min(1, patch.volume)) : current[kind]?.volume,
-        muted: patch.muted !== undefined ? Boolean(patch.muted) : current[kind]?.muted,
+      [normalizedKind]: {
+        volume: Number.isFinite(patch.volume) ? Math.max(0, Math.min(1, patch.volume)) : current[normalizedKind]?.volume,
+        muted: patch.muted !== undefined ? Boolean(patch.muted) : current[normalizedKind]?.muted,
       },
     };
     project._globalAudio = next;

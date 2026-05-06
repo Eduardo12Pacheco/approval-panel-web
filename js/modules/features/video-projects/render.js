@@ -140,6 +140,50 @@ function resolveCandidateImageUrl(candidate = {}) {
   return resolveStoragePublicUrl(candidate) || resolveLegacyCandidateUrl(candidate);
 }
 
+function resolveSelectedImageEntryUrl(entry = null) {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry.trim();
+  if (typeof entry === 'object') return resolveCandidateImageUrl(entry);
+  return '';
+}
+
+function normalizeImageLookupKey(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .split(/[?#]/)[0]
+    .split('/')
+    .pop()
+    .replace(/\.(png|jpe?g|webp|gif|avif)$/i, '')
+    .replace(/[^a-z0-9]+/g, '-');
+}
+
+function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
+  const selectedAssetId = (row.selectedAssetId || '').toString().trim();
+  if (/^https?:\/\//i.test(selectedAssetId)) return selectedAssetId;
+
+  const selectedImages = Array.isArray(project.selected_images) ? project.selected_images : [];
+  const selectedByIndex = resolveSelectedImageEntryUrl(selectedImages[rowIndex]);
+  if (selectedByIndex) return selectedByIndex;
+
+  const selectedKey = normalizeImageLookupKey(selectedAssetId);
+  const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
+  const matchedCandidate = candidates.find((candidate) => {
+    const candidateUrl = resolveCandidateImageUrl(candidate);
+    return [
+      candidate.id,
+      candidate.assetId,
+      candidate.file_name,
+      candidate.title,
+      candidate.storage_path,
+      candidate.path,
+      candidateUrl,
+    ].some((value) => normalizeImageLookupKey(value) === selectedKey);
+  });
+
+  return matchedCandidate ? resolveCandidateImageUrl(matchedCandidate) : '';
+}
+
 function resolveCandidateFallbackUrl(candidate = {}, primaryUrl = '') {
   const legacyUrl = resolveLegacyCandidateUrl(candidate);
   if (!legacyUrl || legacyUrl === primaryUrl) return '';
@@ -405,12 +449,14 @@ function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selecte
   }
   return `
     <div class="video-preview-monitor">
-      <video controls playsinline preload="metadata" src="${escapeHtmlCore(previewUrl)}" data-preview-video></video>
+      <div class="video-preview-stage">
+        <video playsinline preload="metadata" src="${escapeHtmlCore(previewUrl)}" data-preview-video></video>
+      </div>
+      ${buildPreviewTimeline(rows, activeSelectedRowId)}
       <div class="video-preview-monitor__footer">
         <span>Preview Remotion</span>
         <a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview</a>
       </div>
-      ${buildPreviewTimeline(rows, activeSelectedRowId)}
     </div>
   `;
 }
@@ -420,32 +466,34 @@ function buildPreviewTimeline(rows = [], selectedRowId = null) {
   const totalDuration = Math.max(...rows.map((row) => Number(row.endTime || 0)), 1);
 
   return `
-    <div class="video-preview-timeline" aria-label="Línea de tiempo de la preview">
-      <div class="video-preview-timeline__track">
+    <div class="video-preview-transport" aria-label="Controles de preview">
+      <button class="video-preview-play" type="button" data-action="toggle-preview-play" aria-label="Reproducir preview"><span data-preview-play-icon>▶</span></button>
+      <div class="video-preview-timeline" data-preview-scrubber data-duration="${escapeHtmlCore(totalDuration.toString())}" aria-label="Línea de tiempo de cambios de imagen">
+        <div class="video-preview-timeline__track">
         <div class="video-preview-timeline__progress" data-preview-progress></div>
         ${rows.map((row, index) => {
           const start = Math.max(0, Number(row.startTime || 0));
-          const end = Math.max(start, Number(row.endTime || start));
-          const width = Math.max(((end - start) / totalDuration) * 100, 1.2);
-          const left = Math.min((start / totalDuration) * 100, 100);
+          const position = Math.min((start / totalDuration) * 100, 100);
           const isSelected = selectedRowId === row.id;
           return `
-            <button class="video-preview-timeline__segment ${isSelected ? 'is-selected' : ''}" type="button" data-action="select-row" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(start.toString())}" style="--start:${left}%;--width:${width}%;" title="${escapeHtmlCore(`${formatSeconds(start)} - ${formatSeconds(end)} · ${(row.phrase || '').toString()}`)}">
+            <button class="video-preview-timeline__marker ${isSelected ? 'is-selected' : ''}" type="button" data-action="select-row" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(start.toString())}" style="--pos:${position}%;" title="${escapeHtmlCore(`${formatSeconds(start)} · ${(row.phrase || '').toString()}`)}">
               <span>${index + 1}</span>
             </button>
           `;
         }).join('')}
         <div class="video-preview-timeline__playhead" data-preview-playhead></div>
+        </div>
       </div>
-      <div class="video-preview-timeline__labels">
-        <span>0.00s</span>
+      <div class="video-preview-timecode" aria-live="polite">
+        <span data-preview-current-time>0.00s</span>
+        <span class="video-preview-timecode__divider">/</span>
         <span>${escapeHtmlCore(formatSeconds(totalDuration))}</span>
       </div>
     </div>
   `;
 }
 
-function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading } = {}) {
+function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading, project = {} } = {}) {
   if (!rows.length) {
     return '<p class="video-projects-empty">Sin filas cronometradas todavía.</p>';
   }
@@ -466,14 +514,15 @@ function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageRe
             const isSelected = selectedRowId === row.id;
             const selectedClass = isSelected ? 'is-selected' : '';
             const uploadingThisRow = rowImageUploading === row.id;
+            const imageUrl = resolveRowImageUrl(row, index, project);
             return `
               <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(String(Number(row.startTime || 0)))}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">
-                <td class="video-editor-row__time"><span>${escapeHtmlCore(formatSeconds(row.startTime))}</span><span>${escapeHtmlCore(formatSeconds(row.endTime))}</span></td>
+                <td class="video-editor-row__time"><span class="video-editor-row__time-start">${escapeHtmlCore(formatSeconds(row.startTime))}</span><span class="video-editor-row__time-end">${escapeHtmlCore(formatSeconds(row.endTime))}</span></td>
                 <td class="video-editor-row__phrase">${escapeHtmlCore((row.phrase || '').toString())}</td>
                 <td class="video-editor-row__image">
-                  ${row.selectedAssetId
-                    ? `<span class="video-editor-row__image-tag">${escapeHtmlCore((row.selectedAssetId || '').toString().slice(0, 28))}</span>`
-                    : '<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">Sin foto</span>'}
+                  ${imageUrl
+                    ? `<img class="video-editor-row__thumb" src="${escapeHtmlCore(imageUrl)}" alt="Imagen de la fila ${index + 1}" loading="lazy" />`
+                    : '<span class="video-editor-row__thumb video-editor-row__thumb--missing">Sin foto</span>'}
                 </td>
                 <td class="video-editor-row__actions">
                   <label class="video-editor-row__upload-label">
@@ -490,9 +539,10 @@ function buildEditorRowsTable(rows = [], { selectedRowId, onRowSelect, onImageRe
   `;
 }
 
-function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpdate }) {
+function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpdate, project = {}, rowIndex = 0 }) {
   const voice = globalAudio?.voice || { volume: 1, muted: false };
   const music = globalAudio?.music || { volume: 0.15, muted: false };
+  const detailImageUrl = row ? resolveRowImageUrl(row, rowIndex, project) : '';
 
   const rowControls = row
     ? `
@@ -501,7 +551,9 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
         <strong>${escapeHtmlCore((row.phrase || 'Fila').toString().slice(0, 64))}</strong>
         <p class="video-editor-detail__time">${escapeHtmlCore(`${formatSeconds(row.startTime)} → ${formatSeconds(row.endTime)}`)}</p>
         <div class="video-editor-detail__asset-row">
-          <span class="video-editor-row__image-tag ${row.selectedAssetId ? '' : 'video-editor-row__image-tag--missing'}">${escapeHtmlCore((row.selectedAssetId || 'Sin imagen asignada').toString().slice(0, 40))}</span>
+          ${detailImageUrl
+            ? `<img class="video-editor-detail__thumb" src="${escapeHtmlCore(detailImageUrl)}" alt="Imagen seleccionada" loading="lazy" />`
+            : `<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">${escapeHtmlCore((row.selectedAssetId || 'Sin imagen asignada').toString().slice(0, 40))}</span>`}
           <label class="video-editor-row__upload-label video-editor-row__upload-label--detail">
             <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" />
             <span>Cambiar imagen</span>
@@ -620,6 +672,7 @@ function buildEditorShell(project, options = {}) {
 
   const activeSelectedRowId = selectedRowId || editorRows[0]?.id || null;
   const selectedRow = editorRows.find((r) => r.id === activeSelectedRowId) || null;
+  const selectedRowIndex = Math.max(0, editorRows.findIndex((r) => r.id === activeSelectedRowId));
 
   return `
     <section class="video-editor-shell" data-editor-phase="${escapeHtmlCore((editorState.phase || 'idle').toString())}">
@@ -660,12 +713,12 @@ function buildEditorShell(project, options = {}) {
                 <h4>${formatCount(editorRows.length, 'fila')}</h4>
               </div>
             </div>
-            ${buildEditorRowsTable(editorRows, { selectedRowId: activeSelectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading })}
+            ${buildEditorRowsTable(editorRows, { selectedRowId: activeSelectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading, project })}
           </div>
         </div>
 
         <aside class="video-editor-shell__right">
-          ${buildEditorDetailRail({ row: selectedRow, globalAudio })}
+          ${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}
           ${buildEditorStatusPanel({ editorState, onRefreshPreview, onExportFinal })}
         </aside>
       </section>
@@ -1080,25 +1133,133 @@ export function renderSelectedVideoProjectView({
         else video.addEventListener('loadedmetadata', applySeek, { once: true });
       };
 
-      restorePreviewSeekTime();
+      const previewVideo = el.videoProjectDetail.querySelector('[data-preview-video]');
+      const scrubber = el.videoProjectDetail.querySelector('[data-preview-scrubber]');
+      const playButton = el.videoProjectDetail.querySelector('[data-action="toggle-preview-play"]');
+      const playIcon = el.videoProjectDetail.querySelector('[data-preview-play-icon]');
 
-      el.videoProjectDetail.querySelector('[data-preview-video]')?.addEventListener('timeupdate', (ev) => {
-        const currentTime = Number(ev.currentTarget?.currentTime || 0);
-        const duration = Math.max(Number(ev.currentTarget?.duration || 0), 1);
-        const pct = Math.max(0, Math.min((currentTime / duration) * 100, 100));
+      const findRowAtTime = (time) => {
+        if (!editorRows.length) return null;
+        return editorRows.find((row) => time >= Number(row.startTime || 0) && time < Number(row.endTime || 0)) || editorRows[editorRows.length - 1];
+      };
+
+      const updatePreviewTimeline = (currentTime, durationValue) => {
+        const configuredDuration = Number(scrubber?.dataset.duration || 0);
+        const duration = Math.max(Number(durationValue || previewVideo?.duration || configuredDuration || 0), configuredDuration, 1);
+        const pct = Math.max(0, Math.min((Number(currentTime || 0) / duration) * 100, 100));
         const progressEl = el.videoProjectDetail.querySelector('[data-preview-progress]');
         const playheadEl = el.videoProjectDetail.querySelector('[data-preview-playhead]');
+        const currentTimeEl = el.videoProjectDetail.querySelector('[data-preview-current-time]');
         if (progressEl) progressEl.style.width = `${pct}%`;
         if (playheadEl) playheadEl.style.left = `${pct}%`;
-        const currentRow = editorRows.find((row) => currentTime >= Number(row.startTime || 0) && currentTime < Number(row.endTime || 0));
+        if (currentTimeEl) currentTimeEl.textContent = formatSeconds(currentTime || 0);
+        const currentRow = findRowAtTime(Number(currentTime || 0));
         if (!currentRow) return;
-        el.videoProjectDetail.querySelectorAll('.video-preview-timeline__segment').forEach((segment) => {
+        el.videoProjectDetail.querySelectorAll('.video-preview-timeline__marker').forEach((segment) => {
           segment.classList.toggle('is-current', segment.dataset.rowId === currentRow.id);
         });
+        el.videoProjectDetail.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => {
+          rowEl.classList.toggle('is-current', rowEl.dataset.rowId === currentRow.id);
+        });
+      };
+
+      let previewTimelineFrame = 0;
+      const stopPreviewTimelineLoop = () => {
+        if (!previewTimelineFrame) return;
+        window.cancelAnimationFrame(previewTimelineFrame);
+        previewTimelineFrame = 0;
+      };
+      const startPreviewTimelineLoop = () => {
+        stopPreviewTimelineLoop();
+        const tick = () => {
+          if (!previewVideo) return;
+          updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+          if (!previewVideo.paused && !previewVideo.ended) {
+            previewTimelineFrame = window.requestAnimationFrame(tick);
+          }
+        };
+        previewTimelineFrame = window.requestAnimationFrame(tick);
+      };
+
+      const seekPreviewFromPointer = (ev) => {
+        if (!previewVideo || !scrubber) return;
+        const rect = scrubber.getBoundingClientRect();
+        if (!rect.width) return;
+        const pct = Math.max(0, Math.min((ev.clientX - rect.left) / rect.width, 1));
+        const configuredDuration = Number(scrubber.dataset.duration || 0);
+        const duration = Math.max(Number(previewVideo.duration || 0), configuredDuration, 1);
+        const nextTime = pct * duration;
+        previewVideo.currentTime = nextTime;
+        project._previewSeekTime = nextTime;
+        updatePreviewTimeline(nextTime, duration);
+      };
+
+      restorePreviewSeekTime();
+      updatePreviewTimeline(Number(project._previewSeekTime || 0));
+
+      previewVideo?.addEventListener('loadedmetadata', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+      previewVideo?.addEventListener('timeupdate', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+      previewVideo?.addEventListener('play', () => {
+        playButton?.classList.add('is-playing');
+        if (playIcon) playIcon.textContent = '❚❚';
+        startPreviewTimelineLoop();
       });
+      previewVideo?.addEventListener('pause', () => {
+        playButton?.classList.remove('is-playing');
+        if (playIcon) playIcon.textContent = '▶';
+        stopPreviewTimelineLoop();
+        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+      });
+      previewVideo?.addEventListener('ended', () => {
+        playButton?.classList.remove('is-playing');
+        if (playIcon) playIcon.textContent = '▶';
+        stopPreviewTimelineLoop();
+        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+      });
+
+      previewVideo?.addEventListener('click', async () => {
+        if (previewVideo.paused) {
+          try { await previewVideo.play(); } catch {}
+        } else {
+          previewVideo.pause();
+        }
+      });
+
+      playButton?.addEventListener('click', async () => {
+        if (!previewVideo) return;
+        if (previewVideo.paused) {
+          try { await previewVideo.play(); } catch {}
+        } else {
+          previewVideo.pause();
+        }
+      });
+
+      if (scrubber) {
+        let scrubbing = false;
+        scrubber.addEventListener('pointerdown', (ev) => {
+          if (ev.target.closest('[data-action="select-row"]')) return;
+          scrubbing = true;
+          scrubber.setPointerCapture?.(ev.pointerId);
+          seekPreviewFromPointer(ev);
+        });
+        scrubber.addEventListener('pointermove', (ev) => {
+          if (!scrubbing) return;
+          seekPreviewFromPointer(ev);
+        });
+        scrubber.addEventListener('pointerup', (ev) => {
+          if (!scrubbing) return;
+          seekPreviewFromPointer(ev);
+          scrubbing = false;
+          scrubber.releasePointerCapture?.(ev.pointerId);
+        });
+        scrubber.addEventListener('pointercancel', () => {
+          scrubbing = false;
+        });
+      }
 
       // Row selection
       el.videoProjectDetail.querySelectorAll('[data-action="select-row"]').forEach((btn) => {
+        btn.addEventListener('pointerdown', (ev) => ev.stopPropagation());
         btn.addEventListener('click', (ev) => {
           ev.stopPropagation();
           selectEditorRow(btn.dataset.rowId, btn.dataset.startTime);
@@ -1166,7 +1327,8 @@ export function renderSelectedVideoProjectView({
 
       // Global audio updates
       el.videoProjectDetail.querySelectorAll('[data-action="update-global-audio"]').forEach((input) => {
-        input.addEventListener('change', () => {
+        const eventName = input.dataset.field === 'volume' ? 'input' : 'change';
+        input.addEventListener(eventName, () => {
           const kind = input.dataset.audioKind;
           const field = input.dataset.field;
           if (!kind || !field) return;
