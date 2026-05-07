@@ -39,6 +39,7 @@ function normalizeEditorState(editorState = {}) {
     final_url: editorState.final_url || '',
     composition_hash: editorState.composition_hash || '',
     last_preview_hash: editorState.last_preview_hash || '',
+    last_rendered_hash: editorState.last_rendered_hash || '',
     dirty: Boolean(editorState.dirty),
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
@@ -136,10 +137,6 @@ function hydrateSelectedProjectState(project) {
   const timedRows = normalizeRemotionRows(es.timed_rows);
   if (timedRows.length) project._editorRows = timedRows;
   project._globalAudio = normalizeGlobalAudioState(es.global_audio);
-  // Default to browser composition when editor rows are available
-  if (project._useCompositionPreview === undefined) {
-    project._useCompositionPreview = timedRows.length > 0;
-  }
   setVideoProjectStep(project, 'images');
 }
 
@@ -653,39 +650,34 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
 
       await persistEditorState(project, {
-        phase: 'preview_rendering',
+        phase: 'preview_ready',
         remotion_project_id: remotionProjectId,
         timed_rows: timedRows,
+        preview_url: '',
       });
       renderSelectedVideoProject();
-
-      const preview = await remotion.renderPreview(remotionProjectId);
-      const refreshedStatus = await remotion.status(remotionProjectId);
-      const previewReady = Boolean(refreshedStatus?.preview?.exists || refreshedStatus?.preview?.outputPath);
-      if (!previewReady) throw new Error('Remotion no generó el archivo de preview.');
-      const previewUrl = remotion.previewDownloadUrl(remotionProjectId);
 
       const compositionHash = computeCompositionHash(project);
 
       await persistEditorState(project, {
         phase: 'preview_ready',
         remotion_project_id: remotionProjectId,
-        preview_url: previewUrl,
+        preview_url: '',
         composition_hash: compositionHash,
         last_preview_hash: compositionHash,
+        last_rendered_hash: compositionHash,
         dirty: false,
         error: '',
         export_status: 'idle',
-        diagnostics: preview?.diagnostics || refreshedStatus?.diagnostics || null,
       });
-      ui.toast('Preview preparada');
+      ui.toast('Editor preparado');
     } catch (err) {
       console.error(err);
       await persistEditorState(project, {
         phase: 'error',
-        error: err?.message || 'No se pudo preparar preview',
+        error: err?.message || 'No se pudo preparar el editor',
       });
-      ui.toast('Error preparando preview');
+      ui.toast('Error preparando editor');
     } finally {
       renderSelectedVideoProject();
     }
@@ -771,7 +763,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
     const editorState = project.editor_state || {};
     if (editorState.dirty) {
-      const proceed = window.confirm('La preview está desactualizada. ¿Exportar igual? Es recomendable actualizar la preview antes de exportar.');
+      const proceed = window.confirm('Hay cambios pendientes de render final. ¿Querés exportar ahora?');
       if (!proceed) return;
     }
 
@@ -801,6 +793,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         phase: 'final_ready',
         final_url: finalUrl,
         export_status: 'ready',
+        last_rendered_hash: computeCompositionHash(project),
         dirty: false,
         error: '',
         diagnostics: result?.diagnostics || null,
@@ -842,8 +835,11 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     project._editorRows = rows;
 
     const compositionHash = computeCompositionHash(project);
-    const lastPreviewHash = project.editor_state?.last_preview_hash || '';
-    const isDirty = compositionHash !== lastPreviewHash;
+    const lastRenderedHash = project.editor_state?.last_rendered_hash
+      || project.editor_state?.last_preview_hash
+      || project.editor_state?.composition_hash
+      || '';
+    const isDirty = compositionHash !== lastRenderedHash;
 
     project.editor_state = normalizeEditorState({
       ...project.editor_state,
@@ -950,8 +946,11 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     project._globalAudio = normalizeGlobalAudioState(next);
 
     const compositionHash = computeCompositionHash(project);
-    const lastPreviewHash = project.editor_state?.last_preview_hash || '';
-    const isDirty = compositionHash !== lastPreviewHash;
+    const lastRenderedHash = project.editor_state?.last_rendered_hash
+      || project.editor_state?.last_preview_hash
+      || project.editor_state?.composition_hash
+      || '';
+    const isDirty = compositionHash !== lastRenderedHash;
 
     project.editor_state = normalizeEditorState({
       ...project.editor_state,

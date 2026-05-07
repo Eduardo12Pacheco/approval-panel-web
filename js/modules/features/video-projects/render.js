@@ -58,9 +58,9 @@ function getPhaseLabel(phase = '') {
   const map = {
     idle: 'Pendiente',
     preparing: 'Preparando…',
-    preview_rendering: 'Renderizando preview…',
-    preview_ready: 'Preview lista',
-    editing_dirty: 'Edición (cambios sin preview)',
+    preview_rendering: 'Preparando editor…',
+    preview_ready: 'Editor listo',
+    editing_dirty: 'Edición (cambios sin exportar)',
     final_rendering: 'Exportando…',
     final_ready: 'Exportación lista',
     error: 'Error',
@@ -457,48 +457,30 @@ function hydrateImageSizeBadges(root, { onBrokenCandidate } = {}) {
 
 function buildPhaseBadge(phase, dirty) {
   const label = getPhaseLabel(phase);
-  const dirtyBadge = dirty ? '<span class="video-project-dirty-badge" title="Cambios sin preview">●</span>' : '';
+  const dirtyBadge = dirty ? '<span class="video-project-dirty-badge" title="Cambios sin exportar">●</span>' : '';
   return `<span class="video-project-phase-badge" data-phase="${escapeHtmlCore(phase)}">${escapeHtmlCore(label)}${dirtyBadge}</span>`;
 }
 
-function buildPreviewMonitor({ previewUrl, remotionProjectId, rows = [], selectedRowId = null, useComposition = false }) {
+function buildPreviewMonitor({ previewUrl, rows = [], selectedRowId = null }) {
   const activeSelectedRowId = selectedRowId || rows[0]?.id || null;
   const hasRows = Array.isArray(rows) && rows.length > 0;
 
-  // No preview URL AND no rows → empty state
-  if (!previewUrl && !hasRows) {
+  // No rows yet → empty state
+  if (!hasRows) {
     return `
       <div class="video-preview-monitor video-preview-monitor--empty">
-        <p>Todavía no hay preview. Prepará o actualizá la preview para ver el video.</p>
+        <p>Todavía no hay composición local. Prepará el editor para empezar.</p>
+        ${previewUrl ? `<a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview renderizada</a>` : ''}
       </div>
     `;
   }
 
-  // Browser composition mode — render composition container instead of <video>
-  if (useComposition && hasRows) {
-    return `
-      <div class="video-preview-monitor video-preview-monitor--composition">
-        <div class="video-preview-stage" data-composition-container></div>
-        ${buildPreviewTimeline(rows, activeSelectedRowId)}
-        <div class="video-preview-monitor__footer">
-          <span>Preview composición</span>
-          ${previewUrl ? `<button class="video-preview-toggle-remotion" type="button" data-action="toggle-composition-mode">Usar preview Remotion</button>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  // Remotion video preview (fallback)
   return `
-    <div class="video-preview-monitor">
-      <div class="video-preview-stage">
-        <video playsinline preload="metadata" src="${escapeHtmlCore(previewUrl)}" data-preview-video></video>
-      </div>
+    <div class="video-preview-monitor video-preview-monitor--composition">
+      <div class="video-preview-stage" data-composition-container></div>
       ${buildPreviewTimeline(rows, activeSelectedRowId)}
       <div class="video-preview-monitor__footer">
-        <span>Preview Remotion</span>
-        ${hasRows ? '<button class="video-preview-toggle-remotion" type="button" data-action="toggle-composition-mode">Usar composición</button>' : ''}
-        <a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview</a>
+        <span>Preview local</span>
       </div>
     </div>
   `;
@@ -661,31 +643,26 @@ function buildEditorDetailRail({ row, globalAudio, onRowUpdate, onGlobalAudioUpd
   `;
 }
 
-function buildEditorStatusPanel({ editorState, onRefreshPreview, onExportFinal }) {
+function buildEditorStatusPanel({ editorState, onExportFinal }) {
   const phase = editorState.phase || 'idle';
   const dirty = Boolean(editorState.dirty);
   const exportStatus = editorState.export_status || 'idle';
-  const isRendering = phase === 'preview_rendering' || phase === 'final_rendering';
-  const canRefresh = !isRendering && (phase === 'preview_ready' || phase === 'editing_dirty' || phase === 'error');
+  const isRendering = phase === 'preparing' || phase === 'preview_rendering' || phase === 'final_rendering';
   const canExport = !isRendering && (phase === 'preview_ready' || phase === 'editing_dirty' || phase === 'final_ready' || phase === 'error');
-  const exportDisabled = canExport && dirty;
 
   return `
     <div class="video-editor-status-panel">
       <div class="video-editor-status-panel__header">
         <span class="video-projects-eyebrow">Acciones</span>
-        ${dirty ? '<span class="video-project-dirty-badge" title="Cambios sin preview">● Desactualizado</span>' : ''}
+        ${dirty ? '<span class="video-project-dirty-badge" title="Cambios sin exportar">● Sin exportar</span>' : ''}
       </div>
       <div class="video-editor-actions">
-        <button class="video-project-primary-action" type="button" data-action="refresh-preview" ${canRefresh ? '' : 'disabled'}>
-          ${phase === 'preview_rendering' ? 'Renderizando preview…' : 'Actualizar preview'}
-        </button>
-        <button class="video-project-primary-action video-project-primary-action--export" type="button" data-action="export-final" ${canExport ? '' : 'disabled'} title="${exportDisabled ? 'Actualizá la preview antes de exportar' : 'Exportar video final 1080p'}">
+        <button class="video-project-primary-action video-project-primary-action--export" type="button" data-action="export-final" ${canExport ? '' : 'disabled'} title="Exportar video final 1080p">
           ${phase === 'final_rendering' ? 'Exportando…' : 'Exportar final'}
         </button>
       </div>
       ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
-      ${editorState.final_url && phase === 'final_ready' ? `<div class="video-editor-download"><a href="${escapeHtmlCore(editorState.final_url)}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a></div>` : ''}
+      ${editorState.final_url ? `<div class="video-editor-download"><a href="${escapeHtmlCore(editorState.final_url)}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a></div>` : ''}
     </div>
   `;
 }
@@ -699,10 +676,8 @@ function buildEditorShell(project, options = {}) {
     onRowSelect,
     onImageReplace,
     onUploadAssign,
-    onRefreshPreview,
     onExportFinal,
     rowImageUploading,
-    useComposition = false,
   } = options;
 
   const activeSelectedRowId = selectedRowId || editorRows[0]?.id || null;
@@ -724,7 +699,7 @@ function buildEditorShell(project, options = {}) {
       <ol class="video-editor-shell__phase-bar" aria-label="Fases del editor">
         <li><span>01</span>Imágenes</li>
         <li><span>02</span>Audio</li>
-        <li class="is-active"><span>03</span>Preview</li>
+        <li class="is-active"><span>03</span>Editor</li>
         <li class="${['preview_ready', 'editing_dirty', 'final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>04</span>Edición</li>
         <li class="${['final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>05</span>Render/Export</li>
       </ol>
@@ -738,7 +713,7 @@ function buildEditorShell(project, options = {}) {
                 <h4>Vista previa</h4>
               </div>
             </div>
-            ${buildPreviewMonitor({ previewUrl: editorState.preview_url, remotionProjectId: editorState.remotion_project_id, rows: editorRows, selectedRowId: activeSelectedRowId, useComposition })}
+            ${buildPreviewMonitor({ previewUrl: editorState.preview_url, rows: editorRows, selectedRowId: activeSelectedRowId })}
           </div>
 
           <div class="video-editor-shell__card video-editor-shell__card--table">
@@ -754,7 +729,7 @@ function buildEditorShell(project, options = {}) {
 
         <aside class="video-editor-shell__right">
           ${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}
-          ${buildEditorStatusPanel({ editorState, onRefreshPreview, onExportFinal })}
+          ${buildEditorStatusPanel({ editorState, onExportFinal })}
         </aside>
       </section>
     </section>
@@ -770,15 +745,15 @@ function buildPreviewPreparingPanel(editorState) {
     <div class="video-project-section-heading">
       <div>
         <span class="video-projects-eyebrow">Fase 3</span>
-        <h3>Preview ${buildPhaseBadge(phase, false)}</h3>
+        <h3>Editor ${buildPhaseBadge(phase, false)}</h3>
       </div>
     </div>
     <div class="video-preview-preparing">
       ${isRendering
-        ? `<p>Preparando preview… Esto puede tardar unos minutos.</p><div class="video-preview-spinner" aria-hidden="true">⏳</div>`
+        ? `<p>Preparando editor/timings… Esto puede tardar unos minutos.</p><div class="video-preview-spinner" aria-hidden="true">⏳</div>`
         : hasError
-          ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error || 'Error preparando preview')}</p>`
-          : `<p>Preview lista. Abrí la edición para ajustar filas y exportar.</p>`}
+          ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error || 'Error preparando editor')}</p>`
+          : `<p>Editor listo. Abrí la edición para ajustar filas y exportar.</p>`}
     </div>
   `;
 }
@@ -980,11 +955,11 @@ export function renderSelectedVideoProjectView({
         <div class="video-project-next-panel">
           <div>
             <span class="video-projects-eyebrow">Siguiente paso</span>
-            <strong>${canPreparePreview ? 'Listo para preparar preview' : 'Faltan archivos para continuar'}</strong>
+            <strong>${canPreparePreview ? 'Listo para preparar editor' : 'Faltan archivos para continuar'}</strong>
             <p>Necesitamos cubrir ${requiredImageCount} segmento${requiredImageCount === 1 ? '' : 's'} con imágenes, voz y música antes de pasar a edición/preview.</p>
           </div>
           <button class="video-project-primary-action" type="button" data-action="video-project-prepare-preview" ${canPreparePreview ? '' : 'disabled'}>
-            ${editorPhase === 'preparing' || editorPhase === 'preview_rendering' ? 'Preparando…' : 'Preparar preview →'}
+            ${editorPhase === 'preparing' || editorPhase === 'preview_rendering' ? 'Preparando…' : 'Preparar editor →'}
           </button>
         </div>
         ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
@@ -1018,7 +993,6 @@ export function renderSelectedVideoProjectView({
         globalAudio,
         editorState,
         rowImageUploading: project._rowImageUploading || null,
-        useComposition: Boolean(project._useCompositionPreview && editorRows.length),
       });
     }
 
@@ -1034,7 +1008,7 @@ export function renderSelectedVideoProjectView({
         <div class="video-editor-meta">
           <div><span>Proyecto Remotion</span><strong>${escapeHtmlCore((editorState.remotion_project_id || '—').toString())}</strong></div>
           <div><span>Filas</span><strong>${editorRows.length}</strong></div>
-          <div><span>Preview</span><strong>${editorState.preview_url ? 'Lista' : 'Pendiente'}</strong></div>
+          <div><span>Preview local</span><strong>${editorRows.length ? 'Lista' : 'Pendiente'}</strong></div>
           <div><span>Exportación</span><strong>${editorState.export_status === 'ready' ? 'Lista' : 'Pendiente'}</strong></div>
         </div>
         ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
@@ -1054,7 +1028,7 @@ export function renderSelectedVideoProjectView({
     <ol class="video-phase-rail ${editorShellMode ? 'video-phase-rail--hidden' : ''}" aria-label="Fases del proyecto">
       <li class="${!inEditorPhase && currentStep === 'images' ? 'is-active' : ''}"><span>01</span>Imágenes</li>
       <li class="${!inEditorPhase && currentStep === 'audio' ? 'is-active' : ''}"><span>02</span>Audios</li>
-      <li class="${inEditorPhase ? 'is-active' : ''}"><span>03</span>Preview</li>
+      <li class="${inEditorPhase ? 'is-active' : ''}"><span>03</span>Editor</li>
       <li class="${['preview_ready', 'editing_dirty', 'final_rendering', 'final_ready'].includes(editorPhase) ? 'is-active' : ''}"><span>04</span>Edición</li>
       <li class="${['final_rendering', 'final_ready'].includes(editorPhase) ? 'is-active' : ''}"><span>05</span>Exportación</li>
     </ol>
@@ -1151,7 +1125,7 @@ export function renderSelectedVideoProjectView({
   } else {
     // Editor phase event hydration
     if (editorPhase === 'preview_ready' || editorPhase === 'editing_dirty' || editorPhase === 'final_ready' || editorPhase === 'error') {
-      const useComposition = Boolean(project._useCompositionPreview && editorRows.length);
+      const useComposition = Boolean(editorRows.length);
 
       // ── 5.1/5.2: Composition renderer lifecycle ──
       if (useComposition) {
@@ -1419,13 +1393,6 @@ export function renderSelectedVideoProjectView({
         });
       }
 
-      // ── Toggle composition/Remotion mode ──
-      el.videoProjectDetail.querySelector('[data-action="toggle-composition-mode"]')?.addEventListener('click', () => {
-        project._useCompositionPreview = !useComposition;
-        destroyCompositionRenderer();
-        renderSelectedVideoProject?.();
-      });
-
       // Row selection
       el.videoProjectDetail.querySelectorAll('[data-action="select-row"]').forEach((btn) => {
         btn.addEventListener('pointerdown', (ev) => ev.stopPropagation());
@@ -1497,11 +1464,6 @@ export function renderSelectedVideoProjectView({
           if (field === 'muted') patch.muted = input.checked;
           updateGlobalAudio?.(kind, patch);
         });
-      });
-
-      // Refresh preview
-      el.videoProjectDetail.querySelector('[data-action="refresh-preview"]')?.addEventListener('click', () => {
-        refreshPreview?.();
       });
 
       // Export final
