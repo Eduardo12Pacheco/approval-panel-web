@@ -1,4 +1,6 @@
 import { findDefaultBackgroundMusicTrack } from './default-background-music.js';
+import { buildPreviewCompositionContract } from './composition-contract.js';
+import { prepareVideoCompositionContract, normalizePreparedContractRows } from './contract-pipeline-client.js';
 
 export function normalizeVideoProjectRows(payload = {}) {
   const candidates = [payload?.projects, payload?.items, payload?.rows, payload?.data];
@@ -28,6 +30,15 @@ const DETAIL_CACHE_MAX_ENTRIES = 24;
 const DETAIL_PREFETCH_VISIBLE_LIMIT = 6;
 const DETAIL_PRELOAD_MAX_IMAGES = 32;
 
+function sanitizePipelineHealthMetadata(healthPayload) {
+  if (!healthPayload || typeof healthPayload !== 'object') return null;
+  const sanitized = {};
+  if (typeof healthPayload.ok === 'boolean') sanitized.ok = healthPayload.ok;
+  const status = (healthPayload.status || '').toString().trim();
+  if (status) sanitized.status = status;
+  return Object.keys(sanitized).length ? sanitized : null;
+}
+
 function normalizeEditorState(editorState = {}) {
   if (!editorState || typeof editorState !== 'object') return {};
   const globalAudio = normalizeGlobalAudioState(editorState.global_audio);
@@ -35,15 +46,23 @@ function normalizeEditorState(editorState = {}) {
     phase: editorState.phase || 'idle',
     remotion_project_id: editorState.remotion_project_id || '',
     remotion_api_url: editorState.remotion_api_url || '',
+    pipeline_provider: editorState.pipeline_provider || '',
+    pipeline_base_url: editorState.pipeline_base_url || '',
+    pipeline_fallback_from: editorState.pipeline_fallback_from || '',
+    pipeline_health: sanitizePipelineHealthMetadata(editorState.pipeline_health),
     preview_url: editorState.preview_url || '',
     final_url: editorState.final_url || '',
     composition_hash: editorState.composition_hash || '',
     last_preview_hash: editorState.last_preview_hash || '',
     last_rendered_hash: editorState.last_rendered_hash || '',
+    snapshot_id: editorState.snapshot_id || editorState.snapshotId || '',
+    snapshot_hash: editorState.snapshot_hash || editorState.snapshotHash || '',
+    approval_contract_snapshot: editorState.approval_contract_snapshot && typeof editorState.approval_contract_snapshot === 'object' ? editorState.approval_contract_snapshot : null,
     dirty: Boolean(editorState.dirty),
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
     timed_rows: Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [],
+    preview_assets: editorState.preview_assets && typeof editorState.preview_assets === 'object' ? editorState.preview_assets : null,
     global_audio: globalAudio,
     updated_at: editorState.updated_at || new Date().toISOString(),
   };
@@ -64,66 +83,6 @@ function normalizeGlobalAudioState(globalAudio = {}) {
   };
 }
 
-function normalizeRemotionRows(rows = []) {
-  if (!Array.isArray(rows)) return [];
-  return rows.map((row, index) => ({
-    id: (row?.id || `row-${index + 1}`).toString(),
-    index: Number(row?.index ?? index),
-    phrase: (row?.phrase || row?.caption || '').toString(),
-    startTime: Number(row?.startTime ?? 0),
-    endTime: Number(row?.endTime ?? 0),
-    selectedAssetId: row?.selectedAssetId || null,
-    motion: row?.motion || 'slow-zoom-in',
-    dust: { enabled: Boolean(row?.dust?.enabled) },
-    logo: { enabled: row?.logo?.enabled !== false },
-    filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
-    transition: row?.transition || 'none',
-  })).filter((row) => row.id);
-}
-
-function resolveRemotionClient({ api, store }) {
-  return api.createRemotionClient({
-    resolveBaseUrl: () => store.getState()?.settings?.remotionApiUrl || '',
-  });
-}
-
-function buildApprovalSeedPayload(project = {}) {
-  const draftId = resolveVideoProjectKey(project);
-  const selected_images = Array.isArray(project.selected_images) ? project.selected_images : [];
-  const segments = Array.isArray(project.segments)
-    ? project.segments.map((segment, index) => ({
-      id: segment?.id || `row-${index + 1}`,
-      phrase: (segment?.text || segment?.phrase || '').toString().trim(),
-    })).filter((segment) => segment.phrase)
-    : [];
-
-  return {
-    draft_id: draftId,
-    project_id: draftId,
-    title: resolveVideoProjectTitle(project),
-    guion_piped: (project.guion_piped || '').toString(),
-    segments,
-    selected_images,
-    voice_audio: project.voice_audio || null,
-    background_audio: project.background_audio || null,
-    defaults: {
-      fps: 30,
-      preview: { width: 1280, height: 720 },
-      final: { width: 1920, height: 1080 },
-    },
-  };
-}
-
-function validateRemotionAudioInputs(project = {}) {
-  const voiceUrl = (project?.voice_audio?.public_url || '').toString().trim();
-  const backgroundUrl = (project?.background_audio?.public_url || '').toString().trim();
-  if (!voiceUrl) {
-    throw new Error('Falta el audio de voz (voice_audio.public_url). Subí y guardá el audio antes de preparar la preview.');
-  }
-  if (!backgroundUrl) {
-    throw new Error('Falta la música de fondo (background_audio.public_url). Subí y guardá el audio antes de preparar la preview.');
-  }
-}
 
 function setVideoProjectStep(project, step) {
   if (!project) return;
@@ -134,8 +93,11 @@ function hydrateSelectedProjectState(project) {
   if (!project) return;
   project.editor_state = normalizeEditorState(project.editor_state || {});
   const es = project.editor_state;
-  const timedRows = normalizeRemotionRows(es.timed_rows);
-  if (timedRows.length) project._editorRows = timedRows;
+  const timedRows = normalizePreparedContractRows(es.timed_rows);
+  const contractRows = normalizePreparedContractRows(es.approval_contract_snapshot?.rows);
+  if (contractRows.length) project._editorRows = contractRows;
+  else if (timedRows.length) project._editorRows = timedRows;
+  project._previewAssets = es.preview_assets || null;
   project._globalAudio = normalizeGlobalAudioState(es.global_audio);
   setVideoProjectStep(project, 'images');
 }
@@ -150,6 +112,8 @@ function hashString(input) {
 }
 
 function computeCompositionHash(project) {
+  const contractSnapshot = project?.editor_state?.approval_contract_snapshot;
+  if (contractSnapshot?.snapshotHash) return contractSnapshot.snapshotHash;
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
   const globalAudio = normalizeGlobalAudioState(project._globalAudio);
   const payload = JSON.stringify({ rows, globalAudio });
@@ -157,9 +121,20 @@ function computeCompositionHash(project) {
 }
 
 function buildCompositionPayload(project) {
+  const contractSnapshot = project?.editor_state?.approval_contract_snapshot;
+  if (contractSnapshot?.contractVersion === 'approval-editor-service-v1') {
+    return {
+      rows: normalizePreparedContractRows(contractSnapshot.rows),
+      audio: contractSnapshot.audio,
+      contract: contractSnapshot,
+      manifest: { version: 1, assets: contractSnapshot.assets || {} },
+      snapshotHash: contractSnapshot.snapshotHash,
+      snapshotId: contractSnapshot.snapshotId,
+    };
+  }
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
   const globalAudio = normalizeGlobalAudioState(project._globalAudio);
-  return {
+  const legacyPayload = {
     rows: rows.map((row) => ({
       id: row.id,
       selectedAssetId: row.selectedAssetId || null,
@@ -173,6 +148,70 @@ function buildCompositionPayload(project) {
     })),
     audio: globalAudio,
   };
+
+  const previewContract = buildPreviewCompositionContract(project, rows);
+  const manifestImages = Array.isArray(previewContract?.manifest?.images) ? previewContract.manifest.images : [];
+  const hasManifestImages = manifestImages.some((item) => item?.rowId && item?.assetId && item?.mediaUrl);
+  const hasManifestAudio = Boolean(previewContract?.manifest?.audio?.voice?.mediaUrl || previewContract?.manifest?.audio?.music?.mediaUrl);
+  if (!hasManifestImages && !hasManifestAudio) return legacyPayload;
+
+  const contract = {
+    fps: 30,
+    renderProfile: { fps: 30 },
+    audio: {
+      voiceAssetId: previewContract?.manifest?.audio?.voice?.assetId || 'voice-asset',
+      musicAssetId: previewContract?.manifest?.audio?.music?.assetId || 'music-asset',
+      voice: globalAudio.voice,
+      music: {
+        ...globalAudio.music,
+        loop: true,
+        fadeInSeconds: 0.5,
+        fadeOutSeconds: 1,
+      },
+    },
+    segments: (Array.isArray(previewContract.rows) ? previewContract.rows : []).map((row, index) => ({
+      rowId: row.id,
+      phrase: row.phrase || '',
+      startTime: Number(row.startTime || 0),
+      endTime: Number(row.endTime || 0),
+      effectiveEndTime: Number(row.effectiveEndTime ?? row.endTime ?? 0),
+      selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === row.id)?.assetId || null,
+      motion: row.motion || 'slow-zoom-in',
+      dust: { enabled: Boolean(row.dust?.enabled) },
+      logo: { enabled: row.logo?.enabled !== false },
+      filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+      transition: row.transition || 'none',
+      caption: row.caption || '',
+      id: index + 1,
+    })),
+    globalLayers: {},
+    outro: { enabled: true, durationSeconds: 2, label: 'Gracias por mirar' },
+  };
+
+  const assets = {};
+  for (const item of manifestImages) {
+    const assetId = (item?.assetId || '').toString().trim();
+    const mediaUrl = (item?.mediaUrl || '').toString().trim();
+    if (!assetId || !mediaUrl) continue;
+    assets[assetId] = { status: 'ready', renderPath: mediaUrl };
+  }
+  const voiceMediaUrl = (previewContract?.manifest?.audio?.voice?.mediaUrl || '').toString().trim();
+  const musicMediaUrl = (previewContract?.manifest?.audio?.music?.mediaUrl || '').toString().trim();
+  if (voiceMediaUrl) assets[contract.audio.voiceAssetId] = { status: 'ready', renderPath: voiceMediaUrl };
+  if (musicMediaUrl) assets[contract.audio.musicAssetId] = { status: 'ready', renderPath: musicMediaUrl };
+
+  return {
+    ...legacyPayload,
+    contract,
+    manifest: {
+      version: 1,
+      assets,
+    },
+  };
+}
+
+export function buildCompositionPayloadForCheck(project) {
+  return buildCompositionPayload(project);
 }
 
 export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
@@ -285,6 +324,57 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const merged = normalizeEditorState({ ...(project.editor_state || {}), ...patch, updated_at: new Date().toISOString() });
     project.editor_state = merged;
     await api.saveVideoProjectEditorState({ draftId, editorState: merged });
+  }
+
+  function createApprovalServiceClient(project) {
+    const baseUrl = (project?.editor_state?.pipeline_base_url || store.getState()?.settings?.approvalPipelineBaseUrl || '').toString().trim();
+    if (!baseUrl || typeof api?.createApprovalPipelineClient !== 'function') return null;
+    return api.createApprovalPipelineClient({ resolveBaseUrl: () => baseUrl });
+  }
+
+  function isApprovalServiceMode(project) {
+    return project?.editor_state?.pipeline_provider === 'approval' && Boolean(project?.editor_state?.approval_contract_snapshot?.snapshotHash);
+  }
+
+  function applyCanonicalSnapshot(project, snapshot, { dirty = false, phase = 'preview_ready' } = {}) {
+    if (!snapshot?.contractVersion) return;
+    project._editorRows = normalizePreparedContractRows(snapshot.rows);
+    project._globalAudio = normalizeGlobalAudioState(snapshot.audio);
+    project.editor_state = normalizeEditorState({
+      ...project.editor_state,
+      approval_contract_snapshot: snapshot,
+      snapshot_id: snapshot.snapshotId,
+      snapshot_hash: snapshot.snapshotHash,
+      timed_rows: project._editorRows,
+      global_audio: project._globalAudio,
+      composition_hash: snapshot.snapshotHash,
+      last_preview_hash: snapshot.snapshotHash,
+      dirty,
+      phase,
+    });
+  }
+
+  async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready' } = {}) {
+    const client = createApprovalServiceClient(project);
+    if (!client) throw new Error('Approval editor service no configurado');
+    const projectId = project.editor_state?.remotion_project_id;
+    const baseSnapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
+    const result = await client.updateSnapshot(projectId, { baseSnapshotHash, operations });
+    const snapshot = result?.snapshot || result?.data?.snapshot;
+    if (!snapshot) throw new Error('Approval editor service no devolvió snapshot');
+    applyCanonicalSnapshot(project, snapshot, { dirty: true, phase });
+    await persistEditorState(project, {
+      phase,
+      approval_contract_snapshot: snapshot,
+      snapshot_id: snapshot.snapshotId,
+      snapshot_hash: snapshot.snapshotHash,
+      timed_rows: project._editorRows,
+      global_audio: project._globalAudio,
+      composition_hash: snapshot.snapshotHash,
+      last_preview_hash: snapshot.snapshotHash,
+      dirty: true,
+      error: '',
+    });
   }
 
   function detectImageDimensions(file) {
@@ -619,40 +709,46 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const project = state.selectedVideoProject;
     if (!project) return;
 
-    const remotion = resolveRemotionClient({ api, store });
-    const seed = buildApprovalSeedPayload(project);
-
     try {
-      validateRemotionAudioInputs(project);
       await persistEditorState(project, {
         phase: 'preparing',
         dirty: false,
         error: '',
         remotion_api_url: state.settings?.remotionApiUrl || '',
+        pipeline_base_url: (state.settings?.approvalPipelineBaseUrl || '').toString().trim(),
       });
       renderSelectedVideoProject();
 
-      const created = await remotion.createFromApproval(seed);
-      if (created?.alignmentStatus?.status !== 'ready') {
-        const detail = created?.alignmentStatus?.details || created?.alignmentStatus?.warning || '';
-        throw new Error(`Alineación de audio pendiente. Esperando Whisper...${detail ? ` (${detail})` : ''}`);
+      const preparedContract = await prepareVideoCompositionContract({
+        project,
+        settings: state.settings,
+        api,
+      });
+
+      project._editorRows = preparedContract.timedRows;
+      project._previewAssets = preparedContract.previewAssets;
+      project._globalAudio = preparedContract.globalAudio;
+      if (preparedContract.approvalContractSnapshot) {
+        project.editor_state = normalizeEditorState({
+          ...project.editor_state,
+          approval_contract_snapshot: preparedContract.approvalContractSnapshot,
+          snapshot_id: preparedContract.snapshotId,
+          snapshot_hash: preparedContract.snapshotHash,
+        });
       }
-      const remotionProjectId = created?.projectId || created?.snapshot?.project?.projectId;
-      if (!remotionProjectId) throw new Error('Remotion no devolvió projectId');
-
-      const createdRows = normalizeRemotionRows(created?.snapshot?.project?.rows);
-      const status = await remotion.status(remotionProjectId);
-      const statusRows = normalizeRemotionRows(status?.project?.rows);
-      const timedRows = createdRows.length ? createdRows : statusRows;
-      if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');
-
-      project._editorRows = timedRows;
-      project._globalAudio = { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
 
       await persistEditorState(project, {
         phase: 'preview_ready',
-        remotion_project_id: remotionProjectId,
-        timed_rows: timedRows,
+        remotion_project_id: preparedContract.compositionProjectId,
+        pipeline_provider: preparedContract.provider || '',
+        pipeline_base_url: preparedContract.providerMetadata?.baseUrl || '',
+        pipeline_fallback_from: preparedContract.providerMetadata?.fallbackFrom || '',
+        pipeline_health: sanitizePipelineHealthMetadata(preparedContract.providerMetadata?.health),
+        timed_rows: preparedContract.timedRows,
+        preview_assets: project._previewAssets,
+        approval_contract_snapshot: preparedContract.approvalContractSnapshot || null,
+        snapshot_id: preparedContract.snapshotId || '',
+        snapshot_hash: preparedContract.snapshotHash || '',
         preview_url: '',
       });
       renderSelectedVideoProject();
@@ -661,11 +757,18 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
       await persistEditorState(project, {
         phase: 'preview_ready',
-        remotion_project_id: remotionProjectId,
+        remotion_project_id: preparedContract.compositionProjectId,
+        pipeline_provider: preparedContract.provider || '',
+        pipeline_base_url: preparedContract.providerMetadata?.baseUrl || '',
+        pipeline_fallback_from: preparedContract.providerMetadata?.fallbackFrom || '',
+        pipeline_health: sanitizePipelineHealthMetadata(preparedContract.providerMetadata?.health),
         preview_url: '',
         composition_hash: compositionHash,
         last_preview_hash: compositionHash,
         last_rendered_hash: compositionHash,
+        approval_contract_snapshot: preparedContract.approvalContractSnapshot || null,
+        snapshot_id: preparedContract.snapshotId || '',
+        snapshot_hash: preparedContract.snapshotHash || '',
         dirty: false,
         error: '',
         export_status: 'idle',
@@ -688,7 +791,16 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const project = state.selectedVideoProject;
     if (!project) return;
 
-    const remotion = resolveRemotionClient({ api, store });
+    if (isApprovalServiceMode(project)) {
+      await persistEditorState(project, { phase: 'preview_ready', dirty: false, error: '', last_preview_hash: project.editor_state.snapshot_hash });
+      renderSelectedVideoProject();
+      ui.toast('Preview actualizada desde snapshot canónico');
+      return;
+    }
+
+    const remotion = api.createRemotionClient({
+      resolveBaseUrl: () => store.getState()?.settings?.remotionApiUrl || '',
+    });
     const remotionProjectId = project.editor_state?.remotion_project_id;
     if (!remotionProjectId) {
       ui.toast('No hay proyecto Remotion vinculado');
@@ -697,18 +809,20 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
     try {
       if (!Array.isArray(project._editorRows) || !project._editorRows.length) {
-        const currentRows = normalizeRemotionRows(project.editor_state?.timed_rows);
+        const currentRows = normalizePreparedContractRows(project.editor_state?.timed_rows);
         if (currentRows.length) {
           project._editorRows = currentRows;
         } else {
           const currentStatus = await remotion.status(remotionProjectId);
-          const recoveredRows = normalizeRemotionRows(currentStatus?.project?.rows);
+          const recoveredRows = normalizePreparedContractRows(currentStatus?.project?.rows);
           if (recoveredRows.length) {
             project._editorRows = recoveredRows;
             project.editor_state = normalizeEditorState({
               ...project.editor_state,
               timed_rows: recoveredRows,
+              preview_assets: currentStatus?.previewAssets || project.editor_state?.preview_assets || null,
             });
+            project._previewAssets = project.editor_state.preview_assets;
           }
         }
       }
@@ -729,6 +843,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
       const preview = await remotion.renderPreview(remotionProjectId);
       const refreshedStatus = await remotion.status(remotionProjectId);
+      project._previewAssets = refreshedStatus?.previewAssets || project._previewAssets || null;
       const previewReady = Boolean(refreshedStatus?.preview?.exists || refreshedStatus?.preview?.outputPath);
       if (!previewReady) throw new Error('Remotion no generó el archivo de preview.');
       const previewUrl = remotion.previewDownloadUrl(remotionProjectId);
@@ -742,6 +857,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         dirty: false,
         error: '',
         diagnostics: preview?.diagnostics || refreshedStatus?.diagnostics || null,
+        preview_assets: project._previewAssets,
       });
       ui.toast('Preview actualizada');
     } catch (err) {
@@ -767,7 +883,37 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       if (!proceed) return;
     }
 
-    const remotion = resolveRemotionClient({ api, store });
+    if (isApprovalServiceMode(project)) {
+      const client = createApprovalServiceClient(project);
+      const projectId = project.editor_state?.remotion_project_id;
+      const snapshotHash = project.editor_state?.snapshot_hash;
+      try {
+        await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });
+        renderSelectedVideoProject();
+        const result = await client.renderFinal(projectId, { snapshotHash });
+        await persistEditorState(project, {
+          phase: 'final_ready',
+          final_url: client.finalDownloadUrl(projectId),
+          export_status: 'ready',
+          last_rendered_hash: result?.lastRenderedSnapshotHash || snapshotHash,
+          dirty: false,
+          error: '',
+          diagnostics: result?.diagnostics || null,
+        });
+        ui.toast('Exportación lista. Descargá el video final.');
+      } catch (err) {
+        console.error(err);
+        await persistEditorState(project, { phase: 'error', export_status: 'error', error: err?.message || 'No se pudo exportar el video final' });
+        ui.toast('Error exportando video final');
+      } finally {
+        renderSelectedVideoProject();
+      }
+      return;
+    }
+
+    const remotion = api.createRemotionClient({
+      resolveBaseUrl: () => store.getState()?.settings?.remotionApiUrl || '',
+    });
     const remotionProjectId = editorState.remotion_project_id;
     if (!remotionProjectId) {
       ui.toast('No hay proyecto Remotion vinculado');
@@ -812,7 +958,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
   }
 
-  function updateRow(rowId, patch) {
+  async function updateRow(rowId, patch) {
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project || !rowId) return;
@@ -820,6 +966,25 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const rows = Array.isArray(project._editorRows) ? project._editorRows : [];
     const index = rows.findIndex((r) => r.id === rowId);
     if (index === -1) return;
+
+    if (isApprovalServiceMode(project)) {
+      const operations = [];
+      if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
+      if (patch.motion !== undefined || patch.motionPresetId !== undefined) operations.push({ type: 'setRowMotion', rowId, motionPresetId: patch.motionPresetId || (typeof patch.motion === 'string' ? patch.motion : 'custom'), motion: typeof patch.motion === 'object' ? patch.motion : undefined });
+      if (patch.dust !== undefined) operations.push({ type: 'setRowDust', rowId, enabled: Boolean(patch.dust?.enabled), dustType: patch.dust?.type || 'dust-1' });
+      if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
+      if (!operations.length) return;
+      try {
+        await commitApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+      } catch (err) {
+        console.error(err);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Fila ${rowId}: ${err?.message || 'No se pudo actualizar snapshot'}` });
+        ui.toast('Error actualizando snapshot');
+      } finally {
+        renderSelectedVideoProject();
+      }
+      return;
+    }
 
     const current = rows[index];
     const next = {
@@ -927,13 +1092,26 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }
   }
 
-  function updateGlobalAudio(kind, patch) {
+  async function updateGlobalAudio(kind, patch) {
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project) return;
     if (!AUDIO_CONTROL_KINDS.has(kind)) return;
 
     const normalizedKind = kind === 'voice' ? 'voice' : 'music';
+
+    if (isApprovalServiceMode(project)) {
+      try {
+        await commitApprovalSnapshotOperations(project, [{ type: 'setAudio', kind: normalizedKind, settings: patch }], { phase: 'editing_dirty' });
+      } catch (err) {
+        console.error(err);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Audio ${normalizedKind}: ${err?.message || 'No se pudo actualizar audio'}` });
+        ui.toast('Error actualizando audio');
+      } finally {
+        renderSelectedVideoProject();
+      }
+      return;
+    }
 
     const current = normalizeGlobalAudioState(project._globalAudio);
     const next = {

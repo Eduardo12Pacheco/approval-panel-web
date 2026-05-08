@@ -21,6 +21,10 @@ function normalizeRemotionApiUrl(rawValue, { fallback = DEFAULT_REMOTION_API_URL
   return value;
 }
 
+function normalizeApprovalPipelineBaseUrl(rawValue) {
+  return (rawValue || '').toString().trim();
+}
+
 export function defaultSettingsFactory() {
   return {
     baseUrl: 'http://localhost:5678',
@@ -30,6 +34,7 @@ export function defaultSettingsFactory() {
     ttsBasicUser: '',
     ttsBasicPass: '',
     remotionApiUrl: DEFAULT_REMOTION_API_URL,
+    approvalPipelineBaseUrl: '',
   };
 }
 
@@ -40,6 +45,7 @@ export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory =
   try {
     const merged = { ...defaults, ...JSON.parse(raw) };
     merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
+    merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
     return merged;
   } catch {
     return defaults;
@@ -60,5 +66,8 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.ttsBasicPassInput.value = settings.ttsBasicPass;
   if (el.remotionApiUrlInput) {
     el.remotionApiUrlInput.value = normalizeRemotionApiUrl(settings.remotionApiUrl, { fallback: DEFAULT_REMOTION_API_URL });
+  }
+  if (el.approvalPipelineBaseUrlInput) {
+    el.approvalPipelineBaseUrlInput.value = normalizeApprovalPipelineBaseUrl(settings.approvalPipelineBaseUrl);
   }
 }

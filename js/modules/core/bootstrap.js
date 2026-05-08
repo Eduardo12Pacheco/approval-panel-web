@@ -65,6 +65,7 @@ export function bindCoreEvents({
         ttsBasicUser: el.ttsBasicUserInput.value.trim(),
         ttsBasicPass: el.ttsBasicPassInput.value,
         remotionApiUrl: el.remotionApiUrlInput?.value?.trim() || defaults.remotionApiUrl,
+        approvalPipelineBaseUrl: el.approvalPipelineBaseUrlInput?.value?.trim() || '',
       });
     el.settingsDialog.close();
     toast('Configuración guardada');

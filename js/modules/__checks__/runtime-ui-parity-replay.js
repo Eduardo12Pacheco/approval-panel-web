@@ -60,17 +60,22 @@ function replaySettingsScenario() {
 
   const loadedDefaults = loadSettingsFromStorage({ storage, storageKey, defaultsFactory: defaultSettingsFactory });
   if (loadedDefaults.baseUrl !== defaults.baseUrl) return { ok: false, reason: 'default settings load drift' };
+  if (loadedDefaults.approvalPipelineBaseUrl !== '') return { ok: false, reason: 'default approval pipeline setting drift' };
 
   const next = {
     ...defaults,
     baseUrl: 'http://localhost:9999',
     secret: 'abc',
     remotionApiUrl: 'http://127.0.0.1:3037',
+    approvalPipelineBaseUrl: ' https://approval.local ',
   };
   saveSettingsToStorage({ storage, storageKey, nextSettings: next });
   const loadedSaved = loadSettingsFromStorage({ storage, storageKey, defaultsFactory: defaultSettingsFactory });
   if (loadedSaved.baseUrl !== 'http://localhost:9999' || loadedSaved.secret !== 'abc' || loadedSaved.remotionApiUrl !== 'http://127.0.0.1:3037') {
     return { ok: false, reason: 'settings save/load drift' };
+  }
+  if (loadedSaved.approvalPipelineBaseUrl !== 'https://approval.local') {
+    return { ok: false, reason: 'settings approval pipeline save/load drift' };
   }
 
   const el = {
@@ -81,10 +86,14 @@ function replaySettingsScenario() {
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
     remotionApiUrlInput: { value: '' },
+    approvalPipelineBaseUrlInput: { value: '' },
   };
   hydrateSettingsFormValues({ el, settings: loadedSaved });
   if (el.baseUrlInput.value !== 'http://localhost:9999' || el.remotionApiUrlInput.value !== 'http://127.0.0.1:3037') {
     return { ok: false, reason: 'settings hydrate drift' };
+  }
+  if (el.approvalPipelineBaseUrlInput.value !== 'https://approval.local') {
+    return { ok: false, reason: 'settings approval pipeline hydrate drift' };
   }
 
   const elWithEmptyRemotion = {
@@ -95,10 +104,14 @@ function replaySettingsScenario() {
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
     remotionApiUrlInput: { value: '' },
+    approvalPipelineBaseUrlInput: { value: '' },
   };
-  hydrateSettingsFormValues({ el: elWithEmptyRemotion, settings: { ...loadedSaved, remotionApiUrl: '' } });
+  hydrateSettingsFormValues({ el: elWithEmptyRemotion, settings: { ...loadedSaved, remotionApiUrl: '', approvalPipelineBaseUrl: '   ' } });
   if (elWithEmptyRemotion.remotionApiUrlInput.value !== 'https://remotion-api.automatizacionedun8n.me') {
     return { ok: false, reason: 'settings remotion fallback drift' };
+  }
+  if (elWithEmptyRemotion.approvalPipelineBaseUrlInput.value !== '') {
+    return { ok: false, reason: 'settings blank approval pipeline normalize drift' };
   }
 
   return { ok: true };

@@ -107,13 +107,23 @@ export function interpolateLinear(start, end, progress) {
  * @returns {{ from: number, to: number }}
  */
 function resolveZoomRange(motion) {
+  if (motion && typeof motion === 'object') {
+    return {
+      from: Number(motion.fromScale ?? 1),
+      to: Number(motion.toScale ?? 1),
+      fromX: Number(motion.fromX ?? 0),
+      fromY: Number(motion.fromY ?? 0),
+      toX: Number(motion.toX ?? 0),
+      toY: Number(motion.toY ?? 0),
+    };
+  }
   const normalized = (motion || '').toString().trim().toLowerCase();
-  if (normalized === 'still' || normalized === 'none') return { from: 1.0, to: 1.0 };
-  if (normalized === 'slow-zoom') return ZOOM_SLOW;
-  if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0 };
-  if (normalized === 'slow-zoom-in') return ZOOM_SLOW_IN;
-  if (normalized === 'pan-left' || normalized === 'pan-right') return ZOOM_SLOW_IN;
-  return ZOOM_SLOW_IN;
+  if (normalized === 'still' || normalized === 'none') return { from: 1.0, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom') return { ...ZOOM_SLOW, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom-in') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'pan-left' || normalized === 'pan-right') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -786,7 +796,9 @@ export class CompositionRenderer {
     // SOURCE: Composition.tsx line 192-196 — interpolate with scaleTo
     const zoom = resolveZoomRange(segment.motion);
     const scale = interpolateLinear(zoom.from, zoom.to, localProgress);
-    layers.image.style.transform = `scale(${scale})`;
+    const x = interpolateLinear(zoom.fromX, zoom.toX, localProgress);
+    const y = interpolateLinear(zoom.fromY, zoom.toY, localProgress);
+    layers.image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 
     // Apply filter (contrast + saturation)
     // SOURCE: Composition.tsx line 206 — filter property
@@ -799,6 +811,8 @@ export class CompositionRenderer {
     if (dustEnabled) {
       if (this._dustWebmUrl) {
         layers.dust.style.visibility = 'visible';
+        layers.dust.style.opacity = String(segment.dust?.opacity ?? DUST_VIDEO_OPACITY);
+        layers.dust.style.mixBlendMode = segment.dust?.blendMode || 'screen';
         layers.dustFallback.style.visibility = 'hidden';
       } else {
         // ── Task 2.4: CSS pseudo-dust fallback ──

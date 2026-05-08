@@ -2,20 +2,61 @@ import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from './default-background-music.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './index.js';
 import { CompositionRenderer } from './composition-renderer.js';
+import {
+  buildPreviewCompositionContract,
+  resolvePreviewAudioUrls,
+  resolveRowImageUrlFromContract,
+} from './composition-contract.js';
 
 const BLOCKED_IMAGE_DOMAIN_PARTS = ['tiktok.com', 'tiktokcdn.com', 'tiktokv.com', 'facebook.com', 'fbcdn.net', 'instagram.com', 'cdninstagram.com'];
 const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
 const VIDEO_CANDIDATES_TEMP_PUBLIC_BASE = 'https://ulzcthcdakjfretjdakd.supabase.co/storage/v1/object/public/video-candidates-temp';
 const COMPOSITION_DUST_PREVIEW_URL = './assets/dust-preview.webm';
+const COMPOSITION_DUST_PREVIEW_URLS = { 'dust-1': './assets/dust-preview.webm', 'dust-2': './assets/dust-2-preview.webm' };
 
 // Module-scoped composition renderer — persists across re-renders
 let _compositionRenderer = null;
+let _compositionRendererContainer = null;
+let _compositionRendererAssetSignature = '';
 
 function destroyCompositionRenderer() {
   if (_compositionRenderer) {
     try { _compositionRenderer.destroy(); } catch {}
     _compositionRenderer = null;
   }
+  _compositionRendererContainer = null;
+  _compositionRendererAssetSignature = '';
+}
+
+function buildCompositionAssetSignature({ dustWebmUrl, voiceUrl, musicUrl } = {}) {
+  return [dustWebmUrl || '', voiceUrl || '', musicUrl || ''].join('::');
+}
+
+function resolveCanonicalPreviewAssetUrl(project = {}, assetId = '') {
+  const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const asset = snapshot?.assets?.[assetId];
+  return (asset?.previewUrl || asset?.publicUrl || asset?.renderPath || '').toString().trim();
+}
+
+function resolveCompositionDustUrl(project = {}, rows = []) {
+  const activeDust = rows.find((row) => row?.dust?.enabled && (row?.dust?.assetId || row?.dust?.type));
+  const assetId = activeDust?.dust?.assetId || '';
+  return resolveCanonicalPreviewAssetUrl(project, assetId) || COMPOSITION_DUST_PREVIEW_URLS[activeDust?.dust?.type] || COMPOSITION_DUST_PREVIEW_URL;
+}
+
+function resolveCompositionLogoUrl(project = {}) {
+  const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const logo = snapshot?.globalLayers?.logo || {};
+  return resolveCanonicalPreviewAssetUrl(project, logo.assetId) || logo.source || '';
+}
+
+function ensureCompositionRenderer(container) {
+  if (!_compositionRenderer || !_compositionRendererContainer || _compositionRendererContainer !== container) {
+    destroyCompositionRenderer();
+    _compositionRenderer = new CompositionRenderer({ container });
+    _compositionRendererContainer = container;
+  }
+  return _compositionRenderer;
 }
 
 function formatCount(value, singular, plural = `${singular}s`) {
@@ -156,54 +197,48 @@ function resolveCandidateImageUrl(candidate = {}) {
   return resolveStoragePublicUrl(candidate) || resolveLegacyCandidateUrl(candidate);
 }
 
-function resolveSelectedImageEntryUrl(entry = null) {
-  if (!entry) return '';
-  if (typeof entry === 'string') return entry.trim();
-  if (typeof entry === 'object') return resolveCandidateImageUrl(entry);
-  return '';
-}
-
-function normalizeImageLookupKey(value = '') {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .split(/[?#]/)[0]
-    .split('/')
-    .pop()
-    .replace(/\.(png|jpe?g|webp|gif|avif)$/i, '')
-    .replace(/[^a-z0-9]+/g, '-');
-}
-
 function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
-  const selectedAssetId = (row.selectedAssetId || '').toString().trim();
-  if (/^https?:\/\//i.test(selectedAssetId)) return selectedAssetId;
-
-  const selectedImages = Array.isArray(project.selected_images) ? project.selected_images : [];
-  const selectedByIndex = resolveSelectedImageEntryUrl(selectedImages[rowIndex]);
-  if (selectedByIndex) return selectedByIndex;
-
-  const selectedKey = normalizeImageLookupKey(selectedAssetId);
-  const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
-  const matchedCandidate = candidates.find((candidate) => {
-    const candidateUrl = resolveCandidateImageUrl(candidate);
-    return [
-      candidate.id,
-      candidate.assetId,
-      candidate.file_name,
-      candidate.title,
-      candidate.storage_path,
-      candidate.path,
-      candidateUrl,
-    ].some((value) => normalizeImageLookupKey(value) === selectedKey);
+  const contract = buildPreviewCompositionContract(project, []);
+  return resolveRowImageUrlFromContract({
+    row,
+    rowIndex,
+    contract,
+    project,
+    resolveCandidateImageUrl,
   });
+}
 
-  return matchedCandidate ? resolveCandidateImageUrl(matchedCandidate) : '';
+export function resolveVideoProjectPreviewMediaForCheck({ row = {}, rowIndex = 0, project = {} } = {}) {
+  const contract = buildPreviewCompositionContract(project, []);
+  const { voiceUrl, musicUrl } = resolvePreviewAudioUrls({ contract, project });
+  return {
+    rowImageUrl: resolveRowImageUrlFromContract({ row, rowIndex, contract, project, resolveCandidateImageUrl }),
+    voiceUrl,
+    musicUrl,
+  };
+}
+
+export function resolveVideoProjectCompositionContractForCheck({ project = {}, rows = [] } = {}) {
+  const contract = buildPreviewCompositionContract(project, rows);
+  const compositionRows = (Array.isArray(contract.rows) ? contract.rows : []).map((row, index) => ({
+    ...row,
+    endTime: row.effectiveEndTime,
+    image: row.image || resolveRowImageUrlFromContract({ row, rowIndex: index, contract, project, resolveCandidateImageUrl }),
+  }));
+  return {
+    contract,
+    compositionRows,
+    audio: resolvePreviewAudioUrls({ contract, project }),
+  };
 }
 
 function buildCompositionRows(rows = [], project = {}) {
-  return (Array.isArray(rows) ? rows : []).map((row, index) => ({
+  const contract = buildPreviewCompositionContract(project, rows);
+  const sourceRows = Array.isArray(contract.rows) ? contract.rows : [];
+  return sourceRows.map((row, index) => ({
     ...row,
-    image: row.image || resolveRowImageUrl(row, index, project),
+    endTime: row.effectiveEndTime,
+    image: row.image || resolveRowImageUrlFromContract({ row, rowIndex: index, contract, project, resolveCandidateImageUrl }),
   }));
 }
 
@@ -984,7 +1019,7 @@ export function renderSelectedVideoProjectView({
     `;
   } else {
     // Editor phases 03/04/05
-    if (editorPhase === 'preparing' || editorPhase === 'preview_rendering' || editorPhase === 'error') {
+    if (editorPhase === 'preparing' || editorPhase === 'preview_rendering' || (editorPhase === 'error' && !editorRows.length)) {
       mainContent = buildPreviewPreparingPanel(editorState);
     } else {
       mainContent = buildEditorShell(project, {
@@ -1131,35 +1166,53 @@ export function renderSelectedVideoProjectView({
       if (useComposition) {
         const compositionContainer = el.videoProjectDetail.querySelector('[data-composition-container]');
         if (compositionContainer) {
-          destroyCompositionRenderer();
-          _compositionRenderer = new CompositionRenderer({ container: compositionContainer });
+          const renderer = ensureCompositionRenderer(compositionContainer);
 
           // Resolve asset URLs for preload
-          const voiceUrl = project.voice_audio?.public_url || '';
-          const musicUrl = project.background_audio?.public_url || '';
+          const contract = buildPreviewCompositionContract(project, editorRows);
+          const { voiceUrl, musicUrl } = resolvePreviewAudioUrls({ contract, project });
           const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
           const compositionRows = buildCompositionRows(editorRows, project);
-
-          // Preload assets and update with current rows
-          _compositionRenderer.preload({
-            dustWebmUrl: COMPOSITION_DUST_PREVIEW_URL,
+          const dustWebmUrl = resolveCompositionDustUrl(project, compositionRows);
+          const logoUrl = resolveCompositionLogoUrl(project);
+          const assetSignature = buildCompositionAssetSignature({
+            dustWebmUrl,
             voiceUrl,
             musicUrl,
-            voiceVolume: globalAudioData.voice?.volume ?? 1,
-            voiceMuted: globalAudioData.voice?.muted ?? false,
-            musicVolume: globalAudioData.music?.volume ?? 0.16,
-            musicMuted: globalAudioData.music?.muted ?? false,
-            musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
-            musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
-            rows: compositionRows,
-          }).then(() => {
-            _compositionRenderer?.update({ rows: compositionRows });
+          });
+          const shouldPreloadAssets = _compositionRendererAssetSignature !== assetSignature;
+
+          const applyRowsAndSeek = () => {
+            renderer?.update({ rows: compositionRows });
+            const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
+            if (imageUrls.length) renderer?.preloadImages(imageUrls);
             // Seek to saved position if any
             const seekTime = Number(project._previewSeekTime);
             if (Number.isFinite(seekTime) && seekTime > 0) {
-              _compositionRenderer?.seek(seekTime);
+              renderer?.seek(seekTime);
             }
-          });
+          };
+
+          if (shouldPreloadAssets) {
+            renderer.preload({
+              dustWebmUrl,
+              logoUrl,
+              voiceUrl,
+              musicUrl,
+              voiceVolume: globalAudioData.voice?.volume ?? 1,
+              voiceMuted: globalAudioData.voice?.muted ?? false,
+              musicVolume: globalAudioData.music?.volume ?? 0.16,
+              musicMuted: globalAudioData.music?.muted ?? false,
+              musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
+              musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+              rows: compositionRows,
+            }).then(() => {
+              _compositionRendererAssetSignature = assetSignature;
+              applyRowsAndSeek();
+            });
+          } else {
+            applyRowsAndSeek();
+          }
         }
       } else {
         destroyCompositionRenderer();
