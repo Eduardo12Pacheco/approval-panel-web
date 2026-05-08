@@ -47,6 +47,10 @@ export class AudioManager {
   #musicRawBuffer;
   /** @type {Promise<void>|null} */
   #pendingFetch;
+  /** @type {string} */
+  #voiceUrl;
+  /** @type {string} */
+  #musicUrl;
 
   constructor() {
     this.#audioCtx = null;
@@ -69,6 +73,8 @@ export class AudioManager {
     this.#voiceRawBuffer = null;
     this.#musicRawBuffer = null;
     this.#pendingFetch = null;
+    this.#voiceUrl = '';
+    this.#musicUrl = '';
   }
 
   // ── Getters ─────────────────────────────────────────────
@@ -119,21 +125,31 @@ export class AudioManager {
    * @returns {Promise<void>}
    */
   async fetchBuffers(voiceUrl, musicUrl) {
-    try {
-      const fetches = [];
-      if (voiceUrl) fetches.push(fetch(voiceUrl).then((r) => r.arrayBuffer()));
-      else fetches.push(Promise.resolve(null));
-      if (musicUrl) fetches.push(fetch(musicUrl).then((r) => r.arrayBuffer()));
-      else fetches.push(Promise.resolve(null));
+    const read = async (url) => {
+      if (!url) return null;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`audio fetch failed: ${response.status}`);
+      return response.arrayBuffer();
+    };
+    const [voiceResult, musicResult] = await Promise.allSettled([read(voiceUrl), read(musicUrl)]);
+    this.#voiceRawBuffer = voiceResult.status === 'fulfilled' ? voiceResult.value : null;
+    this.#musicRawBuffer = musicResult.status === 'fulfilled' ? musicResult.value : null;
+  }
 
-      const [voiceData, musicData] = await Promise.all(fetches);
-      this.#voiceRawBuffer = voiceData;
-      this.#musicRawBuffer = musicData;
-    } catch {
-      // Audio fetch failed — composition continues without audio
-      this.#voiceRawBuffer = null;
-      this.#musicRawBuffer = null;
-    }
+  /**
+   * Store audio URLs without fetching. Fetch/decode happens lazily after play().
+   * @param {string} [voiceUrl]
+   * @param {string} [musicUrl]
+   */
+  setSourceUrls(voiceUrl, musicUrl) {
+    this.#voiceUrl = voiceUrl || '';
+    this.#musicUrl = musicUrl || '';
+    this.#voiceRawBuffer = null;
+    this.#musicRawBuffer = null;
+    this.#voiceBuffer = null;
+    this.#musicBuffer = null;
+    this.#audioReady = false;
+    this.#pendingFetch = null;
   }
 
   /**
@@ -152,22 +168,32 @@ export class AudioManager {
    * @returns {Promise<boolean>} true if audio pipeline is ready
    */
   async init() {
-    if (this.#audioCtx) return true;
+    if (this.#audioCtx && this.#audioReady) return true;
 
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return false;
 
-      this.#audioCtx = new AudioCtx();
+      if (!this.#audioCtx || this.#audioCtx.state === 'closed') {
+        this.#audioCtx = new AudioCtx();
+      }
 
       // Create GainNodes for volume control
-      this.#voiceGain = this.#audioCtx.createGain();
+      if (!this.#voiceGain) {
+        this.#voiceGain = this.#audioCtx.createGain();
+        this.#voiceGain.connect(this.#audioCtx.destination);
+      }
       this.#voiceGain.gain.value = this.#voiceMuted ? 0 : this.#voiceVolume;
-      this.#voiceGain.connect(this.#audioCtx.destination);
 
-      this.#musicGain = this.#audioCtx.createGain();
+      if (!this.#musicGain) {
+        this.#musicGain = this.#audioCtx.createGain();
+        this.#musicGain.connect(this.#audioCtx.destination);
+      }
       this.#musicGain.gain.value = this.#musicMuted ? 0 : this.#musicVolume;
-      this.#musicGain.connect(this.#audioCtx.destination);
+
+      if (!this.#pendingFetch && (this.#voiceUrl || this.#musicUrl)) {
+        this.#pendingFetch = this.fetchBuffers(this.#voiceUrl, this.#musicUrl);
+      }
 
       // Wait for pending audio fetch to complete
       if (this.#pendingFetch) {

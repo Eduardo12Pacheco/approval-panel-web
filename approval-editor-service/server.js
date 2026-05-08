@@ -5,6 +5,8 @@ const { buildApprovalContractPipeline } = require("../../shared/approval-contrac
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
+const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
+const { parseGuionSegments } = require("../../RemotionEditor/scripts/lib/guion-parsing");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -25,7 +27,7 @@ function fail(response, error, status = 500) {
 }
 
 function errorStatus(error) {
-  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset"].includes(error.code)) return 400;
+  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
   if (["stale_snapshot"].includes(error.code)) return 409;
   return 500;
@@ -44,16 +46,136 @@ function readBody(request) {
   });
 }
 
+const ESTIMATED_SECONDS_PER_WORD = 0.55;
+const MIN_ESTIMATED_SEGMENT_SECONDS = 1.2;
+const WAV_DURATION_FETCH_TIMEOUT_MS = 2500;
+
+function toFinitePositiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function countWords(text) {
+  const words = String(text || '').trim().match(/\S+/g);
+  return words ? words.length : 1;
+}
+
+function pickAudioDurationSeconds(audio = {}) {
+  if (!audio || typeof audio !== "object") return 0;
+  return [
+    audio.durationSeconds,
+    audio.duration_seconds,
+    audio.duration,
+    audio.metadata?.durationSeconds,
+    audio.metadata?.duration_seconds,
+    audio.metadata?.duration,
+  ].map(toFinitePositiveNumber).find(Boolean) || 0;
+}
+
+function pickAudioUrl(audio = {}) {
+  return (audio?.public_url || audio?.publicUrl || audio?.url || audio?.storage_public_url || "").toString().trim();
+}
+
+function hasAlignedTimes(segment) {
+  const start = Number(segment?.startTime ?? segment?.start_time ?? segment?.start);
+  const end = Number(segment?.endTime ?? segment?.end_time ?? segment?.end);
+  return Number.isFinite(start) && Number.isFinite(end) && end > start;
+}
+
+function getSegmentStart(segment) {
+  return Number(segment?.startTime ?? segment?.start_time ?? segment?.start);
+}
+
+function getSegmentEnd(segment) {
+  return Number(segment?.endTime ?? segment?.end_time ?? segment?.end);
+}
+
+function distributeSegmentsByTextWeight(segments, totalDuration) {
+  const weights = segments.map((segment) => Math.max(1, countWords(segment.phrase)));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || segments.length || 1;
+  const effectiveDuration = toFinitePositiveNumber(totalDuration)
+    || weights.reduce((sum, weight) => sum + Math.max(MIN_ESTIMATED_SEGMENT_SECONDS, weight * ESTIMATED_SECONDS_PER_WORD), 0);
+
+  let cursor = 0;
+  return segments.map((segment, index) => {
+    const isLast = index === segments.length - 1;
+    const rawDuration = effectiveDuration * (weights[index] / totalWeight);
+    const endTime = isLast ? effectiveDuration : cursor + rawDuration;
+    const timed = {
+      ...segment,
+      startTime: Number(cursor.toFixed(3)),
+      endTime: Number(endTime.toFixed(3)),
+    };
+    cursor = endTime;
+    return timed;
+  });
+}
+
 function normalizeSegments(input = {}) {
   const segments = Array.isArray(input.segments)
     ? input.segments
-    : String(input.guion_piped || "").split("|").map((phrase, index) => ({ id: `row-${index + 1}`, phrase: phrase.trim() })).filter((segment) => segment.phrase);
-  return segments.map((segment, index) => ({
+    : parseGuionSegments(input.guion_piped || "").map((segment, index) => ({ id: `row-${index + 1}`, phrase: segment.phrase }));
+  const normalized = segments.map((segment, index) => ({
     id: String(segment.id || `row-${index + 1}`),
     phrase: String(segment.phrase || segment.text || segment.caption || `Segmento ${index + 1}`).trim(),
-    startTime: Number.isFinite(Number(segment.startTime)) ? Number(segment.startTime) : index * 1.5,
-    endTime: Number.isFinite(Number(segment.endTime)) ? Number(segment.endTime) : index * 1.5 + 1.5,
   }));
+  if (segments.length && segments.every(hasAlignedTimes)) {
+    return normalized.map((segment, index) => ({
+      ...segment,
+      startTime: getSegmentStart(segments[index]),
+      endTime: getSegmentEnd(segments[index]),
+      timingSource: "aligned",
+    }));
+  }
+
+  if (!input.allowEstimatedTimings) {
+    return normalized.map((segment) => ({
+      ...segment,
+      timingSource: "pending_alignment",
+    }));
+  }
+
+  const voiceDurationSeconds = pickAudioDurationSeconds(input.voice_audio || input.voiceAudio || input.audio?.voice || {});
+  return distributeSegmentsByTextWeight(normalized, voiceDurationSeconds).map((segment) => ({
+    ...segment,
+    timingSource: voiceDurationSeconds ? "voice-duration-weighted-text" : "estimated-text-weight",
+  }));
+}
+
+function parseWavDurationSeconds(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 44) return 0;
+  if (buffer.toString("ascii", 0, 4) !== "RIFF" || buffer.toString("ascii", 8, 12) !== "WAVE") return 0;
+  let offset = 12;
+  let byteRate = 0;
+  let dataSize = 0;
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkDataStart = offset + 8;
+    if (chunkId === "fmt " && chunkDataStart + 12 <= buffer.length) byteRate = buffer.readUInt32LE(chunkDataStart + 8);
+    if (chunkId === "data") {
+      dataSize = chunkSize;
+      break;
+    }
+    offset = chunkDataStart + chunkSize + (chunkSize % 2);
+  }
+  return byteRate > 0 && dataSize > 0 ? dataSize / byteRate : 0;
+}
+
+async function resolveRemoteWavDurationSeconds(url) {
+  if (!/^https?:\/\//i.test(url || "") || !/\.wav(?:$|[?#])/i.test(url)) return 0;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), WAV_DURATION_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { headers: { range: "bytes=0-4095" }, signal: controller.signal });
+    if (!response.ok && response.status !== 206) return 0;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return toFinitePositiveNumber(parseWavDurationSeconds(buffer));
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function buildRowSeeds(segments = []) {
@@ -91,7 +213,7 @@ function toResponseSnapshot(record) {
   return { snapshot: record.snapshot, snapshotId: record.snapshotId, snapshotHash: record.snapshotHash };
 }
 
-function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter = async () => ({}) } = {}) {
+function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter = async () => ({}), alignVoiceAudio = prepareRealVoiceAlignment, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
 
   return http.createServer(async (request, response) => {
@@ -107,11 +229,38 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         const body = await readBody(request);
         if (!body?.voice_audio?.public_url || !body?.background_audio?.public_url) throw Object.assign(new Error("approval payload requires voice and background audio"), { code: "missing_audio" });
         const projectId = safeProjectId(body.project_id || body.draft_id || body.title);
-        const segments = normalizeSegments(body);
+        const allowEstimatedTimings = String(env.ALLOW_ESTIMATED_TIMINGS || body.allowEstimatedTimings || "").toLowerCase() === "true";
+        let segments = normalizeSegments({ ...body, allowEstimatedTimings: false });
+        let alignedTimings = null;
+        let alignmentStatus = {
+          status: "pending_alignment",
+          source: "whisper-alignment",
+          details: "Whisper alignment has not completed yet",
+          generatedAt: null,
+        };
+        try {
+          const projectDir = store.projectDir(projectId);
+          const aligned = await alignVoiceAudio({ projectDir, projectId, voiceAudio: body.voice_audio, segments, env, fetchImpl });
+          segments = aligned.segments;
+          alignedTimings = aligned.alignedTimings;
+          alignmentStatus = aligned.alignmentStatus;
+        } catch (error) {
+          alignmentStatus = {
+            status: allowEstimatedTimings ? "ready" : "failed",
+            source: allowEstimatedTimings ? "estimated-text-weight" : "whisper-alignment",
+            warning: allowEstimatedTimings ? "ALLOW_ESTIMATED_TIMINGS=true; timings are not Whisper aligned" : "timing_fallback_not_whisper_aligned",
+            details: error.message,
+            generatedAt: new Date().toISOString(),
+          };
+          if (allowEstimatedTimings) {
+            const wavDurationSeconds = pickAudioDurationSeconds(body.voice_audio) || await resolveRemoteWavDurationSeconds(pickAudioUrl(body.voice_audio));
+            segments = normalizeSegments({ ...body, allowEstimatedTimings: true, voice_audio: { ...(body.voice_audio || {}), durationSeconds: wavDurationSeconds || body.voice_audio?.durationSeconds } });
+            alignedTimings = { phrases: segments.map((segment) => ({ startTime: segment.startTime, endTime: segment.endTime })) };
+          }
+        }
         const imageAssets = (Array.isArray(body.selected_images) ? body.selected_images : []).map((item, index) => normalizeUrlAsset(item, index, "image"));
         const voiceAsset = normalizeUrlAsset(body.voice_audio, 0, "voice");
         const musicAsset = normalizeUrlAsset(body.background_audio, 0, "music");
-        const alignedTimings = { phrases: segments.map((segment) => ({ startTime: segment.startTime, endTime: segment.endTime })) };
         const pipeline = buildApprovalContractPipeline({
           projectId,
           title: body.title || projectId,
@@ -119,14 +268,14 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           rowsSeed: buildRowSeeds(segments),
           segments,
           alignedTimings,
-          alignmentStatus: { status: "ready", source: "approval-editor-service", generatedAt: new Date().toISOString() },
+          alignmentStatus,
           imageAssets,
           voiceAsset,
           musicAsset,
           nowIso: new Date().toISOString(),
         });
         const record = store.saveSnapshot(pipeline.contract);
-        return ok(response, { projectId, ...toResponseSnapshot(record), previewAssets: pipeline.manifest, manifest: pipeline.manifest, alignmentStatus: pipeline.alignmentStatus }, 201);
+        return ok(response, { projectId, ...toResponseSnapshot(record), previewAssets: pipeline.manifest, manifest: pipeline.manifest, alignmentStatus: pipeline.alignmentStatus }, alignmentStatus.status === "ready" ? 201 : 202);
       }
 
       const parts = url.pathname.split("/").filter(Boolean);
@@ -180,4 +329,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApprovalEditorService };
+module.exports = { createApprovalEditorService, normalizeSegments, pickAudioDurationSeconds, parseWavDurationSeconds };

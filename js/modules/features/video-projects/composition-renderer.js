@@ -56,6 +56,7 @@ const OUTRO_BG_COLOR = '#11100e';
 const OUTRO_TEXT_COLOR = '#f5d09a';
 const OUTRO_FONT_SIZE = 72;
 const OUTRO_DURATION_SECONDS = 2;
+const PRELOAD_IMAGE_WINDOW_SIZE = 2;
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -415,16 +416,14 @@ export class CompositionRenderer {
           .map((r) => r.image)
           .filter(Boolean);
         if (imageUrls.length > 0) {
-          await this.preloadImages(imageUrls);
+          await this.preloadImages(imageUrls, { limit: PRELOAD_IMAGE_WINDOW_SIZE });
         }
       }
 
-      // Fetch and decode audio buffers
+      // Register audio URLs for lazy fetch/decode on first play.
       // AudioContext is lazy — created on first play (browser autoplay policy).
-      // Here we just fetch the raw data; decode happens in init().
       if (voiceUrl || musicUrl) {
-        const fetchPromise = this.#audio.fetchBuffers(voiceUrl, musicUrl);
-        this.#audio.setPendingFetch(fetchPromise);
+        this.#audio.setSourceUrls(voiceUrl, musicUrl);
       }
 
       this.#assetsReady = true;
@@ -438,15 +437,18 @@ export class CompositionRenderer {
   }
 
   /**
-   * Preload segment images into the decode cache.
-   * Call after update({ rows }) to eagerly decode all segment images.
+   * Preload a small segment-image window into the decode cache.
+   * Keeps editor open/reload responsive instead of decoding every row upfront.
    * @param {string[]} urls — array of image URLs to preload
+   * @param {{ limit?: number }} options — max images to decode in this pass
    * @returns {Promise<void>}
    */
-  async preloadImages(urls) {
+  async preloadImages(urls, { limit = PRELOAD_IMAGE_WINDOW_SIZE } = {}) {
     if (!Array.isArray(urls) || urls.length === 0) return;
+    const max = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : PRELOAD_IMAGE_WINDOW_SIZE;
     const tasks = urls
       .filter((url) => url && !this.#imageCache.has(url))
+      .slice(0, max)
       .map(async (url) => {
         try {
           const img = new Image();
