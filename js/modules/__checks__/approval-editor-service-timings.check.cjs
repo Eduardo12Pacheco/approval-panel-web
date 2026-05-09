@@ -38,6 +38,22 @@ function createSeed() {
   };
 }
 
+function createAlignedResult(segments) {
+  return alignSegmentsToTranscript({
+    segments,
+    transcript: {
+      backend: 'fake-whisper',
+      totalDurationSeconds: 8,
+      words: [
+        { word: 'uno', start: 1, end: 1.2 },
+        { word: 'dos', start: 1.21, end: 1.7 },
+        { word: 'tres', start: 5, end: 5.4 },
+        { word: 'cuatro', start: 5.41, end: 6.2 },
+      ],
+    },
+  });
+}
+
 function testAlignsSegmentsFromTranscriptWords() {
   const result = alignSegmentsToTranscript({
     segments: [
@@ -119,19 +135,8 @@ async function testServiceUsesInjectedRealAlignmentTimings() {
   const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-service-timings-'));
   const server = createApprovalEditorService({
     projectsRoot,
-    alignVoiceAudio: async ({ segments }) => alignSegmentsToTranscript({
-      segments,
-      transcript: {
-        backend: 'fake-whisper',
-        totalDurationSeconds: 8,
-        words: [
-          { word: 'uno', start: 1, end: 1.2 },
-          { word: 'dos', start: 1.21, end: 1.7 },
-          { word: 'tres', start: 5, end: 5.4 },
-          { word: 'cuatro', start: 5.41, end: 6.2 },
-        ],
-      },
-    }),
+    alignVoiceAudio: async ({ segments }) => createAlignedResult(segments),
+    prepareAudioPreview: async () => null,
   });
   const port = await listen(server);
   try {
@@ -153,6 +158,7 @@ async function testServiceDoesNotMarkFailedAlignmentReadyByDefault() {
   const server = createApprovalEditorService({
     projectsRoot,
     alignVoiceAudio: async () => { throw new Error('fake whisper failure'); },
+    prepareAudioPreview: async () => null,
     env: {},
   });
   const port = await listen(server);
@@ -167,6 +173,80 @@ async function testServiceDoesNotMarkFailedAlignmentReadyByDefault() {
   }
 }
 
+async function testServiceUsesPreviewAudioDerivativesButKeepsRenderOriginals() {
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-service-audio-preview-'));
+  const server = createApprovalEditorService({
+    projectsRoot,
+    alignVoiceAudio: async ({ segments }) => createAlignedResult(segments),
+    prepareAudioPreview: async ({ projectDir, role, outputName }) => {
+      const relativePath = path.join('audio', outputName).replace(/\\/g, '/');
+      const outputPath = path.join(projectDir, relativePath);
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      fs.writeFileSync(outputPath, Buffer.from(`${role}-preview`));
+      return { path: outputPath, relativePath, mimeType: 'audio/mpeg' };
+    },
+  });
+  const port = await listen(server);
+  try {
+    const result = await postJson(`http://127.0.0.1:${port}`, createSeed());
+    assert.equal(result.status, 201);
+    const snapshot = result.body.data.snapshot;
+    const voiceAsset = snapshot.assets[snapshot.audio.voice.assetId];
+    const musicAsset = snapshot.assets[snapshot.audio.music.assetId];
+
+    assert.equal(snapshot.audio.voice.previewUrl, `/api/projects/${snapshot.projectId}/files/audio/voice-preview.mp3`);
+    assert.equal(snapshot.audio.music.previewUrl, `/api/projects/${snapshot.projectId}/files/audio/music-preview.mp3`);
+    assert.notEqual(snapshot.audio.voice.previewUrl, snapshot.audio.voice.renderPath);
+    assert.notEqual(snapshot.audio.music.previewUrl, snapshot.audio.music.renderPath);
+    assert.equal(snapshot.audio.voice.renderPath, 'https://example.test/voice.wav');
+    assert.equal(snapshot.audio.music.renderPath, 'https://example.test/music.wav');
+    assert.equal(voiceAsset.publicPath, 'https://example.test/voice.wav');
+    assert.equal(musicAsset.publicPath, 'https://example.test/music.wav');
+    assert.equal(voiceAsset.previewUrl, snapshot.audio.voice.previewUrl);
+    assert.equal(musicAsset.previewUrl, snapshot.audio.music.previewUrl);
+
+    const derivativeResponse = await fetch(`http://127.0.0.1:${port}${snapshot.audio.voice.previewUrl}`);
+    assert.equal(derivativeResponse.status, 200);
+    assert.equal(derivativeResponse.headers.get('content-type'), 'audio/mpeg');
+    assert.equal(await derivativeResponse.text(), 'voice-preview');
+  } finally {
+    await close(server);
+    fs.rmSync(projectsRoot, { recursive: true, force: true });
+  }
+}
+
+async function testServiceFinalDownloadReturnsFinalUrlContract() {
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-service-final-url-'));
+  const server = createApprovalEditorService({
+    projectsRoot,
+    alignVoiceAudio: async ({ segments }) => createAlignedResult(segments),
+    prepareAudioPreview: async () => null,
+    renderAdapter: async () => ({ finalPath: 'file:///tmp/final.mp4' }),
+  });
+  const port = await listen(server);
+  try {
+    const created = await postJson(`http://127.0.0.1:${port}`, createSeed());
+    assert.equal(created.status, 201);
+    const projectId = created.body.data.projectId;
+    const snapshotHash = created.body.data.snapshotHash;
+
+    const renderResponse = await fetch(`http://127.0.0.1:${port}/api/projects/${encodeURIComponent(projectId)}/render-final`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ snapshotHash }),
+    });
+    assert.equal(renderResponse.status, 202);
+
+    const downloadResponse = await fetch(`http://127.0.0.1:${port}/api/projects/${encodeURIComponent(projectId)}/download/final`);
+    assert.equal(downloadResponse.status, 200);
+    const downloadBody = await downloadResponse.json();
+    assert.equal(downloadBody.data.finalUrl, 'file:///tmp/final.mp4');
+  } finally {
+    await close(server);
+    fs.rmSync(projectsRoot, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   testAlignsSegmentsFromTranscriptWords();
   testPreservesAlignedSegmentTimes();
@@ -174,6 +254,8 @@ async function main() {
   testEstimatedFallbackRequiresExplicitOptIn();
   await testServiceUsesInjectedRealAlignmentTimings();
   await testServiceDoesNotMarkFailedAlignmentReadyByDefault();
+  await testServiceUsesPreviewAudioDerivativesButKeepsRenderOriginals();
+  await testServiceFinalDownloadReturnsFinalUrlContract();
   console.log('PASS approval-editor-service-timings.check');
 }
 

@@ -1,1 +1,1 @@
-module.exports = require("../../../shared/approval-contract-pipeline/hash");
+module.exports = require("../../../03-Contracts-Core/approval-contract-pipeline/hash");

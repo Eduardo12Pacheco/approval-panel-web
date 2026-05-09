@@ -6,11 +6,11 @@ Local service for Approval-owned editor snapshots. It now requires real Whisper 
 
 ```powershell
 $env:APPROVAL_EDITOR_SERVICE_PORT = "3042"
-$env:STT_WHISPER_MODEL = "C:\Users\pelot\Desktop\n8n\models\faster-whisper-large-v3"
+$env:STT_WHISPER_MODEL = "C:\Users\pelot\Desktop\n8n\local\models\faster-whisper-large-v3"
 $env:STT_WHISPER_DEVICE = "cuda"
 $env:STT_WHISPER_COMPUTE_TYPE = "float16"
 $env:REMOTION_EDITOR_PYTHON_BIN = "py"
-# Optional only if ffmpeg-static is not available from RemotionEditor/node_modules:
+# Optional only if ffmpeg-static is not available from 02-Video-Engine/node_modules:
 # $env:FFMPEG_PATH = "C:\path\to\ffmpeg.exe"
 node .\server.js
 ```

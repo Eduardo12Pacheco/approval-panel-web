@@ -8,7 +8,7 @@ import { createVideoProjectsApiClient } from '../features/video-projects/api.js'
 import { createVideoProjectsFeature } from '../features/video-projects/index.js';
 import { renderSelectedVideoProjectView } from '../features/video-projects/render.js';
 const cjsRequire = createRequire(import.meta.url);
-const approvalService = cjsRequire('../../../../RemotionEditor/scripts/approval-pipeline-local-service.js');
+const approvalService = cjsRequire('../../../../02-Video-Engine/scripts/approval-pipeline-local-service.js');
 
 const { createApprovalPipelineLocalService } = approvalService;
 

@@ -14,6 +14,10 @@ import { createApprovalFeature } from '../features/approval/index.js';
 import { createScriptsFeature } from '../features/scripts/index.js';
 import { createAudioFeature } from '../features/audio/index.js';
 import { createSubtitlesFeature } from '../features/subtitles/index.js';
+import {
+  resolveCompositionDustUrl,
+  resolveCompositionLogoUrl,
+} from '../features/video-projects/composition/composition-view-model.js';
 
 function createMemoryStorage() {
   const data = new Map();
@@ -60,7 +64,7 @@ function replaySettingsScenario() {
 
   const loadedDefaults = loadSettingsFromStorage({ storage, storageKey, defaultsFactory: defaultSettingsFactory });
   if (loadedDefaults.baseUrl !== defaults.baseUrl) return { ok: false, reason: 'default settings load drift' };
-  if (loadedDefaults.approvalPipelineBaseUrl !== '') return { ok: false, reason: 'default approval pipeline setting drift' };
+  if (loadedDefaults.approvalPipelineBaseUrl !== 'http://127.0.0.1:3042') return { ok: false, reason: 'default approval pipeline setting drift' };
 
   const next = {
     ...defaults,
@@ -113,6 +117,22 @@ function replaySettingsScenario() {
   if (elWithEmptyRemotion.approvalPipelineBaseUrlInput.value !== '') {
     return { ok: false, reason: 'settings blank approval pipeline normalize drift' };
   }
+
+  return { ok: true };
+}
+
+function replayCompositionAssetsScenario() {
+  const dustUrl = resolveCompositionDustUrl({}, [{ dust: { enabled: true, type: 'dust-2' } }]);
+  if (dustUrl !== './assets/dust-preview.webm') return { ok: false, reason: 'dust-2 fallback asset drift' };
+
+  const missingLogoUrl = resolveCompositionLogoUrl({
+    editor_state: {
+      approval_contract_snapshot: {
+        globalLayers: { logo: { enabled: true, source: 'logo-alpha.webm' } },
+      },
+    },
+  });
+  if (missingLogoUrl !== '') return { ok: false, reason: 'missing logo fallback drift' };
 
   return { ok: true };
 }
@@ -285,6 +305,7 @@ export async function runProtectedFlowsReplay() {
   const scenarios = [
     { name: 'auth/session', run: async () => replayAuthSessionScenario() },
     { name: 'settings', run: async () => replaySettingsScenario() },
+    { name: 'composition/assets', run: async () => replayCompositionAssetsScenario() },
     { name: 'approval', run: replayApprovalScenario },
     { name: 'scripts', run: replayScriptsScenario },
     { name: 'audio', run: async () => replayAudioScenario() },

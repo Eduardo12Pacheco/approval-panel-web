@@ -1,12 +1,13 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const { buildApprovalContractPipeline } = require("../../shared/approval-contract-pipeline");
+const { buildApprovalContractPipeline, computeApprovalSnapshotHash } = require("../../03-Contracts-Core/approval-contract-pipeline");
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
-const { parseGuionSegments } = require("../../RemotionEditor/scripts/lib/guion-parsing");
+const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
+const { parseGuionSegments } = require("../../02-Video-Engine/scripts/lib/guion-parsing");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -209,11 +210,82 @@ function normalizeUrlAsset(item, index, role) {
   };
 }
 
+function previewFileUrl(projectId, relativePath) {
+  if (!relativePath) return "";
+  return `/api/projects/${encodeURIComponent(safeProjectId(projectId))}/files/${String(relativePath).replace(/^\/+/, "")}`;
+}
+
+function withAudioPreview(asset, previewUrl) {
+  if (!asset || !previewUrl) return asset;
+  return { ...asset, previewUrl };
+}
+
+function applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl } = {}) {
+  const assets = pipeline?.contract?.assets || {};
+  const voiceAssetId = pipeline?.contract?.audio?.voice?.assetId;
+  const musicAssetId = pipeline?.contract?.audio?.music?.assetId;
+  if (voicePreviewUrl) {
+    if (assets[voiceAssetId]) assets[voiceAssetId].previewUrl = voicePreviewUrl;
+    if (pipeline.contract.audio?.voice) pipeline.contract.audio.voice.previewUrl = voicePreviewUrl;
+    if (pipeline.manifest?.assets?.[voiceAssetId]) pipeline.manifest.assets[voiceAssetId].previewUrl = voicePreviewUrl;
+  }
+  if (musicPreviewUrl) {
+    if (assets[musicAssetId]) assets[musicAssetId].previewUrl = musicPreviewUrl;
+    if (pipeline.contract.audio?.music) pipeline.contract.audio.music.previewUrl = musicPreviewUrl;
+    if (pipeline.manifest?.assets?.[musicAssetId]) pipeline.manifest.assets[musicAssetId].previewUrl = musicPreviewUrl;
+  }
+  if (voicePreviewUrl || musicPreviewUrl) pipeline.contract.snapshotHash = computeApprovalSnapshotHash(pipeline.contract);
+  return pipeline;
+}
+
+function resolveSafeProjectFile(projectDir, relativePath) {
+  const normalized = path.normalize(String(relativePath || "").replace(/^[/\\]+/, ""));
+  if (!normalized || normalized.startsWith("..") || path.isAbsolute(normalized)) return "";
+  const filePath = path.resolve(projectDir, normalized);
+  const projectRoot = path.resolve(projectDir);
+  if (filePath !== projectRoot && !filePath.startsWith(`${projectRoot}${path.sep}`)) return "";
+  return filePath;
+}
+
+function sendFile(request, response, filePath) {
+  const stat = fs.statSync(filePath);
+  const headers = {
+    "access-control-allow-origin": "*",
+    "accept-ranges": "bytes",
+    "content-type": audioContentType(filePath),
+  };
+  const range = request.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (match) {
+      const start = match[1] ? Number(match[1]) : 0;
+      const end = match[2] ? Number(match[2]) : stat.size - 1;
+      if (Number.isFinite(start) && Number.isFinite(end) && start <= end && start < stat.size) {
+        const cappedEnd = Math.min(end, stat.size - 1);
+        response.writeHead(206, { ...headers, "content-length": cappedEnd - start + 1, "content-range": `bytes ${start}-${cappedEnd}/${stat.size}` });
+        return fs.createReadStream(filePath, { start, end: cappedEnd }).pipe(response);
+      }
+    }
+    response.writeHead(416, { ...headers, "content-range": `bytes */${stat.size}` });
+    return response.end();
+  }
+  response.writeHead(200, { ...headers, "content-length": stat.size });
+  return fs.createReadStream(filePath).pipe(response);
+}
+
+async function tryPrepareAudioPreview(prepareAudioPreview, options) {
+  try {
+    return await prepareAudioPreview(options);
+  } catch {
+    return null;
+  }
+}
+
 function toResponseSnapshot(record) {
   return { snapshot: record.snapshot, snapshotId: record.snapshotId, snapshotHash: record.snapshotHash };
 }
 
-function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter = async () => ({}), alignVoiceAudio = prepareRealVoiceAlignment, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter = async () => ({}), alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
 
   return http.createServer(async (request, response) => {
@@ -232,6 +304,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         const allowEstimatedTimings = String(env.ALLOW_ESTIMATED_TIMINGS || body.allowEstimatedTimings || "").toLowerCase() === "true";
         let segments = normalizeSegments({ ...body, allowEstimatedTimings: false });
         let alignedTimings = null;
+        let alignmentPaths = null;
         let alignmentStatus = {
           status: "pending_alignment",
           source: "whisper-alignment",
@@ -244,6 +317,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           segments = aligned.segments;
           alignedTimings = aligned.alignedTimings;
           alignmentStatus = aligned.alignmentStatus;
+          alignmentPaths = aligned.paths || null;
         } catch (error) {
           alignmentStatus = {
             status: allowEstimatedTimings ? "ready" : "failed",
@@ -258,9 +332,16 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
             alignedTimings = { phrases: segments.map((segment) => ({ startTime: segment.startTime, endTime: segment.endTime })) };
           }
         }
+        const projectDir = store.projectDir(projectId);
+        const [voicePreview, musicPreview] = await Promise.all([
+          tryPrepareAudioPreview(prepareAudioPreview, { projectDir, projectId, audio: body.voice_audio, role: "voice", outputName: "voice-preview.mp3", existingInputPath: alignmentPaths?.originalVoicePath, env, fetchImpl }),
+          tryPrepareAudioPreview(prepareAudioPreview, { projectDir, projectId, audio: body.background_audio, role: "music", outputName: "music-preview.mp3", env, fetchImpl }),
+        ]);
+        const voicePreviewUrl = previewFileUrl(projectId, voicePreview?.relativePath);
+        const musicPreviewUrl = previewFileUrl(projectId, musicPreview?.relativePath);
         const imageAssets = (Array.isArray(body.selected_images) ? body.selected_images : []).map((item, index) => normalizeUrlAsset(item, index, "image"));
-        const voiceAsset = normalizeUrlAsset(body.voice_audio, 0, "voice");
-        const musicAsset = normalizeUrlAsset(body.background_audio, 0, "music");
+        const voiceAsset = withAudioPreview(normalizeUrlAsset(body.voice_audio, 0, "voice"), voicePreviewUrl);
+        const musicAsset = withAudioPreview(normalizeUrlAsset(body.background_audio, 0, "music"), musicPreviewUrl);
         const pipeline = buildApprovalContractPipeline({
           projectId,
           title: body.title || projectId,
@@ -274,6 +355,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           musicAsset,
           nowIso: new Date().toISOString(),
         });
+        applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl });
         const record = store.saveSnapshot(pipeline.contract);
         return ok(response, { projectId, ...toResponseSnapshot(record), previewAssets: pipeline.manifest, manifest: pipeline.manifest, alignmentStatus: pipeline.alignmentStatus }, alignmentStatus.status === "ready" ? 201 : 202);
       }
@@ -285,6 +367,12 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         if (!latest) throw Object.assign(new Error(`unknown project: ${projectId}`), { code: "unknown_project" });
 
         if (request.method === "GET" && parts[3] === "snapshot") return ok(response, toResponseSnapshot(latest));
+        if (request.method === "GET" && parts[3] === "files") {
+          const relativePath = parts.slice(4).map(decodeURIComponent).join("/");
+          const filePath = resolveSafeProjectFile(store.projectDir(projectId), relativePath);
+          if (!filePath || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) throw Object.assign(new Error(`unknown project file: ${relativePath}`), { code: "unknown_asset" });
+          return sendFile(request, response, filePath);
+        }
         if (request.method === "PATCH" && parts[3] === "snapshot") {
           const body = await readBody(request);
           if (body.baseSnapshotHash !== latest.snapshotHash) throw Object.assign(new Error("stale baseSnapshotHash"), { code: "stale_snapshot", details: { expected: latest.snapshotHash, received: body.baseSnapshotHash } });

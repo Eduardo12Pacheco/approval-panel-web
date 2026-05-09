@@ -1,4 +1,5 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
+const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
   'http://127.0.0.1:3037/',
@@ -34,7 +35,7 @@ export function defaultSettingsFactory() {
     ttsBasicUser: '',
     ttsBasicPass: '',
     remotionApiUrl: DEFAULT_REMOTION_API_URL,
-    approvalPipelineBaseUrl: '',
+    approvalPipelineBaseUrl: DEFAULT_APPROVAL_EDITOR_SERVICE_URL,
   };
 }
 

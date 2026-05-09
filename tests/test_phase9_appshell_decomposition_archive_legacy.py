@@ -169,7 +169,7 @@ def test_phase9_structure_guardrails_expect_runtime_pure_helper_locations_after_
 
 
 def test_legacy_app_js_is_archived_with_marker_and_root_file_removed():
-    assert not ROOT_APP_JS_PATH.exists(), "Root approval-panel-web/app.js must be archived, not left in runtime root"
+    assert not ROOT_APP_JS_PATH.exists(), "Root 01-Control-Panel/app.js must be archived, not left in runtime root"
     assert LEGACY_APP_JS_PATH.exists(), "Legacy app.js must exist at js/legacy/app.js"
     source = LEGACY_APP_JS_PATH.read_text(encoding="utf-8")
     assert "LEGACY ARCHIVE - non-runtime" in source

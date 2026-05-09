@@ -11,6 +11,11 @@ function createElement(tagName) {
     muted: false,
     loop: false,
     playsInline: false,
+    paused: true,
+    readyState: 1,
+    duration: 60,
+    currentTime: 0,
+    volume: 1,
     src: '',
     preload: '',
     appendChild(child) {
@@ -23,12 +28,53 @@ function createElement(tagName) {
       child.parentNode = null;
       return child;
     },
+    addEventListener() {},
+    removeEventListener() {},
+    removeAttribute(name) { this[name] = ''; },
+    load() {},
+    play() {
+      this.paused = false;
+      return Promise.resolve();
+    },
+    pause() { this.paused = true; },
   };
 }
 
 globalThis.document = { createElement };
 globalThis.requestAnimationFrame = () => 1;
 globalThis.cancelAnimationFrame = () => {};
+
+let decodeCalls = 0;
+class FakeAudioContext {
+  constructor() {
+    this.currentTime = 0;
+    this.state = 'suspended';
+    this.destination = {};
+  }
+
+  createGain() {
+    return {
+      connect() {},
+      gain: {
+        value: 1,
+        cancelScheduledValues() {},
+        setValueAtTime() {},
+        linearRampToValueAtTime() {},
+      },
+    };
+  }
+
+  decodeAudioData() {
+    decodeCalls += 1;
+    return Promise.resolve({ duration: 1 });
+  }
+
+  async resume() { this.state = 'running'; }
+  async suspend() { this.state = 'suspended'; }
+  async close() { this.state = 'closed'; }
+}
+
+globalThis.window = { AudioContext: FakeAudioContext, webkitAudioContext: FakeAudioContext };
 
 let decodedUrls = [];
 let fetchCalls = [];
@@ -75,9 +121,30 @@ async function testPreloadDoesNotFetchLargeAudioBeforePlay() {
   assert.deepEqual(fetchCalls, []);
 }
 
+async function testPlayStreamsAudioWithoutFetchOrDecode() {
+  fetchCalls = [];
+  decodeCalls = 0;
+  const container = createElement('div');
+  const renderer = new CompositionRenderer({ container });
+  await renderer.preload({
+    voiceUrl: 'https://example.test/voice.wav',
+    musicUrl: 'https://example.test/music.wav',
+    rows: [{ startTime: 0, endTime: 2, image: 'https://example.test/1.jpg' }],
+  });
+
+  await renderer.play();
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.deepEqual(fetchCalls, [], 'play must not fetch full WAV files into ArrayBuffers');
+  assert.equal(decodeCalls, 0, 'play must not call decodeAudioData for preview audio');
+  renderer.pause();
+}
+
 try {
   await testPreloadUsesSmallImageWindowInsteadOfEveryRow();
   await testPreloadDoesNotFetchLargeAudioBeforePlay();
+  await testPlayStreamsAudioWithoutFetchOrDecode();
   console.log('PASS composition-renderer-preload-window.check');
 } catch (error) {
   console.error('FAIL composition-renderer-preload-window.check');

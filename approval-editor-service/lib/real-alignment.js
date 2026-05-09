@@ -1,13 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { alignPhrasesToTranscript } = require('../../../RemotionEditor/scripts/lib/phrase-alignment');
+const { alignPhrasesToTranscript } = require('../../../02-Video-Engine/scripts/lib/phrase-alignment');
 
 const WHISPER_DERIVATIVE_FILE = 'voice-whisper-16khz-mono.wav';
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 30000;
 const DEFAULT_TRANSCRIBE_TIMEOUT_MS = 20 * 60 * 1000;
-const DEFAULT_LOCAL_WHISPER_MODEL = path.resolve(__dirname, '..', '..', '..', 'models', 'faster-whisper-large-v3');
-const REMOTION_EDITOR_ROOT = path.resolve(__dirname, '..', '..', '..', 'RemotionEditor');
+const DEFAULT_LOCAL_WHISPER_MODEL = path.resolve(__dirname, '..', '..', '..', 'local', 'models', 'faster-whisper-large-v3');
+const VIDEO_ENGINE_ROOT = path.resolve(__dirname, '..', '..', '..', '02-Video-Engine');
 
 function createAlignmentError(code, message, details) {
   const error = new Error(message);
@@ -66,7 +66,7 @@ async function downloadRemoteBinary(fetchImpl, remoteUrl, { timeoutMs = DEFAULT_
   }
 }
 
-function resolveFfmpegPath({ env = process.env, remotionEditorRoot = REMOTION_EDITOR_ROOT } = {}) {
+function resolveFfmpegPath({ env = process.env, remotionEditorRoot = VIDEO_ENGINE_ROOT } = {}) {
   if (env.FFMPEG_PATH && fs.existsSync(env.FFMPEG_PATH)) return env.FFMPEG_PATH;
   const candidates = [
     path.join(remotionEditorRoot, 'node_modules', 'ffmpeg-static'),
@@ -81,10 +81,10 @@ function resolveFfmpegPath({ env = process.env, remotionEditorRoot = REMOTION_ED
   return '';
 }
 
-function writeAudioDerivative16kMono({ inputPath, outputPath, env = process.env, remotionEditorRoot = REMOTION_EDITOR_ROOT }) {
+function writeAudioDerivative16kMono({ inputPath, outputPath, env = process.env, remotionEditorRoot = VIDEO_ENGINE_ROOT }) {
   const ffmpegPath = resolveFfmpegPath({ env, remotionEditorRoot });
   if (!ffmpegPath) {
-    throw createAlignmentError('ffmpeg_unavailable', 'FFmpeg unavailable. Set FFMPEG_PATH or install ffmpeg-static in RemotionEditor/node_modules.');
+    throw createAlignmentError('ffmpeg_unavailable', 'FFmpeg unavailable. Set FFMPEG_PATH or install ffmpeg-static in 02-Video-Engine/node_modules.');
   }
   const result = spawnSync(ffmpegPath, ['-y', '-i', inputPath, '-vn', '-ac', '1', '-ar', '16000', outputPath], {
     encoding: 'utf8',
@@ -125,7 +125,7 @@ function buildWhisperEnv(env = process.env, overrides = {}) {
   return next;
 }
 
-function runTranscribeAudio({ whisperPath, transcriptPath, env = process.env, remotionEditorRoot = REMOTION_EDITOR_ROOT }) {
+function runTranscribeAudio({ whisperPath, transcriptPath, env = process.env, remotionEditorRoot = VIDEO_ENGINE_ROOT }) {
   const pythonBin = resolvePythonBin(env);
   const scriptPath = path.join(remotionEditorRoot, 'scripts', 'transcribe-audio.py');
   const timeout = Number(env.STT_TRANSCRIBE_TIMEOUT_MS || env.APPROVAL_EDITOR_TRANSCRIBE_TIMEOUT_MS || DEFAULT_TRANSCRIBE_TIMEOUT_MS);
@@ -172,7 +172,7 @@ function alignSegmentsToTranscript({ segments = [], transcript }) {
   };
 }
 
-async function prepareRealVoiceAlignment({ projectDir, projectId, voiceAudio, segments, env = process.env, fetchImpl = globalThis.fetch, transcribeImpl, remotionEditorRoot = REMOTION_EDITOR_ROOT } = {}) {
+async function prepareRealVoiceAlignment({ projectDir, projectId, voiceAudio, segments, env = process.env, fetchImpl = globalThis.fetch, transcribeImpl, remotionEditorRoot = VIDEO_ENGINE_ROOT } = {}) {
   const remoteUrl = resolveRemoteUrl(voiceAudio);
   if (!remoteUrl) throw createAlignmentError('missing_voice_audio', 'voice_audio.public_url is required for Whisper alignment');
   const audioDir = path.join(projectDir, 'audio');

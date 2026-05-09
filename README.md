@@ -42,6 +42,13 @@ En estilos:
 - `scripts/render.js` → render del listado/editor de guiones.
 - `audio/index.js`, `audio/controller.js` + `audio/runtime/*` → generación audio, tracking, SSE, polling, descarga y helpers.
 - `subtitles/index.js`, `subtitles/controller.js` + `subtitles/runtime/*` → flujo Subtítulos 2, sesión remota, tabla, preview, historial y helpers.
+- `video-projects/index.js` → fachada/controlador de Video Projects.
+- `video-projects/data/*` → cliente Supabase, Approval Pipeline, Remotion y caché de detalle.
+- `video-projects/domain/*` → helpers puros de proyecto, editor, candidatos y formato.
+- `video-projects/composition/*` → contrato de composición, filas/assets de preview, renderer y motion presets.
+- `video-projects/audio/*` → audio manager del preview y catálogo de música por defecto.
+- `video-projects/render/*` → rendering HTML y view-models de presentación.
+- `video-projects/events/*` → hidratación de eventos DOM sin lógica de transporte/API.
 
 ### Shared
 - `shared/dom/selectors.js` → contrato de selectores/IDs del DOM.
@@ -65,7 +72,7 @@ En estilos:
 ## Mapa de carpetas
 
 ```text
-approval-panel-web/
+01-Control-Panel/
 ├─ index.html
 ├─ styles.css                      # import-only, orden de cascada contractual
 ├─ styles/
@@ -146,7 +153,7 @@ approval-panel-web/
 
 ## Workflow seguro por slices
 
-Desde `approval-panel-web/`:
+Desde `01-Control-Panel/`:
 
 ```bash
 pytest tests/test_phase5_css_split_parity.py
@@ -181,4 +188,4 @@ python -m http.server 8080
 
 Abrir:
 
-`http://localhost:8080/approval-panel-web/`
+`http://localhost:8080/01-Control-Panel/`

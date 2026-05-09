@@ -29,6 +29,6 @@
 
 ## Legacy Archive Guard (non-runtime)
 
-- `approval-panel-web/app.js` is archived as legacy artifact in `js/legacy/app.js`.
+- `01-Control-Panel/app.js` is archived as legacy artifact in `js/legacy/app.js`.
 - `js/legacy/app.js` MUST include `LEGACY ARCHIVE - non-runtime` marker.
 - Runtime must never import/include `js/legacy/app.js`; any reference is a parity failure.

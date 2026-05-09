@@ -83,3 +83,161 @@ None.
 - No UX behavior deltas.
 - No API contract deltas.
 - No DOM selector contract deltas.
+
+## Video Projects Phase B2 Addendum
+
+### Mode
+
+Standard cleanup (markup-only extraction; no preview lifecycle changes).
+
+### Completed Tasks
+
+- [x] Phase B2: moved project list/card markup builders out of `js/modules/features/video-projects/render.js`.
+
+### Files Changed
+
+| File | Action | Summary |
+|---|---|---|
+| `js/modules/features/video-projects/project-list-markup.js` | Created | Hosts `buildProjectCard`, `buildFutureProjectCard`, and private thumbnail resolution used by project catalog markup. |
+| `js/modules/features/video-projects/render.js` | Modified | Imports project catalog markup builders and keeps list DOM insertion/event hydration in place. |
+
+### Validation
+
+- `node --check js/modules/features/video-projects/render.js` — PASS
+- `node --check js/modules/features/video-projects/project-list-markup.js` — PASS
+- `node --check js/modules/features/video-projects/editor-markup.js` — PASS
+- `node js/modules/__checks__/video-projects-composition-payload.check.mjs` — PASS
+- `node js/modules/__checks__/video-projects-manifest-resolution.check.mjs` — PASS
+- `node js/modules/__checks__/contract-pipeline-client-check.js` — PASS
+- `pytest tests/test_video_projects_temp_image_cache.py tests/test_video_contract_pipeline_boundary.py tests/test_phase6_runtime_parity_and_boundaries.py` — PASS (23 passed)
+
+### Deviations
+
+None — no DOM/event/API/CSS/preview lifecycle behavior changed.
+
+## Video Projects Audio Setup Command Seam Addendum
+
+### Mode
+
+Standard cleanup (non-preview audio setup command extraction only; preview lifecycle unchanged).
+
+### Completed Tasks
+
+- [x] Extracted `uploadProjectAudio` and `selectDefaultBackgroundMusic` from `js/modules/features/video-projects/index.js` to an injected audio setup command factory.
+
+### Files Changed
+
+| File | Action | Summary |
+|---|---|---|
+| `js/modules/features/video-projects/audio/commands.js` | Created | Hosts `createAudioSetupCommands`, preserving upload/default-track API calls, state mutations, render calls, and toast/error messages. |
+| `js/modules/features/video-projects/index.js` | Modified | Imports the audio setup command factory and returns the same public command names from `createVideoProjectsFeature`. |
+
+### Validation
+
+- `node --check js/modules/features/video-projects/index.js` — PASS
+- `node --check js/modules/features/video-projects/audio/commands.js` — PASS
+- `node js/modules/__checks__/video-projects-composition-payload.check.mjs` — PASS
+- `node js/modules/__checks__/video-projects-manifest-resolution.check.mjs` — PASS
+- `node js/modules/__checks__/contract-pipeline-client-check.js` — PASS
+- `node js/modules/__checks__/composition-renderer-preload-window.check.mjs` — PASS
+- `node js/modules/__checks__/approval-editor-service-timings.check.cjs` — PASS
+- `pytest tests/test_video_projects_temp_image_cache.py tests/test_video_contract_pipeline_boundary.py tests/test_phase6_runtime_parity_and_boundaries.py tests/test_phase7_runtime_ui_replay_and_rollback.py tests/test_phase9_appshell_decomposition_archive_legacy.py` — PASS (39 passed)
+
+### Deviations
+
+None — audio setup command behavior was moved without changing API payloads, state update order, toast/error text, DOM contracts, or any preview lifecycle code.
+
+## Video Projects Phase C2 Addendum
+
+### Mode
+
+Standard cleanup (small non-preview setup event hydration seam only; preview lifecycle unchanged).
+
+### Completed Tasks
+
+- [x] Phase C2: moved image/audio setup event hydration out of `js/modules/features/video-projects/render.js`.
+
+### Files Changed
+
+| File | Action | Summary |
+|---|---|---|
+| `js/modules/features/video-projects/setup-events.js` | Created | Hosts setup-only listeners for audio uploads, default background music selection, custom image uploads, and image candidate selection. |
+| `js/modules/features/video-projects/render.js` | Modified | Imports `hydrateSetupEvents` and delegates only the non-editor setup event block inside `!inEditorPhase`. |
+
+### Validation
+
+- `node --check js/modules/features/video-projects/render.js` — PASS
+- `node --check js/modules/features/video-projects/setup-events.js` — PASS
+- `node js/modules/__checks__/video-projects-composition-payload.check.mjs` — PASS
+- `node js/modules/__checks__/video-projects-manifest-resolution.check.mjs` — PASS
+- `node js/modules/__checks__/contract-pipeline-client-check.js` — PASS
+- `pytest tests/test_video_projects_temp_image_cache.py tests/test_video_contract_pipeline_boundary.py tests/test_phase6_runtime_parity_and_boundaries.py` — PASS (23 passed)
+
+### Deviations
+
+None — no DOM/event/API/CSS/preview lifecycle behavior changed. Editor-phase and preview lifecycle hydration remains in `render.js` untouched.
+
+## Video Projects Controller Helper Extraction Addendum
+
+### Mode
+
+Standard cleanup (non-lifecycle pure/transport helper extraction only; preview lifecycle unchanged).
+
+### Completed Tasks
+
+- [x] Extracted composition payload/hash helpers from `js/modules/features/video-projects/index.js` to `js/modules/features/video-projects/composition/composition-payload.js`.
+- [x] Extracted custom image file constants and dimension detection from `js/modules/features/video-projects/index.js` to `js/modules/features/video-projects/domain/image-files.js`.
+
+### Files Changed
+
+| File | Action | Summary |
+|---|---|---|
+| `js/modules/features/video-projects/composition/composition-payload.js` | Created | Hosts `hashString`, `computeCompositionHash`, and `buildCompositionPayload` with the same payload/hash logic. |
+| `js/modules/features/video-projects/domain/image-files.js` | Created | Hosts custom image MIME/size constants and `detectImageDimensions` with unchanged error messages. |
+| `js/modules/features/video-projects/index.js` | Modified | Imports extracted helpers and keeps controller call sites, lifecycle, API payload usage, and check export unchanged. |
+
+### Validation
+
+- `node --check js/modules/features/video-projects/index.js` — PASS
+- `node --check js/modules/features/video-projects/composition/composition-payload.js` — PASS
+- `node --check js/modules/features/video-projects/domain/image-files.js` — PASS
+- `node js/modules/__checks__/video-projects-composition-payload.check.mjs` — PASS
+- `node js/modules/__checks__/video-projects-manifest-resolution.check.mjs` — PASS
+- `node js/modules/__checks__/contract-pipeline-client-check.js` — PASS
+- `node js/modules/__checks__/composition-renderer-preload-window.check.mjs` — PASS
+- `node js/modules/__checks__/approval-editor-service-timings.check.cjs` — PASS
+- `pytest tests/test_video_projects_temp_image_cache.py tests/test_video_contract_pipeline_boundary.py tests/test_phase6_runtime_parity_and_boundaries.py tests/test_phase7_runtime_ui_replay_and_rollback.py tests/test_phase9_appshell_decomposition_archive_legacy.py` — PASS (39 passed)
+
+### Deviations
+
+None — no DOM/event/API/CSS/preview lifecycle behavior changed. Composition payload/hash field construction and custom image upload validation/dimension error messages were moved without logic changes.
+
+## Video Projects Phase C1 Addendum
+
+### Mode
+
+Standard cleanup (small non-preview event hydration seam only; preview lifecycle unchanged).
+
+### Completed Tasks
+
+- [x] Phase C1: moved project card/list click hydration and prefetch wiring out of `js/modules/features/video-projects/render.js`.
+
+### Files Changed
+
+| File | Action | Summary |
+|---|---|---|
+| `js/modules/features/video-projects/project-list-events.js` | Created | Hosts `hydrateProjectListCards`, preserving card click, open-button keyboard activation, and one-time prefetch listeners. |
+| `js/modules/features/video-projects/render.js` | Modified | Imports `hydrateProjectListCards` and delegates project catalog hydration after unchanged markup insertion. |
+
+### Validation
+
+- `node --check js/modules/features/video-projects/render.js` — PASS
+- `node --check js/modules/features/video-projects/project-list-events.js` — PASS
+- `node js/modules/__checks__/video-projects-composition-payload.check.mjs` — PASS
+- `node js/modules/__checks__/video-projects-manifest-resolution.check.mjs` — PASS
+- `node js/modules/__checks__/contract-pipeline-client-check.js` — PASS
+- `pytest tests/test_video_projects_temp_image_cache.py tests/test_video_contract_pipeline_boundary.py tests/test_phase6_runtime_parity_and_boundaries.py` — PASS (23 passed)
+
+### Deviations
+
+None — no DOM/event/API/CSS/preview lifecycle behavior changed.

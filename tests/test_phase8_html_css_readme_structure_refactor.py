@@ -135,7 +135,7 @@ def test_readme_does_not_claim_new_capabilities_for_this_change_set():
 
 def test_approval_pipeline_settings_placeholder_and_help_match_local_service_contract():
     source = _read(INDEX_PATH)
-    assert 'id="approvalPipelineBaseUrlInput" placeholder="http://127.0.0.1:3041"' in source
+    assert 'id="approvalPipelineBaseUrlInput" placeholder="http://127.0.0.1:3042"' in source
     assert "Approval Pipeline URL (opcional, solo preparación)" in source
     assert "Si lo dejás vacío, sigue el fallback a Remotion" in source
 
