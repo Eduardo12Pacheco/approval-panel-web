@@ -316,7 +316,7 @@ function buildPreviewPreparingPanel(editorState) {
     </div>
     <div class="video-preview-preparing">
       ${isRendering
-        ? `<p>Preparando editor/timings… Esto puede tardar unos minutos.</p><div class="video-preview-spinner" aria-hidden="true">⏳</div>`
+        ? `<div class="video-preview-preparing__card" role="status" aria-live="polite"><div class="video-preview-spinner" aria-hidden="true"></div><p>Preparando editor/timings… Esto puede tardar unos minutos.</p></div>`
         : hasError
           ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error || 'Error preparando editor')}</p>`
           : `<p>Editor listo. Abrí la edición para ajustar filas y exportar.</p>`}
