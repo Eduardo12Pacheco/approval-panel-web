@@ -606,8 +606,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
         await commitApprovalSnapshotOperations(project, [{ type: 'setAudio', kind: normalizedKind, settings: patch }], { phase: 'editing_dirty' });
       } catch (err) {
         console.error(err);
-        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Audio ${normalizedKind}: ${err?.message || 'No se pudo actualizar audio'}` });
-        ui.toast('Error actualizando audio');
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'editing_dirty' });
       } finally {
         renderSelectedVideoProject();
       }
