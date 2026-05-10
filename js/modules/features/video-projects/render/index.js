@@ -81,25 +81,13 @@ function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   `;
 }
 
-function buildSelectedImagesSummary(selectedCount = 0, segmentCount = 0) {
-  const requiredCount = Math.max(Number(segmentCount || 0), 1);
-  const missingCount = Math.max(requiredCount - Number(selectedCount || 0), 0);
-  const canContinue = missingCount === 0;
-
-  return `
-    <div class="video-project-next-panel">
-      <div>
-        <span class="video-projects-eyebrow">Selección</span>
-        <strong>${formatCount(selectedCount, 'imagen', 'imágenes')} seleccionada${selectedCount === 1 ? '' : 's'} · ${requiredCount} requerida${requiredCount === 1 ? '' : 's'}</strong>
-        <p>${canContinue
-          ? 'Ya tenés imágenes suficientes para cubrir todos los segmentos pipeados.'
-          : `Falta${missingCount === 1 ? '' : 'n'} ${formatCount(missingCount, 'imagen', 'imágenes')} para avanzar sin huecos.`}</p>
-      </div>
-      <button class="video-project-primary-action" type="button" data-action="video-project-next-audio" ${canContinue ? '' : 'disabled'}>
-        Siguiente: audios →
-      </button>
-    </div>
-  `;
+function buildProjectPhaseText({ currentStep, inEditorPhase, editorPhase } = {}) {
+  if (!inEditorPhase && currentStep === 'images') return 'Fase 1: Imágenes';
+  if (!inEditorPhase && currentStep === 'audio') return 'Fase 2: Audios';
+  if (['preview_ready', 'editing_dirty'].includes(editorPhase)) return 'Fase 4: Edición';
+  if (['final_rendering', 'final_ready'].includes(editorPhase)) return 'Fase 5: Exportación';
+  if (inEditorPhase) return 'Fase 3: Editor';
+  return 'Fase 1: Imágenes';
 }
 
 function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false }) {
@@ -409,7 +397,6 @@ export function renderSelectedVideoProjectView({
     googleCandidateCount,
     imageMetaCount,
     selectedImageUrls,
-    selectedImageCount,
     segments,
     segmentCount,
     requiredImageCount,
@@ -431,9 +418,7 @@ export function renderSelectedVideoProjectView({
   const title = escapeHtmlCore(viewModel.title);
   const player = escapeHtmlCore(viewModel.player);
   const country = escapeHtmlCore(viewModel.country);
-  const status = escapeHtmlCore(viewModel.statusLabel);
-  const query = escapeHtmlCore(viewModel.searchQuery);
-  const fetchedAt = viewModel.fetchedAt;
+  const phaseText = escapeHtmlCore(buildProjectPhaseText({ currentStep, inEditorPhase, editorPhase }));
 
   let mainContent = '';
   let sideContent = '';
@@ -462,7 +447,6 @@ export function renderSelectedVideoProjectView({
           <div class="video-project-custom-images__separator" aria-hidden="true"></div>
           <div class="video-project-section-heading video-project-section-heading--compact">
             <div>
-              <span class="video-projects-eyebrow">Custom</span>
               <h3>Mis imágenes</h3>
             </div>
             <p>${formatCount(customCandidates.length, 'imagen', 'imágenes')}</p>
@@ -478,7 +462,6 @@ export function renderSelectedVideoProjectView({
             : '<p class="video-projects-empty">Todavía no subiste imágenes custom para este proyecto.</p>'}
         </section>
 
-        ${buildSelectedImagesSummary(selectedImageCount, segmentCount)}
       `
       : `
         <div class="video-project-section-heading">
@@ -575,23 +558,8 @@ export function renderSelectedVideoProjectView({
         <p class="video-projects-eyebrow">Proyecto · ${country} · ${player}</p>
         <h2>${title}</h2>
       </div>
-      <span class="video-project-status video-project-status--large" data-status="${escapeHtmlCore(viewModel.statusName)}">${status}</span>
+      <span class="video-project-detail__phase-label">${phaseText}</span>
     </header>
-
-    <ol class="video-phase-rail ${editorShellMode ? 'video-phase-rail--hidden' : ''}" aria-label="Fases del proyecto">
-      <li class="${!inEditorPhase && currentStep === 'images' ? 'is-active' : ''}"><span>01</span>Imágenes</li>
-      <li class="${!inEditorPhase && currentStep === 'audio' ? 'is-active' : ''}"><span>02</span>Audios</li>
-      <li class="${inEditorPhase ? 'is-active' : ''}"><span>03</span>Editor</li>
-      <li class="${['preview_ready', 'editing_dirty', 'final_rendering', 'final_ready'].includes(editorPhase) ? 'is-active' : ''}"><span>04</span>Edición</li>
-      <li class="${['final_rendering', 'final_ready'].includes(editorPhase) ? 'is-active' : ''}"><span>05</span>Exportación</li>
-    </ol>
-
-    <section class="video-project-detail__meta-grid ${editorShellMode ? 'video-project-detail__meta-grid--hidden' : ''}">
-      <div><span>Query Serper</span><strong>${query}</strong></div>
-      <div><span>Ventana</span><strong>Último día</strong></div>
-      <div><span>Imágenes</span><strong>${imageMetaCount}</strong></div>
-      <div><span>Actualizado</span><strong>${escapeHtmlCore(formatDateLabel(fetchedAt))}</strong></div>
-    </section>
 
     ${detailPending ? '<p class="video-projects-empty">Cargando imágenes del proyecto…</p>' : ''}
 

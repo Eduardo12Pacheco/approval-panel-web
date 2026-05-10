@@ -297,6 +297,16 @@
   white-space: nowrap;
 }
 
+.video-project-detail__phase-label {
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .video-project-detail__workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
@@ -335,7 +345,12 @@
 .video-project-custom-images__help {
   margin: 0 0 10px;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+}
+
+.video-project-custom-images .video-project-section-heading h3 {
+  font-size: 1.35rem;
 }
 
 .video-project-custom-images__upload {
@@ -556,8 +571,8 @@
   align-items: center;
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid rgba(0, 232, 143, 0.22);
-  background: rgba(0, 232, 143, 0.055);
+  border: 1px solid #262626;
+  background: #0A0A0A;
 }
 
 .video-project-next-panel strong {
