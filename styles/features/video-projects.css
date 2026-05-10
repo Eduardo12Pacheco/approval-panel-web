@@ -307,6 +307,14 @@
   white-space: nowrap;
 }
 
+.video-project-detail__instruction {
+  max-width: 860px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 .video-project-detail__workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
@@ -351,7 +359,7 @@
 }
 
 .video-project-custom-images__help {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--muted);
   font-size: 0.98rem;
   line-height: 1.45;
@@ -361,17 +369,19 @@
   font-size: 1.35rem;
 }
 
-.video-project-custom-images__actions {
-  display: grid;
-  justify-items: end;
-  gap: 12px;
-}
-
 .video-project-custom-images__count {
   margin: 0;
   color: var(--muted);
   font-size: 1.08rem;
   font-weight: 700;
+}
+
+.video-project-custom-images__upload-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
 }
 
 .video-project-custom-images__upload {
