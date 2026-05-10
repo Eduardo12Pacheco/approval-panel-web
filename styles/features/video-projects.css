@@ -308,8 +308,8 @@
 }
 
 .video-project-detail__instruction {
-  max-width: 1160px;
-  margin: 12px 0 10px;
+  max-width: 1420px;
+  margin: 18px 0 18px;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.5;
@@ -907,9 +907,12 @@
 }
 
 .video-project-detail__back {
-  margin: 0 0 14px;
-  padding: 0;
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 16px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(0, 232, 143, 0.5);
   background: transparent;
   color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
@@ -921,7 +924,7 @@
 
 .video-project-detail__back:hover,
 .video-project-detail__back:focus {
-  text-decoration: underline;
+  background: rgba(0, 232, 143, 0.08);
   outline: none;
 }
 
