@@ -2,8 +2,9 @@ import { formatSeconds } from '../domain/formatters.js';
 import { MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
+import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
 
-const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global']);
+const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets']);
 
 function resolveEditorEffectTab(value = '') {
   const tab = value.toString();
@@ -33,6 +34,82 @@ function buildMotionPresetGroups() {
     category,
     presets: MOTION_PRESETS.filter((preset) => preset.category === category),
   })).filter((group) => group.presets.length);
+}
+
+function resolveSelectedImageEntryUrl(entry = null) {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry.trim();
+  if (typeof entry === 'object') return resolveCandidateImageUrl(entry);
+  return '';
+}
+
+function isUserUploadCandidate(candidate = {}) {
+  const provider = (candidate.provider || candidate.source || '').toString().toLowerCase();
+  return provider === 'user-upload';
+}
+
+function normalizeAssetKey(url = '') {
+  return url.toString().trim().toLowerCase();
+}
+
+function createAssetViewModel({ url, title, source, dimensions, currentImageUrl, selectedAssetId, index }) {
+  const normalizedUrl = normalizeAssetKey(url);
+  return {
+    id: normalizedUrl || `asset-${index + 1}`,
+    url,
+    title: title || `Asset ${index + 1}`,
+    source,
+    dimensions,
+    isSelected: Boolean(normalizedUrl && (
+      normalizedUrl === normalizeAssetKey(selectedAssetId)
+      || normalizedUrl === normalizeAssetKey(currentImageUrl)
+    )),
+  };
+}
+
+export function buildEditorAssetsViewModel({ project = {}, row = null, rowIndex = 0 } = {}) {
+  const selectedImages = Array.isArray(project.selected_images) ? project.selected_images : [];
+  const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
+  const currentImageUrl = row ? resolveRowImageUrl(row, rowIndex, project) : '';
+  const selectedAssetId = row?.selectedAssetId || '';
+  const seen = new Set();
+  const assets = [];
+
+  const addAsset = ({ url, title, source, dimensions }) => {
+    const cleanUrl = (url || '').toString().trim();
+    const key = normalizeAssetKey(cleanUrl);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    assets.push(createAssetViewModel({
+      url: cleanUrl,
+      title,
+      source,
+      dimensions,
+      currentImageUrl,
+      selectedAssetId,
+      index: assets.length,
+    }));
+  };
+
+  selectedImages.forEach((entry, index) => {
+    const url = resolveSelectedImageEntryUrl(entry);
+    const title = typeof entry === 'object'
+      ? (entry.title || entry.file_name || `Imagen seleccionada ${index + 1}`).toString()
+      : `Imagen seleccionada ${index + 1}`;
+    const dimensions = typeof entry === 'object' ? resolveCandidateDimensions(entry) : '';
+    addAsset({ url, title, source: 'Seleccionada', dimensions });
+  });
+
+  candidates.filter(isUserUploadCandidate).forEach((candidate, index) => {
+    addAsset({
+      url: resolveCandidateImageUrl(candidate),
+      title: (candidate.title || candidate.file_name || `Upload ${index + 1}`).toString(),
+      source: 'Upload',
+      dimensions: resolveCandidateDimensions(candidate),
+    });
+  });
+
+  return assets;
 }
 
 export function buildPreviewTimelineViewModel(rows = [], selectedRowId = null) {
@@ -95,6 +172,8 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     musicVolumePercent: Math.round((music.volume || 0.16) * 100),
     musicVolumeValue: music.volume || 0.16,
     activeEffectTab: resolveEditorEffectTab(project._editorEffectTab),
+    assets: buildEditorAssetsViewModel({ project, row, rowIndex }),
+    assetsUploading: Boolean(project._rowImageUploading && row?.id && project._rowImageUploading === row.id),
     motion: resolveMotionPresetName(row),
     motionPresetGroups: buildMotionPresetGroups(),
     dustEnabled: Boolean(row?.dust?.enabled),

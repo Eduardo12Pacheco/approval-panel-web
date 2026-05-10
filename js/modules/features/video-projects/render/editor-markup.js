@@ -93,10 +93,9 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
           ${detailImageUrl
             ? `<img class="video-editor-detail__thumb" src="${escapeHtmlCore(detailImageUrl)}" alt="Imagen seleccionada" loading="lazy" />`
             : `<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">${escapeHtmlCore(detail.missingAssetLabel)}</span>`}
-          <label class="video-editor-row__upload-label video-editor-row__upload-label--detail">
-            <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" />
+          <button class="video-editor-row__upload-label video-editor-row__upload-label--detail" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}">
             <span>Cambiar imagen</span>
-          </label>
+          </button>
         </div>
         ${buildEditorEffectTabs({ row, detail, activeTab: detail.activeEffectTab })}
       </div>

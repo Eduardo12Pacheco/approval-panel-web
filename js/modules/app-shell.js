@@ -789,6 +789,7 @@ function renderSelectedVideoProject() {
     refreshPreview: videoProjectsFeature.refreshPreview,
     exportFinal: videoProjectsFeature.exportFinal,
     updateRow: videoProjectsFeature.updateRow,
+    assignExistingImageToRow: videoProjectsFeature.assignExistingImageToRow,
     uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
     renderSelectedVideoProject,

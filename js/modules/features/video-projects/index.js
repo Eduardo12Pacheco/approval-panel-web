@@ -584,7 +584,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     }, SAVE_DEBOUNCE_MS);
   }
 
-  const { uploadAndAssignImage } = createRowImageCommands({
+  const { assignExistingImageToRow, uploadAndAssignImage } = createRowImageCommands({
     api,
     ui,
     getProject: () => store.getState().selectedVideoProject,
@@ -663,6 +663,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     refreshPreview,
     exportFinal,
     updateRow,
+    assignExistingImageToRow,
     uploadAndAssignImage,
     updateGlobalAudio,
   };

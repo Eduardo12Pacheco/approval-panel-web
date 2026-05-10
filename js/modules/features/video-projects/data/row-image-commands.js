@@ -5,6 +5,13 @@ import {
 } from '../domain/image-files.js';
 
 export function createRowImageCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow }) {
+  async function assignExistingImageToRow(rowId, imageUrl) {
+    const cleanUrl = (imageUrl || '').toString().trim();
+    if (!rowId || !cleanUrl) return;
+    await updateRow(rowId, { selectedAssetId: cleanUrl });
+    ui.toast('Imagen asignada a la fila');
+  }
+
   async function uploadAndAssignImage(rowId, file) {
     const project = getProject();
     if (!project || !rowId || !file) return;
@@ -73,6 +80,7 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
   }
 
   return {
+    assignExistingImageToRow,
     uploadAndAssignImage,
   };
 }

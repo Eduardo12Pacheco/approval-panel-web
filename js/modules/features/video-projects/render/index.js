@@ -378,6 +378,7 @@ export function renderSelectedVideoProjectView({
   refreshPreview,
   exportFinal,
   updateRow,
+  assignExistingImageToRow,
   uploadAndAssignImage,
   updateGlobalAudio,
   renderSelectedVideoProject,
@@ -948,12 +949,41 @@ export function renderSelectedVideoProjectView({
         });
       });
 
+      el.videoProjectDetail.querySelectorAll('[data-action="open-assets-tab"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const rowId = button.dataset.rowId;
+          if (rowId) project._selectedEditorRowId = rowId;
+          project._editorEffectTab = 'assets';
+          renderSelectedVideoProject?.();
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="assign-row-asset"]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const rowId = button.dataset.rowId;
+          const assetUrl = button.dataset.assetUrl;
+          if (!rowId || !assetUrl) return;
+          await assignExistingImageToRow?.(rowId, assetUrl);
+        });
+      });
+
       // Row image upload
       el.videoProjectDetail.querySelectorAll('[data-action="upload-row-image"]').forEach((input) => {
         input.addEventListener('change', async () => {
           const [file] = input.files || [];
           const rowId = input.dataset.rowId;
           if (!file || !rowId) return;
+          await uploadAndAssignImage?.(rowId, file);
+          input.value = '';
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="upload-assets-image"]').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const [file] = input.files || [];
+          const rowId = input.dataset.rowId;
+          if (!file || !rowId) return;
+          project._editorEffectTab = 'assets';
           await uploadAndAssignImage?.(rowId, file);
           input.value = '';
         });

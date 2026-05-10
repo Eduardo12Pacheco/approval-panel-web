@@ -1,10 +1,12 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
+import { buildEditorAssetsPicker } from './editor-assets-picker.js';
 import { buildMotionPicker } from './editor-motion-picker.js';
 
 export const EDITOR_EFFECT_TABS = [
   { id: 'motion', label: 'Movimiento' },
   { id: 'audio', label: 'Audio' },
   { id: 'global', label: 'Global' },
+  { id: 'assets', label: 'Assets' },
 ];
 
 export function resolveEditorEffectTab(value = '') {
@@ -95,12 +97,17 @@ function buildGlobalPanel({ row, detail }) {
   `;
 }
 
+function buildAssetsPanel({ row, detail }) {
+  return buildEditorAssetsPicker({ row, assets: detail.assets, uploading: detail.assetsUploading });
+}
+
 export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}) {
   const resolvedTab = resolveEditorEffectTab(activeTab);
   const panels = {
     motion: buildMotionPanel({ row, detail }),
     audio: buildAudioPanel({ detail }),
     global: buildGlobalPanel({ row, detail }),
+    assets: buildAssetsPanel({ row, detail }),
   };
 
   return `
