@@ -1531,26 +1531,28 @@
 }
 
 .video-editor-assets-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 7px;
-  max-height: 320px;
-  overflow: auto;
-  padding-right: 4px;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 10px;
+  scroll-snap-type: x proximity;
 }
 
 .video-editor-assets-card {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 9px;
-  align-items: center;
-  min-width: 0;
-  padding: 6px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 7px;
+  flex: 0 0 154px;
+  min-width: 154px;
+  min-height: 142px;
+  padding: 7px;
   border: 1px solid var(--border);
   background: #090909;
   color: var(--text);
   text-align: left;
   cursor: pointer;
+  scroll-snap-align: start;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
@@ -1569,8 +1571,8 @@
 .video-editor-assets-card__media {
   display: grid;
   place-items: center;
-  width: 96px;
-  height: 54px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid #242424;
   background: #050505;
@@ -1587,6 +1589,7 @@
 
 .video-editor-assets-card__meta {
   display: grid;
+  align-content: start;
   gap: 3px;
   min-width: 0;
 }
@@ -1600,7 +1603,7 @@
 
 .video-editor-assets-card__meta strong {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   line-height: 1.2;
 }
 
