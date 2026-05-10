@@ -4,6 +4,7 @@ import {
   buildEditorRowsTableViewModel,
   buildPreviewTimelineViewModel,
 } from './editor-view-model.js';
+import { buildMotionPicker } from './editor-motion-picker.js';
 
 export function buildPreviewTimeline(rows = [], selectedRowId = null) {
   if (!rows.length) return '';
@@ -81,13 +82,6 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
   const { voice, music, detailImageUrl } = detail;
-  const motionOptions = detail.motionPresetGroups.map((group) => `
-    <optgroup label="${escapeHtmlCore(group.category)}">
-      ${group.presets.map((preset) => `
-        <option value="${escapeHtmlCore(preset.name)}" ${detail.motion === preset.name ? 'selected' : ''}>${escapeHtmlCore(preset.name)}</option>
-      `).join('')}
-    </optgroup>
-  `).join('');
 
   const rowControls = row
     ? `
@@ -105,10 +99,8 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
           </label>
         </div>
         <div class="video-editor-control">
-          <label>Movimiento</label>
-          <select data-action="update-row-motion" data-row-id="${escapeHtmlCore(row.id)}">
-            ${motionOptions}
-          </select>
+          <span class="video-editor-control__label">Movimiento</span>
+          ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
         </div>
         <div class="video-editor-control">
           <label>Polvo</label>

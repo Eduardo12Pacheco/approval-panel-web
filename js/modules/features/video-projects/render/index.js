@@ -942,11 +942,12 @@ export function renderSelectedVideoProjectView({
       });
 
       // Row motion update
-      el.videoProjectDetail.querySelectorAll('[data-action="update-row-motion"]').forEach((select) => {
-        select.addEventListener('change', () => {
-          const rowId = select.dataset.rowId;
+      el.videoProjectDetail.querySelectorAll('[data-action="update-row-motion"]').forEach((control) => {
+        const eventName = control.tagName === 'SELECT' ? 'change' : 'click';
+        control.addEventListener(eventName, () => {
+          const rowId = control.dataset.rowId;
           if (!rowId) return;
-          updateRow?.(rowId, { motion: select.value });
+          updateRow?.(rowId, { motion: control.value });
         });
       });
 

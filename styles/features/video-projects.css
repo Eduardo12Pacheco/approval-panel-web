@@ -1436,6 +1436,7 @@
 }
 
 .video-editor-control label,
+.video-editor-control__label,
 .video-editor-check {
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
@@ -1473,6 +1474,165 @@
   border: 1px solid var(--border-strong);
   background: #080808;
   color: var(--text);
+}
+
+/* Motion picker */
+.video-motion-picker {
+  display: grid;
+  gap: 12px;
+  max-height: min(54vh, 620px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.video-motion-picker__group {
+  display: grid;
+  gap: 8px;
+}
+
+.video-motion-picker__group h4 {
+  margin: 0;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.video-motion-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  gap: 8px;
+}
+
+.video-motion-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--border-strong);
+  background: #080808;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.video-motion-card:hover,
+.video-motion-card:focus-visible,
+.video-motion-card.is-selected {
+  border-color: rgba(0, 232, 143, 0.68);
+  background: rgba(0, 232, 143, 0.065);
+}
+
+.video-motion-card:hover {
+  transform: translateY(-1px);
+}
+
+.video-motion-card:focus-visible {
+  outline: 2px solid rgba(0, 232, 143, 0.88);
+  outline-offset: 2px;
+}
+
+.video-motion-card__check {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1px solid rgba(0, 232, 143, 0.42);
+  border-radius: 999px;
+  background: #050505;
+  color: transparent;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.video-motion-card.is-selected .video-motion-card__check {
+  background: var(--accent);
+  color: #04110c;
+}
+
+.video-motion-card__viewport {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid #2b2b2b;
+  background: #111;
+}
+
+.video-motion-card__image {
+  position: absolute;
+  inset: -12%;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 44%),
+    linear-gradient(90deg, #575757, #2c2c2c);
+  opacity: 0.95;
+}
+
+.video-motion-card__grid-lines {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+  background-size: 33.333% 50%;
+  opacity: 0.54;
+}
+
+.video-motion-card__motion-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34%;
+  aspect-ratio: 16 / 9;
+  border: 2px solid #050505;
+  background: rgba(245, 245, 245, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.42), 0 8px 18px rgba(0, 0, 0, 0.34);
+  transform: translate3d(calc(-50% + var(--motion-from-x)), calc(-50% + var(--motion-from-y)), 0) scale(var(--motion-from-scale));
+  transform-origin: center;
+}
+
+.video-motion-card:hover .video-motion-card__motion-box,
+.video-motion-card:focus-visible .video-motion-card__motion-box {
+  animation: video-motion-preview 1.15s var(--motion-easing, linear) infinite alternate;
+}
+
+.video-motion-card__name {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+@keyframes video-motion-preview {
+  from {
+    transform: translate3d(calc(-50% + var(--motion-from-x)), calc(-50% + var(--motion-from-y)), 0) scale(var(--motion-from-scale));
+  }
+
+  to {
+    transform: translate3d(calc(-50% + var(--motion-to-x)), calc(-50% + var(--motion-to-y)), 0) scale(var(--motion-to-scale));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-motion-card,
+  .video-motion-card__motion-box {
+    transition: none;
+    animation: none !important;
+  }
+
+  .video-motion-card:hover {
+    transform: none;
+  }
 }
 
 .video-editor-actions {
