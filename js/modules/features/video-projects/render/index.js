@@ -396,10 +396,12 @@ export function renderSelectedVideoProjectView({
     customCandidates,
     googleCandidateCount,
     imageMetaCount,
+    selectedImageCount,
     selectedImageUrls,
     segments,
     segmentCount,
     requiredImageCount,
+    hasEnoughSelectedImages,
     detailPending,
     currentStep,
     voiceAudio,
@@ -461,6 +463,17 @@ export function renderSelectedVideoProjectView({
             ? `<div class="video-image-grid video-image-grid--custom">${customCandidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
             : '<p class="video-projects-empty">Todavía no subiste imágenes custom para este proyecto.</p>'}
         </section>
+
+        <div class="video-project-next-panel video-project-next-panel--image-selection">
+          <div>
+            <span class="video-projects-eyebrow">Selección</span>
+            <strong>${selectedImageCount} ${selectedImageCount === 1 ? 'imagen seleccionada' : 'imágenes seleccionadas'} · ${requiredImageCount} requerida${requiredImageCount === 1 ? '' : 's'}</strong>
+            <p>${hasEnoughSelectedImages ? 'Ya tenés suficientes imágenes para cubrir los segmentos.' : `Faltan ${Math.max(requiredImageCount - selectedImageCount, 0)} imágenes para avanzar sin huecos.`}</p>
+          </div>
+          <button class="video-project-primary-action" type="button" data-action="video-project-next-audio">
+            Siguiente: audios →
+          </button>
+        </div>
 
       `
       : `
