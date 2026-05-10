@@ -96,6 +96,10 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
   const publicUrl = escapeHtmlCore((audio?.public_url || '').toString());
   const sizeMb = Number(audio?.size || 0) > 0 ? `${(Number(audio.size) / 1024 / 1024).toFixed(1)} MB` : '';
   const selectedDefaultTrackId = (audio?.default_track_id || '').toString();
+  const uploadTitle = kind === 'background' ? 'Agregar música' : 'Agregar voz';
+  const uploadHelp = kind === 'background'
+    ? 'Opcional: subí una pista propia o elegí una música del sistema.'
+    : 'Subí o reemplazá el audio de voz para sincronizarlo con los segmentos.';
   const defaultMusicSelector = kind === 'background'
     ? `
       <label class="video-audio-card__default-select">
@@ -122,7 +126,11 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
       ${defaultMusicSelector}
       <label class="video-audio-card__upload">
         <input type="file" accept="audio/*" data-action="upload-project-audio" data-audio-kind="${escapeHtmlCore(kind)}" ${uploading ? 'disabled' : ''} />
-        <span>${uploading ? 'Subiendo…' : hasAudio ? 'Reemplazar archivo' : 'Subir archivo'}</span>
+        <span class="video-audio-card__dropzone">
+          <span class="video-audio-card__dropzone-plus">+</span>
+          <strong>${uploading ? 'Subiendo…' : hasAudio ? `Reemplazar ${escapeHtmlCore(label.toLowerCase())}` : escapeHtmlCore(uploadTitle)}</strong>
+          <small>${escapeHtmlCore(uploadHelp)}</small>
+        </span>
       </label>
     </article>
   `;
@@ -500,7 +508,7 @@ export function renderSelectedVideoProjectView({
           ${buildAudioAssetCard({
             kind: 'background',
             label: 'Música de fondo',
-            help: 'Subí la pista de fondo. Después vamos a controlar volumen y mezcla en la preview.',
+            help: 'Elegí una música del sistema o subí una pista propia si querés elevar el resultado.',
             audio: backgroundAudio,
             uploading: backgroundUploading,
           })}

@@ -101,6 +101,10 @@
   align-items: flex-start;
 }
 
+.video-project-detail__header {
+  margin-bottom: 28px;
+}
+
 .video-projects-list-panel__header h2,
 .video-project-section-heading h3,
 .video-project-detail__header h2 {
@@ -324,6 +328,11 @@
 .video-project-detail__main,
 .video-project-detail__side {
   min-width: 0;
+}
+
+.video-project-detail__side {
+  padding-left: 12px;
+  border-left: 1px solid rgba(0, 232, 143, 0.42);
 }
 
 .video-project-section-heading {
@@ -610,13 +619,18 @@
   display: block;
   margin: 4px 0;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1rem;
+  font-size: 1.12rem;
 }
 
 .video-project-next-panel p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.video-project-next-panel .video-projects-eyebrow {
+  font-size: 0.8rem;
 }
 
 .video-project-next-panel--image-selection .video-projects-eyebrow {
@@ -633,8 +647,7 @@
 }
 
 .video-project-primary-action,
-.video-project-secondary-action,
-.video-audio-card__upload span {
+.video-project-secondary-action {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -657,7 +670,7 @@
 }
 
 .video-project-primary-action:disabled,
-.video-audio-card__upload input:disabled + span {
+.video-audio-card__upload input:disabled + .video-audio-card__dropzone {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -670,8 +683,8 @@
 
 .video-audio-card {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 18px;
+  padding: 18px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
 }
@@ -731,6 +744,50 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+.video-audio-card__upload {
+  display: block;
+  cursor: pointer;
+}
+
+.video-audio-card__dropzone {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 168px;
+  padding: 28px 18px;
+  border: 1px solid var(--border-strong);
+  background: #050505;
+  color: var(--text);
+  text-align: center;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.video-audio-card__upload:hover .video-audio-card__dropzone,
+.video-audio-card__upload:focus-within .video-audio-card__dropzone {
+  border-color: rgba(0, 232, 143, 0.5);
+  background: rgba(0, 232, 143, 0.035);
+}
+
+.video-audio-card__dropzone-plus {
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 3.2rem;
+  font-weight: 300;
+  line-height: 0.8;
+}
+
+.video-audio-card__dropzone strong {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.035em;
+}
+
+.video-audio-card__dropzone small {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .video-projects-empty--error {
