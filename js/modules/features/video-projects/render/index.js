@@ -432,6 +432,7 @@ export function renderSelectedVideoProjectView({
           <div>
             <span class="video-projects-eyebrow">Fase 1</span>
             <h3>Imágenes encontradas en Google</h3>
+            <p class="video-project-section-heading__help">Elegí las imágenes que van a cubrir cada segmento del guion. A la derecha tenés el guion pipeado: es el texto dividido en partes para saber cuántas imágenes necesitás y qué representa cada una.</p>
           </div>
             <p>${formatCount(googleCandidateCount, 'candidato')}</p>
         </div>
@@ -451,13 +452,15 @@ export function renderSelectedVideoProjectView({
             <div>
               <h3>Mis imágenes</h3>
             </div>
-            <p>${formatCount(customCandidates.length, 'imagen', 'imágenes')}</p>
+            <div class="video-project-custom-images__actions">
+              <p class="video-project-custom-images__count">${formatCount(customCandidates.length, 'imagen', 'imágenes')}</p>
+              <label class="video-project-custom-images__upload">
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-custom-images" multiple ${project._customImagesUploading ? 'disabled' : ''} />
+                <span>${project._customImagesUploading ? 'Subiendo imágenes…' : 'Subir mis imágenes'}</span>
+              </label>
+            </div>
           </div>
           <p class="video-project-custom-images__help">Subí JPG/PNG/WebP (hasta 15MB c/u). Se guardan solo en este proyecto y se auto-seleccionan.</p>
-          <label class="video-project-custom-images__upload">
-            <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-custom-images" multiple ${project._customImagesUploading ? 'disabled' : ''} />
-            <span>${project._customImagesUploading ? 'Subiendo imágenes…' : 'Subir mis imágenes'}</span>
-          </label>
           ${project._customImageUploadError ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(project._customImageUploadError)}</p>` : ''}
           ${customCandidates.length
             ? `<div class="video-image-grid video-image-grid--custom">${customCandidates.map((candidate, index) => buildCandidateCard(candidate, index, selectedImageUrls)).join('')}</div>`
@@ -520,6 +523,7 @@ export function renderSelectedVideoProjectView({
         <div>
           <span class="video-projects-eyebrow">Guion pipeado</span>
           <h3>Segmentos${segments.length ? ` (${segments.length})` : ''}</h3>
+          <p class="video-project-section-heading__help">Cada segmento es una parte del guion que necesita una imagen. Usalo como guía para seleccionar fotos en orden y no dejar huecos.</p>
         </div>
       </div>
       <ol class="video-segments-list">
