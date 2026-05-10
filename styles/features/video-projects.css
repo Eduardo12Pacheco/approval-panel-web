@@ -308,8 +308,8 @@
 }
 
 .video-project-detail__instruction {
-  max-width: 860px;
-  margin: 10px 0 0;
+  max-width: 1160px;
+  margin: 12px 0 10px;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.5;
