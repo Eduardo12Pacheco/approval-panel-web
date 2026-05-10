@@ -9,6 +9,7 @@ import { AudioManager } from '../audio/audio-manager.js';
 //   a lightweight clock to avoid full WAV fetch/decode freezes in the editor.
 // • CSS transform + will-change: Supported in all modern browsers.
 // • mix-blend-mode: screen: Supported in Chrome 41+, Firefox 32+, Edge 79+, Safari 8+.
+// • Green-screen logo preview uses Canvas 2D chroma key for the local MP4 overlay.
 // • Image.decode(): Chrome 61+, Firefox 93+, Edge 79+, Safari 11.1+.
 //   Fallback: direct src assignment if decode() throws.
 // • requestAnimationFrame: Universal support.
@@ -17,8 +18,6 @@ import { AudioManager } from '../audio/audio-manager.js';
 // • pointerEvents/capture: Universal support for pointer events API.
 //
 // KNOWN LIMITATIONS:
-// • "pan-left"/"pan-right" are not implemented in browser preview.
-//   They intentionally fall back to slow-zoom-in to keep behavior stable.
 // • Dust overlay uses a lightweight WebM (480×270, 5s loop) for browser preview.
 //   Full-resolution dust (1920×1080) is only used in Remotion final render.
 //   Asset path: 01-Control-Panel/assets/dust-preview.webm
@@ -44,6 +43,10 @@ const LOGO_WIDTH = 220;
 const LOGO_HEIGHT = 124;
 const LOGO_OPACITY = 0.94;
 const LOGO_DROP_SHADOW = 'drop-shadow(0 10px 24px rgba(0,0,0,0.55))';
+const GREEN_SCREEN_LOGO_PATTERN = /logo-green\.mp4(?:$|[?#])/i;
+const CHROMA_GREEN_MIN = 80;
+const CHROMA_GREEN_DOMINANCE = 1.22;
+const CHROMA_EDGE_ALPHA = 0.42;
 
 // SOURCE: Composition.tsx line 100 — CSS pseudo-dust fallback
 const DUST_FALLBACK_OPACITY = 0.28;
@@ -102,7 +105,7 @@ export function interpolateLinear(start, end, progress) {
  * - slow-zoom => 1.0 → 1.04
  * - slow-zoom-in => 1.0 → 1.08
  * - slow-zoom-out => 1.08 → 1.0
- * - pan-left/pan-right => fallback to slow-zoom-in
+ * - pan-left/pan-right => visible Ken Burns pan with slight zoom
  *
  * @param {string} motion — 'slow-zoom', 'slow-zoom-in', 'still', 'none', etc.
  * @returns {{ from: number, to: number }}
@@ -123,8 +126,44 @@ function resolveZoomRange(motion) {
   if (normalized === 'slow-zoom') return { ...ZOOM_SLOW, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'slow-zoom-in') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
-  if (normalized === 'pan-left' || normalized === 'pan-right') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'pan-left') return { from: 1.1, to: 1.1, fromX: 72, fromY: 0, toX: -72, toY: 0 };
+  if (normalized === 'pan-right') return { from: 1.1, to: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 };
   return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+}
+
+function shouldChromaKeyLogo(src = '') {
+  return GREEN_SCREEN_LOGO_PATTERN.test(src || '');
+}
+
+function drawChromaKeyVideoFrame(video, canvas) {
+  if (!video || !canvas || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+  const width = canvas.clientWidth || canvas.parentElement?.clientWidth || 0;
+  const height = canvas.clientHeight || canvas.parentElement?.clientHeight || 0;
+  if (!width || !height) return;
+  const pixelRatio = window.devicePixelRatio || 1;
+  const targetWidth = Math.max(1, Math.round(width * pixelRatio));
+  const targetHeight = Math.max(1, Math.round(height * pixelRatio));
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+  }
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+  ctx.clearRect(0, 0, targetWidth, targetHeight);
+  ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+  const frame = ctx.getImageData(0, 0, targetWidth, targetHeight);
+  const data = frame.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const red = data[i];
+    const green = data[i + 1];
+    const blue = data[i + 2];
+    const dominantGreen = green > CHROMA_GREEN_MIN && green > red * CHROMA_GREEN_DOMINANCE && green > blue * CHROMA_GREEN_DOMINANCE;
+    if (!dominantGreen) continue;
+    const spill = green - Math.max(red, blue);
+    data[i + 3] = spill > 80 ? 0 : Math.round(data[i + 3] * CHROMA_EDGE_ALPHA);
+  }
+  ctx.putImageData(frame, 0, 0);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -155,6 +194,7 @@ export function isVideoSource(src) {
  *     dustFallback: HTMLDivElement,
  *     logo: HTMLImageElement,
  *     logoVideo: HTMLVideoElement,
+ *     logoCanvas: HTMLCanvasElement,
  *     outro: HTMLDivElement,
  *     outroText: HTMLDivElement
  *   }
@@ -176,7 +216,7 @@ export function buildCompositionDOM(container) {
   // Layer 2: Segment image (with zoom transform)
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
-  image.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;will-change:transform;';
+  image.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;will-change:transform;';
   image.draggable = false;
   stage.appendChild(image);
 
@@ -209,11 +249,16 @@ export function buildCompositionDOM(container) {
   // Logo video variant — used when logo URL is a video file (.webm, .mp4, etc.)
   const logoVideo = document.createElement('video');
   logoVideo.className = 'composition-layer composition-layer--logo-video';
-  logoVideo.style.cssText = `position:absolute;left:${LOGO_LEFT}px;top:${LOGO_TOP}px;width:${LOGO_WIDTH}px;height:${LOGO_HEIGHT}px;opacity:${LOGO_OPACITY};filter:${LOGO_DROP_SHADOW};object-fit:contain;pointer-events:none;visibility:hidden;`;
+  logoVideo.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${LOGO_OPACITY};object-fit:cover;pointer-events:none;visibility:hidden;`;
   logoVideo.muted = true;
   logoVideo.loop = true;
   logoVideo.playsInline = true;
   stage.appendChild(logoVideo);
+
+  const logoCanvas = document.createElement('canvas');
+  logoCanvas.className = 'composition-layer composition-layer--logo-canvas';
+  logoCanvas.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${LOGO_OPACITY};pointer-events:none;visibility:hidden;`;
+  stage.appendChild(logoCanvas);
 
   // Layer 5: Outro overlay
   // SOURCE: Composition.tsx lines 268-272 — outro styling
@@ -230,7 +275,7 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, image, dust, dustFallback, logo, logoVideo, outro, outroText },
+    layers: { bg, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroText },
   };
 }
 
@@ -762,6 +807,7 @@ export class CompositionRenderer {
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
+      layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'hidden';
       this.#activeSegmentKey = null;
       return;
@@ -774,6 +820,7 @@ export class CompositionRenderer {
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
+      layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'visible';
       this.#activeSegmentKey = null;
       return;
@@ -833,22 +880,32 @@ export class CompositionRenderer {
     if (logoEnabled && this._logoUrl) {
       if (isVideoSource(this._logoUrl)) {
         // Video logo — use <video> element
+        const chromaKey = shouldChromaKeyLogo(this._logoUrl);
         layers.logo.style.visibility = 'hidden';
-        layers.logoVideo.style.visibility = 'visible';
-        if (layers.logoVideo.src !== this._logoUrl) {
+        layers.logoVideo.style.visibility = chromaKey ? 'hidden' : 'visible';
+        layers.logoCanvas.style.visibility = chromaKey ? 'visible' : 'hidden';
+        if (layers.logoVideo.getAttribute('src') !== this._logoUrl) {
           layers.logoVideo.src = this._logoUrl;
         }
+        if (this.#isPlaying) {
+          void layers.logoVideo.play().catch(() => {});
+        } else {
+          layers.logoVideo.pause();
+        }
+        if (chromaKey) drawChromaKeyVideoFrame(layers.logoVideo, layers.logoCanvas);
       } else {
         // Static image logo — use <img> element
         layers.logoVideo.style.visibility = 'hidden';
+        layers.logoCanvas.style.visibility = 'hidden';
         layers.logo.style.visibility = 'visible';
-        if (layers.logo.src !== this._logoUrl) {
+        if (layers.logo.getAttribute('src') !== this._logoUrl) {
           layers.logo.src = this._logoUrl;
         }
       }
     } else {
       layers.logo.style.visibility = 'hidden';
       layers.logoVideo.style.visibility = 'hidden';
+      layers.logoCanvas.style.visibility = 'hidden';
     }
   }
 

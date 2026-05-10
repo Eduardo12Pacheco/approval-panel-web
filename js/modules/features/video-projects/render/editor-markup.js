@@ -81,6 +81,13 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
   const { voice, music, detailImageUrl } = detail;
+  const motionOptions = detail.motionPresetGroups.map((group) => `
+    <optgroup label="${escapeHtmlCore(group.category)}">
+      ${group.presets.map((preset) => `
+        <option value="${escapeHtmlCore(preset.name)}" ${detail.motion === preset.name ? 'selected' : ''}>${escapeHtmlCore(preset.name)}</option>
+      `).join('')}
+    </optgroup>
+  `).join('');
 
   const rowControls = row
     ? `
@@ -100,18 +107,15 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
         <div class="video-editor-control">
           <label>Movimiento</label>
           <select data-action="update-row-motion" data-row-id="${escapeHtmlCore(row.id)}">
-            <option value="slow-zoom-in" ${detail.motion === 'slow-zoom-in' ? 'selected' : ''}>Slow zoom in</option>
-            <option value="slow-zoom-out" ${detail.motion === 'slow-zoom-out' ? 'selected' : ''}>Slow zoom out</option>
-            <option value="pan-left" ${detail.motion === 'pan-left' ? 'selected' : ''}>Pan left</option>
-            <option value="pan-right" ${detail.motion === 'pan-right' ? 'selected' : ''}>Pan right</option>
-            <option value="none" ${detail.motion === 'none' ? 'selected' : ''}>Ninguno</option>
+            ${motionOptions}
           </select>
         </div>
         <div class="video-editor-control">
           <label>Polvo</label>
           <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
-            <option value="true" ${detail.dustEnabled ? 'selected' : ''}>Activado</option>
-            <option value="false" ${!detail.dustEnabled ? 'selected' : ''}>Desactivado</option>
+            <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
+            <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
+            <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
           </select>
         </div>
         <div class="video-editor-control">

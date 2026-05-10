@@ -978,7 +978,7 @@ export function renderSelectedVideoProjectView({
         select.addEventListener('change', () => {
           const rowId = select.dataset.rowId;
           if (!rowId) return;
-          updateRow?.(rowId, { dust: { enabled: select.value === 'true' } });
+          updateRow?.(rowId, { dust: { enabled: select.value !== 'none', type: select.value === 'none' ? 'dust-1' : select.value } });
         });
       });
 

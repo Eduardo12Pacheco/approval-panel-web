@@ -7,6 +7,7 @@ import { createRowImageCommands } from './data/row-image-commands.js';
 import { createSelectionCommands } from './data/selection-commands.js';
 import { normalizeVideoProjectRows } from './data/video-project-rows.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './domain/project-identity.js';
+import { findMotionPreset } from './domain/motion-presets.js';
 import {
   normalizeEditorState,
   normalizeGlobalAudioState,
@@ -18,6 +19,28 @@ export { normalizeVideoProjectRows } from './data/video-project-rows.js';
 
 const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_CONTROL_KINDS = new Set(['voice', 'music', 'background']);
+
+function resolveMotionPatchForApprovalService(motion) {
+  const preset = findMotionPreset(motion);
+  if (preset) return { motionPresetId: preset.name, motion: { ...preset } };
+  const normalized = (motion || '').toString().trim().toLowerCase();
+  if (normalized === 'none' || normalized === 'still') {
+    return { motionPresetId: 'none', motion: { fromScale: 1, toScale: 1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'slow-zoom-out') {
+    return { motionPresetId: 'slow-zoom-out', motion: { fromScale: 1.08, toScale: 1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'slow-zoom' || normalized === 'slow-zoom-in') {
+    return { motionPresetId: normalized || 'slow-zoom-in', motion: { fromScale: 1, toScale: normalized === 'slow-zoom' ? 1.04 : 1.08, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'pan-left') {
+    return { motionPresetId: 'pan-left', motion: { fromScale: 1.1, toScale: 1.1, fromX: 72, fromY: 0, toX: -72, toY: 0 } };
+  }
+  if (normalized === 'pan-right') {
+    return { motionPresetId: 'pan-right', motion: { fromScale: 1.1, toScale: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 } };
+  }
+  return { motionPresetId: normalized || 'custom', motion: typeof motion === 'object' ? motion : undefined };
+}
 
 function setVideoProjectStep(project, step) {
   if (!project) return;
@@ -502,7 +525,12 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     if (isApprovalServiceMode(project)) {
       const operations = [];
       if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
-      if (patch.motion !== undefined || patch.motionPresetId !== undefined) operations.push({ type: 'setRowMotion', rowId, motionPresetId: patch.motionPresetId || (typeof patch.motion === 'string' ? patch.motion : 'custom'), motion: typeof patch.motion === 'object' ? patch.motion : undefined });
+      if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
+        const resolvedMotion = patch.motionPresetId
+          ? { motionPresetId: patch.motionPresetId, motion: typeof patch.motion === 'object' ? patch.motion : undefined }
+          : resolveMotionPatchForApprovalService(patch.motion);
+        operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
+      }
       if (patch.dust !== undefined) operations.push({ type: 'setRowDust', rowId, enabled: Boolean(patch.dust?.enabled), dustType: patch.dust?.type || 'dust-1' });
       if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
       if (!operations.length) return;

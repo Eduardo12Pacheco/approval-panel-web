@@ -6,8 +6,13 @@ import {
 } from './composition-contract.js';
 
 export const COMPOSITION_DUST_PREVIEW_URL = './assets/dust-preview.webm';
-export const COMPOSITION_DUST_PREVIEW_URLS = { 'dust-1': './assets/dust-preview.webm', 'dust-2': './assets/dust-preview.webm' };
-const MISSING_LOCAL_LOGO_SOURCES = new Set(['logo-alpha.webm', './assets/logo-alpha.webm', 'assets/logo-alpha.webm']);
+export const COMPOSITION_DUST_PREVIEW_URLS = {
+  'dust-1': '../02-Video-Engine/assets/overlays/dust-1.mp4',
+  'dust-2': '../02-Video-Engine/assets/overlays/dust-2.mp4',
+};
+export const COMPOSITION_LOCAL_LOGO_URL = './assets/logo-alpha.webm';
+export const COMPOSITION_LOCAL_GREEN_LOGO_URL = '../02-Video-Engine/assets/overlays/logo-green.mp4';
+const LOCAL_LOGO_SOURCE_ALIASES = new Set(['logo-alpha.webm', './assets/logo-alpha.webm', 'assets/logo-alpha.webm', 'logo-green.mp4', './assets/logo-green.mp4', 'assets/logo-green.mp4']);
 
 export function buildCompositionAssetSignature({ dustWebmUrl, voiceUrl, musicUrl } = {}) {
   return [dustWebmUrl || '', voiceUrl || '', musicUrl || ''].join('::');
@@ -31,7 +36,7 @@ export function resolveCompositionLogoUrl(project = {}) {
   const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, logo.assetId);
   if (canonicalUrl) return canonicalUrl;
   const source = (logo.source || '').toString().trim();
-  if (MISSING_LOCAL_LOGO_SOURCES.has(source)) return '';
+  if (!source || LOCAL_LOGO_SOURCE_ALIASES.has(source)) return COMPOSITION_LOCAL_LOGO_URL;
   return source || '';
 }
 

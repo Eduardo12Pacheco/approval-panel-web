@@ -1,6 +1,32 @@
 import { formatSeconds } from '../domain/formatters.js';
+import { MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
+
+function resolveMotionPresetName(row = {}) {
+  const explicit = (row.motionPresetId || row.motion_preset_id || row.motionPreset || '').toString().trim();
+  if (explicit) return explicit;
+  const motion = row.motion;
+  if (typeof motion === 'string') return motion;
+  const presetName = (motion?.name || motion?.presetName || '').toString().trim();
+  if (presetName) return presetName;
+  const match = MOTION_PRESETS.find((preset) => (
+    Number(preset.fromX ?? 0) === Number(motion?.fromX ?? 0)
+    && Number(preset.fromY ?? 0) === Number(motion?.fromY ?? 0)
+    && Number(preset.toX ?? 0) === Number(motion?.toX ?? 0)
+    && Number(preset.toY ?? 0) === Number(motion?.toY ?? 0)
+    && Number(preset.fromScale ?? 1) === Number(motion?.fromScale ?? 1)
+    && Number(preset.toScale ?? 1) === Number(motion?.toScale ?? 1)
+  ));
+  return match?.name || 'Zoom-125';
+}
+
+function buildMotionPresetGroups() {
+  return MOTION_PRESET_CATEGORIES.map((category) => ({
+    category,
+    presets: MOTION_PRESETS.filter((preset) => preset.category === category),
+  })).filter((group) => group.presets.length);
+}
 
 export function buildPreviewTimelineViewModel(rows = [], selectedRowId = null) {
   const totalDuration = Math.max(...rows.map((row) => Number(row.endTime || 0)), 1);
@@ -61,8 +87,10 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     voiceVolumeValue: voice.volume || 1,
     musicVolumePercent: Math.round((music.volume || 0.16) * 100),
     musicVolumeValue: music.volume || 0.16,
-    motion: row?.motion,
+    motion: resolveMotionPresetName(row),
+    motionPresetGroups: buildMotionPresetGroups(),
     dustEnabled: Boolean(row?.dust?.enabled),
+    dustType: row?.dust?.enabled ? (row?.dust?.type || 'dust-1') : 'none',
     logoEnabled: row?.logo?.enabled !== false,
   };
 }
