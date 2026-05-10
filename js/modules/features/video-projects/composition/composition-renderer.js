@@ -858,11 +858,21 @@ export class CompositionRenderer {
     // SOURCE: Composition.tsx line 210 — segment.dust?.enabled !== false
     const dustEnabled = segment.dust?.enabled !== false;
     if (dustEnabled) {
-      if (this._dustWebmUrl) {
+      const dustSrc = segment.dust?.src || this._dustWebmUrl;
+      if (dustSrc) {
+        if (layers.dust.getAttribute('src') !== dustSrc) {
+          layers.dust.src = dustSrc;
+          layers.dust.load();
+        }
         layers.dust.style.visibility = 'visible';
         layers.dust.style.opacity = String(segment.dust?.opacity ?? DUST_VIDEO_OPACITY);
         layers.dust.style.mixBlendMode = segment.dust?.blendMode || 'screen';
         layers.dustFallback.style.visibility = 'hidden';
+        if (this.#isPlaying) {
+          void layers.dust.play().catch(() => {});
+        } else {
+          layers.dust.pause();
+        }
       } else {
         // ── Task 2.4: CSS pseudo-dust fallback ──
         layers.dust.style.visibility = 'hidden';

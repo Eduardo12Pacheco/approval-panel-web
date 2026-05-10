@@ -50,6 +50,8 @@ function readBody(request) {
 const ESTIMATED_SECONDS_PER_WORD = 0.55;
 const MIN_ESTIMATED_SEGMENT_SECONDS = 1.2;
 const WAV_DURATION_FETCH_TIMEOUT_MS = 2500;
+const REMOTION_OVERLAYS_DIR = path.resolve(__dirname, "..", "..", "02-Video-Engine", "assets", "overlays");
+const PUBLIC_OVERLAY_FILES = new Set(["dust-1.mp4", "dust-2.mp4", "logo-alpha.webm"]);
 
 function toFinitePositiveNumber(value) {
   const number = Number(value);
@@ -273,6 +275,13 @@ function sendFile(request, response, filePath) {
   return fs.createReadStream(filePath).pipe(response);
 }
 
+function resolvePublicOverlayFile(fileName = '') {
+  const safeName = path.basename(String(fileName || ''));
+  if (!PUBLIC_OVERLAY_FILES.has(safeName)) return '';
+  const filePath = path.join(REMOTION_OVERLAYS_DIR, safeName);
+  return fs.existsSync(filePath) && fs.statSync(filePath).isFile() ? filePath : '';
+}
+
 async function tryPrepareAudioPreview(prepareAudioPreview, options) {
   try {
     return await prepareAudioPreview(options);
@@ -295,6 +304,12 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
 
       if (request.method === "GET" && url.pathname === "/health") {
         return ok(response, { ok: true, status: "ready", service: "approval-editor-service", contractVersion: "approval-editor-service-v1", capabilities: ["prepare", "snapshot", "update", "final-render", "download"] });
+      }
+
+      if (request.method === "GET" && url.pathname.startsWith("/api/overlays/")) {
+        const filePath = resolvePublicOverlayFile(decodeURIComponent(url.pathname.split("/").pop() || ""));
+        if (!filePath) throw Object.assign(new Error("unknown overlay"), { code: "unknown_asset" });
+        return sendFile(request, response, filePath);
       }
 
       if (request.method === "POST" && url.pathname === "/api/projects/create-from-approval") {

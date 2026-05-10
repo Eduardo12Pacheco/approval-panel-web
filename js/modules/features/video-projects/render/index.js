@@ -274,24 +274,6 @@ function buildEditorShell(project, options = {}) {
 
   return `
     <section class="video-editor-shell" data-editor-phase="${escapeHtmlCore((editorState.phase || 'idle').toString())}">
-      <header class="video-editor-shell__header">
-        <div>
-          <p class="video-projects-eyebrow">Preview Editor · Proyecto</p>
-          <h3>${escapeHtmlCore(shell.title)}</h3>
-        </div>
-        <div class="video-editor-shell__header-actions">
-          ${buildPhaseBadge(editorState.phase, editorState.dirty)}
-        </div>
-      </header>
-
-      <ol class="video-editor-shell__phase-bar" aria-label="Fases del editor">
-        <li><span>01</span>Imágenes</li>
-        <li><span>02</span>Audio</li>
-        <li class="is-active"><span>03</span>Editor</li>
-        <li class="${['preview_ready', 'editing_dirty', 'final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>04</span>Edición</li>
-        <li class="${['final_rendering', 'final_ready'].includes(editorState.phase) ? 'is-active' : ''}"><span>05</span>Render/Export</li>
-      </ol>
-
       <section class="video-editor-shell__workspace">
         <div class="video-editor-shell__left">
           <div class="video-editor-shell__card video-editor-shell__card--preview">

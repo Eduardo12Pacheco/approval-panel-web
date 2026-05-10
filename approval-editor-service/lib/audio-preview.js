@@ -80,9 +80,10 @@ function audioContentType(filePath = '') {
   if (ext === '.mp3') return 'audio/mpeg';
   if (ext === '.wav') return 'audio/wav';
   if (ext === '.opus') return 'audio/ogg; codecs=opus';
-  if (ext === '.m4a' || ext === '.mp4') return 'audio/mp4';
+  if (ext === '.m4a') return 'audio/mp4';
+  if (ext === '.mp4') return 'video/mp4';
   if (ext === '.ogg') return 'audio/ogg';
-  if (ext === '.webm') return 'audio/webm';
+  if (ext === '.webm') return 'video/webm';
   return 'application/octet-stream';
 }
 
