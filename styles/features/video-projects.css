@@ -1137,7 +1137,7 @@
 
 .video-editor-shell__workspace {
   display: grid;
-  grid-template-columns: minmax(720px, 68%) minmax(480px, 1fr);
+  grid-template-columns: minmax(720px, 60%) minmax(480px, 1fr);
   gap: 20px;
   align-items: start;
 }
