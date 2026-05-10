@@ -3,6 +3,13 @@ import { MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-prese
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 
+const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global']);
+
+function resolveEditorEffectTab(value = '') {
+  const tab = value.toString();
+  return EDITOR_EFFECT_TAB_IDS.has(tab) ? tab : 'motion';
+}
+
 function resolveMotionPresetName(row = {}) {
   const explicit = (row.motionPresetId || row.motion_preset_id || row.motionPreset || '').toString().trim();
   if (explicit) return explicit;
@@ -87,6 +94,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     voiceVolumeValue: voice.volume || 1,
     musicVolumePercent: Math.round((music.volume || 0.16) * 100),
     musicVolumeValue: music.volume || 0.16,
+    activeEffectTab: resolveEditorEffectTab(project._editorEffectTab),
     motion: resolveMotionPresetName(row),
     motionPresetGroups: buildMotionPresetGroups(),
     dustEnabled: Boolean(row?.dust?.enabled),

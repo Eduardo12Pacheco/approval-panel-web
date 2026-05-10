@@ -1421,6 +1421,55 @@
   align-items: center;
 }
 
+.video-editor-effect-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px;
+  border: 1px solid rgba(0, 232, 143, 0.18);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.video-editor-effect-tabs__button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.video-editor-effect-tabs__button:hover,
+.video-editor-effect-tabs__button:focus-visible,
+.video-editor-effect-tabs__button.is-active {
+  border-color: rgba(0, 232, 143, 0.58);
+  background: rgba(0, 232, 143, 0.08);
+  color: var(--text);
+}
+
+.video-editor-effect-tabs__button:focus-visible {
+  outline: 2px solid rgba(0, 232, 143, 0.88);
+  outline-offset: 2px;
+}
+
+.video-editor-effect-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 232, 143, 0.18);
+}
+
+.video-editor-control--effect-panel {
+  margin-top: 0;
+}
+
 .video-editor-detail__thumb {
   width: 96px;
   height: 54px;

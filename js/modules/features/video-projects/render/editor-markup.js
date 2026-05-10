@@ -4,7 +4,7 @@ import {
   buildEditorRowsTableViewModel,
   buildPreviewTimelineViewModel,
 } from './editor-view-model.js';
-import { buildMotionPicker } from './editor-motion-picker.js';
+import { buildEditorEffectTabs } from './editor-effect-tabs.js';
 
 export function buildPreviewTimeline(rows = [], selectedRowId = null) {
   if (!rows.length) return '';
@@ -81,7 +81,7 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
-  const { voice, music, detailImageUrl } = detail;
+  const { detailImageUrl } = detail;
 
   const rowControls = row
     ? `
@@ -98,56 +98,20 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
             <span>Cambiar imagen</span>
           </label>
         </div>
-        <div class="video-editor-control">
-          <span class="video-editor-control__label">Movimiento</span>
-          ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
-        </div>
-        <div class="video-editor-control">
-          <label>Polvo</label>
-          <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
-            <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
-            <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
-            <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
-          </select>
-        </div>
-        <div class="video-editor-control">
-          <label>Logo</label>
-          <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
-            <option value="true" ${detail.logoEnabled ? 'selected' : ''}>Activado</option>
-            <option value="false" ${!detail.logoEnabled ? 'selected' : ''}>Desactivado</option>
-          </select>
-        </div>
+        ${buildEditorEffectTabs({ row, detail, activeTab: detail.activeEffectTab })}
       </div>
     `
     : `
       <div class="video-editor-detail__section">
         <span class="video-projects-eyebrow">Detalles de efectos</span>
         <p class="video-projects-empty">Seleccioná una fila de la tabla para editar imagen, movimiento, polvo y logo.</p>
+        ${buildEditorEffectTabs({ row, detail, activeTab: detail.activeEffectTab })}
       </div>
     `;
 
   return `
     <div class="video-editor-detail">
       ${rowControls}
-      <div class="video-editor-detail__section">
-        <span class="video-projects-eyebrow">Audio global</span>
-        <div class="video-editor-control">
-          <label>Volumen voz · <span data-audio-volume-label="voice">${detail.voiceVolumePercent}%</span></label>
-          <input type="range" min="0" max="1" step="0.01" data-action="update-global-audio" data-audio-kind="voice" data-field="volume" value="${detail.voiceVolumeValue}" style="--range-progress:${detail.voiceVolumePercent}%" />
-          <label class="video-editor-check">
-            <input type="checkbox" data-action="update-global-audio" data-audio-kind="voice" data-field="muted" ${voice.muted ? 'checked' : ''} />
-            Mute voz
-          </label>
-        </div>
-        <div class="video-editor-control">
-          <label>Volumen música · <span data-audio-volume-label="music">${detail.musicVolumePercent}%</span></label>
-          <input type="range" min="0" max="1" step="0.01" data-action="update-global-audio" data-audio-kind="music" data-field="volume" value="${detail.musicVolumeValue}" style="--range-progress:${detail.musicVolumePercent}%" />
-          <label class="video-editor-check">
-            <input type="checkbox" data-action="update-global-audio" data-audio-kind="music" data-field="muted" ${music.muted ? 'checked' : ''} />
-            Mute música
-          </label>
-        </div>
-      </div>
     </div>
   `;
 }

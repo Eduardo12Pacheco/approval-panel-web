@@ -22,6 +22,7 @@ import {
   buildEditorRowsTable,
   buildPreviewTimeline,
 } from './editor-markup.js';
+import { resolveEditorEffectTab } from './editor-effect-tabs.js';
 import {
   buildFutureProjectCard,
   buildProjectCard,
@@ -927,6 +928,23 @@ export function renderSelectedVideoProjectView({
           if (ev.key !== 'Enter' && ev.key !== ' ') return;
           ev.preventDefault();
           selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime);
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="switch-effect-tab"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const activeTab = resolveEditorEffectTab(button.dataset.effectTab);
+          project._editorEffectTab = activeTab;
+          const section = button.closest('.video-editor-detail__section');
+          section?.querySelectorAll('[data-action="switch-effect-tab"]').forEach((tabButton) => {
+            const isActive = tabButton.dataset.effectTab === activeTab;
+            tabButton.classList.toggle('is-active', isActive);
+            tabButton.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            tabButton.setAttribute('tabindex', isActive ? '0' : '-1');
+          });
+          section?.querySelectorAll('.video-editor-effect-panel').forEach((panel) => {
+            panel.hidden = panel.id !== `video-editor-effect-panel-${activeTab}`;
+          });
         });
       });
 
