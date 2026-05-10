@@ -977,7 +977,10 @@ export function renderSelectedVideoProjectView({
           const field = input.dataset.field;
           if (!kind || !field) return;
           const patch = {};
-          if (field === 'volume') patch.volume = Number(input.value);
+          if (field === 'volume') {
+            patch.volume = Number(input.value);
+            input.style.setProperty('--range-progress', `${Math.round(Number(input.value) * 100)}%`);
+          }
           if (field === 'muted') patch.muted = input.checked;
           updateGlobalAudio?.(kind, patch);
         });
