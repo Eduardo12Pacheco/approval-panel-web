@@ -1471,7 +1471,7 @@
 
 .video-editor-control input[type='range'] {
   appearance: none;
-  height: 32px;
+  height: 36px;
   margin: 4px 0 8px;
   padding: 0;
   border: 0;
@@ -1489,9 +1489,9 @@
 }
 
 .video-editor-control input[type='range']::-webkit-slider-thumb {
-  width: 22px;
-  height: 22px;
-  margin-top: -7.5px;
+  width: 18px;
+  height: 18px;
+  margin-top: -5.5px;
   border: 2px solid #050505;
   border-radius: 0;
   background: var(--accent);
@@ -1511,8 +1511,8 @@
 }
 
 .video-editor-control input[type='range']::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 2px solid #050505;
   border-radius: 0;
   background: var(--accent);

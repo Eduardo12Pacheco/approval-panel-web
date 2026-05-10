@@ -132,7 +132,7 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
       <div class="video-editor-detail__section">
         <span class="video-projects-eyebrow">Audio global</span>
         <div class="video-editor-control">
-          <label>Volumen voz · ${detail.voiceVolumePercent}%</label>
+          <label>Volumen voz · <span data-audio-volume-label="voice">${detail.voiceVolumePercent}%</span></label>
           <input type="range" min="0" max="1" step="0.01" data-action="update-global-audio" data-audio-kind="voice" data-field="volume" value="${detail.voiceVolumeValue}" style="--range-progress:${detail.voiceVolumePercent}%" />
           <label class="video-editor-check">
             <input type="checkbox" data-action="update-global-audio" data-audio-kind="voice" data-field="muted" ${voice.muted ? 'checked' : ''} />
@@ -140,7 +140,7 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
           </label>
         </div>
         <div class="video-editor-control">
-          <label>Volumen música · ${detail.musicVolumePercent}%</label>
+          <label>Volumen música · <span data-audio-volume-label="music">${detail.musicVolumePercent}%</span></label>
           <input type="range" min="0" max="1" step="0.01" data-action="update-global-audio" data-audio-kind="music" data-field="volume" value="${detail.musicVolumeValue}" style="--range-progress:${detail.musicVolumePercent}%" />
           <label class="video-editor-check">
             <input type="checkbox" data-action="update-global-audio" data-audio-kind="music" data-field="muted" ${music.muted ? 'checked' : ''} />

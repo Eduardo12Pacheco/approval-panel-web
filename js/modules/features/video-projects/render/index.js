@@ -971,15 +971,26 @@ export function renderSelectedVideoProjectView({
 
       // Global audio updates
       el.videoProjectDetail.querySelectorAll('[data-action="update-global-audio"]').forEach((input) => {
-        const eventName = input.dataset.field === 'volume' ? 'input' : 'change';
-        input.addEventListener(eventName, () => {
+        const updateRangePreview = () => {
+          const value = Number(input.value);
+          const percent = Math.round(value * 100);
+          input.style.setProperty('--range-progress', `${percent}%`);
+          const label = input.closest('.video-editor-control')?.querySelector(`[data-audio-volume-label="${input.dataset.audioKind}"]`);
+          if (label) label.textContent = `${percent}%`;
+        };
+
+        if (input.dataset.field === 'volume') {
+          input.addEventListener('input', updateRangePreview);
+        }
+
+        input.addEventListener('change', () => {
           const kind = input.dataset.audioKind;
           const field = input.dataset.field;
           if (!kind || !field) return;
           const patch = {};
           if (field === 'volume') {
             patch.volume = Number(input.value);
-            input.style.setProperty('--range-progress', `${Math.round(Number(input.value) * 100)}%`);
+            updateRangePreview();
           }
           if (field === 'muted') patch.muted = input.checked;
           updateGlobalAudio?.(kind, patch);
