@@ -38,7 +38,7 @@ export function buildCompositionPayload(project) {
     rows: rows.map((row) => ({
       id: row.id,
       selectedAssetId: row.selectedAssetId || null,
-      motion: row.motion || 'slow-zoom-in',
+      motion: row.motion || 'Zoom 110',
       dust: { enabled: Boolean(row.dust?.enabled) },
       logo: { enabled: row.logo?.enabled !== false },
       filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
@@ -76,7 +76,7 @@ export function buildCompositionPayload(project) {
       endTime: Number(row.endTime || 0),
       effectiveEndTime: Number(row.effectiveEndTime ?? row.endTime ?? 0),
       selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === row.id)?.assetId || null,
-      motion: row.motion || 'slow-zoom-in',
+      motion: row.motion || 'Zoom 110',
       dust: { enabled: Boolean(row.dust?.enabled) },
       logo: { enabled: row.logo?.enabled !== false },
       filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },

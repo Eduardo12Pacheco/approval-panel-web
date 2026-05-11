@@ -34,7 +34,7 @@ const DEFAULT_FPS = 30;
 
 // SOURCE: Composition.tsx line 192 — scaleTo ternary
 const ZOOM_SLOW = { from: 1.0, to: 1.04 };
-const ZOOM_SLOW_IN = { from: 1.0, to: 1.08 };
+const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
 
 // SOURCE: Composition.tsx lines 128-134 — LogoOverlay style
 const LOGO_LEFT = 52;
@@ -103,7 +103,7 @@ export function interpolateLinear(start, end, progress) {
  * Contract-aligned motion semantics:
  * - still/none => 1.0 → 1.0
  * - slow-zoom => 1.0 → 1.04
- * - slow-zoom-in => 1.0 → 1.08
+ * - slow-zoom-in/Zoom 110 => 1.0 → 1.10
  * - slow-zoom-out => 1.08 → 1.0
  * - pan-left/pan-right => visible Ken Burns pan with slight zoom
  *
@@ -123,9 +123,9 @@ function resolveZoomRange(motion) {
   }
   const normalized = (motion || '').toString().trim().toLowerCase();
   if (normalized === 'still' || normalized === 'none') return { from: 1.0, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
-  if (normalized === 'slow-zoom') return { ...ZOOM_SLOW, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
-  if (normalized === 'slow-zoom-in') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom-in' || normalized === 'zoom 110' || normalized === 'zoom-110') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'pan-left') return { from: 1.1, to: 1.1, fromX: 72, fromY: 0, toX: -72, toY: 0 };
   if (normalized === 'pan-right') return { from: 1.1, to: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 };
   return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };

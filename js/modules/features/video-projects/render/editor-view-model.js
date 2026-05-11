@@ -5,6 +5,16 @@ import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
 
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets']);
+const DEFAULT_MOTION_PRESET_NAME = 'Zoom 110';
+
+function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
+  const normalized = value.toString().trim().toLowerCase();
+  if (!normalized) return defaultEmpty ? DEFAULT_MOTION_PRESET_NAME : '';
+  if (normalized === 'slow-zoom-in' || normalized === 'slow-zoom' || normalized === 'zoom-110') {
+    return DEFAULT_MOTION_PRESET_NAME;
+  }
+  return value.toString().trim();
+}
 
 function resolveEditorEffectTab(value = '') {
   const tab = value.toString();
@@ -12,11 +22,11 @@ function resolveEditorEffectTab(value = '') {
 }
 
 function resolveMotionPresetName(row = {}) {
-  const explicit = (row.motionPresetId || row.motion_preset_id || row.motionPreset || '').toString().trim();
+  const explicit = normalizeLegacyMotionName(row.motionPresetId || row.motion_preset_id || row.motionPreset || '');
   if (explicit) return explicit;
   const motion = row.motion;
-  if (typeof motion === 'string') return motion;
-  const presetName = (motion?.name || motion?.presetName || '').toString().trim();
+  if (typeof motion === 'string') return normalizeLegacyMotionName(motion, { defaultEmpty: true });
+  const presetName = normalizeLegacyMotionName(motion?.name || motion?.presetName || '');
   if (presetName) return presetName;
   const match = MOTION_PRESETS.find((preset) => (
     Number(preset.fromX ?? 0) === Number(motion?.fromX ?? 0)
@@ -26,7 +36,7 @@ function resolveMotionPresetName(row = {}) {
     && Number(preset.fromScale ?? 1) === Number(motion?.fromScale ?? 1)
     && Number(preset.toScale ?? 1) === Number(motion?.toScale ?? 1)
   ));
-  return match?.name || 'Zoom-125';
+  return match?.name || DEFAULT_MOTION_PRESET_NAME;
 }
 
 function buildMotionPresetGroups() {

@@ -1,6 +1,7 @@
 export const MOTION_PRESET_CATEGORIES = ['ZOOMS', 'MOVIMIENTOS', 'MOVIMIENTOS DIAGONALES', 'VERTICALES', 'HORIZONTALES'];
 
 export const MOTION_PRESETS = [
+  { category: 'ZOOMS', name: 'Zoom 110', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.1, easing: 'linear' },
   { category: 'MOVIMIENTOS', name: 'Movimiento-derecha-Izquierda-150-amplio', fromX: -325, fromY: 0, toX: 315, toY: 0, fromScale: 1.5, toScale: 1.5, easing: 'linear' },
   { category: 'MOVIMIENTOS', name: 'Movimiento-Izquierda-Derecha', fromX: 240, fromY: 0, toX: -240, toY: 0, fromScale: 1.25, toScale: 1.25, easing: 'linear' },
   { category: 'MOVIMIENTOS', name: 'Movimiento-Derecha-Izquierda', fromX: -240, fromY: 0, toX: 238.4, toY: 0, fromScale: 1.25, toScale: 1.25, easing: 'linear' },
