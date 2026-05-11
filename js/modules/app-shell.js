@@ -30,7 +30,7 @@ import { createScriptsFeature, isScriptProcessed, resolveScriptTitle } from './f
 import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from './features/scripts/render.js';
 import { createVideoProjectsApiClient } from './features/video-projects/api.js';
 import { createVideoProjectsFeature } from './features/video-projects/index.js';
-import { renderSelectedVideoProjectView, renderVideoProjectsListView } from './features/video-projects/render.js';
+import { renderSelectedVideoProjectView, renderVideoProjectsListView, updateSelectedVideoProjectCompositionPreview as updateSelectedVideoProjectCompositionPreviewView } from './features/video-projects/render.js';
 import { createAudioFeature } from './features/audio/index.js';
 import { createAudioController } from './features/audio/controller.js';
 import {
@@ -42,6 +42,9 @@ import {
 } from './features/audio/runtime/index.js';
 import { createSubtitlesController } from './features/subtitles/controller.js';
 import { createRemoteSubtitlesState } from './features/subtitles/runtime/index.js';
+import { createRadarApiClient } from './features/radar/api-client.js';
+import { createRadarController } from './features/radar/controller.js';
+import { createRadarState } from './features/radar/state.js';
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
 import { getDomSelectors } from './shared/dom/selectors.js';
 
@@ -98,6 +101,7 @@ const state = {
   audioQueueSyncInFlight: false,
   approvalAutoRefreshTimer: null,
   subtitles2: createRemoteSubtitlesState(),
+  radar: createRadarState(),
 };
 
 const __testOverrides = {
@@ -163,6 +167,7 @@ const videoProjectsFeature = createVideoProjectsFeature({
   callbacks: {
     renderVideoProjects,
     renderSelectedVideoProject,
+    updateSelectedVideoProjectCompositionPreview,
   },
 });
 
@@ -226,6 +231,19 @@ const audioFeature = createAudioFeature({
   handlers: {
     ...audioRuntime,
   },
+});
+
+const radarApi = createRadarApiClient({
+  getSettings: () => state.settings,
+  fetchImpl: fetch,
+});
+
+const radarController = createRadarController({
+  state: state.radar,
+  el,
+  api: radarApi,
+  ui: { toast },
+  browser: { setTimeout, clearTimeout, clipboard: navigator.clipboard },
 });
 
 export function bootApp() {
@@ -366,6 +384,7 @@ function bindEvents() {
   });
 
   el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
+  radarController.bindEvents();
 
   el.queueList?.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-action="dismiss-approval-queue-job"]');
@@ -490,17 +509,19 @@ function bindEvents() {
 
 function setView(view) {
   const requestedView = typeof view === 'string' ? view.trim() : '';
-  const nextView = ['approval', 'scripts', 'audio', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
+  const nextView = ['approval', 'scripts', 'audio', 'radar', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
 
   state.currentView = nextView;
   ensureApprovalAutoRefresh();
   const isApproval = nextView === 'approval';
   const isScripts = nextView === 'scripts';
   const isAudio = nextView === 'audio';
+  const isRadar = nextView === 'radar';
   const isSubtitulos2 = nextView === 'subtitulos2';
   el.viewApproval.classList.toggle('hidden', !isApproval);
   el.viewScripts.classList.toggle('hidden', !isScripts);
   el.viewAudio.classList.toggle('hidden', !isAudio);
+  el.viewRadar?.classList.toggle('hidden', !isRadar);
   el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === nextView);
@@ -527,6 +548,13 @@ function setView(view) {
   if (isSubtitulos2) {
     void subtitlesController.refreshRemoteStatus();
     subtitlesController.renderWorkflow();
+  }
+
+  if (isRadar) {
+    void radarController.refreshHealth();
+    void radarController.refreshHistory();
+  } else {
+    radarController.stopPolling();
   }
 }
 
@@ -794,6 +822,10 @@ function renderSelectedVideoProject() {
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
     renderSelectedVideoProject,
   });
+}
+
+function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
+  return updateSelectedVideoProjectCompositionPreviewView({ project: project || state.selectedVideoProject });
 }
 
 async function openDetail(clusterId) {

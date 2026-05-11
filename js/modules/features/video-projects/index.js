@@ -115,6 +115,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   const {
     renderVideoProjects = () => {},
     renderSelectedVideoProject = () => {},
+    updateSelectedVideoProjectCompositionPreview = () => false,
   } = callbacks || {};
 
   let saveTimer = null;
@@ -628,7 +629,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
           const revision = ++approvalMotionDraftRevision;
           pendingApprovalMotionDrafts.set(rowId, { patch: localMotionPatch, revision });
           pendingApprovalMotionOperations.set(rowId, { operation: { type: 'setRowMotion', rowId, ...resolvedMotion }, revision });
-          renderSelectedVideoProject();
+          updateSelectedVideoProjectCompositionPreview({ project });
           scheduleApprovalMotionPersistence(project);
         } else {
           operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
@@ -664,7 +665,11 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
     });
 
-    renderSelectedVideoProject();
+    if (patch.manualMotionDraft === true) {
+      updateSelectedVideoProjectCompositionPreview({ project });
+    } else {
+      renderSelectedVideoProject();
+    }
 
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {

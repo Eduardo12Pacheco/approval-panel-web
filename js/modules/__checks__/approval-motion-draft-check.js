@@ -167,6 +167,7 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
   const updateSnapshotCalls = [];
   const savedEditorStates = [];
   const renderEvents = [];
+  const previewUpdateEvents = [];
   const state = {
     settings: { approvalPipelineBaseUrl: 'http://approval.local' },
     selectedVideoProject: {
@@ -211,16 +212,21 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
     ui: { toast() {} },
     callbacks: {
       renderSelectedVideoProject: () => renderEvents.push({ motion: state.selectedVideoProject._editorRows[0]?.motion }),
+      updateSelectedVideoProjectCompositionPreview: ({ project }) => {
+        previewUpdateEvents.push({ motion: project._editorRows[0]?.motion });
+        return true;
+      },
       renderVideoProjects() {},
     },
   });
 
-  return { feature, state, updateSnapshotCalls, savedEditorStates, renderEvents };
+  return { feature, state, updateSnapshotCalls, savedEditorStates, renderEvents, previewUpdateEvents };
 }
 
 function createLocalMotionHarness() {
   const savedEditorStates = [];
   const renderEvents = [];
+  const previewUpdateEvents = [];
   const state = {
     settings: {},
     selectedVideoProject: {
@@ -247,11 +253,15 @@ function createLocalMotionHarness() {
     ui: { toast() {} },
     callbacks: {
       renderSelectedVideoProject: () => renderEvents.push({ motion: state.selectedVideoProject._editorRows[0]?.motion }),
+      updateSelectedVideoProjectCompositionPreview: ({ project }) => {
+        previewUpdateEvents.push({ motion: project._editorRows[0]?.motion });
+        return true;
+      },
       renderVideoProjects() {},
     },
   });
 
-  return { feature, state, savedEditorStates, renderEvents };
+  return { feature, state, savedEditorStates, renderEvents, previewUpdateEvents };
 }
 
 function runLocalMotionPatchMergeCheck() {
@@ -308,7 +318,7 @@ function runCanonicalDraftProtectionCheck() {
 async function runApprovalUpdateRowOptimisticPatchCheck() {
   const timers = createFakeTimers();
   try {
-    const { feature, state, updateSnapshotCalls, renderEvents } = createApprovalMotionHarness();
+    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents } = createApprovalMotionHarness();
 
     await feature.updateRow('row-1', {
       motionPresetId: 'custom',
@@ -320,7 +330,9 @@ async function runApprovalUpdateRowOptimisticPatchCheck() {
     assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].motion.toX, 44, 'Expected optimistic timed_rows to be live before remote snapshot');
     assertEqual(state.selectedVideoProject.editor_state.phase, 'editing_dirty', 'Expected optimistic draft to mark editor dirty');
     assertEqual(updateSnapshotCalls.length, 0, 'Expected manual motion draft to wait for debounce before remote persistence');
-    assertEqual(renderEvents.length, 1, 'Expected optimistic patch to render local preview once immediately');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected optimistic patch to update the existing composition preview once immediately');
+    assertEqual(previewUpdateEvents[0].motion.toX, 44, 'Expected lightweight preview update to receive the local manual motion draft');
+    assertEqual(renderEvents.length, 0, 'Expected manual motion draft input not to trigger a full detail render');
   } finally {
     timers.restore();
   }
@@ -329,7 +341,7 @@ async function runApprovalUpdateRowOptimisticPatchCheck() {
 async function runApprovalMotionDebounceCoalescingCheck() {
   const timers = createFakeTimers();
   try {
-    const { feature, updateSnapshotCalls } = createApprovalMotionHarness({
+    const { feature, updateSnapshotCalls, renderEvents, previewUpdateEvents } = createApprovalMotionHarness({
       snapshotRows: [{ id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 12, fromScale: 1, toScale: 1.12 } }],
     });
 
@@ -350,6 +362,8 @@ async function runApprovalMotionDebounceCoalescingCheck() {
     });
 
     assertEqual(updateSnapshotCalls.length, 0, 'Expected repeated manual changes to remain local until debounce fires');
+    assertEqual(previewUpdateEvents.length, 3, 'Expected each manual draft input to update the existing composition preview');
+    assertEqual(renderEvents.length, 0, 'Expected repeated manual draft inputs not to trigger full detail renders before debounce persistence');
 
     timers.runPending();
     await flushMicrotasks();
@@ -369,7 +383,7 @@ async function runApprovalMotionDebounceCoalescingCheck() {
 async function runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck() {
   const timers = createFakeTimers();
   try {
-    const { feature, state, savedEditorStates } = createApprovalMotionHarness({
+    const { feature, state, savedEditorStates, previewUpdateEvents } = createApprovalMotionHarness({
       snapshotRows: [{ id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 14, fromScale: 1, toScale: 1.14 } }],
     });
 
@@ -381,10 +395,12 @@ async function runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck() {
 
     timers.runPending();
     await flushMicrotasks();
+    await flushMicrotasks();
 
     assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 88, 'Expected newer pending draft to survive older canonical row snapshot');
     assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].motion.toX, 88, 'Expected editor state to keep pending draft over stale canonical row');
     assertEqual(savedEditorStates.at(-1).timed_rows[0].motion.toX, 88, 'Expected persisted editor state to save draft-protected rows');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected pending draft to update the existing composition preview before remote save');
   } finally {
     timers.restore();
   }
@@ -393,7 +409,7 @@ async function runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck() {
 async function runLocalMotionDebouncedSaveUsesPatchedRowsCheck() {
   const timers = createFakeTimers();
   try {
-    const { feature, state, savedEditorStates, renderEvents } = createLocalMotionHarness();
+    const { feature, state, savedEditorStates, renderEvents, previewUpdateEvents } = createLocalMotionHarness();
 
     await feature.updateRow('row-1', {
       motionPresetId: 'custom',
@@ -408,6 +424,32 @@ async function runLocalMotionDebouncedSaveUsesPatchedRowsCheck() {
 
     assertEqual(savedEditorStates.length, 1, 'Expected local non-approval motion patch to persist after debounce');
     assertEqual(savedEditorStates[0].timed_rows[0].motion.toX, 77, 'Expected debounced local save to persist patched rows, not stale rows');
+  } finally {
+    timers.restore();
+  }
+}
+
+async function runLocalManualMotionDraftUsesLightweightPreviewCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, state, savedEditorStates, renderEvents, previewUpdateEvents } = createLocalMotionHarness();
+
+    await feature.updateRow('row-1', {
+      motionPresetId: 'custom',
+      motion: { toX: 91 },
+      manualMotionDraft: true,
+    });
+
+    assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 91, 'Expected local manual motion draft to update local rows immediately');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected local manual motion draft to update the existing composition preview');
+    assertEqual(previewUpdateEvents[0].motion.toX, 91, 'Expected local lightweight preview update to receive the local manual draft');
+    assertEqual(renderEvents.length, 0, 'Expected local manual motion draft not to trigger a full detail render');
+
+    timers.runPending();
+    await flushMicrotasks();
+
+    assertEqual(savedEditorStates.length, 1, 'Expected local manual motion draft to keep debounced persistence unchanged');
+    assertEqual(savedEditorStates[0].timed_rows[0].motion.toX, 91, 'Expected local manual draft save to persist patched rows');
   } finally {
     timers.restore();
   }
@@ -553,6 +595,7 @@ export async function runApprovalMotionDraftCheck() {
   await runApprovalMotionDebounceCoalescingCheck();
   await runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck();
   await runLocalMotionDebouncedSaveUsesPatchedRowsCheck();
+  await runLocalManualMotionDraftUsesLightweightPreviewCheck();
   runManualMotionScrubValueCheck();
   runManualMotionScrubBehaviorCheck();
   runManualMotionHandlerSourceCheck();

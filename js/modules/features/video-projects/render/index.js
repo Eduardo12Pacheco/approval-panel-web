@@ -180,6 +180,27 @@ function ensureCompositionRenderer(container) {
   return _compositionRenderer;
 }
 
+export function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
+  if (!_compositionRenderer || !_compositionRendererContainer || !project) return false;
+  const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
+  if (!editorRows.length) return false;
+
+  const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  _compositionRenderer.update({ rows: compositionRows });
+
+  const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
+  if (imageUrls.length) {
+    void _compositionRenderer.preloadImages(imageUrls);
+  }
+
+  const seekTime = Number(project._previewSeekTime);
+  if (Number.isFinite(seekTime) && seekTime > 0) {
+    _compositionRenderer.seek(seekTime);
+  }
+
+  return true;
+}
+
 function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   const imageUrl = resolveCandidateImageUrl(candidate);
   const fallbackUrl = resolveCandidateFallbackUrl(candidate, imageUrl);
