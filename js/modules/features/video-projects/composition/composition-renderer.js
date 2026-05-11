@@ -98,6 +98,54 @@ export function interpolateLinear(start, end, progress) {
   return start + (end - start) * clamped;
 }
 
+function finitePositive(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale = 1, x = 0, y = 0 }) {
+  const safeViewportWidth = finitePositive(viewportWidth, 1);
+  const safeViewportHeight = finitePositive(viewportHeight, 1);
+  const safeImageWidth = finitePositive(imageWidth, safeViewportWidth);
+  const safeImageHeight = finitePositive(imageHeight, safeViewportHeight);
+  const safeScale = finitePositive(scale, 1);
+  const requestedX = finiteNumber(x, 0);
+  const requestedY = finiteNumber(y, 0);
+
+  const coverScale = Math.max(safeViewportWidth / safeImageWidth, safeViewportHeight / safeImageHeight);
+  const baseWidth = safeImageWidth * coverScale;
+  const baseHeight = safeImageHeight * coverScale;
+  const layerWidth = baseWidth * safeScale;
+  const layerHeight = baseHeight * safeScale;
+  const maxX = Math.max(0, (layerWidth - safeViewportWidth) / 2);
+  const maxY = Math.max(0, (layerHeight - safeViewportHeight) / 2);
+  const clampedX = clamp(requestedX, -maxX, maxX);
+  const clampedY = clamp(requestedY, -maxY, maxY);
+
+  return {
+    coverScale,
+    baseWidth,
+    baseHeight,
+    layerWidth,
+    layerHeight,
+    maxX,
+    maxY,
+    clampedX,
+    clampedY,
+    left: (safeViewportWidth - layerWidth) / 2 + clampedX,
+    top: (safeViewportHeight - layerHeight) / 2 + clampedY,
+  };
+}
+
 /**
  * Resolve zoom range constants for a given motion string.
  * Contract-aligned motion semantics:
@@ -133,6 +181,35 @@ function resolveZoomRange(motion) {
 
 function shouldChromaKeyLogo(src = '') {
   return GREEN_SCREEN_LOGO_PATTERN.test(src || '');
+}
+
+function resolveComparableUrl(url) {
+  if (!url) return '';
+  try {
+    return new URL(url, globalThis.document?.baseURI || globalThis.location?.href || 'http://localhost/').href;
+  } catch {
+    return String(url);
+  }
+}
+
+export function resolveActiveImageDimensions({ activeUrl, segment, cacheImage, imageElement } = {}) {
+  const cachedWidth = cacheImage?.naturalWidth;
+  const cachedHeight = cacheImage?.naturalHeight;
+  if (cachedWidth && cachedHeight) {
+    return { imageWidth: cachedWidth, imageHeight: cachedHeight };
+  }
+
+  if (segment?.imageWidth && segment?.imageHeight) {
+    return { imageWidth: segment.imageWidth, imageHeight: segment.imageHeight };
+  }
+
+  const activeComparable = resolveComparableUrl(activeUrl);
+  const currentComparable = resolveComparableUrl(imageElement?.currentSrc || imageElement?.src);
+  if (activeComparable && currentComparable === activeComparable && imageElement?.naturalWidth && imageElement?.naturalHeight) {
+    return { imageWidth: imageElement.naturalWidth, imageHeight: imageElement.naturalHeight };
+  }
+
+  return { imageWidth: undefined, imageHeight: undefined };
 }
 
 function drawChromaKeyVideoFrame(video, canvas) {
@@ -216,7 +293,7 @@ export function buildCompositionDOM(container) {
   // Layer 2: Segment image (with zoom transform)
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
-  image.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;will-change:transform;';
+  image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;will-change:left,top,width,height;';
   image.draggable = false;
   stage.appendChild(image);
 
@@ -847,7 +924,29 @@ export class CompositionRenderer {
     const scale = interpolateLinear(zoom.from, zoom.to, localProgress);
     const x = interpolateLinear(zoom.fromX, zoom.toX, localProgress);
     const y = interpolateLinear(zoom.fromY, zoom.toY, localProgress);
-    layers.image.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    const { imageWidth, imageHeight } = resolveActiveImageDimensions({
+      activeUrl: segmentKey,
+      segment,
+      cacheImage: this.#imageCache.get(segmentKey),
+      imageElement: layers.image,
+    });
+    const viewportWidth = this.#dom.stage.clientWidth || this.#container.clientWidth || 1920;
+    const viewportHeight = this.#dom.stage.clientHeight || this.#container.clientHeight || 1080;
+    const layer = resolveCoverPanLayer({
+      viewportWidth,
+      viewportHeight,
+      imageWidth,
+      imageHeight,
+      scale,
+      x,
+      y,
+    });
+    layers.image.style.width = `${layer.layerWidth}px`;
+    layers.image.style.height = `${layer.layerHeight}px`;
+    layers.image.style.left = `${layer.left}px`;
+    layers.image.style.top = `${layer.top}px`;
+    layers.image.style.objectFit = 'fill';
+    layers.image.style.transform = 'none';
 
     // Apply filter (contrast + saturation)
     // SOURCE: Composition.tsx line 206 — filter property
