@@ -46,7 +46,6 @@ function buildMotionPanel({ row, detail }) {
 
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
-      <span class="video-editor-control__label">Movimiento</span>
       <div class="video-motion-mode">
         <div class="video-motion-mode__copy">
           <p>Escoge un preset de movimiento, puedes ajustarlo manualmente.</p>
@@ -57,6 +56,7 @@ function buildMotionPanel({ row, detail }) {
         </div>
       </div>
       <div class="video-motion-editor-panel" data-motion-editor-panel="presets" ${activeMotionTab === 'presets' ? '' : 'hidden'}>
+        <h4 class="video-motion-editor-panel__title">Presets</h4>
         ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
       </div>
       <div class="video-motion-editor-panel" data-motion-editor-panel="manual" ${activeMotionTab === 'manual' ? '' : 'hidden'}>

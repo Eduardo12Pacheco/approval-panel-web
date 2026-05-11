@@ -1739,8 +1739,8 @@
   align-items: center;
   min-height: 48px;
   padding: 0 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #080808;
+  border: 0;
+  background: #0d0d0d;
 }
 
 .video-motion-mode__copy p {
@@ -1785,6 +1785,17 @@
 
 .video-motion-editor-panel[hidden] {
   display: none;
+}
+
+.video-motion-editor-panel__title {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
 }
 
 .video-motion-picker {
@@ -1833,8 +1844,8 @@
   display: grid;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #050505;
+  border: 0;
+  background: #0d0d0d;
 }
 
 .video-motion-manual__header {
