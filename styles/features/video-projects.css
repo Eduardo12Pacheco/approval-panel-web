@@ -1833,6 +1833,7 @@
   overflow: hidden;
   border: 1px solid #2a2a2a;
   background: #050505;
+  isolation: isolate;
 }
 
 .video-editor-video-selector__layer {
@@ -1844,12 +1845,14 @@
 }
 
 .video-editor-video-selector__layer--background {
+  z-index: 0;
   object-fit: cover;
   filter: blur(16px) saturate(1.05);
   transform: scale(1.08);
 }
 
 .video-editor-video-selector__layer--overlay {
+  z-index: 1;
   background: #3835AF;
   opacity: 0.3;
 }
@@ -1859,14 +1862,17 @@
 }
 
 .video-editor-video-selector__layer--effect-01 {
+  z-index: 4;
   mix-blend-mode: screen;
 }
 
 .video-editor-video-selector__layer--effect-02 {
+  z-index: 3;
   mix-blend-mode: multiply;
 }
 
 .video-editor-video-selector__layer--foreground {
+  z-index: 2;
   object-fit: contain;
 }
 

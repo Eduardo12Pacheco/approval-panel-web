@@ -28,6 +28,7 @@ import { shouldFallbackApprovalSnapshotOperationError } from '../features/video-
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const videoProjectsCss = readFileSync(resolve(__dirname, '../../../styles/features/video-projects.css'), 'utf8');
+const compositionRendererSource = readFileSync(resolve(__dirname, '../features/video-projects/composition/composition-renderer.js'), 'utf8');
 const { applyContractOperations } = require('../../../approval-editor-service/lib/contract-updates.js');
 
 test('Videos tab initially shows upload and library without opening selector modal', () => {
@@ -123,6 +124,20 @@ test('Selector modal uses real effect videos and exposes a play toggle for the p
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*mix-blend-mode:\s*screen;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*mix-blend-mode:\s*multiply;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--overlay\s*\{[^}]*background:\s*#3835AF;[^}]*opacity:\s*0\.3;/s);
+});
+
+test('Video effect preview layers stack above the foreground video', () => {
+  assert.match(compositionRendererSource, /composition-stage[\s\S]*?isolation:isolate/);
+  assert.match(compositionRendererSource, /composition-layer--video-background[\s\S]*?z-index:0/);
+  assert.match(compositionRendererSource, /composition-layer--video-color-overlay[\s\S]*?z-index:1/);
+  assert.match(compositionRendererSource, /composition-layer--video-foreground[\s\S]*?z-index:2/);
+  assert.match(compositionRendererSource, /composition-layer--video-effect-02[\s\S]*?z-index:3/);
+  assert.match(compositionRendererSource, /composition-layer--video-effect-01[\s\S]*?z-index:4/);
+
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__preview\s*\{[^}]*isolation:\s*isolate;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--foreground\s*\{[^}]*z-index:\s*2;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*z-index:\s*3;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*z-index:\s*4;/s);
 });
 
 test('Selector modal is centered and backdrop layers above the whole editor', () => {
