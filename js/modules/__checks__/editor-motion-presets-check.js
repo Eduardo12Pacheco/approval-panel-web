@@ -64,7 +64,9 @@ function runManualMotionControlsCheck() {
   const manualDetail = buildEditorDetailRailViewModel({ row, project: { _motionEditorTab: 'manual' } });
   const manualMarkup = buildEditorEffectTabs({ row, detail: manualDetail, activeTab: 'motion' });
 
-  assert(markup.includes('Escoge un preset de movimiento'), 'Expected motion guidance copy to render');
+  assert(markup.includes('video-motion-mode__hint'), 'Expected motion guidance hint to render');
+  assert(markup.includes('video-motion-mode__hint-icon'), 'Expected motion guidance info icon to render');
+  assert(markup.includes('Elegí un preset y ajustá el movimiento si hace falta.'), 'Expected motion guidance copy to render');
   assert(markup.includes('data-action="switch-motion-editor-tab"'), 'Expected Presets/Ajuste manual tabs to render');
   assert(markup.includes('data-motion-editor-panel="presets"'), 'Expected presets panel to render');
   assert(markup.includes('Ajuste manual'), 'Expected manual motion controls to render');

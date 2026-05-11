@@ -48,8 +48,9 @@ function buildMotionPanel({ row, detail }) {
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
       <div class="video-motion-mode">
-        <div class="video-motion-mode__copy">
-          <p>Escoge un preset de movimiento, puedes ajustarlo manualmente.</p>
+        <div class="video-motion-mode__hint" aria-label="Guía de movimiento">
+          <span class="video-motion-mode__hint-icon" aria-hidden="true">i</span>
+          <span>Elegí un preset y ajustá el movimiento si hace falta.</span>
         </div>
         <div class="video-motion-mode__tabs" role="tablist" aria-label="Modo de movimiento">
           <button class="${activeMotionTab === 'presets' ? 'is-active' : ''}" type="button" data-action="switch-motion-editor-tab" data-motion-editor-tab="presets" aria-selected="${activeMotionTab === 'presets'}">Presets</button>

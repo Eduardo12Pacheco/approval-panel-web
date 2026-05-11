@@ -1,8 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../features/video-projects/render/editor-view-model.js';
 import { buildEditorAssetsPicker } from '../features/video-projects/render/editor-assets-picker.js';
 import { resolveEditorEffectTab } from '../features/video-projects/render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../features/video-projects/render/editor-markup.js';
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const videoProjectsStylesPath = resolve(currentDir, '../../../styles/features/video-projects.css');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -12,6 +17,21 @@ function assertEqual(actual, expected, message) {
   if (actual !== expected) {
     throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
+}
+
+function readVideoProjectsStyles() {
+  return readFileSync(videoProjectsStylesPath, 'utf8');
+}
+
+function getCssRule(styles, selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = styles.match(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`));
+  return match?.[1] || '';
+}
+
+function assertCssDeclaration(rule, property, expectedValue, message) {
+  const match = rule.match(new RegExp(`${property}\\s*:\\s*([^;]+);`));
+  assertEqual(match?.[1]?.trim(), expectedValue, message);
 }
 
 function makeProject() {
@@ -58,6 +78,16 @@ function runAssetsMarkupCheck() {
   assert(markup.includes('https://cdn.example.com/custom-2.png'), 'Expected custom upload asset to render');
 }
 
+function runAssetsThumbnailStyleCheck() {
+  const styles = readVideoProjectsStyles();
+  const mediaRule = getCssRule(styles, '.video-editor-assets-card__media');
+  const imageRule = getCssRule(styles, '.video-editor-assets-card__media img');
+
+  assertCssDeclaration(mediaRule, 'place-items', 'center', 'Expected asset media wrapper to center thumbnails');
+  assertCssDeclaration(imageRule, 'object-fit', 'contain', 'Expected asset thumbnails to preserve full image inside card');
+  assertCssDeclaration(imageRule, 'object-position', 'center center', 'Expected asset thumbnails to be visually centered');
+}
+
 function runChangeImageNavigationCheck() {
   const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba', selectedAssetId: 'https://cdn.example.com/custom-1.webp' };
   const tableMarkup = buildEditorRowsTable([row], { selectedRowId: 'row-1', project: makeProject() });
@@ -75,6 +105,7 @@ export function runEditorAssetsTabCheck() {
   runAssetsViewModelCheck();
   runAssetsTabResolutionCheck();
   runAssetsMarkupCheck();
+  runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
 }
 
