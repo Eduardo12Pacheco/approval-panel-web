@@ -1523,10 +1523,16 @@
   align-items: flex-start;
 }
 
+.video-editor-assets-picker__header .video-editor-control__label {
+  color: var(--text);
+  font-size: 1.02rem;
+  letter-spacing: 0.09em;
+}
+
 .video-editor-assets-picker__header p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 0.9rem;
   line-height: 1.35;
 }
 
@@ -1572,11 +1578,9 @@
 }
 
 .video-editor-assets-card {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 7px;
+  display: block;
   min-width: 0;
-  min-height: 142px;
+  min-height: 0;
   padding: 7px;
   border: 1px solid var(--border);
   background: #090909;
@@ -1615,35 +1619,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.video-editor-assets-card__meta {
-  display: grid;
-  align-content: start;
-  gap: 3px;
-  min-width: 0;
-}
-
-.video-editor-assets-card__meta strong,
-.video-editor-assets-card__meta small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.video-editor-assets-card__meta strong {
-  margin: 0;
-  font-size: 0.68rem;
-  line-height: 1.2;
-}
-
-.video-editor-assets-card__meta small {
-  color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.56rem;
-  line-height: 1.25;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .video-editor-control {
@@ -1751,7 +1726,7 @@
 /* Motion picker */
 .video-motion-picker {
   display: grid;
-  gap: 12px;
+  gap: 18px;
   max-height: min(54vh, 620px);
   overflow: auto;
   padding-right: 4px;
@@ -1759,16 +1734,28 @@
 
 .video-motion-picker__group {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .video-motion-picker__group h4 {
+  display: grid;
+  gap: 8px;
   margin: 0;
   color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
   text-transform: uppercase;
+}
+
+.video-motion-picker__group h4::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), rgba(0, 232, 143, 0.18));
 }
 
 .video-motion-picker__grid {
@@ -2098,17 +2085,6 @@
 .video-editor-row__upload-label {
   position: relative;
   display: inline-flex;
-}
-
-button.video-editor-row__upload-label {
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.video-editor-row__actions button,
-.video-editor-row__upload-label span {
-  display: inline-flex;
   justify-content: center;
   align-items: center;
   min-height: 34px;
@@ -2127,13 +2103,36 @@ button.video-editor-row__upload-label {
   z-index: 1;
 }
 
-.video-editor-row.is-selected .video-editor-row__upload-label span {
+.video-editor-row__actions button:not(.video-editor-row__upload-label) {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  background: #0c0c0c;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.video-editor-row__upload-label span {
+  display: inline;
+}
+
+.video-editor-row.is-selected .video-editor-row__upload-label {
   background: #0a1d15;
 }
 
 .video-editor-row__actions button:hover,
 .video-editor-row__actions button:focus,
-.video-editor-row__upload-label span:hover {
+.video-editor-row__upload-label:hover,
+.video-editor-row__upload-label:focus-visible {
   border-color: rgba(0, 232, 143, 0.52);
   color: var(--accent);
   outline: none;

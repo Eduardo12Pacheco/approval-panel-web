@@ -2,8 +2,6 @@ import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 
 function buildAssetCard({ asset, rowId }) {
   const title = escapeHtmlCore(asset.title || 'Asset');
-  const source = escapeHtmlCore(asset.source || 'Asset');
-  const dimensions = asset.dimensions ? ` · ${escapeHtmlCore(asset.dimensions)}` : '';
   const url = escapeHtmlCore(asset.url || '');
   const selectedClass = asset.isSelected ? 'is-selected' : '';
 
@@ -21,10 +19,6 @@ function buildAssetCard({ asset, rowId }) {
         ${asset.url
           ? `<img src="${url}" alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
           : '<span>Sin preview</span>'}
-      </span>
-      <span class="video-editor-assets-card__meta">
-        <strong>${title}</strong>
-        <small>${source}${dimensions}</small>
       </span>
     </button>
   `;
