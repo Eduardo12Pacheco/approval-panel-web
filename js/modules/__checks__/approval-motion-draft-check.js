@@ -81,11 +81,28 @@ function createFakeMotionScrubInput({ value = '10', motionField = 'toX', withPoi
 }
 
 function createFakeMotionScrubDocument({ userSelect = '' } = {}) {
+  const listeners = new Map();
+  const addCalls = [];
+  const removeCalls = [];
   return {
     body: {
       classList: createFakeClassList(),
       style: { userSelect },
     },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+      addCalls.push(type);
+    },
+    removeEventListener(type) {
+      listeners.delete(type);
+      removeCalls.push(type);
+    },
+    dispatchPointer(type, event) {
+      listeners.get(type)?.(event);
+    },
+    listeners,
+    addCalls,
+    removeCalls,
   };
 }
 
@@ -483,7 +500,7 @@ function runManualMotionScrubBehaviorCheck() {
     const moveEvent = createPointerEvent({ pointerId: 7, clientX: 6 });
 
     handlers.pointerdown(createPointerEvent({ pointerId: 7, clientX: 0 }));
-    handlers.pointermove(moveEvent);
+    documentRef.dispatchPointer('pointermove', moveEvent);
 
     assertEqual(input.value, '16', 'Expected above-threshold horizontal drag to update the input value live');
     assertDeepEqual(input.dispatchedEvents, ['input'], 'Expected above-threshold drag to dispatch a live input event');
@@ -491,6 +508,7 @@ function runManualMotionScrubBehaviorCheck() {
     assertEqual(input.classList.contains('is-motion-scrubbing'), true, 'Expected input active scrub class during active scrub');
     assertEqual(documentRef.body.classList.contains('is-motion-scrubbing'), true, 'Expected body active scrub class during active scrub');
     assertEqual(documentRef.body.style.userSelect, 'none', 'Expected body user-select guard during active scrub');
+    assertDeepEqual(documentRef.addCalls, ['pointermove', 'pointerup', 'pointercancel'], 'Expected document-level pointer listeners to keep scrubbing after input rerenders');
   }
 
   {
@@ -499,8 +517,8 @@ function runManualMotionScrubBehaviorCheck() {
     const handlers = createMotionScrubHandlers({ input, documentRef });
 
     handlers.pointerdown(createPointerEvent({ pointerId: 8, clientX: 10 }));
-    handlers.pointermove(createPointerEvent({ pointerId: 8, clientX: 22 }));
-    handlers.pointerup(createPointerEvent({ pointerId: 8, clientX: 22 }));
+    documentRef.dispatchPointer('pointermove', createPointerEvent({ pointerId: 8, clientX: 22 }));
+    documentRef.dispatchPointer('pointerup', createPointerEvent({ pointerId: 8, clientX: 22 }));
 
     assertEqual(input.value, '103', 'Expected scale scrub drag to apply scale sensitivity live');
     assertDeepEqual(input.dispatchedEvents, ['input', 'change'], 'Expected pointerup after active scrub to dispatch the final change event');
@@ -508,6 +526,7 @@ function runManualMotionScrubBehaviorCheck() {
     assertEqual(documentRef.body.classList.contains('is-motion-scrubbing'), false, 'Expected body active scrub class to clear after pointerup');
     assertEqual(documentRef.body.style.userSelect, 'text', 'Expected body user-select guard to restore previous value after pointerup');
     assertDeepEqual(input.pointerReleaseCalls, [8], 'Expected pointer capture release after active pointerup');
+    assertDeepEqual(documentRef.removeCalls, ['pointermove', 'pointerup', 'pointercancel'], 'Expected document-level pointer listeners to be removed after pointerup');
   }
 
   {
@@ -516,8 +535,8 @@ function runManualMotionScrubBehaviorCheck() {
     const handlers = createMotionScrubHandlers({ input, documentRef });
 
     handlers.pointerdown(createPointerEvent({ pointerId: 9, clientX: 0 }));
-    handlers.pointermove(createPointerEvent({ pointerId: 9, clientX: -5 }));
-    handlers.pointercancel(createPointerEvent({ pointerId: 9, clientX: -5 }));
+    documentRef.dispatchPointer('pointermove', createPointerEvent({ pointerId: 9, clientX: -5 }));
+    documentRef.dispatchPointer('pointercancel', createPointerEvent({ pointerId: 9, clientX: -5 }));
 
     assertEqual(input.value, '0', 'Expected active negative drag to update before cancellation');
     assertDeepEqual(input.dispatchedEvents, ['input', 'change'], 'Expected pointercancel after active scrub to dispatch the final change event');

@@ -55,8 +55,25 @@ function resolveMotionScrubKind(input) {
 export function createMotionScrubHandlers({ input, documentRef = globalThis.document } = {}) {
   let scrubState = null;
   let previousBodyUserSelect = null;
+  let documentListenersAttached = false;
 
   const getBody = () => documentRef?.body || null;
+
+  const addDocumentListeners = () => {
+    if (documentListenersAttached || !documentRef?.addEventListener) return;
+    documentRef.addEventListener('pointermove', pointermove);
+    documentRef.addEventListener('pointerup', pointerup);
+    documentRef.addEventListener('pointercancel', pointercancel);
+    documentListenersAttached = true;
+  };
+
+  const removeDocumentListeners = () => {
+    if (!documentListenersAttached || !documentRef?.removeEventListener) return;
+    documentRef.removeEventListener('pointermove', pointermove);
+    documentRef.removeEventListener('pointerup', pointerup);
+    documentRef.removeEventListener('pointercancel', pointercancel);
+    documentListenersAttached = false;
+  };
 
   const setActiveScrubUi = () => {
     input?.classList?.add('is-motion-scrubbing');
@@ -85,6 +102,7 @@ export function createMotionScrubHandlers({ input, documentRef = globalThis.docu
     }
     clearActiveScrubUi();
     input.releasePointerCapture?.(pointerId);
+    removeDocumentListeners();
     scrubState = null;
   };
 
@@ -98,6 +116,7 @@ export function createMotionScrubHandlers({ input, documentRef = globalThis.docu
       active: false,
     };
     input.setPointerCapture?.(ev.pointerId);
+    addDocumentListeners();
   };
 
   const pointermove = (ev) => {
@@ -136,9 +155,6 @@ function hydrateMotionScrubberInput(input) {
   if (!input) return;
   const handlers = createMotionScrubHandlers({ input });
   input.addEventListener('pointerdown', handlers.pointerdown);
-  input.addEventListener('pointermove', handlers.pointermove);
-  input.addEventListener('pointerup', handlers.pointerup);
-  input.addEventListener('pointercancel', handlers.pointercancel);
 }
 
 // Module-scoped composition renderer — persists across re-renders
