@@ -42,9 +42,6 @@ import {
 } from './features/audio/runtime/index.js';
 import { createSubtitlesController } from './features/subtitles/controller.js';
 import { createRemoteSubtitlesState } from './features/subtitles/runtime/index.js';
-import { createRadarApiClient } from './features/radar/api-client.js';
-import { createRadarController } from './features/radar/controller.js';
-import { createRadarState } from './features/radar/state.js';
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
 import { getDomSelectors } from './shared/dom/selectors.js';
 
@@ -101,7 +98,6 @@ const state = {
   audioQueueSyncInFlight: false,
   approvalAutoRefreshTimer: null,
   subtitles2: createRemoteSubtitlesState(),
-  radar: createRadarState(),
 };
 
 const __testOverrides = {
@@ -231,19 +227,6 @@ const audioFeature = createAudioFeature({
   handlers: {
     ...audioRuntime,
   },
-});
-
-const radarApi = createRadarApiClient({
-  getSettings: () => state.settings,
-  fetchImpl: fetch,
-});
-
-const radarController = createRadarController({
-  state: state.radar,
-  el,
-  api: radarApi,
-  ui: { toast },
-  browser: { setTimeout, clearTimeout, clipboard: navigator.clipboard },
 });
 
 export function bootApp() {
@@ -384,8 +367,6 @@ function bindEvents() {
   });
 
   el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
-  radarController.bindEvents();
-
   el.queueList?.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-action="dismiss-approval-queue-job"]');
     if (!button) return;
@@ -509,19 +490,17 @@ function bindEvents() {
 
 function setView(view) {
   const requestedView = typeof view === 'string' ? view.trim() : '';
-  const nextView = ['approval', 'scripts', 'audio', 'radar', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
+  const nextView = ['approval', 'scripts', 'audio', 'subtitulos2'].includes(requestedView) ? requestedView : 'approval';
 
   state.currentView = nextView;
   ensureApprovalAutoRefresh();
   const isApproval = nextView === 'approval';
   const isScripts = nextView === 'scripts';
   const isAudio = nextView === 'audio';
-  const isRadar = nextView === 'radar';
   const isSubtitulos2 = nextView === 'subtitulos2';
   el.viewApproval.classList.toggle('hidden', !isApproval);
   el.viewScripts.classList.toggle('hidden', !isScripts);
   el.viewAudio.classList.toggle('hidden', !isAudio);
-  el.viewRadar?.classList.toggle('hidden', !isRadar);
   el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === nextView);
@@ -550,12 +529,6 @@ function setView(view) {
     subtitlesController.renderWorkflow();
   }
 
-  if (isRadar) {
-    void radarController.refreshHealth();
-    void radarController.refreshHistory();
-  } else {
-    radarController.stopPolling();
-  }
 }
 
 function hydrateSettingsForm() {
