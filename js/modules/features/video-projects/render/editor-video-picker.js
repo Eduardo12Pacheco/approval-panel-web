@@ -78,13 +78,17 @@ export function buildEditorVideoPicker({ row = null, videos = [], selector = nul
       ${normalizedVideos.length
         ? `<div class="video-editor-video-library" aria-label="Biblioteca de videos">
             ${normalizedVideos.map((video) => `
-              <article class="video-editor-video-card" data-video-id="${escapeHtmlCore(video.id)}" data-video-src="${escapeHtmlCore(video.src)}" data-video-duration="${escapeHtmlCore(video.durationSeconds.toString())}">
+              <button class="video-editor-video-card" type="button" data-action="open-video-selector" data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(video.id)}" data-video-src="${escapeHtmlCore(video.src)}" data-video-duration="${escapeHtmlCore(video.durationSeconds.toString())}">
+                <span class="video-editor-video-card__media">
+                  ${video.src
+                    ? `<video src="${escapeHtmlCore(video.src)}" muted playsinline preload="metadata"></video>`
+                    : '<span>Sin preview</span>'}
+                </span>
                 <div class="video-editor-video-card__copy">
                   <strong>${escapeHtmlCore(video.title)}</strong>
                   <span>${escapeHtmlCore(formatSeconds(video.durationSeconds))}${video.sizeLabel ? ` · ${escapeHtmlCore(video.sizeLabel)}` : ''}</span>
                 </div>
-                <button type="button" data-action="open-video-selector" data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(video.id)}">Elegir segmento</button>
-              </article>
+              </button>
             `).join('')}
           </div>`
         : '<p class="video-projects-empty">Todavía no subiste videos para este proyecto.</p>'}
