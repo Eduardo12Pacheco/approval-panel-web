@@ -85,9 +85,10 @@ function buildSelectorModal({ rowId, selectedVideo, window }) {
       <div class="video-editor-video-selector__preview" data-video-selector-composition-preview aria-label="Preview de composición">
         <video class="video-editor-video-selector__layer video-editor-video-selector__layer--background" data-layer="background-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
         <span class="video-editor-video-selector__layer video-editor-video-selector__layer--overlay" data-layer="color-overlay"></span>
-        <span class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-01" data-layer="effect-layer-01">effect-layer-01 · screen</span>
-        <span class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-02" data-layer="effect-layer-02">effect-layer-02 · multiply</span>
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-01" src="/api/overlays/effect-layer-01.mp4" data-layer="effect-layer-01" muted loop playsinline preload="metadata"></video>
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-02" src="/api/overlays/effect-layer-02.mp4" data-layer="effect-layer-02" muted loop playsinline preload="metadata"></video>
         <video class="video-editor-video-selector__layer video-editor-video-selector__layer--foreground" data-layer="foreground-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
+        <button type="button" class="video-editor-video-selector__play-toggle" data-action="toggle-video-selector-preview" data-video-selector-preview-toggle aria-pressed="false">▶ Preview</button>
       </div>
       <div class="video-editor-video-selector__meta">
         <strong>${escapeHtmlCore(selectedVideo.title)}</strong>

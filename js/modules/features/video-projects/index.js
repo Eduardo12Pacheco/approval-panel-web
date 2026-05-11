@@ -58,6 +58,12 @@ export function applyPendingMotionDrafts(rows = [], drafts = new Map()) {
   });
 }
 
+export function shouldFallbackApprovalSnapshotOperationError(error, operationType = '') {
+  const message = (error?.message || error?.error?.message || '').toString();
+  if (error?.code === 'unsupported_operation') return !operationType || message.includes(operationType);
+  return operationType === 'setRowVideoSegment' && message.includes('unsupported operation: setRowVideoSegment');
+}
+
 function isMotionRowPatch(patch = {}) {
   return hasOwnPatchValue(patch, 'motion') || hasOwnPatchValue(patch, 'motionPresetId');
 }
@@ -653,6 +659,23 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       try {
         await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
       } catch (err) {
+        const canFallbackVideoSegment = patch.media?.kind === 'video-segment'
+          && operations.length === 1
+          && operations[0]?.type === 'setRowVideoSegment'
+          && shouldFallbackApprovalSnapshotOperationError(err, 'setRowVideoSegment');
+        if (canFallbackVideoSegment) {
+          project._editorRows = patchLocalEditorRows(rows, rowId, patch);
+          const compositionHash = computeCompositionHash(project);
+          await persistEditorState(project, {
+            timed_rows: project._editorRows,
+            composition_hash: compositionHash,
+            dirty: true,
+            phase: 'editing_dirty',
+            error: '',
+          });
+          updateSelectedVideoProjectCompositionPreview({ project });
+          return;
+        }
         console.error(err);
         project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Fila ${rowId}: ${err?.message || 'No se pudo actualizar snapshot'}` });
         ui.toast('Error actualizando snapshot');

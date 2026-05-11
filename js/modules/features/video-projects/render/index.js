@@ -158,6 +158,28 @@ function hydrateMotionScrubberInput(input) {
   input.addEventListener('pointerdown', handlers.pointerdown);
 }
 
+export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, playing = false } = {}) {
+  if (!modal?.querySelectorAll) return false;
+  const seekTime = Number(sourceInSeconds);
+  const videos = Array.from(modal.querySelectorAll('video[data-layer]'));
+  if (!videos.length || !Number.isFinite(seekTime)) return false;
+  videos.forEach((video) => {
+    try { video.currentTime = Math.max(0, seekTime); } catch {}
+    if (playing) {
+      try { void video.play?.(); } catch {}
+    } else {
+      try { video.pause?.(); } catch {}
+    }
+  });
+  return true;
+}
+
+function updateVideoSelectorPreviewToggle(button, playing) {
+  if (!button) return;
+  button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+  button.textContent = playing ? '⏸ Preview' : '▶ Preview';
+}
+
 // Module-scoped composition renderer — persists across re-renders
 let _compositionRenderer = null;
 let _compositionRendererContainer = null;
@@ -1204,6 +1226,19 @@ export function renderSelectedVideoProjectView({
         });
       });
 
+      el.videoProjectDetail.querySelectorAll('[data-video-selector-modal]').forEach((modal) => {
+        const sourceInSeconds = Number(modal.querySelector('[data-video-selector-window]')?.dataset.sourceIn || 0);
+        syncVideoSelectorPreviewLayers({ modal, sourceInSeconds, playing: false });
+        const toggle = modal.querySelector('[data-action="toggle-video-selector-preview"]');
+        toggle?.addEventListener('click', () => {
+          const playing = modal.dataset.previewPlaying !== 'true';
+          modal.dataset.previewPlaying = playing ? 'true' : 'false';
+          updateVideoSelectorPreviewToggle(toggle, playing);
+          const nextSourceInSeconds = Number(modal.querySelector('[data-video-selector-window]')?.dataset.sourceIn || 0);
+          syncVideoSelectorPreviewLayers({ modal, sourceInSeconds: nextSourceInSeconds, playing });
+        });
+      });
+
       el.videoProjectDetail.querySelector('[data-video-selector-window]')?.addEventListener('pointerdown', (ev) => {
         const selectorWindow = ev.currentTarget;
         const modal = selectorWindow.closest('[data-video-selector-modal]');
@@ -1227,6 +1262,7 @@ export function renderSelectedVideoProjectView({
           selectorWindow.style.setProperty('--window-left', `${windowLeftPercent}%`);
           selectorWindow.style.setProperty('--window-width', `${windowWidthPercent}%`);
           modal.querySelector('[data-action="commit-video-segment"]')?.setAttribute('data-source-in', nextWindow.sourceInSeconds.toString());
+          syncVideoSelectorPreviewLayers({ modal, sourceInSeconds: nextWindow.sourceInSeconds, playing: modal.dataset.previewPlaying === 'true' });
         };
         const up = (upEvent) => {
           selectorWindow.releasePointerCapture?.(upEvent.pointerId);
