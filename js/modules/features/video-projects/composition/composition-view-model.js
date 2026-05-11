@@ -80,8 +80,9 @@ function resolveCompositionVideoMedia(project = {}, row = {}, contract = {}) {
 
 export function resolveCompositionLogoUrl(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const brandChannel = snapshot?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel;
   const logo = snapshot?.globalLayers?.logo || {};
-  const channelAssetId = logo.assetId || snapshot?.globalLayers?.logoAssetId || resolveBrandChannelAssets(snapshot?.brandChannel).logo.assetId;
+  const channelAssetId = logo.assetId || snapshot?.globalLayers?.logoAssetId || resolveBrandChannelAssets(brandChannel).logo.assetId;
   const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, channelAssetId);
   if (canonicalUrl) return canonicalUrl;
   const source = (logo.source || '').toString().trim();
@@ -91,21 +92,23 @@ export function resolveCompositionLogoUrl(project = {}) {
 
 export function resolveCompositionOutroUrl(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const brandChannel = snapshot?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel;
   const outro = snapshot?.globalLayers?.outro || snapshot?.outro || {};
-  const channelAssetId = outro.assetId || snapshot?.globalLayers?.outroAssetId || resolveBrandChannelAssets(snapshot?.brandChannel).outro.assetId;
+  const channelAssetId = outro.assetId || snapshot?.globalLayers?.outroAssetId || resolveBrandChannelAssets(brandChannel).outro.assetId;
   const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, channelAssetId);
   if (canonicalUrl) return canonicalUrl;
-  return resolveBrandChannelPreviewAssetUrl({ channel: snapshot?.brandChannel, kind: 'outro' });
+  return resolveBrandChannelPreviewAssetUrl({ channel: brandChannel, kind: 'outro' });
 }
 
 export function resolveCompositionOutroDurationSeconds(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const brandChannel = snapshot?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel;
   const assetId = snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || snapshot?.outro?.assetId;
   const assetDuration = Number(snapshot?.assets?.[assetId]?.durationSeconds);
   if (Number.isFinite(assetDuration) && assetDuration > 0) return assetDuration;
   const outroDuration = Number(snapshot?.outro?.durationSeconds);
   if (Number.isFinite(outroDuration) && outroDuration > 0) return outroDuration;
-  return resolveBrandChannelAssets(snapshot?.brandChannel).outro.durationSeconds;
+  return resolveBrandChannelAssets(brandChannel).outro.durationSeconds;
 }
 
 export function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {

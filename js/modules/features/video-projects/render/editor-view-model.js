@@ -8,6 +8,13 @@ import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
 const DEFAULT_MOTION_PRESET_NAME = 'Zoom 110';
+const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
+
+function normalizeBrandChannel(value = DEFAULT_BRAND_CHANNEL) {
+  return (value || '').toString().trim().toLowerCase() === 'pelotazo-colombia'
+    ? 'pelotazo-colombia'
+    : DEFAULT_BRAND_CHANNEL;
+}
 
 function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
   const normalized = value.toString().trim().toLowerCase();
@@ -220,6 +227,12 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
   const voice = globalAudio?.voice || { volume: 1, muted: false };
   const music = globalAudio?.music || { volume: 0.16, muted: false };
   const detailImageUrl = row ? resolveRowImageUrl(row, rowIndex, project) : '';
+  const snapshot = project?.editor_state?.approval_contract_snapshot || {};
+  const brandChannel = normalizeBrandChannel(
+    project?.editor_state?.brandChannel
+      || project?.editor_state?.brand_channel
+      || snapshot?.brandChannel,
+  );
 
   return {
     row,
@@ -246,6 +259,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     dustEnabled: Boolean(row?.dust?.enabled),
     dustType: row?.dust?.enabled ? (row?.dust?.type || 'dust-1') : 'none',
     logoEnabled: row?.logo?.enabled !== false,
+    brandChannel,
   };
 }
 

@@ -545,6 +545,7 @@ export function renderSelectedVideoProjectView({
   uploadVideoToLibrary,
   assignVideoSegmentToRow,
   updateGlobalAudio,
+  updateBrandChannel,
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
   showToast,
@@ -1358,6 +1359,13 @@ export function renderSelectedVideoProjectView({
           const rowId = select.dataset.rowId;
           if (!rowId) return;
           updateRow?.(rowId, { logo: { enabled: select.value === 'true' } });
+        });
+      });
+
+      // Brand channel update
+      el.videoProjectDetail.querySelectorAll('[data-action="update-brand-channel"]').forEach((select) => {
+        select.addEventListener('change', () => {
+          updateBrandChannel?.(select.value);
         });
       });
 

@@ -149,6 +149,13 @@ function buildGlobalPanel({ row, detail }) {
 
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
+      <label>Proyecto</label>
+      <select data-action="update-brand-channel">
+        <option value="pelotazo-ecuador" ${detail.brandChannel === 'pelotazo-ecuador' ? 'selected' : ''}>Pelotazo Ecuador</option>
+        <option value="pelotazo-colombia" ${detail.brandChannel === 'pelotazo-colombia' ? 'selected' : ''}>Pelotazo Colombia</option>
+      </select>
+    </div>
+    <div class="video-editor-control">
       <label>Polvo</label>
       <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
         <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>

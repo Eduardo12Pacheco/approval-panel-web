@@ -795,6 +795,7 @@ function renderSelectedVideoProject() {
     uploadVideoToLibrary: videoProjectsFeature.uploadVideoToLibrary,
     assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
+    updateBrandChannel: videoProjectsFeature.updateBrandChannel,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast: toast,
