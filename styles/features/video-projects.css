@@ -1476,6 +1476,7 @@
 
 .video-editor-effect-tabs__button {
   position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: 34px;
   padding: 0 8px;
@@ -1516,6 +1517,10 @@
   border-color: rgba(0, 232, 143, 0.58);
   background: rgba(0, 232, 143, 0.08);
   color: var(--text);
+}
+
+.video-editor-effect-tabs__button.is-active {
+  box-shadow: 0 13px 0 0 #050806;
 }
 
 .video-editor-effect-tabs__button:focus-visible {
