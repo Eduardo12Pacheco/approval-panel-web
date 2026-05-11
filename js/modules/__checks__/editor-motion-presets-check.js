@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../features/video-projects/domain/motion-presets.js';
+import { buildEditorEffectTabs } from '../features/video-projects/render/editor-effect-tabs.js';
 import { buildEditorDetailRailViewModel } from '../features/video-projects/render/editor-view-model.js';
 import { buildMotionPicker } from '../features/video-projects/render/editor-motion-picker.js';
 
@@ -50,10 +51,29 @@ function runMotionPickerMarkupCheck() {
   assert(markup.includes('--motion-to-scale:1.028;'), 'Expected Zoom 110 preview animation scale to be present');
 }
 
+function runManualMotionControlsCheck() {
+  const row = {
+    id: 'row-1',
+    startTime: 10,
+    endTime: 15,
+    motionPresetId: 'Zoom 110',
+    motion: { fromX: 0, fromY: 0, toX: 12, toY: -8, fromScale: 1, toScale: 1.1 },
+  };
+  const detail = buildEditorDetailRailViewModel({ row });
+  const markup = buildEditorEffectTabs({ row, detail, activeTab: 'motion' });
+
+  assert(markup.includes('Ajuste manual'), 'Expected manual motion controls to render');
+  assert(markup.includes('data-action="seek-motion-keyframe"'), 'Expected Start/End seek controls');
+  assert(markup.includes('data-action="update-row-motion-keyframe"'), 'Expected autosave keyframe inputs');
+  assert(markup.includes('data-motion-field="toX"'), 'Expected end X keyframe input');
+  assert(markup.includes('value="110"'), 'Expected scale percent values in controls');
+}
+
 export function runEditorMotionPresetsCheck() {
   runZoom110PresetCheck();
   runDefaultSelectionCheck();
   runMotionPickerMarkupCheck();
+  runManualMotionControlsCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

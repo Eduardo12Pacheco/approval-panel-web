@@ -1767,6 +1767,121 @@
   gap: 8px;
 }
 
+.video-motion-manual {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(0, 232, 143, 0.26);
+  background: rgba(0, 232, 143, 0.035);
+}
+
+.video-motion-manual__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.video-motion-manual__header h4 {
+  margin: 0;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.video-motion-manual__header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.video-motion-manual__seek {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.video-motion-manual__seek button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  background: #0c0c0c;
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.video-motion-manual__seek button:hover,
+.video-motion-manual__seek button:focus-visible {
+  border-color: rgba(0, 232, 143, 0.58);
+  color: var(--accent);
+  outline: none;
+}
+
+.video-motion-manual__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.video-motion-manual__keyframe {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.video-motion-manual__keyframe h5 {
+  margin: 0;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.video-motion-manual__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.video-motion-manual__field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.video-motion-manual__field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  background: #050505;
+  color: var(--text);
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.video-motion-manual__field input:focus {
+  border-color: rgba(0, 232, 143, 0.68);
+  outline: none;
+}
+
 .video-motion-card {
   position: relative;
   display: grid;

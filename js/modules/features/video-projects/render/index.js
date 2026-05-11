@@ -3,6 +3,7 @@ import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from '../audio/default-background-mus
 import { CompositionRenderer } from '../composition/composition-renderer.js';
 import { formatCount, formatDateLabel, formatSeconds } from '../domain/formatters.js';
 import { getPhaseLabel } from '../domain/status-labels.js';
+import { findMotionPreset } from '../domain/motion-presets.js';
 import {
   getCandidateQualityScore,
   getImageNaturalQualityScore,
@@ -995,7 +996,51 @@ export function renderSelectedVideoProjectView({
         control.addEventListener(eventName, () => {
           const rowId = control.dataset.rowId;
           if (!rowId) return;
-          updateRow?.(rowId, { motion: control.value });
+          const preset = findMotionPreset(control.value);
+          updateRow?.(rowId, { motionPresetId: preset?.name || control.value, motion: preset ? { ...preset } : control.value });
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="seek-motion-keyframe"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const rowId = button.dataset.rowId;
+          const seekTime = Number(button.dataset.seekTime || 0);
+          if (rowId) project._selectedEditorRowId = rowId;
+          if (Number.isFinite(seekTime)) {
+            project._previewSeekTime = seekTime;
+            if (_compositionRenderer) {
+              _compositionRenderer.seek(seekTime);
+              updatePreviewTimeline(seekTime, _compositionRenderer.duration);
+            } else if (previewVideo) {
+              previewVideo.currentTime = seekTime;
+              updatePreviewTimeline(seekTime, previewVideo.duration);
+            }
+          }
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="update-row-motion-keyframe"]').forEach((input) => {
+        input.addEventListener('change', () => {
+          const panel = input.closest('[data-motion-manual]');
+          const rowId = panel?.dataset.rowId || '';
+          if (!rowId) return;
+          const readField = (field, fallback = 0) => {
+            const value = Number(panel.querySelector(`[data-motion-field="${field}"]`)?.value);
+            return Number.isFinite(value) ? value : fallback;
+          };
+          const motionPresetId = panel.dataset.motionPreset || 'custom';
+          const motion = {
+            name: motionPresetId,
+            presetName: motionPresetId,
+            fromX: readField('fromX'),
+            fromY: readField('fromY'),
+            toX: readField('toX'),
+            toY: readField('toY'),
+            fromScale: Math.max(0.1, readField('fromScalePercent', 100) / 100),
+            toScale: Math.max(0.1, readField('toScalePercent', 100) / 100),
+            easing: 'linear',
+          };
+          updateRow?.(rowId, { motionPresetId, motion });
         });
       });
 

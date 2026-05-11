@@ -21,6 +21,10 @@ const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_CONTROL_KINDS = new Set(['voice', 'music', 'background']);
 
 function resolveMotionPatchForApprovalService(motion) {
+  if (motion && typeof motion === 'object') {
+    const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
+    return { motionPresetId, motion };
+  }
   const preset = findMotionPreset(motion);
   if (preset) return { motionPresetId: preset.name, motion: { ...preset } };
   const normalized = (motion || '').toString().trim().toLowerCase();
@@ -553,6 +557,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     const next = {
       ...current,
       ...(patch.motion !== undefined ? { motion: patch.motion } : {}),
+      ...(patch.motionPresetId !== undefined ? { motionPresetId: patch.motionPresetId || null } : {}),
       ...(patch.dust !== undefined ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
       ...(patch.logo !== undefined ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
       ...(patch.transition !== undefined ? { transition: patch.transition } : {}),

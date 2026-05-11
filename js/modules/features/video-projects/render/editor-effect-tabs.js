@@ -46,6 +46,56 @@ function buildMotionPanel({ row, detail }) {
     <div class="video-editor-control video-editor-control--effect-panel">
       <span class="video-editor-control__label">Movimiento</span>
       ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
+      ${buildManualMotionControls({ row, manualMotion: detail.manualMotion })}
+    </div>
+  `;
+}
+
+function buildManualMotionInput({ field, label, value, step = 1 }) {
+  return `
+    <label class="video-motion-manual__field">
+      <span>${escapeHtmlCore(label)}</span>
+      <input type="number" step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-motion-keyframe" data-motion-field="${escapeHtmlCore(field)}" />
+    </label>
+  `;
+}
+
+function buildManualMotionControls({ row, manualMotion }) {
+  if (!row || !manualMotion) return '';
+  const rowId = escapeHtmlCore(row.id || '');
+  const startTime = Number(row.startTime || 0);
+  const endTime = Math.max(startTime, Number(row.endTime || startTime) - 0.05);
+
+  return `
+    <div class="video-motion-manual" data-motion-manual data-row-id="${rowId}" data-motion-preset="${escapeHtmlCore(manualMotion.presetName)}">
+      <div class="video-motion-manual__header">
+        <div>
+          <h4>Ajuste manual</h4>
+          <p>Corregí posición y escala del inicio o final del movimiento.</p>
+        </div>
+        <div class="video-motion-manual__seek">
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-seek-time="${escapeHtmlCore(startTime.toString())}">Start</button>
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-seek-time="${escapeHtmlCore(endTime.toString())}">End</button>
+        </div>
+      </div>
+      <div class="video-motion-manual__grid">
+        <section class="video-motion-manual__keyframe">
+          <h5>Start</h5>
+          <div class="video-motion-manual__fields">
+            ${buildManualMotionInput({ field: 'fromX', label: 'X', value: manualMotion.fromX })}
+            ${buildManualMotionInput({ field: 'fromY', label: 'Y', value: manualMotion.fromY })}
+            ${buildManualMotionInput({ field: 'fromScalePercent', label: 'Escala %', value: manualMotion.fromScalePercent })}
+          </div>
+        </section>
+        <section class="video-motion-manual__keyframe">
+          <h5>End</h5>
+          <div class="video-motion-manual__fields">
+            ${buildManualMotionInput({ field: 'toX', label: 'X', value: manualMotion.toX })}
+            ${buildManualMotionInput({ field: 'toY', label: 'Y', value: manualMotion.toY })}
+            ${buildManualMotionInput({ field: 'toScalePercent', label: 'Escala %', value: manualMotion.toScalePercent })}
+          </div>
+        </section>
+      </div>
     </div>
   `;
 }

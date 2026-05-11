@@ -1,5 +1,5 @@
 import { formatSeconds } from '../domain/formatters.js';
-import { MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
+import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
@@ -37,6 +37,29 @@ function resolveMotionPresetName(row = {}) {
     && Number(preset.toScale ?? 1) === Number(motion?.toScale ?? 1)
   ));
   return match?.name || DEFAULT_MOTION_PRESET_NAME;
+}
+
+function resolveMotionNumber(value, fallback) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function resolveManualMotionViewModel(row = {}) {
+  const presetName = resolveMotionPresetName(row);
+  const preset = findMotionPreset(presetName) || findMotionPreset(DEFAULT_MOTION_PRESET_NAME) || {};
+  const motion = row?.motion && typeof row.motion === 'object' ? row.motion : {};
+  const fromScale = resolveMotionNumber(motion.fromScale, resolveMotionNumber(preset.fromScale, 1));
+  const toScale = resolveMotionNumber(motion.toScale, resolveMotionNumber(preset.toScale, 1));
+
+  return {
+    presetName,
+    fromX: resolveMotionNumber(motion.fromX, resolveMotionNumber(preset.fromX, 0)),
+    fromY: resolveMotionNumber(motion.fromY, resolveMotionNumber(preset.fromY, 0)),
+    toX: resolveMotionNumber(motion.toX, resolveMotionNumber(preset.toX, 0)),
+    toY: resolveMotionNumber(motion.toY, resolveMotionNumber(preset.toY, 0)),
+    fromScalePercent: Math.round(fromScale * 100),
+    toScalePercent: Math.round(toScale * 100),
+  };
 }
 
 function buildMotionPresetGroups() {
@@ -185,6 +208,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     assets: buildEditorAssetsViewModel({ project, row, rowIndex }),
     assetsUploading: Boolean(project._rowImageUploading && row?.id && project._rowImageUploading === row.id),
     motion: resolveMotionPresetName(row),
+    manualMotion: row ? resolveManualMotionViewModel(row) : null,
     motionPresetGroups: buildMotionPresetGroups(),
     dustEnabled: Boolean(row?.dust?.enabled),
     dustType: row?.dust?.enabled ? (row?.dust?.type || 'dust-1') : 'none',
