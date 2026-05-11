@@ -1992,11 +1992,22 @@
   color: var(--text);
   font: inherit;
   box-sizing: border-box;
+  cursor: ew-resize;
 }
 
 .video-motion-manual__field input:focus {
   border-color: rgba(0, 232, 143, 0.68);
   outline: none;
+}
+
+.video-motion-manual__field input.is-motion-scrubbing {
+  border-color: rgba(0, 232, 143, 0.82);
+  box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.2);
+}
+
+body.is-motion-scrubbing {
+  cursor: ew-resize;
+  user-select: none;
 }
 
 .video-motion-card {

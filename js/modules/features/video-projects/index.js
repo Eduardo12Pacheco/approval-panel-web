@@ -669,7 +669,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       void persistEditorState(project, {
-        timed_rows: rows,
+        timed_rows: project._editorRows,
         dirty: isDirty,
         phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready'),
       });
