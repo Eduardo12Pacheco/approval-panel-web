@@ -3,10 +3,13 @@ import {
   SUPABASE_URL,
   VIDEO_CANDIDATES_TEMP_BUCKET,
   VIDEO_PROJECT_AUDIO_BUCKET,
+  VIDEO_PROJECT_VIDEO_BUCKET,
   buildAudioMetadata,
   buildAudioPath,
   buildCustomImagePath,
   buildPublicStorageUrl,
+  buildVideoUploadMetadata,
+  buildVideoUploadPath,
   encodeStoragePath,
   md5ProjectStorageKey,
 } from './storage-paths.js';
@@ -156,6 +159,33 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     };
   }
 
+  async function uploadProjectVideoFile({ draftId, file, durationSeconds = 0 }) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+    if (!file) throw new Error('video file is required');
+
+    const path = buildVideoUploadPath({ draftId: id, file });
+    const response = await fetchImpl(
+      `${SUPABASE_URL}/storage/v1/object/${VIDEO_PROJECT_VIDEO_BUCKET}/${encodeStoragePath(path)}`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body: file,
+      },
+    );
+    const data = await parseResponseBody(response);
+    if (!response.ok) {
+      const message = responseErrorMessage(data, `Video upload ${response.status}`);
+      throw new Error(message);
+    }
+    return buildVideoUploadMetadata({ path, file, durationSeconds });
+  }
+
   async function addVideoProjectCustomImages({ draftId, customCandidates = [] } = {}) {
     const id = (draftId || '').toString().trim();
     if (!id) throw new Error('draftId is required');
@@ -237,6 +267,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     saveVideoProjectAudio,
     saveVideoProjectEditorState,
     uploadCustomImageFile,
+    uploadProjectVideoFile,
     addVideoProjectCustomImages,
   };
 }

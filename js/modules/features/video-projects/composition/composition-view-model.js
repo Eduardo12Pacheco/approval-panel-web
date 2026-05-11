@@ -1,6 +1,7 @@
 import { resolveCandidateImageUrl } from '../domain/image-candidates.js';
 import {
   buildPreviewCompositionContract,
+  resolvePreparedMediaUrl,
   resolvePreviewAudioUrls,
   resolveRowImageUrlFromContract,
 } from './composition-contract.js';
@@ -37,6 +38,38 @@ export function resolveCompositionDustUrlForRow(project = {}, row = {}) {
   return resolveCanonicalPreviewAssetUrl(project, assetId) || COMPOSITION_DUST_PREVIEW_URLS[row?.dust?.type] || '';
 }
 
+function resolveCompositionVideoUrlForRow(project = {}, row = {}, contract = {}) {
+  if (row?.media?.kind !== 'video-segment') return '';
+  const assetId = row.media.sourceVideoAssetId || '';
+  const prepared = Array.isArray(contract?.manifest?.videos) ? contract.manifest.videos : [];
+  const preparedByRow = prepared.find((item) => item?.rowId === row?.rowId || item?.rowId === row?.id || item?.assetId === assetId);
+  const canonical = preparedByRow?.mediaUrl ? resolvePreparedMediaUrl(preparedByRow.mediaUrl, contract?.remotionApiUrl) : '';
+  if (canonical) return canonical;
+  const videos = [project.video_assets, project.videos, project.custom_videos, project.editor_state?.video_assets].find((items) => Array.isArray(items)) || [];
+  const matched = videos.find((video) => [video.id, video.assetId, video.src, video.public_url, video.storage_public_url].some((value) => value && value === assetId));
+  return (matched?.src || matched?.public_url || matched?.storage_public_url || row.media.sourceVideoSrc || '').toString();
+}
+
+function resolveCompositionEffectUrl(contract = {}, assetId = '') {
+  const effects = Array.isArray(contract?.manifest?.effects) ? contract.manifest.effects : [];
+  const effect = effects.find((item) => item?.assetId === assetId);
+  return resolvePreparedMediaUrl(effect?.mediaUrl || `/api/overlays/${assetId}.mp4`, contract?.remotionApiUrl);
+}
+
+function resolveCompositionVideoMedia(project = {}, row = {}, contract = {}) {
+  if (row?.media?.kind !== 'video-segment') return row?.media;
+  return {
+    ...row.media,
+    sourceVideoSrc: resolveCompositionVideoUrlForRow(project, row, contract),
+    effect1Src: resolveCompositionEffectUrl(contract, row.media.effect1AssetId || 'effect-layer-01'),
+    effect1BlendMode: 'screen',
+    effect2Src: resolveCompositionEffectUrl(contract, row.media.effect2AssetId || 'effect-layer-02'),
+    effect2BlendMode: 'multiply',
+    overlayColor: row.media.overlayColor || '#3835AF',
+    overlayOpacity: Number(row.media.overlayOpacity ?? 0.3),
+  };
+}
+
 export function resolveCompositionLogoUrl(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
   const logo = snapshot?.globalLayers?.logo || {};
@@ -63,6 +96,7 @@ export function buildCompositionRows(rows = [], project = {}) {
   const sourceRows = Array.isArray(contract.rows) ? contract.rows : [];
   return sourceRows.map((row, index) => ({
     ...row,
+    media: resolveCompositionVideoMedia(project, row, contract),
     dust: row?.dust
       ? {
           ...row.dust,
@@ -112,6 +146,7 @@ export function resolveVideoProjectCompositionContractForCheck({ project = {}, r
   const contract = buildPreviewCompositionContract(project, rows);
   const compositionRows = (Array.isArray(contract.rows) ? contract.rows : []).map((row, index) => ({
     ...row,
+    media: resolveCompositionVideoMedia(project, row, contract),
     endTime: row.effectiveEndTime,
     image: row.image || resolveRowImageUrlFromContract({ row, rowIndex: index, contract, project, resolveCandidateImageUrl }),
   }));

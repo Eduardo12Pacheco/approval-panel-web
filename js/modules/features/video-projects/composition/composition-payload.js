@@ -51,6 +51,8 @@ export function buildCompositionPayload(project) {
 
   const previewContract = buildPreviewCompositionContract(project, rows);
   const manifestImages = Array.isArray(previewContract?.manifest?.images) ? previewContract.manifest.images : [];
+  const manifestVideos = Array.isArray(previewContract?.manifest?.videos) ? previewContract.manifest.videos : [];
+  const manifestEffects = Array.isArray(previewContract?.manifest?.effects) ? previewContract.manifest.effects : [];
   const hasManifestImages = manifestImages.some((item) => item?.rowId && item?.assetId && item?.mediaUrl);
   const hasManifestAudio = Boolean(previewContract?.manifest?.audio?.voice?.mediaUrl || previewContract?.manifest?.audio?.music?.mediaUrl);
   if (!hasManifestImages && !hasManifestAudio) return legacyPayload;
@@ -69,13 +71,28 @@ export function buildCompositionPayload(project) {
         fadeOutSeconds: 1,
       },
     },
-    segments: (Array.isArray(previewContract.rows) ? previewContract.rows : []).map((row, index) => ({
-      rowId: row.id,
+    segments: (Array.isArray(previewContract.rows) ? previewContract.rows : []).map((row, index) => {
+      const rowId = row.id || row.rowId;
+      const media = row.media?.kind === 'video-segment'
+        ? {
+          kind: 'video-segment',
+          sourceVideoAssetId: row.media.sourceVideoAssetId,
+          sourceInSeconds: Number(row.media.sourceInSeconds || 0),
+          durationSeconds: Number(row.media.durationSeconds || ((row.effectiveEndTime ?? row.endTime ?? 0) - (row.startTime || 0))),
+          overlayColor: '#3835AF',
+          overlayOpacity: 0.3,
+          effect1AssetId: 'effect-layer-01',
+          effect2AssetId: 'effect-layer-02',
+        }
+        : { kind: 'image' };
+      return {
+      rowId,
       phrase: row.phrase || '',
       startTime: Number(row.startTime || 0),
       endTime: Number(row.endTime || 0),
       effectiveEndTime: Number(row.effectiveEndTime ?? row.endTime ?? 0),
-      selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === row.id)?.assetId || null,
+      selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === rowId)?.assetId || null,
+      media,
       motion: row.motion || 'Zoom 110',
       dust: { enabled: Boolean(row.dust?.enabled) },
       logo: { enabled: row.logo?.enabled !== false },
@@ -83,7 +100,8 @@ export function buildCompositionPayload(project) {
       transition: row.transition || 'none',
       caption: row.caption || '',
       id: index + 1,
-    })),
+    };
+    }),
     globalLayers: {},
     outro: { enabled: true, durationSeconds: 2, label: 'Gracias por mirar' },
   };
@@ -94,6 +112,12 @@ export function buildCompositionPayload(project) {
     const mediaUrl = (item?.mediaUrl || '').toString().trim();
     if (!assetId || !mediaUrl) continue;
     assets[assetId] = { status: 'ready', renderPath: mediaUrl };
+  }
+  for (const item of manifestVideos.concat(manifestEffects)) {
+    const assetId = (item?.assetId || '').toString().trim();
+    const mediaUrl = (item?.mediaUrl || '').toString().trim();
+    if (!assetId || !mediaUrl) continue;
+    assets[assetId] = { status: 'ready', renderPath: mediaUrl, type: 'video' };
   }
   const voiceMediaUrl = (previewContract?.manifest?.audio?.voice?.mediaUrl || '').toString().trim();
   const musicMediaUrl = (previewContract?.manifest?.audio?.music?.mediaUrl || '').toString().trim();

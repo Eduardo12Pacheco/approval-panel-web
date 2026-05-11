@@ -28,7 +28,7 @@ function fail(response, error, status = 500) {
 }
 
 function errorStatus(error) {
-  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
+  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
   if (["stale_snapshot"].includes(error.code)) return 409;
   return 500;
@@ -51,7 +51,7 @@ const ESTIMATED_SECONDS_PER_WORD = 0.55;
 const MIN_ESTIMATED_SEGMENT_SECONDS = 1.2;
 const WAV_DURATION_FETCH_TIMEOUT_MS = 2500;
 const REMOTION_OVERLAYS_DIR = path.resolve(__dirname, "..", "..", "02-Video-Engine", "assets", "overlays");
-const PUBLIC_OVERLAY_FILES = new Set(["dust-1.mp4", "dust-2.mp4", "logo-alpha.webm"]);
+const PUBLIC_OVERLAY_FILES = new Set(["dust-1.mp4", "dust-2.mp4", "logo-alpha.webm", "effect-layer-01.mp4", "effect-layer-02.mp4"]);
 
 function toFinitePositiveNumber(value) {
   const number = Number(value);

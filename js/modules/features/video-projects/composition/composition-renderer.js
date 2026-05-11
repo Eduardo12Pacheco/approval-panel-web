@@ -60,6 +60,8 @@ const OUTRO_TEXT_COLOR = '#f5d09a';
 const OUTRO_FONT_SIZE = 72;
 const OUTRO_DURATION_SECONDS = 2;
 const PRELOAD_IMAGE_WINDOW_SIZE = 2;
+const VIDEO_SEGMENT_OVERLAY_COLOR = '#3835AF';
+const VIDEO_SEGMENT_OVERLAY_OPACITY = 0.3;
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -106,6 +108,41 @@ function finitePositive(value, fallback) {
 function finiteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } = {}) {
+  if (media?.kind !== 'video-segment') return { layers: [] };
+  const sourceInSeconds = finiteNumber(media.sourceInSeconds, 0);
+  const durationSeconds = Math.max(0, finiteNumber(media.durationSeconds, 0));
+  const clampedLocalTime = clamp(finiteNumber(localTime, 0), 0, durationSeconds);
+  const currentTimeSeconds = sourceInSeconds + clampedLocalTime;
+  const sourceVideoSrc = media.sourceVideoSrc || media.src || '';
+
+  return {
+    sourceInSeconds,
+    durationSeconds,
+    sourceOutSeconds: sourceInSeconds + durationSeconds,
+    currentTimeSeconds,
+    layers: [
+      { name: 'background-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'cover' },
+      { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
+      { name: 'effect-layer-01', src: media.effect1Src || '', currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
+      { name: 'effect-layer-02', src: media.effect2Src || '', currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect2BlendMode || 'multiply' },
+      { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
+    ],
+  };
+}
+
+function seekVideoElement(video, timeSeconds) {
+  if (!video) return;
+  const next = finiteNumber(timeSeconds, 0);
+  if (Math.abs(Number(video.currentTime || 0) - next) > 0.04) {
+    try { video.currentTime = next; } catch {}
+  }
 }
 
 export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale = 1, x = 0, y = 0 }) {
@@ -314,6 +351,41 @@ export function buildCompositionDOM(container) {
   stage.appendChild(bg);
 
   // Layer 2: Segment image (with zoom transform)
+  const videoBackground = document.createElement('video');
+  videoBackground.className = 'composition-layer composition-layer--video-background';
+  videoBackground.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(16px) saturate(0.9);transform:scale(1.08);pointer-events:none;visibility:hidden;';
+  videoBackground.muted = true;
+  videoBackground.playsInline = true;
+  stage.appendChild(videoBackground);
+
+  const videoColorOverlay = document.createElement('div');
+  videoColorOverlay.className = 'composition-layer composition-layer--video-color-overlay';
+  videoColorOverlay.style.cssText = `position:absolute;inset:0;background:${VIDEO_SEGMENT_OVERLAY_COLOR};opacity:${VIDEO_SEGMENT_OVERLAY_OPACITY};pointer-events:none;visibility:hidden;`;
+  stage.appendChild(videoColorOverlay);
+
+  const videoEffect1 = document.createElement('video');
+  videoEffect1.className = 'composition-layer composition-layer--video-effect-01';
+  videoEffect1.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
+  videoEffect1.muted = true;
+  videoEffect1.loop = true;
+  videoEffect1.playsInline = true;
+  stage.appendChild(videoEffect1);
+
+  const videoEffect2 = document.createElement('video');
+  videoEffect2.className = 'composition-layer composition-layer--video-effect-02';
+  videoEffect2.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:multiply;pointer-events:none;visibility:hidden;';
+  videoEffect2.muted = true;
+  videoEffect2.loop = true;
+  videoEffect2.playsInline = true;
+  stage.appendChild(videoEffect2);
+
+  const videoForeground = document.createElement('video');
+  videoForeground.className = 'composition-layer composition-layer--video-foreground';
+  videoForeground.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;visibility:hidden;';
+  videoForeground.muted = true;
+  videoForeground.playsInline = true;
+  stage.appendChild(videoForeground);
+
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
   image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;transform-origin:center center;will-change:transform;';
@@ -375,7 +447,7 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroText },
+    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroText },
   };
 }
 
@@ -902,6 +974,11 @@ export class CompositionRenderer {
 
     if (resolved.type === 'empty') {
       // Only bg visible
+      layers.videoBackground.style.visibility = 'hidden';
+      layers.videoColorOverlay.style.visibility = 'hidden';
+      layers.videoEffect1.style.visibility = 'hidden';
+      layers.videoEffect2.style.visibility = 'hidden';
+      layers.videoForeground.style.visibility = 'hidden';
       layers.image.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
@@ -915,6 +992,11 @@ export class CompositionRenderer {
 
     if (resolved.type === 'outro') {
       // Show outro, hide segment layers
+      layers.videoBackground.style.visibility = 'hidden';
+      layers.videoColorOverlay.style.visibility = 'hidden';
+      layers.videoEffect1.style.visibility = 'hidden';
+      layers.videoEffect2.style.visibility = 'hidden';
+      layers.videoForeground.style.visibility = 'hidden';
       layers.image.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
@@ -927,18 +1009,56 @@ export class CompositionRenderer {
     }
 
     // Segment active
-    const { segment, localProgress } = resolved;
+    const { segment, localProgress, localTime } = resolved;
     const segmentKey = segment.image || '';
 
     // Hide outro, show segment layers
     layers.outro.style.visibility = 'hidden';
-    layers.image.style.visibility = 'visible';
+    const isVideoSegment = segment.media?.kind === 'video-segment';
+    if (isVideoSegment) {
+      const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime });
+      const [background, color, effect1, effect2, foreground] = plan.layers;
+      for (const [layer, element] of [[background, layers.videoBackground], [effect1, layers.videoEffect1], [effect2, layers.videoEffect2], [foreground, layers.videoForeground]]) {
+        if (layer?.src && element.getAttribute('src') !== layer.src) {
+          element.src = layer.src;
+          element.load?.();
+        }
+        element.style.visibility = layer?.src ? 'visible' : 'hidden';
+        element.style.objectFit = layer?.objectFit || element.style.objectFit;
+        seekVideoElement(element, layer?.currentTimeSeconds);
+        if (this.#isPlaying && layer?.src) void element.play?.().catch(() => {});
+        else element.pause?.();
+      }
+      layers.videoColorOverlay.style.visibility = 'visible';
+      layers.videoColorOverlay.style.background = color.backgroundColor;
+      layers.videoColorOverlay.style.opacity = String(color.opacity);
+      layers.videoEffect1.style.mixBlendMode = effect1.mixBlendMode;
+      layers.videoEffect2.style.mixBlendMode = effect2.mixBlendMode;
+      layers.image.style.visibility = 'hidden';
+    } else {
+      layers.videoBackground.style.visibility = 'hidden';
+      layers.videoColorOverlay.style.visibility = 'hidden';
+      layers.videoEffect1.style.visibility = 'hidden';
+      layers.videoEffect2.style.visibility = 'hidden';
+      layers.videoForeground.style.visibility = 'hidden';
+      layers.image.style.visibility = 'visible';
+    }
+    
 
     // ── Task 2.1: Segment image display with gapless transitions ──
     // Swap image on segment boundary (gapless: no flash, instant switch)
-    if (segmentKey && segmentKey !== this.#activeSegmentKey) {
+    if (!isVideoSegment && segmentKey && segmentKey !== this.#activeSegmentKey) {
       this.#activeSegmentKey = segmentKey;
       this.#swapSegmentImage(layers.image, segmentKey);
+    }
+
+    if (isVideoSegment) {
+      layers.dust.style.visibility = 'hidden';
+      layers.dustFallback.style.visibility = 'hidden';
+      layers.logo.style.visibility = 'hidden';
+      layers.logoVideo.style.visibility = 'hidden';
+      layers.logoCanvas.style.visibility = 'hidden';
+      return;
     }
 
     // ── Task 2.2: Zoom motion — CSS transform: scale() with linear interpolation ──

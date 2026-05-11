@@ -1,12 +1,14 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { buildEditorAssetsPicker } from './editor-assets-picker.js';
 import { buildMotionPicker } from './editor-motion-picker.js';
+import { buildEditorVideoPicker } from './editor-video-picker.js';
 
 export const EDITOR_EFFECT_TABS = [
   { id: 'motion', label: 'Movimiento' },
   { id: 'audio', label: 'Audio' },
   { id: 'global', label: 'Global' },
   { id: 'assets', label: 'Imágenes' },
+  { id: 'videos', label: 'Videos' },
 ];
 
 export function resolveEditorEffectTab(value = '') {
@@ -168,6 +170,10 @@ function buildAssetsPanel({ row, detail }) {
   return buildEditorAssetsPicker({ row, assets: detail.assets, uploading: detail.assetsUploading });
 }
 
+function buildVideosPanel({ row, detail }) {
+  return buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading });
+}
+
 export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}) {
   const resolvedTab = resolveEditorEffectTab(activeTab);
   const panels = {
@@ -175,6 +181,7 @@ export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}
     audio: buildAudioPanel({ detail }),
     global: buildGlobalPanel({ row, detail }),
     assets: buildAssetsPanel({ row, detail }),
+    videos: buildVideosPanel({ row, detail }),
   };
 
   return `

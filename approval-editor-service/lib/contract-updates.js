@@ -17,6 +17,39 @@ function normalizeDustType(value) {
   throw Object.assign(new Error("dust type must be dust-1 or dust-2"), { code: "invalid_dust_type" });
 }
 
+function rowPhraseDuration(row) {
+  const startTime = Number(row?.startTime || 0);
+  const endTime = Number.isFinite(Number(row?.effectiveEndTime)) ? Number(row.effectiveEndTime) : Number(row?.endTime);
+  return Number((endTime - startTime).toFixed(6));
+}
+
+function normalizeVideoSegmentOperation(row, op = {}) {
+  const durationSeconds = Number(op.durationSeconds);
+  const phraseDuration = rowPhraseDuration(row);
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    throw Object.assign(new Error("durationSeconds must be a positive number"), { code: "invalid_video_segment" });
+  }
+  if (!Number.isFinite(phraseDuration) || Math.abs(durationSeconds - phraseDuration) > 0.001) {
+    throw Object.assign(new Error("video segment duration must match phrase duration"), {
+      code: "invalid_video_segment_duration",
+      details: { durationSeconds, phraseDuration },
+    });
+  }
+  const sourceInSeconds = Number(op.sourceInSeconds || 0);
+  if (!Number.isFinite(sourceInSeconds) || sourceInSeconds < 0) {
+    throw Object.assign(new Error("sourceInSeconds must be non-negative"), { code: "invalid_video_segment" });
+  }
+  return {
+    kind: "video-segment",
+    sourceInSeconds,
+    durationSeconds,
+    overlayColor: "#3835AF",
+    overlayOpacity: 0.3,
+    effect1AssetId: "effect-layer-01",
+    effect2AssetId: "effect-layer-02",
+  };
+}
+
 function finalize(next) {
   next.render = { ...(next.render || {}), status: "idle", updatedAt: new Date().toISOString() };
   next.snapshotId = `${next.projectId}:${Date.now()}`;
@@ -36,9 +69,20 @@ function applyContractOperations(snapshot, operations = []) {
       const asset = normalizeAsset(op.asset || { assetId: op.assetId, previewUrl: op.previewUrl, renderPath: op.renderPath });
       next.assets[asset.assetId] = asset;
       row.selectedAssetId = asset.assetId;
+      row.media = { kind: "image" };
       if (!row.candidates?.some((candidate) => candidate.assetId === asset.assetId)) {
         row.candidates = [...(row.candidates || []), { id: `candidate-${row.rowId}-${asset.assetId}`, assetId: asset.assetId, source: asset.source, publicPath: asset.publicUrl, reason: "row-specific replacement" }];
       }
+    } else if (op.type === "setRowVideoSegment") {
+      const row = findRow(next, op.rowId);
+      const asset = normalizeAsset(op.asset || { assetId: op.assetId, previewUrl: op.previewUrl, renderPath: op.renderPath }, { type: "video", role: "video" });
+      next.assets[asset.assetId] = { ...asset, type: "video", role: "video" };
+      next.assets["effect-layer-01"] = next.assets["effect-layer-01"] || { assetId: "effect-layer-01", id: "effect-layer-01", type: "video", role: "effect", renderPath: "overlays/effect-layer-01.mp4", previewUrl: "/api/overlays/effect-layer-01.mp4", status: "ready" };
+      next.assets["effect-layer-02"] = next.assets["effect-layer-02"] || { assetId: "effect-layer-02", id: "effect-layer-02", type: "video", role: "effect", renderPath: "overlays/effect-layer-02.mp4", previewUrl: "/api/overlays/effect-layer-02.mp4", status: "ready" };
+      row.media = {
+        ...normalizeVideoSegmentOperation(row, op),
+        sourceVideoAssetId: asset.assetId,
+      };
     } else if (op.type === "setRowMotion") {
       const row = findRow(next, op.rowId);
       const preset = findMotionPreset(op.motionPresetId || op.presetId || op.name);

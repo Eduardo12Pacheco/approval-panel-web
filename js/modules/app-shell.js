@@ -792,6 +792,8 @@ function renderSelectedVideoProject() {
     updateRow: videoProjectsFeature.updateRow,
     assignExistingImageToRow: videoProjectsFeature.assignExistingImageToRow,
     uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
+    uploadVideoToLibrary: videoProjectsFeature.uploadVideoToLibrary,
+    assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
     renderSelectedVideoProject,
   });

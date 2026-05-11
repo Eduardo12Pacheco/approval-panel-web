@@ -16,6 +16,7 @@ import {
   resolveVideoProjectCompositionContractForCheck,
   resolveVideoProjectPreviewMediaForCheck,
 } from '../composition/composition-view-model.js';
+import { resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
 import { buildSelectedVideoProjectViewModel } from './view-model.js';
 import { buildEditorShellViewModel } from './editor-view-model.js';
 import {
@@ -523,6 +524,8 @@ export function renderSelectedVideoProjectView({
   updateRow,
   assignExistingImageToRow,
   uploadAndAssignImage,
+  uploadVideoToLibrary,
+  assignVideoSegmentToRow,
   updateGlobalAudio,
   renderSelectedVideoProject,
 }) {
@@ -1101,6 +1104,15 @@ export function renderSelectedVideoProjectView({
         });
       });
 
+      el.videoProjectDetail.querySelectorAll('[data-action="open-videos-tab"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const rowId = button.dataset.rowId;
+          if (rowId) project._selectedEditorRowId = rowId;
+          project._editorEffectTab = 'videos';
+          renderSelectedVideoProject?.();
+        });
+      });
+
       el.videoProjectDetail.querySelectorAll('[data-action="switch-motion-editor-tab"]').forEach((button) => {
         button.addEventListener('click', () => {
           const activeTab = button.dataset.motionEditorTab === 'manual' ? 'manual' : 'presets';
@@ -1145,6 +1157,78 @@ export function renderSelectedVideoProjectView({
           project._editorEffectTab = 'assets';
           await uploadAndAssignImage?.(rowId, file);
           input.value = '';
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="upload-row-video"]').forEach((input) => {
+        input.addEventListener('change', async () => {
+          const [file] = input.files || [];
+          const rowId = input.dataset.rowId;
+          if (!file || !rowId) return;
+          project._editorEffectTab = 'videos';
+          await uploadVideoToLibrary?.(rowId, file);
+          input.value = '';
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="open-video-selector"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const rowId = button.dataset.rowId;
+          const videoId = button.dataset.videoId;
+          const row = editorRows.find((item) => item.id === rowId || item.rowId === rowId);
+          const card = button.closest('[data-video-id]');
+          const window = resolveVideoSegmentSelectionWindow({
+            sourceDurationSeconds: Number(card?.dataset.videoDuration || 0),
+            targetDurationSeconds: Math.max(0, Number(row?.effectiveEndTime ?? row?.endTime ?? 0) - Number(row?.startTime || 0)),
+            requestedSourceInSeconds: 0,
+          });
+          project._selectedEditorRowId = rowId;
+          project._editorEffectTab = 'videos';
+          project._videoSelector = { videoId, ...window };
+          renderSelectedVideoProject?.();
+        });
+      });
+
+      el.videoProjectDetail.querySelector('[data-video-selector-window]')?.addEventListener('pointerdown', (ev) => {
+        const selectorWindow = ev.currentTarget;
+        const modal = selectorWindow.closest('[data-video-selector-modal]');
+        const timeline = modal?.querySelector('[data-video-selector-timeline]');
+        if (!modal || !timeline) return;
+        ev.preventDefault();
+        selectorWindow.setPointerCapture?.(ev.pointerId);
+        const move = (moveEvent) => {
+          const rect = timeline.getBoundingClientRect();
+          if (!rect.width) return;
+          const pct = Math.max(0, Math.min((moveEvent.clientX - rect.left) / rect.width, 1));
+          const sourceDurationSeconds = Number(timeline.dataset.sourceDuration || 0);
+          const targetDurationSeconds = Number(timeline.dataset.targetDuration || 0);
+          const requestedSourceInSeconds = pct * sourceDurationSeconds;
+          const nextWindow = resolveVideoSegmentSelectionWindow({ sourceDurationSeconds, targetDurationSeconds, requestedSourceInSeconds });
+          project._videoSelector = { videoId: modal.dataset.videoId, ...nextWindow };
+          selectorWindow.dataset.sourceIn = nextWindow.sourceInSeconds.toString();
+          selectorWindow.dataset.sourceOut = nextWindow.sourceOutSeconds.toString();
+          selectorWindow.style.setProperty('--source-in', nextWindow.sourceInSeconds.toString());
+        };
+        const up = (upEvent) => {
+          selectorWindow.releasePointerCapture?.(upEvent.pointerId);
+          selectorWindow.removeEventListener('pointermove', move);
+          selectorWindow.removeEventListener('pointerup', up);
+          selectorWindow.removeEventListener('pointercancel', up);
+          renderSelectedVideoProject?.();
+        };
+        selectorWindow.addEventListener('pointermove', move);
+        selectorWindow.addEventListener('pointerup', up);
+        selectorWindow.addEventListener('pointercancel', up);
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="commit-video-segment"]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const rowId = button.dataset.rowId;
+          const videoId = button.dataset.videoId;
+          const videos = [project.video_assets, project.videos, project.custom_videos, project.editor_state?.video_assets].find((items) => Array.isArray(items)) || [];
+          const video = videos.find((item) => (item.id || item.assetId || item.src || item.public_url || item.storage_public_url) === videoId);
+          await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
+          project._videoSelector = null;
         });
       });
 

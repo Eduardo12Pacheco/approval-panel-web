@@ -4,6 +4,7 @@ import { prepareVideoCompositionContract, normalizePreparedContractRows } from '
 import { createCustomImageCommands } from './data/custom-image-commands.js';
 import { createVideoProjectDetailCache } from './data/detail-cache.js';
 import { createRowImageCommands } from './data/row-image-commands.js';
+import { createRowVideoCommands } from './data/row-video-commands.js';
 import { createSelectionCommands } from './data/selection-commands.js';
 import { normalizeVideoProjectRows } from './data/video-project-rows.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from './domain/project-identity.js';
@@ -33,6 +34,7 @@ export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
     ...(hasOwnPatchValue(patch, 'logo') ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
     ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
     ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
+    ...(hasOwnPatchValue(patch, 'media') ? { media: patch.media?.kind === 'video-segment' ? { ...patch.media } : { kind: 'image' } } : {}),
   };
 }
 
@@ -613,6 +615,16 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       const operations = [];
       const shouldDraftMotion = isMotionRowPatch(patch) && patch.manualMotionDraft === true;
       if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
+      if (patch.media?.kind === 'video-segment') {
+        operations.push({
+          type: 'setRowVideoSegment',
+          rowId,
+          sourceVideoAssetId: patch.media.sourceVideoAssetId,
+          sourceVideoSrc: patch.media.sourceVideoSrc,
+          sourceInSeconds: patch.media.sourceInSeconds,
+          durationSeconds: patch.media.durationSeconds,
+        });
+      }
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
         const resolvedMotion = patch.motionPresetId
           ? { motionPresetId: patch.motionPresetId, motion: typeof patch.motion === 'object' ? patch.motion : undefined }
@@ -682,6 +694,15 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   }
 
   const { assignExistingImageToRow, uploadAndAssignImage } = createRowImageCommands({
+    api,
+    ui,
+    getProject: () => store.getState().selectedVideoProject,
+    resolveProjectKey: resolveVideoProjectKey,
+    renderSelectedVideoProject,
+    updateRow,
+  });
+
+  const { uploadVideoToLibrary, assignVideoSegmentToRow } = createRowVideoCommands({
     api,
     ui,
     getProject: () => store.getState().selectedVideoProject,
@@ -762,6 +783,8 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
     updateRow,
     assignExistingImageToRow,
     uploadAndAssignImage,
+    uploadVideoToLibrary,
+    assignVideoSegmentToRow,
     updateGlobalAudio,
   };
 }

@@ -4,7 +4,7 @@ import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
 
-const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets']);
+const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
 const DEFAULT_MOTION_PRESET_NAME = 'Zoom 110';
 
@@ -106,6 +106,33 @@ function createAssetViewModel({ url, title, source, dimensions, currentImageUrl,
   };
 }
 
+function resolveProjectVideos(project = {}) {
+  const candidates = [
+    project.video_assets,
+    project.videos,
+    project.custom_videos,
+    project.editor_state?.video_assets,
+  ].find((items) => Array.isArray(items));
+  return Array.isArray(candidates) ? candidates : [];
+}
+
+function createVideoViewModel(video = {}, index = 0) {
+  const src = (video.src || video.previewUrl || video.public_url || video.storage_public_url || video.url || '').toString().trim();
+  return {
+    id: (video.id || video.assetId || src || `video-${index + 1}`).toString(),
+    src,
+    title: (video.title || video.name || video.file_name || `Video ${index + 1}`).toString(),
+    durationSeconds: Number(video.durationSeconds ?? video.duration_seconds ?? 0) || 0,
+    file_size: Number(video.file_size || video.size || 0),
+  };
+}
+
+export function buildEditorVideosViewModel({ project = {} } = {}) {
+  return resolveProjectVideos(project)
+    .map(createVideoViewModel)
+    .filter((video) => video.src);
+}
+
 export function buildEditorAssetsViewModel({ project = {}, row = null, rowIndex = 0 } = {}) {
   const selectedImages = Array.isArray(project.selected_images) ? project.selected_images : [];
   const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
@@ -188,7 +215,8 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
       endTimeLabel: formatSeconds(row.endTime),
       phrase: (row.phrase || '').toString(),
       thumbAlt: `Imagen de la fila ${index + 1}`,
-      uploadLabel: uploadingThisRow ? 'Subiendo…' : 'Cambiar',
+      uploadLabel: uploadingThisRow ? 'Subiendo…' : 'Cambiar imagen',
+      mediaKind: row?.media?.kind === 'video-segment' ? 'video-segment' : 'image',
     };
   });
 }
@@ -214,6 +242,9 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     activeMotionEditorTab: resolveMotionEditorTab(project._motionEditorTab),
     assets: buildEditorAssetsViewModel({ project, row, rowIndex }),
     assetsUploading: Boolean(project._rowImageUploading && row?.id && project._rowImageUploading === row.id),
+    videos: buildEditorVideosViewModel({ project }),
+    videosUploading: Boolean(project._rowVideoUploading && row?.id && project._rowVideoUploading === row.id),
+    videoSelector: project._videoSelector || null,
     motion: resolveMotionPresetName(row),
     manualMotion: row ? resolveManualMotionViewModel(row) : null,
     motionPresetGroups: buildMotionPresetGroups(),

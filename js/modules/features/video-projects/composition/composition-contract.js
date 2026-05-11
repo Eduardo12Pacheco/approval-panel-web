@@ -17,6 +17,11 @@ function normalizeImageLookupKey(value = '') {
     .replace(/[^a-z0-9]+/g, '-');
 }
 
+const VIDEO_SEGMENT_EFFECTS = [
+  { assetId: 'effect-layer-01', mediaUrl: '/api/overlays/effect-layer-01.mp4', blendMode: 'screen' },
+  { assetId: 'effect-layer-02', mediaUrl: '/api/overlays/effect-layer-02.mp4', blendMode: 'multiply' },
+];
+
 function resolveLegacyCandidateUrl(candidate = {}) {
   return (
     candidate.image_url
@@ -52,11 +57,18 @@ export function normalizePreviewAssetManifest(project = {}) {
   if (canonical?.contractVersion === 'approval-editor-service-v1') {
     const assets = canonical.assets && typeof canonical.assets === 'object' ? canonical.assets : {};
     const rows = Array.isArray(canonical.rows) ? canonical.rows : [];
+    const videos = rows.map((row) => {
+      if (row?.media?.kind !== 'video-segment') return null;
+      const asset = assets[row.media.sourceVideoAssetId] || {};
+      return { rowId: row.rowId || row.id, assetId: row.media.sourceVideoAssetId, mediaUrl: asset.previewUrl || asset.publicUrl || asset.renderPath || '' };
+    }).filter((item) => item?.assetId);
     return {
       images: rows.map((row) => {
         const asset = assets[row.selectedAssetId] || {};
         return { rowId: row.rowId || row.id, assetId: row.selectedAssetId, mediaUrl: asset.previewUrl || asset.publicUrl || asset.renderPath || '' };
       }).filter((item) => item.assetId),
+      videos,
+      effects: VIDEO_SEGMENT_EFFECTS,
       audio: {
         voice: { assetId: canonical.audio?.voice?.assetId, mediaUrl: canonical.audio?.voice?.previewUrl || assets[canonical.audio?.voice?.assetId]?.previewUrl || assets[canonical.audio?.voice?.assetId]?.publicUrl || '' },
         music: { assetId: canonical.audio?.music?.assetId, mediaUrl: canonical.audio?.music?.previewUrl || assets[canonical.audio?.music?.assetId]?.previewUrl || assets[canonical.audio?.music?.assetId]?.publicUrl || '' },
@@ -179,8 +191,14 @@ function hashString(input) {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+}
+
 export function computeContractHash(contract = {}) {
-  return hashString(JSON.stringify(contract || {}));
+  return hashString(stableStringify(contract || {}));
 }
 
 export function resolveLegacyCandidateUrlForContract(candidate = {}) {

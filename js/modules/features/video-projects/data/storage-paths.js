@@ -2,6 +2,7 @@ export const SUPABASE_URL = 'https://ulzcthcdakjfretjdakd.supabase.co';
 export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_RDUiyePyvXCkdU5k17Ue6g_nmxgSsQf';
 export const VIDEO_PROJECT_AUDIO_BUCKET = 'video-project-audio';
 export const VIDEO_CANDIDATES_TEMP_BUCKET = 'video-candidates-temp';
+export const VIDEO_PROJECT_VIDEO_BUCKET = 'video-project-videos';
 
 function sanitizePathPart(value = '') {
   return (value || '')
@@ -137,6 +138,12 @@ export function buildCustomImagePath({ draftId, file }) {
   return `projects/${safeDraftId}/custom/${Date.now()}-${safeName}`;
 }
 
+export function buildVideoUploadPath({ draftId, file }) {
+  const safeDraftId = md5ProjectStorageKey(draftId);
+  const safeName = sanitizePathPart(file?.name || 'source-video');
+  return `projects/${safeDraftId}/videos/${Date.now()}-${safeName}`;
+}
+
 export function buildPublicStorageUrl(bucket, path) {
   return `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeStoragePath(path)}`;
 }
@@ -150,6 +157,19 @@ export function buildAudioMetadata({ path, kind, file }) {
     name: file?.name || '',
     size: Number(file?.size || 0),
     mime_type: file?.type || 'application/octet-stream',
+    uploaded_at: new Date().toISOString(),
+  };
+}
+
+export function buildVideoUploadMetadata({ path, file, durationSeconds = 0 }) {
+  return {
+    bucket: VIDEO_PROJECT_VIDEO_BUCKET,
+    storage_path: path,
+    public_url: buildPublicStorageUrl(VIDEO_PROJECT_VIDEO_BUCKET, path),
+    name: file?.name || '',
+    size: Number(file?.size || 0),
+    mime_type: file?.type || 'application/octet-stream',
+    duration_seconds: Number(durationSeconds || 0),
     uploaded_at: new Date().toISOString(),
   };
 }
