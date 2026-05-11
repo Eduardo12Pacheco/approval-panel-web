@@ -54,14 +54,14 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
           </tr>
         </thead>
         <tbody>
-          ${tableRows.map(({ row, index, isSelected, selectedClass, imageUrl, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel, mediaKind }) => {
+          ${tableRows.map(({ row, index, isSelected, selectedClass, imageUrl, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel, mediaKind, videoSrc }) => {
             return `
               <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">
                 <td class="video-editor-row__time"><span class="video-editor-row__time-start">${escapeHtmlCore(startTimeLabel)}</span><span class="video-editor-row__time-end">${escapeHtmlCore(endTimeLabel)}</span></td>
                 <td class="video-editor-row__phrase">${escapeHtmlCore(phrase)}</td>
                 <td class="video-editor-row__image">
                   ${mediaKind === 'video-segment'
-                    ? '<span class="video-editor-row__thumb video-editor-row__thumb--video">Video</span>'
+                    ? `<span class="video-editor-row__video-card">${videoSrc ? `<video class="video-editor-row__thumb video-editor-row__thumb--video" src="${escapeHtmlCore(videoSrc)}" muted playsinline preload="metadata"></video>` : '<span class="video-editor-row__thumb video-editor-row__thumb--video video-editor-row__thumb--video-fallback" aria-hidden="true">▶</span>'}<span class="video-editor-row__video-badge">Video</span></span>`
                     : imageUrl
                     ? `<img class="video-editor-row__thumb" src="${escapeHtmlCore(imageUrl)}" alt="${escapeHtmlCore(thumbAlt)}" loading="lazy" />`
                     : '<span class="video-editor-row__thumb video-editor-row__thumb--missing">Sin foto</span>'}

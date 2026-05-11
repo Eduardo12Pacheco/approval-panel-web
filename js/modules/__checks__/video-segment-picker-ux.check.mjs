@@ -11,8 +11,13 @@ import {
   resolveVideoSegmentSelectionWindow,
 } from '../features/video-projects/render/editor-video-picker.js';
 import {
+  buildVideoSegmentPreviewLayerPlan,
+} from '../features/video-projects/composition/composition-renderer.js';
+import {
+  resolveVideoProjectCompositionContractForCheck,
   syncVideoSelectorPreviewLayers,
 } from '../features/video-projects/render/index.js';
+import { buildEditorRowsTable } from '../features/video-projects/render/editor-markup.js';
 import { shouldFallbackApprovalSnapshotOperationError } from '../features/video-projects/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -170,4 +175,79 @@ test('Approval editor service accepts client video segment aliases', () => {
   assert.equal(next.assets['video-asset-1'].previewUrl, '/videos/source.mp4');
   assert.equal(next.assets['effect-layer-01'].previewUrl, '/api/overlays/effect-layer-01.mp4');
   assert.equal(next.assets['effect-layer-02'].previewUrl, '/api/overlays/effect-layer-02.mp4');
+});
+
+test('Local approval fallback video row wins over stale canonical image row in main composition preview', () => {
+  const project = {
+    video_assets: [{ id: 'video-asset-1', src: '/videos/source.mp4' }],
+    editor_state: {
+      approval_contract_snapshot: {
+        contractVersion: 'approval-editor-service-v1',
+        snapshotHash: 'stale-hash',
+        snapshotId: 'project-1:1',
+        assets: {
+          'image-asset-1': { previewUrl: '/images/old.jpg' },
+        },
+        rows: [{ rowId: 'seg-002', id: 'seg-002', startTime: 2, endTime: 7, selectedAssetId: 'image-asset-1', media: { kind: 'image' } }],
+      },
+    },
+  };
+  const localRows = [{
+    rowId: 'seg-002',
+    id: 'seg-002',
+    startTime: 2,
+    endTime: 7,
+    media: {
+      kind: 'video-segment',
+      sourceVideoAssetId: 'video-asset-1',
+      sourceVideoSrc: '/videos/source.mp4',
+      sourceInSeconds: 1.5,
+      durationSeconds: 5,
+    },
+  }];
+
+  const { compositionRows } = resolveVideoProjectCompositionContractForCheck({ project, rows: localRows });
+
+  assert.equal(compositionRows[0].media.kind, 'video-segment');
+  assert.equal(compositionRows[0].media.sourceVideoSrc, '/videos/source.mp4');
+  assert.equal(compositionRows[0].media.effect1Src, '/api/overlays/effect-layer-01.mp4');
+  assert.equal(compositionRows[0].media.effect2Src, '/api/overlays/effect-layer-02.mp4');
+});
+
+test('Video segment preview layer plan always includes concrete effect video sources', () => {
+  const plan = buildVideoSegmentPreviewLayerPlan({
+    localTime: 1,
+    media: {
+      kind: 'video-segment',
+      sourceVideoSrc: '/videos/source.mp4',
+      sourceInSeconds: 4,
+      durationSeconds: 5,
+    },
+  });
+
+  assert.deepEqual(plan.layers.map((layer) => layer.name), ['background-video', 'color-overlay', 'effect-layer-01', 'effect-layer-02', 'foreground-video']);
+  assert.equal(plan.layers[2].src, '/api/overlays/effect-layer-01.mp4');
+  assert.equal(plan.layers[2].mixBlendMode, 'screen');
+  assert.equal(plan.layers[3].src, '/api/overlays/effect-layer-02.mp4');
+  assert.equal(plan.layers[3].mixBlendMode, 'multiply');
+});
+
+test('Editor rows table renders a meaningful video mini-preview instead of a plain black Video placeholder', () => {
+  const html = buildEditorRowsTable([
+    {
+      id: 'seg-002',
+      startTime: 2,
+      endTime: 7,
+      phrase: 'Frase de video',
+      media: {
+        kind: 'video-segment',
+        sourceVideoAssetId: 'video-asset-1',
+        sourceVideoSrc: '/videos/source.mp4',
+      },
+    },
+  ]);
+
+  assert.match(html, /<video class="video-editor-row__thumb video-editor-row__thumb--video"[^>]+src="\/videos\/source\.mp4"/);
+  assert.match(html, /<span class="video-editor-row__video-badge">Video<\/span>/);
+  assert.doesNotMatch(html, /<span class="video-editor-row__thumb video-editor-row__thumb--video">Video<\/span>/);
 });

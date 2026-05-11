@@ -62,6 +62,8 @@ const OUTRO_DURATION_SECONDS = 2;
 const PRELOAD_IMAGE_WINDOW_SIZE = 2;
 const VIDEO_SEGMENT_OVERLAY_COLOR = '#3835AF';
 const VIDEO_SEGMENT_OVERLAY_OPACITY = 0.3;
+const VIDEO_SEGMENT_EFFECT_01_URL = '/api/overlays/effect-layer-01.mp4';
+const VIDEO_SEGMENT_EFFECT_02_URL = '/api/overlays/effect-layer-02.mp4';
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -130,8 +132,8 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
     layers: [
       { name: 'background-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'cover' },
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
-      { name: 'effect-layer-01', src: media.effect1Src || '', currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
-      { name: 'effect-layer-02', src: media.effect2Src || '', currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect2BlendMode || 'multiply' },
+      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
+      { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect2BlendMode || 'multiply' },
       { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
     ],
   };

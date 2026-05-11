@@ -121,13 +121,33 @@ export function computeEffectiveSegmentTimes(rows = []) {
   });
 }
 
+function mergeCanonicalRowsWithLocalRows(canonicalRows = [], localRows = []) {
+  const canonical = Array.isArray(canonicalRows) ? canonicalRows : [];
+  const local = Array.isArray(localRows) ? localRows : [];
+  if (!local.length) return canonical;
+
+  const localById = new Map(local
+    .map((row) => [toTrimmedString(row?.rowId || row?.id), row])
+    .filter(([rowId]) => rowId));
+
+  const merged = canonical.map((row) => {
+    const rowId = toTrimmedString(row?.rowId || row?.id);
+    const localRow = localById.get(rowId);
+    if (!localRow) return row;
+    localById.delete(rowId);
+    return { ...row, ...localRow };
+  });
+
+  return [...merged, ...localById.values()];
+}
+
 export function buildPreviewCompositionContract(project = {}, rows = []) {
   const canonical = project?.editor_state?.approval_contract_snapshot || project?.approval_contract_snapshot;
   if (canonical?.contractVersion === 'approval-editor-service-v1') {
     return {
       remotionApiUrl: toTrimmedString(project?.editor_state?.pipeline_base_url || project?.editor_state?.remotion_api_url),
       manifest: normalizePreviewAssetManifest(project),
-      rows: computeEffectiveSegmentTimes(Array.isArray(canonical.rows) ? canonical.rows : []),
+      rows: computeEffectiveSegmentTimes(mergeCanonicalRowsWithLocalRows(canonical.rows, rows)),
       canonical,
       snapshotHash: canonical.snapshotHash,
       snapshotId: canonical.snapshotId,

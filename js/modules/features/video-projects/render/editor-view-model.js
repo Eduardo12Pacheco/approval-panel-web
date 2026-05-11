@@ -203,6 +203,9 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
   return rows.map((row, index) => {
     const isSelected = selectedRowId === row.id;
     const uploadingThisRow = rowImageUploading === row.id;
+    const videoSrc = row?.media?.kind === 'video-segment'
+      ? (row.media.sourceVideoSrc || row.media.src || '').toString()
+      : '';
     return {
       row,
       index,
@@ -217,6 +220,7 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
       thumbAlt: `Imagen de la fila ${index + 1}`,
       uploadLabel: uploadingThisRow ? 'Subiendo…' : 'Cambiar imagen',
       mediaKind: row?.media?.kind === 'video-segment' ? 'video-segment' : 'image',
+      videoSrc,
     };
   });
 }
