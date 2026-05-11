@@ -1773,8 +1773,8 @@
   display: grid;
   gap: 12px;
   padding: 12px;
-  border: 1px solid rgba(0, 232, 143, 0.26);
-  background: rgba(0, 232, 143, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
 }
 
 .video-motion-manual__header {
