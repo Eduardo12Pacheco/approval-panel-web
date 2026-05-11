@@ -135,8 +135,8 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
     layers: [
       { name: 'background-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'cover' },
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
-      { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect2BlendMode || 'multiply' },
-      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
+      { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds, mixBlendMode: media.effect2BlendMode || 'multiply' },
+      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds, mixBlendMode: media.effect1BlendMode || 'screen' },
       { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
     ],
   };

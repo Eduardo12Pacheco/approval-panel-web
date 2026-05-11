@@ -289,10 +289,14 @@ test('Video segment preview layer plan always includes concrete effect video sou
   });
 
   assert.deepEqual(plan.layers.map((layer) => layer.name), ['background-video', 'color-overlay', 'effect-layer-02', 'effect-layer-01', 'foreground-video']);
+  assert.equal(plan.layers[0].currentTimeSeconds, 5);
   assert.equal(plan.layers[2].src, './assets/effect-layer-02.webm');
+  assert.equal(plan.layers[2].currentTimeSeconds, 5);
   assert.equal(plan.layers[2].mixBlendMode, 'multiply');
   assert.equal(plan.layers[3].src, './assets/effect-layer-01.webm');
+  assert.equal(plan.layers[3].currentTimeSeconds, 5);
   assert.equal(plan.layers[3].mixBlendMode, 'screen');
+  assert.equal(plan.layers[4].currentTimeSeconds, 5);
 });
 
 test('Effect preview videos use preloadable static WebM URLs in selector and main preview', () => {
