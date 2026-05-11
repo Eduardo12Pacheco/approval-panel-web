@@ -1,9 +1,15 @@
 import { fileURLToPath } from 'node:url';
-import { resolveActiveImageDimensions, resolveCoverPanLayer } from '../features/video-projects/composition/composition-renderer.js';
+import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer } from '../features/video-projects/composition/composition-renderer.js';
 
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
     throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+function assertClose(actual, expected, message) {
+  if (Math.abs(actual - expected) > 0.000001) {
+    throw new Error(`${message}: expected ${expected}, got ${actual}`);
   }
 }
 
@@ -40,6 +46,17 @@ export function runCompositionCoverPanCheck() {
   assertEqual(wideImageLayer.appliedY, -999, 'Expected Y pan to preserve raw manual keyframe value');
   assertEqual(wideImageLayer.left, -1335, 'Expected raw left pan to allow visible black background when overdone');
   assertEqual(wideImageLayer.top, -1107, 'Expected raw upward pan to allow visible black background when overdone');
+
+  const wideImageStyle = resolveCoverPanImageStyle(wideImageLayer);
+  assertEqual(wideImageStyle.width, '2160px', 'Expected transform-friendly style to keep stable base cover width');
+  assertEqual(wideImageStyle.height, '1080px', 'Expected transform-friendly style to keep stable base cover height');
+  assertEqual(wideImageStyle.left, '-120px', 'Expected transform-friendly style to keep stable centered base left');
+  assertEqual(wideImageStyle.top, '0px', 'Expected transform-friendly style to keep stable centered base top');
+  assertEqual(wideImageStyle.transform, 'translate3d(-999px, -999px, 0) scale(1.2)', 'Expected movement and zoom to use compositor-friendly transform');
+  assertEqual(wideImageStyle.transformOrigin, 'center center', 'Expected transform to scale around the cover layer center');
+  assertEqual(wideImageStyle.willChange, 'transform', 'Expected compositor-friendly will-change');
+  assertClose(wideImageStyle.visualLeft, wideImageLayer.left, 'Expected transform visual left to match legacy left math');
+  assertClose(wideImageStyle.visualTop, wideImageLayer.top, 'Expected transform visual top to match legacy top math');
 
   const staleDomDimensions = resolveActiveImageDimensions({
     activeUrl: 'portrait.jpg',

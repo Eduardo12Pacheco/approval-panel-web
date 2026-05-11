@@ -120,6 +120,8 @@ export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth
   const coverScale = Math.max(safeViewportWidth / safeImageWidth, safeViewportHeight / safeImageHeight);
   const baseWidth = safeImageWidth * coverScale;
   const baseHeight = safeImageHeight * coverScale;
+  const baseLeft = (safeViewportWidth - baseWidth) / 2;
+  const baseTop = (safeViewportHeight - baseHeight) / 2;
   const layerWidth = baseWidth * safeScale;
   const layerHeight = baseHeight * safeScale;
   const maxX = Math.max(0, (layerWidth - safeViewportWidth) / 2);
@@ -129,6 +131,8 @@ export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth
     coverScale,
     baseWidth,
     baseHeight,
+    baseLeft,
+    baseTop,
     layerWidth,
     layerHeight,
     maxX,
@@ -137,6 +141,32 @@ export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth
     appliedY: requestedY,
     left: (safeViewportWidth - layerWidth) / 2 + requestedX,
     top: (safeViewportHeight - layerHeight) / 2 + requestedY,
+    transformX: requestedX,
+    transformY: requestedY,
+    transformScale: safeScale,
+  };
+}
+
+export function resolveCoverPanImageStyle(layer) {
+  const baseWidth = finitePositive(layer?.baseWidth, 1);
+  const baseHeight = finitePositive(layer?.baseHeight, 1);
+  const baseLeft = finiteNumber(layer?.baseLeft, 0);
+  const baseTop = finiteNumber(layer?.baseTop, 0);
+  const transformX = finiteNumber(layer?.transformX ?? layer?.appliedX, 0);
+  const transformY = finiteNumber(layer?.transformY ?? layer?.appliedY, 0);
+  const transformScale = finitePositive(layer?.transformScale, 1);
+
+  return {
+    width: `${baseWidth}px`,
+    height: `${baseHeight}px`,
+    left: `${baseLeft}px`,
+    top: `${baseTop}px`,
+    objectFit: 'fill',
+    transform: `translate3d(${transformX}px, ${transformY}px, 0) scale(${transformScale})`,
+    transformOrigin: 'center center',
+    willChange: 'transform',
+    visualLeft: baseLeft + transformX - (baseWidth * (transformScale - 1)) / 2,
+    visualTop: baseTop + transformY - (baseHeight * (transformScale - 1)) / 2,
   };
 }
 
@@ -286,7 +316,7 @@ export function buildCompositionDOM(container) {
   // Layer 2: Segment image (with zoom transform)
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
-  image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;will-change:left,top,width,height;';
+  image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;transform-origin:center center;will-change:transform;';
   image.draggable = false;
   stage.appendChild(image);
 
@@ -934,12 +964,15 @@ export class CompositionRenderer {
       x,
       y,
     });
-    layers.image.style.width = `${layer.layerWidth}px`;
-    layers.image.style.height = `${layer.layerHeight}px`;
-    layers.image.style.left = `${layer.left}px`;
-    layers.image.style.top = `${layer.top}px`;
-    layers.image.style.objectFit = 'fill';
-    layers.image.style.transform = 'none';
+    const imageStyle = resolveCoverPanImageStyle(layer);
+    layers.image.style.width = imageStyle.width;
+    layers.image.style.height = imageStyle.height;
+    layers.image.style.left = imageStyle.left;
+    layers.image.style.top = imageStyle.top;
+    layers.image.style.objectFit = imageStyle.objectFit;
+    layers.image.style.transform = imageStyle.transform;
+    layers.image.style.transformOrigin = imageStyle.transformOrigin;
+    layers.image.style.willChange = imageStyle.willChange;
 
     // Apply filter (contrast + saturation)
     // SOURCE: Composition.tsx line 206 — filter property
