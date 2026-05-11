@@ -1554,13 +1554,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 38px;
+  padding: 0 14px;
   border: 1px solid rgba(0, 232, 143, 0.34);
   background: rgba(0, 232, 143, 0.08);
   color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;

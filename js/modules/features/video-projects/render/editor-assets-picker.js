@@ -41,7 +41,7 @@ export function buildEditorAssetsPicker({ row, assets = [], uploading = false } 
         </div>
         <label class="video-editor-assets-picker__upload">
           <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-assets-image" data-row-id="${escapeHtmlCore(rowId)}" ${uploading ? 'disabled' : ''} />
-          <span>${uploading ? 'Subiendo…' : 'Subir'}</span>
+          <span>${uploading ? 'Subiendo…' : 'Subir imágenes'}</span>
         </label>
       </div>
       ${hasAssets
