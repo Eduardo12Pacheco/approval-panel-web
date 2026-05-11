@@ -1453,16 +1453,29 @@
 }
 
 .video-editor-effect-tabs {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   margin-top: 14px;
+  margin-bottom: 22px;
   padding: 4px;
   border: 1px solid rgba(0, 232, 143, 0.18);
   background: rgba(0, 0, 0, 0.28);
 }
 
+.video-editor-effect-tabs::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -12px;
+  height: 1px;
+  background: rgba(0, 232, 143, 0.72);
+}
+
 .video-editor-effect-tabs__button {
+  position: relative;
   min-width: 0;
   min-height: 34px;
   padding: 0 8px;
@@ -1476,6 +1489,25 @@
   text-transform: uppercase;
   cursor: pointer;
   transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.video-editor-effect-tabs__button.is-active::before,
+.video-editor-effect-tabs__button.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -17px;
+  width: 1px;
+  height: 12px;
+  background: rgba(0, 232, 143, 0.88);
+  z-index: 1;
+}
+
+.video-editor-effect-tabs__button.is-active::before {
+  left: -1px;
+}
+
+.video-editor-effect-tabs__button.is-active::after {
+  right: -1px;
 }
 
 .video-editor-effect-tabs__button:hover,
@@ -1494,7 +1526,6 @@
 .video-editor-effect-panel {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid rgba(0, 232, 143, 0.18);
 }
 
 .video-editor-control--effect-panel {

@@ -17,7 +17,7 @@ export function resolveEditorEffectTab(value = '') {
 function buildEffectTabsNav(activeTab) {
   return `
     <div class="video-editor-effect-tabs" role="tablist" aria-label="Detalles de efectos">
-      ${EDITOR_EFFECT_TABS.map((tab) => {
+      ${EDITOR_EFFECT_TABS.map((tab, index) => {
         const isActive = tab.id === activeTab;
         return `
           <button
@@ -30,6 +30,7 @@ function buildEffectTabsNav(activeTab) {
             tabindex="${isActive ? '0' : '-1'}"
             data-action="switch-effect-tab"
             data-effect-tab="${escapeHtmlCore(tab.id)}"
+            style="--tab-index:${index};"
           >${escapeHtmlCore(tab.label)}</button>
         `;
       }).join('')}
