@@ -283,11 +283,10 @@ export function buildCompositionDOM(container) {
   stage.className = 'composition-stage';
   stage.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;background:#000;';
 
-  // Layer 1: Dark background
-  // SOURCE: Composition.tsx line 220 — backgroundColor: "#101828" for empty state
+  // Layer 1: Black background / empty state
   const bg = document.createElement('div');
   bg.className = 'composition-layer composition-layer--bg';
-  bg.style.cssText = 'position:absolute;inset:0;background:#101828;';
+  bg.style.cssText = 'position:absolute;inset:0;background:#000;';
   stage.appendChild(bg);
 
   // Layer 2: Segment image (with zoom transform)
