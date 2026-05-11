@@ -1730,9 +1730,11 @@
 .video-motion-picker {
   display: grid;
   gap: 18px;
-  max-height: min(54vh, 620px);
+  max-height: min(27vh, 310px);
   overflow: auto;
-  padding-right: 4px;
+  padding: 12px 8px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050505;
 }
 
 .video-motion-picker__group {

@@ -45,8 +45,8 @@ function buildMotionPanel({ row, detail }) {
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
       <span class="video-editor-control__label">Movimiento</span>
-      ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
       ${buildManualMotionControls({ row, manualMotion: detail.manualMotion })}
+      ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
     </div>
   `;
 }
