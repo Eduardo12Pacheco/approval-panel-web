@@ -54,7 +54,7 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
           </tr>
         </thead>
         <tbody>
-          ${tableRows.map(({ row, index, isSelected, selectedClass, uploadingThisRow, imageUrl, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel }) => {
+          ${tableRows.map(({ row, index, isSelected, selectedClass, imageUrl, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel }) => {
             return `
               <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">
                 <td class="video-editor-row__time"><span class="video-editor-row__time-start">${escapeHtmlCore(startTimeLabel)}</span><span class="video-editor-row__time-end">${escapeHtmlCore(endTimeLabel)}</span></td>
@@ -65,10 +65,9 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                     : '<span class="video-editor-row__thumb video-editor-row__thumb--missing">Sin foto</span>'}
                 </td>
                 <td class="video-editor-row__actions">
-                  <label class="video-editor-row__upload-label">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" data-action="upload-row-image" data-row-id="${escapeHtmlCore(row.id)}" ${uploadingThisRow ? 'disabled' : ''} />
+                  <button class="video-editor-row__upload-label" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
                     <span>${uploadLabel}</span>
-                  </label>
+                  </button>
                 </td>
               </tr>
             `;
@@ -81,7 +80,6 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
-  const { detailImageUrl } = detail;
 
   const rowControls = row
     ? `
@@ -89,14 +87,6 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
         <span class="video-projects-eyebrow">Detalles de efectos</span>
         <strong>${escapeHtmlCore(detail.phraseLabel)}</strong>
         <p class="video-editor-detail__time">${escapeHtmlCore(detail.timeLabel)}</p>
-        <div class="video-editor-detail__asset-row">
-          ${detailImageUrl
-            ? `<img class="video-editor-detail__thumb" src="${escapeHtmlCore(detailImageUrl)}" alt="Imagen seleccionada" loading="lazy" />`
-            : `<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">${escapeHtmlCore(detail.missingAssetLabel)}</span>`}
-          <button class="video-editor-row__upload-label video-editor-row__upload-label--detail" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}">
-            <span>Cambiar imagen</span>
-          </button>
-        </div>
         ${buildEditorEffectTabs({ row, detail, activeTab: detail.activeEffectTab })}
       </div>
     `

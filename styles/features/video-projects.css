@@ -1406,10 +1406,15 @@
 }
 
 .video-editor-detail__time {
-  margin: 0 0 10px;
-  color: var(--muted);
+  display: inline-flex;
+  margin: 0 0 14px;
+  padding: 6px 9px;
+  border: 1px solid rgba(0, 232, 143, 0.22);
+  background: rgba(0, 232, 143, 0.06);
+  color: var(--text);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
+  font-size: 0.9rem;
+  font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2069,6 +2074,12 @@
   display: inline-flex;
 }
 
+button.video-editor-row__upload-label {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 .video-editor-row__actions button,
 .video-editor-row__upload-label span {
   display: inline-flex;
@@ -2115,12 +2126,6 @@
   min-height: 30px;
   padding: 0 9px;
   font-size: 0.62rem;
-}
-
-button.video-editor-row__upload-label--detail {
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 @media (max-width: 1180px) {

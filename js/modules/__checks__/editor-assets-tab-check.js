@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../features/video-projects/render/editor-view-model.js';
 import { buildEditorAssetsPicker } from '../features/video-projects/render/editor-assets-picker.js';
 import { resolveEditorEffectTab } from '../features/video-projects/render/editor-effect-tabs.js';
+import { buildEditorDetailRail, buildEditorRowsTable } from '../features/video-projects/render/editor-markup.js';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -52,14 +53,27 @@ function runAssetsMarkupCheck() {
 
   assert(markup.includes('data-action="assign-row-asset"'), 'Expected asset cards to assign an existing row asset');
   assert(markup.includes('data-action="upload-assets-image"'), 'Expected Assets tab upload input');
+  assert(markup.includes('Imágenes'), 'Expected Assets UI label to be localized as Imágenes');
   assert(markup.includes('aria-pressed="true"'), 'Expected current row image to be visibly selected');
   assert(markup.includes('https://cdn.example.com/custom-2.png'), 'Expected custom upload asset to render');
+}
+
+function runChangeImageNavigationCheck() {
+  const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba' };
+  const tableMarkup = buildEditorRowsTable([row], { selectedRowId: 'row-1', project: makeProject() });
+  const detailMarkup = buildEditorDetailRail({ row, project: makeProject() });
+
+  assert(tableMarkup.includes('data-action="open-assets-tab"'), 'Expected table Cambiar action to open Imágenes tab');
+  assert(!tableMarkup.includes('data-action="upload-row-image"'), 'Expected table Cambiar action not to open file picker');
+  assert(!detailMarkup.includes('Cambiar imagen'), 'Expected detail rail image button to be removed');
+  assert(!detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail mini image to be removed');
 }
 
 export function runEditorAssetsTabCheck() {
   runAssetsViewModelCheck();
   runAssetsTabResolutionCheck();
   runAssetsMarkupCheck();
+  runChangeImageNavigationCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

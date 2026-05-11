@@ -42,7 +42,7 @@ export function buildEditorAssetsPicker({ row, assets = [], uploading = false } 
     <div class="video-editor-assets-picker">
       <div class="video-editor-assets-picker__header">
         <div>
-          <span class="video-editor-control__label">Assets</span>
+          <span class="video-editor-control__label">Imágenes</span>
           <p>Elegí una imagen existente para esta fila o subí una nueva.</p>
         </div>
         <label class="video-editor-assets-picker__upload">

@@ -6,7 +6,7 @@ export const EDITOR_EFFECT_TABS = [
   { id: 'motion', label: 'Movimiento' },
   { id: 'audio', label: 'Audio' },
   { id: 'global', label: 'Global' },
-  { id: 'assets', label: 'Assets' },
+  { id: 'assets', label: 'Imágenes' },
 ];
 
 export function resolveEditorEffectTab(value = '') {
