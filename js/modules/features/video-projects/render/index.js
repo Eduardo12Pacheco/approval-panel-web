@@ -1036,7 +1036,7 @@ export function renderSelectedVideoProjectView({
       });
 
       el.videoProjectDetail.querySelectorAll('[data-action="update-row-motion-keyframe"]').forEach((input) => {
-        input.addEventListener('change', () => {
+        const updateManualMotionKeyframe = () => {
           const panel = input.closest('[data-motion-manual]');
           const rowId = panel?.dataset.rowId || '';
           if (!rowId) return;
@@ -1056,8 +1056,10 @@ export function renderSelectedVideoProjectView({
             toScale: Math.max(0.1, readField('toScalePercent', 100) / 100),
             easing: 'linear',
           };
-          updateRow?.(rowId, { motionPresetId, motion });
-        });
+          updateRow?.(rowId, { motionPresetId, motion, manualMotionDraft: true });
+        };
+        input.addEventListener('input', updateManualMotionKeyframe);
+        input.addEventListener('change', updateManualMotionKeyframe);
       });
 
       // Row dust update

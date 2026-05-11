@@ -20,6 +20,46 @@ export { normalizeVideoProjectRows } from './data/video-project-rows.js';
 const SAVE_DEBOUNCE_MS = 400;
 const AUDIO_CONTROL_KINDS = new Set(['voice', 'music', 'background']);
 
+function hasOwnPatchValue(patch, key) {
+  return Object.prototype.hasOwnProperty.call(patch || {}, key);
+}
+
+export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
+  return {
+    ...current,
+    ...(hasOwnPatchValue(patch, 'motion') ? { motion: patch.motion } : {}),
+    ...(hasOwnPatchValue(patch, 'motionPresetId') ? { motionPresetId: patch.motionPresetId || null } : {}),
+    ...(hasOwnPatchValue(patch, 'dust') ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
+    ...(hasOwnPatchValue(patch, 'logo') ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
+    ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
+    ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
+  };
+}
+
+export function patchLocalEditorRows(rows = [], rowId, patch = {}) {
+  const index = Array.isArray(rows) ? rows.findIndex((row) => row?.id === rowId) : -1;
+  if (index === -1) return rows;
+  const nextRows = rows.slice();
+  nextRows[index] = mergeLocalEditorRowPatch(rows[index], patch);
+  return nextRows;
+}
+
+export function applyPendingMotionDrafts(rows = [], drafts = new Map()) {
+  if (!Array.isArray(rows) || !rows.length) return rows;
+  const getDraft = typeof drafts?.get === 'function'
+    ? (rowId) => drafts.get(rowId)
+    : (rowId) => drafts?.[rowId];
+  return rows.map((row) => {
+    const draft = getDraft(row?.id);
+    if (!draft) return row;
+    return mergeLocalEditorRowPatch(row, draft.patch || draft);
+  });
+}
+
+function isMotionRowPatch(patch = {}) {
+  return hasOwnPatchValue(patch, 'motion') || hasOwnPatchValue(patch, 'motionPresetId');
+}
+
 function resolveMotionPatchForApprovalService(motion) {
   if (motion && typeof motion === 'object') {
     const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
@@ -78,6 +118,10 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+  let approvalMotionSaveTimer = null;
+  let approvalMotionDraftRevision = 0;
+  const pendingApprovalMotionOperations = new Map();
+  const pendingApprovalMotionDrafts = new Map();
   let approvalCommitQueue = Promise.resolve();
   const {
     getCachedProjectDetail,
@@ -144,7 +188,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
   function applyCanonicalSnapshot(project, snapshot, { dirty = false, phase = 'preview_ready' } = {}) {
     if (!snapshot?.contractVersion) return;
-    project._editorRows = normalizePreparedContractRows(snapshot.rows);
+    project._editorRows = applyPendingMotionDrafts(normalizePreparedContractRows(snapshot.rows), pendingApprovalMotionDrafts);
     project._globalAudio = normalizeGlobalAudioState(snapshot.audio);
     project.editor_state = normalizeEditorState({
       ...project.editor_state,
@@ -158,6 +202,32 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       dirty,
       phase,
     });
+  }
+
+  function scheduleApprovalMotionPersistence(project) {
+    clearTimeout(approvalMotionSaveTimer);
+    approvalMotionSaveTimer = setTimeout(() => {
+      const pending = Array.from(pendingApprovalMotionOperations.entries());
+      pendingApprovalMotionOperations.clear();
+      const operations = pending.map(([, entry]) => entry.operation);
+      if (!operations.length) return;
+
+      void queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' })
+        .then(() => {
+          pending.forEach(([rowId, entry]) => {
+            const currentDraft = pendingApprovalMotionDrafts.get(rowId);
+            if (currentDraft?.revision === entry.revision) pendingApprovalMotionDrafts.delete(rowId);
+          });
+        })
+        .catch((err) => {
+          console.error(err);
+          project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: err?.message || 'No se pudo actualizar snapshot' });
+          ui.toast('Error actualizando snapshot');
+        })
+        .finally(() => {
+          renderSelectedVideoProject();
+        });
+    }, SAVE_DEBOUNCE_MS);
   }
 
   async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready' } = {}) {
@@ -540,12 +610,29 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
 
     if (isApprovalServiceMode(project)) {
       const operations = [];
+      const shouldDraftMotion = isMotionRowPatch(patch) && patch.manualMotionDraft === true;
       if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
         const resolvedMotion = patch.motionPresetId
           ? { motionPresetId: patch.motionPresetId, motion: typeof patch.motion === 'object' ? patch.motion : undefined }
           : resolveMotionPatchForApprovalService(patch.motion);
-        operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
+        if (shouldDraftMotion) {
+          const localMotionPatch = { motionPresetId: resolvedMotion.motionPresetId, motion: resolvedMotion.motion };
+          project._editorRows = patchLocalEditorRows(rows, rowId, localMotionPatch);
+          project.editor_state = normalizeEditorState({
+            ...project.editor_state,
+            timed_rows: project._editorRows,
+            dirty: true,
+            phase: 'editing_dirty',
+          });
+          const revision = ++approvalMotionDraftRevision;
+          pendingApprovalMotionDrafts.set(rowId, { patch: localMotionPatch, revision });
+          pendingApprovalMotionOperations.set(rowId, { operation: { type: 'setRowMotion', rowId, ...resolvedMotion }, revision });
+          renderSelectedVideoProject();
+          scheduleApprovalMotionPersistence(project);
+        } else {
+          operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
+        }
       }
       if (patch.dust !== undefined) operations.push({ type: 'setRowDust', rowId, enabled: Boolean(patch.dust?.enabled), dustType: patch.dust?.type || 'dust-1' });
       if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
@@ -562,19 +649,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       return;
     }
 
-    const current = rows[index];
-    const next = {
-      ...current,
-      ...(patch.motion !== undefined ? { motion: patch.motion } : {}),
-      ...(patch.motionPresetId !== undefined ? { motionPresetId: patch.motionPresetId || null } : {}),
-      ...(patch.dust !== undefined ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
-      ...(patch.logo !== undefined ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
-      ...(patch.transition !== undefined ? { transition: patch.transition } : {}),
-      ...(patch.selectedAssetId !== undefined ? { selectedAssetId: patch.selectedAssetId || null } : {}),
-    };
-
-    rows[index] = next;
-    project._editorRows = rows;
+    project._editorRows = patchLocalEditorRows(rows, rowId, patch);
 
     const compositionHash = computeCompositionHash(project);
     const lastRenderedHash = project.editor_state?.last_rendered_hash
