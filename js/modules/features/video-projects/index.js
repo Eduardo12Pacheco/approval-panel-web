@@ -78,6 +78,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+  let approvalCommitQueue = Promise.resolve();
   const {
     getCachedProjectDetail,
     preloadProjectCandidateImages,
@@ -180,6 +181,14 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       dirty: true,
       error: '',
     });
+  }
+
+  function queueApprovalSnapshotOperations(project, operations = [], options = {}) {
+    const run = approvalCommitQueue
+      .catch(() => {})
+      .then(() => commitApprovalSnapshotOperations(project, operations, options));
+    approvalCommitQueue = run.catch(() => {});
+    return run;
   }
 
   async function refreshVideoProjects({ silent = false } = {}) {
@@ -542,7 +551,7 @@ export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
       if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
       if (!operations.length) return;
       try {
-        await commitApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+        await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
       } catch (err) {
         console.error(err);
         project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Fila ${rowId}: ${err?.message || 'No se pudo actualizar snapshot'}` });
