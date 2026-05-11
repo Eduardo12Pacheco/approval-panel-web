@@ -59,14 +59,16 @@ function runAssetsMarkupCheck() {
 }
 
 function runChangeImageNavigationCheck() {
-  const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba' };
+  const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba', selectedAssetId: 'https://cdn.example.com/custom-1.webp' };
   const tableMarkup = buildEditorRowsTable([row], { selectedRowId: 'row-1', project: makeProject() });
   const detailMarkup = buildEditorDetailRail({ row, project: makeProject() });
 
   assert(tableMarkup.includes('data-action="open-assets-tab"'), 'Expected table Cambiar action to open Imágenes tab');
   assert(!tableMarkup.includes('data-action="upload-row-image"'), 'Expected table Cambiar action not to open file picker');
   assert(!detailMarkup.includes('Cambiar imagen'), 'Expected detail rail image button to be removed');
-  assert(!detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail mini image to be removed');
+  assert(detailMarkup.includes('video-editor-detail__summary'), 'Expected detail rail to render phrase/time and image summary');
+  assert(detailMarkup.includes('video-editor-detail__image-card'), 'Expected detail rail to render larger right-side image card');
+  assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
 }
 
 export function runEditorAssetsTabCheck() {

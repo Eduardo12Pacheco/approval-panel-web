@@ -80,13 +80,23 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
+  const { detailImageUrl } = detail;
 
   const rowControls = row
     ? `
       <div class="video-editor-detail__section">
         <span class="video-projects-eyebrow">Detalles de efectos</span>
-        <strong>${escapeHtmlCore(detail.phraseLabel)}</strong>
-        <p class="video-editor-detail__time">${escapeHtmlCore(detail.timeLabel)}</p>
+        <div class="video-editor-detail__summary">
+          <div class="video-editor-detail__copy">
+            <strong>“${escapeHtmlCore(detail.phraseLabel)}”</strong>
+            <p class="video-editor-detail__time">${escapeHtmlCore(detail.timeLabel)}</p>
+          </div>
+          <div class="video-editor-detail__image-card">
+            ${detailImageUrl
+              ? `<img class="video-editor-detail__thumb" src="${escapeHtmlCore(detailImageUrl)}" alt="Imagen seleccionada" loading="lazy" />`
+              : `<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">${escapeHtmlCore(detail.missingAssetLabel)}</span>`}
+          </div>
+        </div>
         ${buildEditorEffectTabs({ row, detail, activeTab: detail.activeEffectTab })}
       </div>
     `
