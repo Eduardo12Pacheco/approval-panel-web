@@ -1842,7 +1842,7 @@
 
 .video-motion-manual {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   padding: 12px;
   border: 0;
   background: #0d0d0d;
@@ -1853,22 +1853,24 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .video-motion-manual__header h4 {
   margin: 0;
   color: var(--text);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .video-motion-manual__header p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.92rem;
   line-height: 1.35;
 }
 
