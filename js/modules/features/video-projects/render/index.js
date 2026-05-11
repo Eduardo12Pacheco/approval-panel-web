@@ -16,7 +16,7 @@ import {
   resolveVideoProjectCompositionContractForCheck,
   resolveVideoProjectPreviewMediaForCheck,
 } from '../composition/composition-view-model.js';
-import { resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
+import { resolveVideoSelectorOpenAction, resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
 import { buildSelectedVideoProjectViewModel } from './view-model.js';
 import { buildEditorShellViewModel } from './editor-view-model.js';
 import {
@@ -528,6 +528,8 @@ export function renderSelectedVideoProjectView({
   assignVideoSegmentToRow,
   updateGlobalAudio,
   renderSelectedVideoProject,
+  updateSelectedVideoProjectCompositionPreview,
+  showToast,
 }) {
   if (!el.videoProjectDetail) return;
 
@@ -1176,15 +1178,28 @@ export function renderSelectedVideoProjectView({
           const rowId = button.dataset.rowId;
           const videoId = button.dataset.videoId;
           const row = editorRows.find((item) => item.id === rowId || item.rowId === rowId);
-          const card = button.closest('[data-video-id]');
-          const window = resolveVideoSegmentSelectionWindow({
-            sourceDurationSeconds: Number(card?.dataset.videoDuration || 0),
-            targetDurationSeconds: Math.max(0, Number(row?.effectiveEndTime ?? row?.endTime ?? 0) - Number(row?.startTime || 0)),
-            requestedSourceInSeconds: 0,
+          const action = resolveVideoSelectorOpenAction({
+            row,
+            video: {
+              id: videoId,
+              src: button.dataset.videoSrc || '',
+              durationSeconds: Number(button.dataset.videoDuration || 0),
+            },
           });
+          if (!action.ok) {
+            showToast?.(action.toastMessage);
+            return;
+          }
           project._selectedEditorRowId = rowId;
           project._editorEffectTab = 'videos';
-          project._videoSelector = { videoId, ...window };
+          project._videoSelector = action.selector;
+          renderSelectedVideoProject?.();
+        });
+      });
+
+      el.videoProjectDetail.querySelectorAll('[data-action="cancel-video-selector"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          project._videoSelector = null;
           renderSelectedVideoProject?.();
         });
       });
@@ -1204,10 +1219,14 @@ export function renderSelectedVideoProjectView({
           const targetDurationSeconds = Number(timeline.dataset.targetDuration || 0);
           const requestedSourceInSeconds = pct * sourceDurationSeconds;
           const nextWindow = resolveVideoSegmentSelectionWindow({ sourceDurationSeconds, targetDurationSeconds, requestedSourceInSeconds });
-          project._videoSelector = { videoId: modal.dataset.videoId, ...nextWindow };
+          const windowLeftPercent = sourceDurationSeconds > 0 ? Math.round((nextWindow.sourceInSeconds / sourceDurationSeconds) * 100000) / 1000 : 0;
+          const windowWidthPercent = sourceDurationSeconds > 0 ? Math.round((nextWindow.durationSeconds / sourceDurationSeconds) * 100000) / 1000 : 0;
+          project._videoSelector = { videoId: modal.dataset.videoId, ...nextWindow, windowLeftPercent, windowWidthPercent };
           selectorWindow.dataset.sourceIn = nextWindow.sourceInSeconds.toString();
           selectorWindow.dataset.sourceOut = nextWindow.sourceOutSeconds.toString();
-          selectorWindow.style.setProperty('--source-in', nextWindow.sourceInSeconds.toString());
+          selectorWindow.style.setProperty('--window-left', `${windowLeftPercent}%`);
+          selectorWindow.style.setProperty('--window-width', `${windowWidthPercent}%`);
+          modal.querySelector('[data-action="commit-video-segment"]')?.setAttribute('data-source-in', nextWindow.sourceInSeconds.toString());
         };
         const up = (upEvent) => {
           selectorWindow.releasePointerCapture?.(upEvent.pointerId);
@@ -1227,8 +1246,10 @@ export function renderSelectedVideoProjectView({
           const videoId = button.dataset.videoId;
           const videos = [project.video_assets, project.videos, project.custom_videos, project.editor_state?.video_assets].find((items) => Array.isArray(items)) || [];
           const video = videos.find((item) => (item.id || item.assetId || item.src || item.public_url || item.storage_public_url) === videoId);
-          await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
           project._videoSelector = null;
+          await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
+          updateSelectedVideoProjectCompositionPreview?.({ project });
+          renderSelectedVideoProject?.();
         });
       });
 

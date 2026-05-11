@@ -2,6 +2,7 @@ import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { formatSeconds } from '../domain/formatters.js';
 
 const SHORT_SOURCE_REASON = 'El video es más corto que la frase seleccionada.';
+const SHORT_SOURCE_TOAST = 'Video demasiado corto para esta frase';
 
 function finiteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -20,7 +21,6 @@ export function resolveVideoSegmentSelectionWindow({ sourceDurationSeconds = 0, 
   const durationSeconds = roundSeconds(targetDuration);
   const sourceOutSeconds = roundSeconds(sourceInSeconds + durationSeconds);
   const ok = targetDuration > 0 && sourceDuration >= targetDuration;
-
   return {
     ok,
     sourceInSeconds,
@@ -49,14 +49,71 @@ function normalizeVideoAsset(video = {}, index = 0) {
   };
 }
 
+export function resolveVideoSelectorOpenAction({ row = {}, video = {}, requestedSourceInSeconds = 0 } = {}) {
+  const videoId = (video.id || video.assetId || video.storage_public_url || video.public_url || video.src || '').toString();
+  const sourceDurationSeconds = Math.max(0, finiteNumber(video.durationSeconds ?? video.duration_seconds, 0));
+  const window = resolveVideoSegmentSelectionWindow({
+    sourceDurationSeconds,
+    targetDurationSeconds: resolveRowDuration(row),
+    requestedSourceInSeconds,
+  });
+
+  if (!window.ok) {
+    return { ok: false, selector: null, toastMessage: SHORT_SOURCE_TOAST };
+  }
+
+  return {
+    ok: true,
+    selector: {
+      videoId,
+      ...window,
+      windowLeftPercent: sourceDurationSeconds > 0 ? roundSeconds((window.sourceInSeconds / sourceDurationSeconds) * 100) : 0,
+      windowWidthPercent: sourceDurationSeconds > 0 ? roundSeconds((window.durationSeconds / sourceDurationSeconds) * 100) : 0,
+    },
+    toastMessage: '',
+  };
+}
+
+function buildSelectorModal({ rowId, selectedVideo, window }) {
+  const sourceDuration = Math.max(0, finiteNumber(selectedVideo.durationSeconds, 0));
+  const left = Number.isFinite(Number(window.windowLeftPercent)) ? finiteNumber(window.windowLeftPercent, 0) : (sourceDuration > 0 ? roundSeconds((finiteNumber(window.sourceInSeconds, 0) / sourceDuration) * 100) : 0);
+  const width = Number.isFinite(Number(window.windowWidthPercent)) ? finiteNumber(window.windowWidthPercent, 0) : (sourceDuration > 0 ? roundSeconds((finiteNumber(window.durationSeconds, 0) / sourceDuration) * 100) : 0);
+
+  return `
+    <div class="video-editor-video-selector__backdrop" data-video-selector-backdrop></div>
+    <section class="video-editor-video-selector" role="dialog" aria-modal="true" aria-label="Selector fijo de video" data-video-selector-modal data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(selectedVideo.id)}">
+      <div class="video-editor-video-selector__preview" data-video-selector-composition-preview aria-label="Preview de composición">
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--background" data-layer="background-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
+        <span class="video-editor-video-selector__layer video-editor-video-selector__layer--overlay" data-layer="color-overlay"></span>
+        <span class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-01" data-layer="effect-layer-01">effect-layer-01 · screen</span>
+        <span class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-02" data-layer="effect-layer-02">effect-layer-02 · multiply</span>
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--foreground" data-layer="foreground-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
+      </div>
+      <div class="video-editor-video-selector__meta">
+        <strong>${escapeHtmlCore(selectedVideo.title)}</strong>
+        <span>Fuente total: ${escapeHtmlCore(formatSeconds(sourceDuration))}</span>
+      </div>
+      <div class="video-editor-video-selector__timeline" data-video-selector-timeline data-source-duration="${escapeHtmlCore(sourceDuration.toString())}" data-target-duration="${escapeHtmlCore(window.durationSeconds.toString())}">
+        <span class="video-editor-video-selector__timeline-track" aria-hidden="true"></span>
+        <span class="video-editor-video-selector__window" data-video-selector-window data-source-in="${escapeHtmlCore(window.sourceInSeconds.toString())}" data-source-out="${escapeHtmlCore(window.sourceOutSeconds.toString())}" style="--window-left:${escapeHtmlCore(left.toString())}%;--window-width:${escapeHtmlCore(width.toString())}%;"></span>
+      </div>
+      <p class="video-editor-video-selector__range">Duración fija: ${escapeHtmlCore(window.durationSeconds.toFixed(2))}s · ${escapeHtmlCore(window.sourceInSeconds.toFixed(2))}s → ${escapeHtmlCore(window.sourceOutSeconds.toFixed(2))}s</p>
+      <div class="video-editor-video-selector__actions">
+        <button type="button" class="video-editor-video-selector__button" data-action="cancel-video-selector">Cancelar</button>
+        <button type="button" class="video-editor-video-selector__button video-editor-video-selector__button--accept" data-action="commit-video-segment" data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(selectedVideo.id)}" data-source-in="${escapeHtmlCore(window.sourceInSeconds.toString())}">Aceptar</button>
+      </div>
+    </section>
+  `;
+}
+
 export function buildEditorVideoPicker({ row = null, videos = [], selector = null, uploading = false } = {}) {
   const rowId = row?.id || '';
   const targetDuration = resolveRowDuration(row);
   const normalizedVideos = Array.isArray(videos) ? videos.map(normalizeVideoAsset) : [];
-  const selectedVideo = normalizedVideos.find((video) => video.id === selector?.videoId) || normalizedVideos[0] || null;
-  const window = selector || (selectedVideo
-    ? resolveVideoSegmentSelectionWindow({ sourceDurationSeconds: selectedVideo.durationSeconds, targetDurationSeconds: targetDuration, requestedSourceInSeconds: 0 })
-    : null);
+  const selectedVideo = selector ? normalizedVideos.find((video) => video.id === selector?.videoId) || null : null;
+  const window = selector && selectedVideo
+    ? { ...resolveVideoSegmentSelectionWindow({ sourceDurationSeconds: selectedVideo.durationSeconds, targetDurationSeconds: targetDuration, requestedSourceInSeconds: selector.sourceInSeconds }), ...selector }
+    : null;
   const durationLabel = formatSeconds(targetDuration);
 
   if (!row) {
@@ -92,16 +149,7 @@ export function buildEditorVideoPicker({ row = null, videos = [], selector = nul
             `).join('')}
           </div>`
         : '<p class="video-projects-empty">Todavía no subiste videos para este proyecto.</p>'}
-      ${selectedVideo && window
-        ? `<section class="video-editor-video-selector" role="dialog" aria-label="Selector fijo de video" data-video-selector-modal data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(selectedVideo.id)}">
-            <video src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
-            <div class="video-editor-video-selector__timeline" data-video-selector-timeline data-source-duration="${escapeHtmlCore(selectedVideo.durationSeconds.toString())}" data-target-duration="${escapeHtmlCore(window.durationSeconds.toString())}">
-              <span class="video-editor-video-selector__window" data-video-selector-window data-source-in="${escapeHtmlCore(window.sourceInSeconds.toString())}" data-source-out="${escapeHtmlCore(window.sourceOutSeconds.toString())}" style="--source-in:${escapeHtmlCore(window.sourceInSeconds.toString())};--duration:${escapeHtmlCore(window.durationSeconds.toString())};"></span>
-            </div>
-            <p>${window.ok ? `Duración fija: ${escapeHtmlCore(window.durationSeconds.toFixed(2))}s · ${escapeHtmlCore(window.sourceInSeconds.toFixed(2))}s → ${escapeHtmlCore(window.sourceOutSeconds.toFixed(2))}s` : escapeHtmlCore(window.reason)}</p>
-            <button type="button" data-action="commit-video-segment" data-row-id="${escapeHtmlCore(rowId)}" data-video-id="${escapeHtmlCore(selectedVideo.id)}" data-source-in="${escapeHtmlCore(window.sourceInSeconds.toString())}" ${window.ok ? '' : 'disabled'}>Cambiar a video</button>
-          </section>`
-        : ''}
+      ${selectedVideo && window?.ok ? buildSelectorModal({ rowId, selectedVideo, window }) : ''}
     </div>
   `;
 }

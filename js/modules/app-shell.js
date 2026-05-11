@@ -796,6 +796,8 @@ function renderSelectedVideoProject() {
     assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
     renderSelectedVideoProject,
+    updateSelectedVideoProjectCompositionPreview,
+    showToast: toast,
   });
 }
 
