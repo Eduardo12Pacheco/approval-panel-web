@@ -61,12 +61,19 @@ function runManualMotionControlsCheck() {
   };
   const detail = buildEditorDetailRailViewModel({ row });
   const markup = buildEditorEffectTabs({ row, detail, activeTab: 'motion' });
+  const manualDetail = buildEditorDetailRailViewModel({ row, project: { _motionEditorTab: 'manual' } });
+  const manualMarkup = buildEditorEffectTabs({ row, detail: manualDetail, activeTab: 'motion' });
 
+  assert(markup.includes('Escoge un preset de movimiento'), 'Expected motion guidance copy to render');
+  assert(markup.includes('data-action="switch-motion-editor-tab"'), 'Expected Presets/Ajuste manual tabs to render');
+  assert(markup.includes('data-motion-editor-panel="presets"'), 'Expected presets panel to render');
   assert(markup.includes('Ajuste manual'), 'Expected manual motion controls to render');
   assert(markup.includes('data-action="seek-motion-keyframe"'), 'Expected Start/End seek controls');
   assert(markup.includes('data-action="update-row-motion-keyframe"'), 'Expected autosave keyframe inputs');
   assert(markup.includes('data-motion-field="toX"'), 'Expected end X keyframe input');
   assert(markup.includes('value="110"'), 'Expected scale percent values in controls');
+  assert(manualMarkup.includes('data-motion-editor-panel="manual"'), 'Expected manual panel to render');
+  assert(manualMarkup.includes('data-motion-editor-panel="presets" hidden'), 'Expected presets panel to hide when manual tab is active');
 }
 
 export function runEditorMotionPresetsCheck() {

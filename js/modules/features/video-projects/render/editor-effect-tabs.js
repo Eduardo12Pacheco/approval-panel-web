@@ -42,11 +42,26 @@ function buildMotionPanel({ row, detail }) {
     return '<p class="video-projects-empty">Seleccioná una fila de la tabla para editar imagen y movimiento.</p>';
   }
 
+  const activeMotionTab = detail.activeMotionEditorTab === 'manual' ? 'manual' : 'presets';
+
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
       <span class="video-editor-control__label">Movimiento</span>
-      ${buildManualMotionControls({ row, manualMotion: detail.manualMotion })}
-      ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
+      <div class="video-motion-mode">
+        <div class="video-motion-mode__copy">
+          <p>Escoge un preset de movimiento, puedes ajustarlo manualmente.</p>
+        </div>
+        <div class="video-motion-mode__tabs" role="tablist" aria-label="Modo de movimiento">
+          <button class="${activeMotionTab === 'presets' ? 'is-active' : ''}" type="button" data-action="switch-motion-editor-tab" data-motion-editor-tab="presets" aria-selected="${activeMotionTab === 'presets'}">Presets</button>
+          <button class="${activeMotionTab === 'manual' ? 'is-active' : ''}" type="button" data-action="switch-motion-editor-tab" data-motion-editor-tab="manual" aria-selected="${activeMotionTab === 'manual'}">Ajuste manual</button>
+        </div>
+      </div>
+      <div class="video-motion-editor-panel" data-motion-editor-panel="presets" ${activeMotionTab === 'presets' ? '' : 'hidden'}>
+        ${buildMotionPicker({ rowId: row.id, selectedMotion: detail.motion, motionPresetGroups: detail.motionPresetGroups })}
+      </div>
+      <div class="video-motion-editor-panel" data-motion-editor-panel="manual" ${activeMotionTab === 'manual' ? '' : 'hidden'}>
+        ${buildManualMotionControls({ row, manualMotion: detail.manualMotion })}
+      </div>
     </div>
   `;
 }

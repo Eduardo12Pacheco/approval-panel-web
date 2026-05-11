@@ -959,6 +959,22 @@ export function renderSelectedVideoProjectView({
         });
       });
 
+      el.videoProjectDetail.querySelectorAll('[data-action="switch-motion-editor-tab"]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const activeTab = button.dataset.motionEditorTab === 'manual' ? 'manual' : 'presets';
+          project._motionEditorTab = activeTab;
+          const section = button.closest('.video-editor-effect-panel');
+          section?.querySelectorAll('[data-action="switch-motion-editor-tab"]').forEach((tabButton) => {
+            const isActive = tabButton.dataset.motionEditorTab === activeTab;
+            tabButton.classList.toggle('is-active', isActive);
+            tabButton.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          });
+          section?.querySelectorAll('[data-motion-editor-panel]').forEach((panel) => {
+            panel.hidden = panel.dataset.motionEditorPanel !== activeTab;
+          });
+        });
+      });
+
       el.videoProjectDetail.querySelectorAll('[data-action="assign-row-asset"]').forEach((button) => {
         button.addEventListener('click', async () => {
           const rowId = button.dataset.rowId;

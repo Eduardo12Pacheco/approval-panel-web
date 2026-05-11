@@ -5,6 +5,7 @@ import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
 
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets']);
+const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
 const DEFAULT_MOTION_PRESET_NAME = 'Zoom 110';
 
 function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
@@ -19,6 +20,11 @@ function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
 function resolveEditorEffectTab(value = '') {
   const tab = value.toString();
   return EDITOR_EFFECT_TAB_IDS.has(tab) ? tab : 'motion';
+}
+
+function resolveMotionEditorTab(value = '') {
+  const tab = value.toString();
+  return MOTION_EDITOR_TAB_IDS.has(tab) ? tab : 'presets';
 }
 
 function resolveMotionPresetName(row = {}) {
@@ -205,6 +211,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     musicVolumePercent: Math.round((music.volume || 0.16) * 100),
     musicVolumeValue: music.volume || 0.16,
     activeEffectTab: resolveEditorEffectTab(project._editorEffectTab),
+    activeMotionEditorTab: resolveMotionEditorTab(project._motionEditorTab),
     assets: buildEditorAssetsViewModel({ project, row, rowIndex }),
     assetsUploading: Boolean(project._rowImageUploading && row?.id && project._rowImageUploading === row.id),
     motion: resolveMotionPresetName(row),
