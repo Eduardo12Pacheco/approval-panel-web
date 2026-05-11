@@ -108,10 +108,6 @@ function finiteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
 export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale = 1, x = 0, y = 0 }) {
   const safeViewportWidth = finitePositive(viewportWidth, 1);
   const safeViewportHeight = finitePositive(viewportHeight, 1);
@@ -128,8 +124,6 @@ export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth
   const layerHeight = baseHeight * safeScale;
   const maxX = Math.max(0, (layerWidth - safeViewportWidth) / 2);
   const maxY = Math.max(0, (layerHeight - safeViewportHeight) / 2);
-  const clampedX = clamp(requestedX, -maxX, maxX);
-  const clampedY = clamp(requestedY, -maxY, maxY);
 
   return {
     coverScale,
@@ -139,10 +133,10 @@ export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth
     layerHeight,
     maxX,
     maxY,
-    clampedX,
-    clampedY,
-    left: (safeViewportWidth - layerWidth) / 2 + clampedX,
-    top: (safeViewportHeight - layerHeight) / 2 + clampedY,
+    appliedX: requestedX,
+    appliedY: requestedY,
+    left: (safeViewportWidth - layerWidth) / 2 + requestedX,
+    top: (safeViewportHeight - layerHeight) / 2 + requestedY,
   };
 }
 

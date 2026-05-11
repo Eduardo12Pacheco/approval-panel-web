@@ -21,8 +21,8 @@ export function runCompositionCoverPanCheck() {
   assertEqual(squareImageLayer.layerWidth, 1920, 'Expected square image to cover viewport width');
   assertEqual(squareImageLayer.layerHeight, 1920, 'Expected square image layer to preserve source aspect overflow');
   assertEqual(squareImageLayer.maxY, 420, 'Expected vertical pan range from hidden source pixels');
-  assertEqual(squareImageLayer.clampedY, 420, 'Expected Y pan to clamp at available overflow');
-  assertEqual(squareImageLayer.top, 0, 'Expected max downward pan to align layer top without background gap');
+  assertEqual(squareImageLayer.appliedY, 500, 'Expected Y pan to apply raw manual keyframe value');
+  assertEqual(squareImageLayer.top, 80, 'Expected raw downward pan to allow leaving the image bounds');
 
   const wideImageLayer = resolveCoverPanLayer({
     viewportWidth: 1920,
@@ -36,10 +36,10 @@ export function runCompositionCoverPanCheck() {
 
   assertEqual(wideImageLayer.maxX, 336, 'Expected horizontal pan range after extra scale');
   assertEqual(wideImageLayer.maxY, 108, 'Expected vertical pan range after extra scale');
-  assertEqual(wideImageLayer.clampedX, -336, 'Expected X pan to clamp negative overflow');
-  assertEqual(wideImageLayer.clampedY, -108, 'Expected Y pan to clamp negative overflow');
-  assertEqual(wideImageLayer.left, -672, 'Expected max left pan to keep right edge covered');
-  assertEqual(wideImageLayer.top, -216, 'Expected max upward pan to keep bottom edge covered');
+  assertEqual(wideImageLayer.appliedX, -999, 'Expected X pan to preserve raw manual keyframe value');
+  assertEqual(wideImageLayer.appliedY, -999, 'Expected Y pan to preserve raw manual keyframe value');
+  assertEqual(wideImageLayer.left, -1335, 'Expected raw left pan to allow visible black background when overdone');
+  assertEqual(wideImageLayer.top, -1107, 'Expected raw upward pan to allow visible black background when overdone');
 
   const staleDomDimensions = resolveActiveImageDimensions({
     activeUrl: 'portrait.jpg',
