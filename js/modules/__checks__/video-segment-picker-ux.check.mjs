@@ -206,7 +206,9 @@ test('Approval editor service accepts client video segment aliases', () => {
   assert.equal(next.rows[0].media.kind, 'video-segment');
   assert.equal(next.rows[0].media.sourceVideoAssetId, 'video-asset-1');
   assert.equal(next.assets['video-asset-1'].previewUrl, '/videos/source.mp4');
+  assert.equal(next.assets['effect-layer-01'].renderPath, 'overlays/effect-layer-01.mp4');
   assert.equal(next.assets['effect-layer-01'].previewUrl, './assets/effect-layer-01.mp4');
+  assert.equal(next.assets['effect-layer-02'].renderPath, 'overlays/effect-layer-02.mp4');
   assert.equal(next.assets['effect-layer-02'].previewUrl, './assets/effect-layer-02.mp4');
 });
 
