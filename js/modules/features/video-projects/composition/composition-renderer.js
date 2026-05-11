@@ -63,8 +63,8 @@ const OUTRO_DURATION_SECONDS = 2;
 const PRELOAD_IMAGE_WINDOW_SIZE = 2;
 const VIDEO_SEGMENT_OVERLAY_COLOR = '#3835AF';
 const VIDEO_SEGMENT_OVERLAY_OPACITY = 0.3;
-const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-layer-01');
 const VIDEO_SEGMENT_EFFECT_02_URL = resolveVideoSegmentEffectUrl('effect-layer-02');
+const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-layer-01');
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -133,8 +133,8 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
     layers: [
       { name: 'background-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'cover' },
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
-      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
       { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect2BlendMode || 'multiply' },
+      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: clampedLocalTime, mixBlendMode: media.effect1BlendMode || 'screen' },
       { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
     ],
   };
@@ -381,14 +381,6 @@ export function buildCompositionDOM(container) {
   videoColorOverlay.style.cssText = `position:absolute;inset:0;background:${VIDEO_SEGMENT_OVERLAY_COLOR};opacity:${VIDEO_SEGMENT_OVERLAY_OPACITY};pointer-events:none;visibility:hidden;`;
   stage.appendChild(videoColorOverlay);
 
-  const videoEffect1 = document.createElement('video');
-  videoEffect1.className = 'composition-layer composition-layer--video-effect-01';
-  videoEffect1.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
-  videoEffect1.muted = true;
-  videoEffect1.loop = true;
-  videoEffect1.playsInline = true;
-  stage.appendChild(videoEffect1);
-
   const videoEffect2 = document.createElement('video');
   videoEffect2.className = 'composition-layer composition-layer--video-effect-02';
   videoEffect2.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:multiply;pointer-events:none;visibility:hidden;';
@@ -396,6 +388,14 @@ export function buildCompositionDOM(container) {
   videoEffect2.loop = true;
   videoEffect2.playsInline = true;
   stage.appendChild(videoEffect2);
+
+  const videoEffect1 = document.createElement('video');
+  videoEffect1.className = 'composition-layer composition-layer--video-effect-01';
+  videoEffect1.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
+  videoEffect1.muted = true;
+  videoEffect1.loop = true;
+  videoEffect1.playsInline = true;
+  stage.appendChild(videoEffect1);
 
   const videoForeground = document.createElement('video');
   videoForeground.className = 'composition-layer composition-layer--video-foreground';
@@ -1035,7 +1035,7 @@ export class CompositionRenderer {
     const isVideoSegment = segment.media?.kind === 'video-segment';
     if (isVideoSegment) {
       const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime });
-      const [background, color, effect1, effect2, foreground] = plan.layers;
+      const [background, color, effect2, effect1, foreground] = plan.layers;
       for (const [layer, element] of [[background, layers.videoBackground], [effect1, layers.videoEffect1], [effect2, layers.videoEffect2], [foreground, layers.videoForeground]]) {
         if (layer?.src && element.getAttribute('src') !== layer.src) {
           element.src = layer.src;

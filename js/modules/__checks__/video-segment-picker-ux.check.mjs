@@ -115,8 +115,9 @@ test('Selector modal uses real effect videos and exposes a play toggle for the p
 
   assert.match(html, /data-action="toggle-video-selector-preview"/);
   assert.match(html, /data-video-selector-preview-toggle/);
-  assert.match(html, /<video[^>]+src="http:\/\/127\.0\.0\.1:3042\/api\/overlays\/effect-layer-01\.mp4"[^>]+data-layer="effect-layer-01"/);
-  assert.match(html, /<video[^>]+src="http:\/\/127\.0\.0\.1:3042\/api\/overlays\/effect-layer-02\.mp4"[^>]+data-layer="effect-layer-02"/);
+  assert.match(html, /<video[^>]+src="\.\/assets\/effect-layer-02\.mp4"[^>]+data-layer="effect-layer-02"/);
+  assert.match(html, /<video[^>]+src="\.\/assets\/effect-layer-01\.mp4"[^>]+data-layer="effect-layer-01"/);
+  assert.ok(html.indexOf('data-layer="effect-layer-02"') < html.indexOf('data-layer="effect-layer-01"'));
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*mix-blend-mode:\s*screen;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*mix-blend-mode:\s*multiply;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--overlay\s*\{[^}]*background:\s*#3835AF;[^}]*opacity:\s*0\.3;/s);
@@ -205,8 +206,8 @@ test('Approval editor service accepts client video segment aliases', () => {
   assert.equal(next.rows[0].media.kind, 'video-segment');
   assert.equal(next.rows[0].media.sourceVideoAssetId, 'video-asset-1');
   assert.equal(next.assets['video-asset-1'].previewUrl, '/videos/source.mp4');
-  assert.equal(next.assets['effect-layer-01'].previewUrl, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
-  assert.equal(next.assets['effect-layer-02'].previewUrl, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
+  assert.equal(next.assets['effect-layer-01'].previewUrl, './assets/effect-layer-01.mp4');
+  assert.equal(next.assets['effect-layer-02'].previewUrl, './assets/effect-layer-02.mp4');
 });
 
 test('Local approval fallback video row wins over stale canonical image row in main composition preview', () => {
@@ -242,8 +243,8 @@ test('Local approval fallback video row wins over stale canonical image row in m
 
   assert.equal(compositionRows[0].media.kind, 'video-segment');
   assert.equal(compositionRows[0].media.sourceVideoSrc, '/videos/source.mp4');
-  assert.equal(compositionRows[0].media.effect1Src, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
-  assert.equal(compositionRows[0].media.effect2Src, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
+  assert.equal(compositionRows[0].media.effect1Src, './assets/effect-layer-01.mp4');
+  assert.equal(compositionRows[0].media.effect2Src, './assets/effect-layer-02.mp4');
 });
 
 test('Video segment preview layer plan always includes concrete effect video sources', () => {
@@ -257,11 +258,11 @@ test('Video segment preview layer plan always includes concrete effect video sou
     },
   });
 
-  assert.deepEqual(plan.layers.map((layer) => layer.name), ['background-video', 'color-overlay', 'effect-layer-01', 'effect-layer-02', 'foreground-video']);
-  assert.equal(plan.layers[2].src, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
-  assert.equal(plan.layers[2].mixBlendMode, 'screen');
-  assert.equal(plan.layers[3].src, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
-  assert.equal(plan.layers[3].mixBlendMode, 'multiply');
+  assert.deepEqual(plan.layers.map((layer) => layer.name), ['background-video', 'color-overlay', 'effect-layer-02', 'effect-layer-01', 'foreground-video']);
+  assert.equal(plan.layers[2].src, './assets/effect-layer-02.mp4');
+  assert.equal(plan.layers[2].mixBlendMode, 'multiply');
+  assert.equal(plan.layers[3].src, './assets/effect-layer-01.mp4');
+  assert.equal(plan.layers[3].mixBlendMode, 'screen');
 });
 
 test('Managed video sync seeks, mutes, plays, pauses, and swallows autoplay promise failures', () => {

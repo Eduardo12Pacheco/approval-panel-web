@@ -1,4 +1,5 @@
 export const COMPOSITION_LOCAL_OVERLAY_BASE_URL = 'http://127.0.0.1:3042/api/overlays';
+export const COMPOSITION_STATIC_ASSET_BASE_URL = './assets';
 
 export const VIDEO_SEGMENT_EFFECT_ASSETS = [
   { assetId: 'effect-layer-01', fileName: 'effect-layer-01.mp4', blendMode: 'screen' },
@@ -11,6 +12,12 @@ export function resolveLocalOverlayAssetUrl(fileName = '') {
   return `${COMPOSITION_LOCAL_OVERLAY_BASE_URL}/${cleanFileName}`;
 }
 
+export function resolveStaticCompositionAssetUrl(fileName = '') {
+  const cleanFileName = (fileName || '').toString().trim().replace(/^\/+/, '');
+  if (!cleanFileName) return '';
+  return `${COMPOSITION_STATIC_ASSET_BASE_URL}/${cleanFileName}`;
+}
+
 export function resolveVideoSegmentEffectAsset(assetId = '') {
   const normalized = (assetId || '').toString().trim();
   return VIDEO_SEGMENT_EFFECT_ASSETS.find((asset) => asset.assetId === normalized) || null;
@@ -18,5 +25,5 @@ export function resolveVideoSegmentEffectAsset(assetId = '') {
 
 export function resolveVideoSegmentEffectUrl(assetId = '') {
   const asset = resolveVideoSegmentEffectAsset(assetId);
-  return asset ? resolveLocalOverlayAssetUrl(asset.fileName) : '';
+  return asset ? resolveStaticCompositionAssetUrl(asset.fileName) : '';
 }
