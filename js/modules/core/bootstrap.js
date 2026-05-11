@@ -66,6 +66,9 @@ export function bindCoreEvents({
         ttsBasicPass: el.ttsBasicPassInput.value,
         remotionApiUrl: el.remotionApiUrlInput?.value?.trim() || defaults.remotionApiUrl,
         approvalPipelineBaseUrl: el.approvalPipelineBaseUrlInput?.value?.trim() || '',
+        brandChannel: el.brandChannelSelect?.value || defaults.brandChannel,
+        transcriptServiceBaseUrl: el.transcriptServiceBaseUrlInput?.value?.trim() || defaults.transcriptServiceBaseUrl,
+        transcriptServiceApiKey: el.transcriptServiceApiKeyInput.value.trim(),
       });
     el.settingsDialog.close();
     toast('Configuración guardada');

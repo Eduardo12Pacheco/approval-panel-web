@@ -76,6 +76,10 @@ export function normalizePreviewAssetManifest(project = {}) {
         voice: { assetId: canonical.audio?.voice?.assetId, mediaUrl: canonical.audio?.voice?.previewUrl || assets[canonical.audio?.voice?.assetId]?.previewUrl || assets[canonical.audio?.voice?.assetId]?.publicUrl || '' },
         music: { assetId: canonical.audio?.music?.assetId, mediaUrl: canonical.audio?.music?.previewUrl || assets[canonical.audio?.music?.assetId]?.previewUrl || assets[canonical.audio?.music?.assetId]?.publicUrl || '' },
       },
+      global: {
+        logo: { assetId: canonical.globalLayers?.logoAssetId || canonical.globalLayers?.logo?.assetId || '', mediaUrl: assets[canonical.globalLayers?.logoAssetId || canonical.globalLayers?.logo?.assetId]?.previewUrl || '' },
+        outro: { assetId: canonical.globalLayers?.outroAssetId || canonical.globalLayers?.outro?.assetId || canonical.outro?.assetId || '', mediaUrl: assets[canonical.globalLayers?.outroAssetId || canonical.globalLayers?.outro?.assetId || canonical.outro?.assetId]?.previewUrl || '' },
+      },
       canonical,
     };
   }

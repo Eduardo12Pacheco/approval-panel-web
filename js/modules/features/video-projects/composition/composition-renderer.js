@@ -397,7 +397,8 @@ export function isVideoSource(src) {
  *     logo: HTMLImageElement,
  *     logoVideo: HTMLVideoElement,
  *     logoCanvas: HTMLCanvasElement,
- *     outro: HTMLDivElement,
+   *     outro: HTMLDivElement,
+   *     outroVideo: HTMLVideoElement,
  *     outroText: HTMLDivElement
  *   }
  * }}
@@ -505,6 +506,13 @@ export function buildCompositionDOM(container) {
   const outro = document.createElement('div');
   outro.className = 'composition-layer composition-layer--outro';
   outro.style.cssText = `position:absolute;inset:0;background:${OUTRO_BG_COLOR};display:grid;place-items:center;visibility:hidden;pointer-events:none;`;
+  const outroVideo = document.createElement('video');
+  outroVideo.className = 'composition-layer composition-layer--outro-video';
+  outroVideo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;visibility:hidden;pointer-events:none;';
+  outroVideo.muted = true;
+  outroVideo.playsInline = true;
+  outroVideo.preload = 'auto';
+  outro.appendChild(outroVideo);
   const outroText = document.createElement('div');
   outroText.style.cssText = `color:${OUTRO_TEXT_COLOR};font-family:Inter,sans-serif;font-size:${OUTRO_FONT_SIZE}px;font-weight:900;`;
   outroText.textContent = 'Gracias por mirar';
@@ -515,7 +523,7 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroText },
+    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
   };
 }
 
@@ -654,13 +662,13 @@ export class CompositionRenderer {
   /**
    * Preload assets (dust WebM, logo, voice, music).
    * Call once on editor open.
-   * @param {{ dustWebmUrl?: string, logoUrl?: string, voiceUrl?: string, musicUrl?: string,
+   * @param {{ dustWebmUrl?: string, logoUrl?: string, outroUrl?: string, outroDurationSeconds?: number, voiceUrl?: string, musicUrl?: string,
    *           voiceVolume?: number, voiceMuted?: boolean, musicVolume?: number, musicMuted?: boolean,
    *           musicFadeInSeconds?: number, musicFadeOutSeconds?: number,
    *           rows?: Array }} assets
    * @returns {Promise<void>}
    */
-  async preload({ dustWebmUrl, logoUrl, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {
+  async preload({ dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {
     // Guard: if preload is already in progress, return the existing promise
     if (this._preloadInProgress) {
       return this._preloadInProgress;
@@ -670,6 +678,8 @@ export class CompositionRenderer {
       // Store URLs for later use
       this._dustWebmUrl = dustWebmUrl || null;
       this._logoUrl = logoUrl || null;
+      this._outroUrl = outroUrl || null;
+      this._outroDurationSeconds = finitePositive(outroDurationSeconds, OUTRO_DURATION_SECONDS);
       this._voiceUrl = voiceUrl || null;
       this._musicUrl = musicUrl || null;
 
@@ -693,6 +703,10 @@ export class CompositionRenderer {
       // Set logo image source — triggers fetch + decode
       if (logoUrl && this.#dom?.layers?.logo) {
         this.#dom.layers.logo.src = logoUrl;
+      }
+
+      if (outroUrl && this.#dom?.layers?.outroVideo) {
+        this.#dom.layers.outroVideo.src = outroUrl;
       }
 
       // ── Task 3.3: Pre-decode segment images if rows provided ──
@@ -937,7 +951,7 @@ export class CompositionRenderer {
       0,
     );
     // SOURCE: Composition.tsx line 228 — outro duration
-    return latestEnd + OUTRO_DURATION_SECONDS;
+    return latestEnd + finitePositive(this._outroDurationSeconds, OUTRO_DURATION_SECONDS);
   }
 
   /** @returns {boolean} Whether playback is active */
@@ -1038,7 +1052,7 @@ export class CompositionRenderer {
     if (!this.#dom) return;
 
     const { layers } = this.#dom;
-    const resolved = resolveActiveSegment(this.#currentTime, this.#rows);
+    const resolved = resolveActiveSegment(this.#currentTime, this.#rows, finitePositive(this._outroDurationSeconds, OUTRO_DURATION_SECONDS));
 
     if (resolved.type === 'empty') {
       // Only bg visible
@@ -1054,6 +1068,7 @@ export class CompositionRenderer {
       layers.logoVideo.style.visibility = 'hidden';
       layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'hidden';
+      layers.outroVideo.style.visibility = 'hidden';
       this.#activeSegmentKey = null;
       return;
     }
@@ -1072,6 +1087,17 @@ export class CompositionRenderer {
       layers.logoVideo.style.visibility = 'hidden';
       layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'visible';
+      if (this._outroUrl) {
+        layers.outroVideo.style.visibility = 'visible';
+        layers.outroText.style.visibility = 'hidden';
+        if (layers.outroVideo.getAttribute('src') !== this._outroUrl) {
+          layers.outroVideo.src = this._outroUrl;
+        }
+        syncManagedVideoElement({ video: layers.outroVideo, currentTimeSeconds: resolved.localTime, playing: this.#isPlaying });
+      } else {
+        layers.outroVideo.style.visibility = 'hidden';
+        layers.outroText.style.visibility = 'visible';
+      }
       this.#activeSegmentKey = null;
       return;
     }

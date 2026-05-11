@@ -71,6 +71,7 @@ export function buildCompositionPayload(project) {
         fadeOutSeconds: 1,
       },
     },
+    brandChannel: previewContract?.canonical?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel || 'pelotazo-ecuador',
     segments: (Array.isArray(previewContract.rows) ? previewContract.rows : []).map((row, index) => {
       const rowId = row.id || row.rowId;
       const media = row.media?.kind === 'video-segment'
@@ -102,9 +103,10 @@ export function buildCompositionPayload(project) {
       id: index + 1,
     };
     }),
-    globalLayers: {},
+    globalLayers: previewContract?.canonical?.globalLayers || {},
     outro: { enabled: true, durationSeconds: 2, label: 'Gracias por mirar' },
   };
+  if (previewContract?.canonical?.outro) contract.outro = previewContract.canonical.outro;
 
   const assets = {};
   for (const item of manifestImages) {
@@ -123,6 +125,13 @@ export function buildCompositionPayload(project) {
   const musicMediaUrl = (previewContract?.manifest?.audio?.music?.mediaUrl || '').toString().trim();
   if (voiceMediaUrl) assets[contract.audio.voiceAssetId] = { status: 'ready', renderPath: voiceMediaUrl };
   if (musicMediaUrl) assets[contract.audio.musicAssetId] = { status: 'ready', renderPath: musicMediaUrl };
+  const globalAssets = previewContract?.manifest?.global || {};
+  for (const item of [globalAssets.logo, globalAssets.outro]) {
+    const assetId = (item?.assetId || '').toString().trim();
+    const mediaUrl = (item?.mediaUrl || '').toString().trim();
+    if (!assetId || !mediaUrl) continue;
+    assets[assetId] = { status: 'ready', renderPath: mediaUrl };
+  }
 
   return {
     ...legacyPayload,

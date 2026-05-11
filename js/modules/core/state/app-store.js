@@ -1,5 +1,6 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
 const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
+const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
   'http://127.0.0.1:3037/',
@@ -26,6 +27,11 @@ function normalizeApprovalPipelineBaseUrl(rawValue) {
   return (rawValue || '').toString().trim();
 }
 
+function normalizeBrandChannel(rawValue) {
+  const value = (rawValue || '').toString().trim().toLowerCase();
+  return value === 'pelotazo-colombia' ? 'pelotazo-colombia' : DEFAULT_BRAND_CHANNEL;
+}
+
 export function defaultSettingsFactory() {
   return {
     baseUrl: 'http://localhost:5678',
@@ -36,6 +42,9 @@ export function defaultSettingsFactory() {
     ttsBasicPass: '',
     remotionApiUrl: DEFAULT_REMOTION_API_URL,
     approvalPipelineBaseUrl: DEFAULT_APPROVAL_EDITOR_SERVICE_URL,
+    brandChannel: DEFAULT_BRAND_CHANNEL,
+    transcriptServiceBaseUrl: 'http://127.0.0.1:8091',
+    transcriptServiceApiKey: '',
   };
 }
 
@@ -47,6 +56,7 @@ export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory =
     const merged = { ...defaults, ...JSON.parse(raw) };
     merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
     merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
+    merged.brandChannel = normalizeBrandChannel(merged.brandChannel);
     return merged;
   } catch {
     return defaults;
@@ -70,5 +80,14 @@ export function hydrateSettingsFormValues({ el, settings }) {
   }
   if (el.approvalPipelineBaseUrlInput) {
     el.approvalPipelineBaseUrlInput.value = normalizeApprovalPipelineBaseUrl(settings.approvalPipelineBaseUrl);
+  }
+  if (el.brandChannelSelect) {
+    el.brandChannelSelect.value = normalizeBrandChannel(settings.brandChannel);
+  }
+  if (el.transcriptServiceBaseUrlInput) {
+    el.transcriptServiceBaseUrlInput.value = settings.transcriptServiceBaseUrl || 'http://127.0.0.1:8091';
+  }
+  if (el.transcriptServiceApiKeyInput) {
+    el.transcriptServiceApiKeyInput.value = settings.transcriptServiceApiKey || '';
   }
 }

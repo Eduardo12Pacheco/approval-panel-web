@@ -369,6 +369,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           voiceAsset,
           musicAsset,
           nowIso: new Date().toISOString(),
+          brandChannel: body.brandChannel || body.brand_channel,
         });
         applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl });
         const record = store.saveSnapshot(pipeline.contract);

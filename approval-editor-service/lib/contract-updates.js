@@ -1,6 +1,7 @@
 const { computeApprovalSnapshotHash } = require("./hash");
 const { normalizeAsset } = require("./asset-resolver");
 const { findMotionPreset } = require("./motion-presets");
+const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../03-Contracts-Core/approval-contract-pipeline");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -57,6 +58,33 @@ function finalize(next) {
   return next;
 }
 
+function applyBrandChannel(next, brandChannel) {
+  const channelAssets = resolveBrandChannelAssets(normalizeBrandChannel(brandChannel));
+  next.brandChannel = channelAssets.channel;
+  next.assets = { ...(next.assets || {}), ...buildBrandAssetRecords(channelAssets) };
+  next.globalLayers = next.globalLayers || {};
+  next.globalLayers.logoAssetId = channelAssets.logo.assetId;
+  next.globalLayers.outroAssetId = channelAssets.outro.assetId;
+  next.globalLayers.logo = {
+    ...(next.globalLayers.logo || {}),
+    enabled: next.globalLayers.logo?.enabled !== false,
+    source: channelAssets.logo.source,
+    preferredSource: channelAssets.logo.source,
+    assetId: channelAssets.logo.assetId,
+  };
+  next.globalLayers.outro = { enabled: next.globalLayers.outro?.enabled !== false, assetId: channelAssets.outro.assetId };
+  next.outro = {
+    ...(next.outro || {}),
+    enabled: next.outro?.enabled !== false,
+    assetId: channelAssets.outro.assetId,
+    durationSeconds: channelAssets.outro.durationSeconds,
+    label: channelAssets.outro.label,
+  };
+  for (const row of next.rows || []) {
+    row.logo = { ...(row.logo || {}), enabled: row.logo?.enabled !== false, source: channelAssets.logo.source, assetId: channelAssets.logo.assetId };
+  }
+}
+
 function applyContractOperations(snapshot, operations = []) {
   const next = clone(snapshot);
   next.assets = next.assets || {};
@@ -101,8 +129,12 @@ function applyContractOperations(snapshot, operations = []) {
       row.dust = { enabled: op.enabled !== false, type, assetId: type, opacity: Number(op.opacity ?? row.dust?.opacity ?? 0.36), blendMode: "screen" };
     } else if (op.type === "setLogo") {
       next.globalLayers = next.globalLayers || {};
-      next.globalLayers.logo = { enabled: op.enabled !== false, source: op.source || "logo-alpha.webm", preferredSource: "logo-alpha.webm", assetId: op.assetId || null };
-      for (const row of next.rows) row.logo = { enabled: op.enabled !== false, source: op.source || "logo-alpha.webm" };
+      const channelAssets = resolveBrandChannelAssets(next.brandChannel);
+      next.globalLayers.logoAssetId = op.assetId || channelAssets.logo.assetId;
+      next.globalLayers.logo = { enabled: op.enabled !== false, source: op.source || channelAssets.logo.source, preferredSource: channelAssets.logo.source, assetId: op.assetId || channelAssets.logo.assetId };
+      for (const row of next.rows) row.logo = { enabled: op.enabled !== false, source: op.source || channelAssets.logo.source, assetId: op.assetId || channelAssets.logo.assetId };
+    } else if (op.type === "setBrandChannel") {
+      applyBrandChannel(next, op.brandChannel || op.channel || op.value);
     } else if (op.type === "setAudio") {
       const kind = op.kind === "voice" ? "voice" : "music";
       next.audio = next.audio || {};

@@ -810,7 +810,7 @@ export function renderSelectedVideoProjectView({
 
           // Resolve asset URLs for preload
           const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
-          const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
+          const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
           const shouldPreloadAssets = _compositionRendererAssetSignature !== assetSignature;
 
           const applyRowsAndSeek = () => {
@@ -828,6 +828,8 @@ export function renderSelectedVideoProjectView({
             renderer.preload({
               dustWebmUrl,
               logoUrl,
+              outroUrl,
+              outroDurationSeconds,
               voiceUrl,
               musicUrl,
               voiceVolume: globalAudioData.voice?.volume ?? 1,

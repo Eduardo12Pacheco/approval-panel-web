@@ -80,6 +80,17 @@
                 <span class="nav-item__title">Voz</span>
               </span>
             </button>
+            <button class="nav-item" data-view="radar" title="Investigación" aria-label="Investigación Radar">
+              <span class="nav-item__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="12" cy="12" r="7.25" fill="none" stroke="currentColor" stroke-width="1.7"></circle>
+                  <path d="M12 4.75v3M12 16.25v3M4.75 12h3M16.25 12h3M12 9.75a2.25 2.25 0 1 0 0 4.5a2.25 2.25 0 0 0 0-4.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+                </svg>
+              </span>
+              <span class="nav-item__copy">
+                <span class="nav-item__title">Investigación</span>
+              </span>
+            </button>
             <button class="nav-item" data-view="subtitulos2" title="Subtítulos" aria-label="Subtítulos">
               <span class="nav-item__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -344,6 +355,89 @@
           </div>
         </section>
 
+        <section id="viewRadar" class="view hidden radar-screen">
+          <header class="panel-shell radar-screen__header">
+            <div>
+              <p class="subtitle2-section-label">Radar local</p>
+              <h1>Investigación</h1>
+              <p>Pegá un link, definí el objetivo y copiá menciones con timestamps. El navegador solo llama al servicio local.</p>
+            </div>
+            <div id="radarHealthStatus" class="subtitle2-health-chip">Servicio sin verificar</div>
+          </header>
+
+          <section class="audio-screen__grid radar-layout">
+            <section class="audio-panel audio-panel--main panel-shell radar-submit-panel">
+              <label class="editor-label audio-field audio-field--grow">
+                <span>Link del video</span>
+                <input id="radarUrlInput" placeholder="https://youtu.be/..." />
+              </label>
+
+              <div class="news-panel__filters" aria-label="Objetivo Radar">
+                <label class="control-group approval-control approval-control--select">
+                  <span class="control-label">Tipo</span>
+                  <select id="radarTargetTypeSelect" data-custom-dropdown data-dropdown-label="Tipo" data-dropdown-placeholder="Tipo">
+                    <option value="country">País</option>
+                    <option value="player">Jugador</option>
+                  </select>
+                </label>
+                <label class="control-group control-group--search approval-control approval-control--search">
+                  <span class="control-label">Objetivo</span>
+                  <input id="radarTargetNameInput" placeholder="Argentina, Messi, Chelsea..." />
+                </label>
+              </div>
+
+              <label class="editor-label audio-field">
+                <span>Alias del objetivo</span>
+                <textarea id="radarTargetAliasesInput" class="script-area" placeholder="albiceleste, selección argentina"></textarea>
+              </label>
+
+              <label class="editor-label audio-field">
+                <span>Keywords extra</span>
+                <textarea id="radarExtraKeywordsInput" class="script-area" placeholder="Messi, Di María, Scaloni"></textarea>
+              </label>
+
+              <div class="audio-actions">
+                <p id="radarProgressStatus" class="meta word-count">Listo para investigar.</p>
+                <button id="radarSubmitBtn" class="approve" type="button">Enviar link</button>
+              </div>
+            </section>
+
+            <aside class="audio-panel audio-panel--queue panel-shell radar-history-panel">
+              <header class="audio-queue-header">
+                <div>
+                  <h3>Historial reciente</h3>
+                  <p class="meta">Trabajos del servicio local.</p>
+                </div>
+              </header>
+              <section id="radarHistoryList" class="audio-queue-list is-empty">Sin trabajos todavía.</section>
+            </aside>
+          </section>
+
+          <section class="audio-screen__grid radar-results-layout">
+            <section class="panel-shell radar-result-card">
+              <header class="section-heading section-heading--compact">
+                <div>
+                  <h3>Transcripción</h3>
+                  <p class="meta">Formato copiable exacto: (MM:SS) texto.</p>
+                </div>
+                <button id="radarCopyTranscriptBtn" class="secondary" type="button" disabled>Copiar transcripción</button>
+              </header>
+              <pre id="radarTranscriptOutput" class="script-area" aria-live="polite">Todavía no hay transcripción.</pre>
+            </section>
+
+            <section class="panel-shell radar-result-card">
+              <header class="section-heading section-heading--compact">
+                <div>
+                  <h3>Menciones</h3>
+                  <p class="meta">Timestamp, objetivo, variante y contexto.</p>
+                </div>
+                <button id="radarCopyMentionsBtn" class="secondary" type="button" disabled>Copiar menciones</button>
+              </header>
+              <pre id="radarMentionsOutput" class="script-area" aria-live="polite">Todavía no hay menciones.</pre>
+            </section>
+          </section>
+        </section>
+
         <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
           <section class="subtitle2-workspace">
             <section class="subtitle2-master-card">
@@ -589,6 +683,14 @@
               <input id="approvalPipelineBaseUrlInput" placeholder="http://127.0.0.1:3042" />
               <span class="meta">Si lo dejás vacío, sigue el fallback a Remotion.</span>
             </label>
+
+            <label class="settings-field">
+              Canal de marca
+              <select id="brandChannelSelect">
+                <option value="pelotazo-ecuador">Pelotazo Ecuador</option>
+                <option value="pelotazo-colombia">Pelotazo Colombia</option>
+              </select>
+            </label>
           </section>
 
           <section class="settings-section">
@@ -615,6 +717,21 @@
               <input id="ttsBasicPassInput" type="password" placeholder="Contraseña Basic Auth" />
             </label>
 
+          </section>
+
+          <section class="settings-section">
+            <h3>Radar / Investigación</h3>
+            <p class="meta settings-help">Servicio local de transcripción y menciones. La API key no se muestra en errores ni historial.</p>
+
+            <label class="settings-field">
+              Base URL Transcript Service
+              <input id="transcriptServiceBaseUrlInput" placeholder="http://127.0.0.1:8091" />
+            </label>
+
+            <label class="settings-field">
+              x-api-key Transcript Service
+              <input id="transcriptServiceApiKeyInput" type="password" placeholder="Requerido para /api/radar" />
+            </label>
           </section>
         </div>
 

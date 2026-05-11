@@ -27,7 +27,7 @@ export function normalizePreparedContractRows(rows = []) {
   })).filter((row) => row.id);
 }
 
-function buildApprovalSeedPayload(project = {}) {
+function buildApprovalSeedPayload(project = {}, settings = {}) {
   const draftId = resolveVideoProjectKey(project);
   const selectedImages = Array.isArray(project.selected_images) ? project.selected_images : [];
   const segments = Array.isArray(project.segments)
@@ -46,6 +46,7 @@ function buildApprovalSeedPayload(project = {}) {
     selected_images: selectedImages,
     voice_audio: project.voice_audio || null,
     background_audio: project.background_audio || null,
+    brandChannel: settings?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel || 'pelotazo-ecuador',
     defaults: {
       fps: 30,
       preview: { width: 1280, height: 720 },
@@ -114,7 +115,7 @@ function sanitizeProviderHealthMetadata(healthPayload) {
 export async function prepareVideoCompositionContract({ project, settings, api }) {
   validateContractPreparationInputs(project);
 
-  const seed = buildApprovalSeedPayload(project);
+  const seed = buildApprovalSeedPayload(project, settings);
   const resolvedProvider = resolveEditorPipelineClient({ api, settings });
 
   const executePreparation = async ({ client, providerId, providerMetadata }) => {

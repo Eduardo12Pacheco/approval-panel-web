@@ -10,6 +10,7 @@ export function sanitizePipelineHealthMetadata(healthPayload) {
 export function normalizeEditorState(editorState = {}) {
   if (!editorState || typeof editorState !== 'object') return {};
   const globalAudio = normalizeGlobalAudioState(editorState.global_audio);
+  const brandChannel = normalizeBrandChannel(editorState.brandChannel || editorState.brand_channel || editorState.approval_contract_snapshot?.brandChannel);
   return {
     phase: editorState.phase || 'idle',
     remotion_project_id: editorState.remotion_project_id || '',
@@ -26,6 +27,8 @@ export function normalizeEditorState(editorState = {}) {
     snapshot_id: editorState.snapshot_id || editorState.snapshotId || '',
     snapshot_hash: editorState.snapshot_hash || editorState.snapshotHash || '',
     approval_contract_snapshot: editorState.approval_contract_snapshot && typeof editorState.approval_contract_snapshot === 'object' ? editorState.approval_contract_snapshot : null,
+    brandChannel,
+    brand_channel: brandChannel,
     dirty: Boolean(editorState.dirty),
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
@@ -35,6 +38,10 @@ export function normalizeEditorState(editorState = {}) {
     global_audio: globalAudio,
     updated_at: editorState.updated_at || new Date().toISOString(),
   };
+}
+
+export function normalizeBrandChannel(value = 'pelotazo-ecuador') {
+  return (value || '').toString().trim().toLowerCase() === 'pelotazo-colombia' ? 'pelotazo-colombia' : 'pelotazo-ecuador';
 }
 
 export function normalizeGlobalAudioState(globalAudio = {}) {

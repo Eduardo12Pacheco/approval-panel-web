@@ -2,6 +2,8 @@ import { resolveCandidateImageUrl } from '../domain/image-candidates.js';
 import { findProjectVideoAsset } from '../domain/video-assets.js';
 import {
   COMPOSITION_LOCAL_OVERLAY_BASE_URL,
+  resolveBrandChannelAssets,
+  resolveBrandChannelPreviewAssetUrl,
   resolveVideoSegmentEffectAsset,
   resolveVideoSegmentEffectUrl,
 } from './overlay-assets.js';
@@ -21,8 +23,8 @@ export const COMPOSITION_LOCAL_LOGO_URL = './assets/logo-alpha.webm';
 export const COMPOSITION_LOCAL_GREEN_LOGO_URL = '../02-Video-Engine/assets/overlays/logo-green.mp4';
 const LOCAL_LOGO_SOURCE_ALIASES = new Set(['logo-alpha.webm', './assets/logo-alpha.webm', 'assets/logo-alpha.webm', 'logo-green.mp4', './assets/logo-green.mp4', 'assets/logo-green.mp4']);
 
-export function buildCompositionAssetSignature({ dustWebmUrl, voiceUrl, musicUrl } = {}) {
-  return [dustWebmUrl || '', voiceUrl || '', musicUrl || ''].join('::');
+export function buildCompositionAssetSignature({ dustWebmUrl, logoUrl, outroUrl, voiceUrl, musicUrl } = {}) {
+  return [dustWebmUrl || '', logoUrl || '', outroUrl || '', voiceUrl || '', musicUrl || ''].join('::');
 }
 
 export function resolveCanonicalPreviewAssetUrl(project = {}, assetId = '') {
@@ -79,11 +81,31 @@ function resolveCompositionVideoMedia(project = {}, row = {}, contract = {}) {
 export function resolveCompositionLogoUrl(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
   const logo = snapshot?.globalLayers?.logo || {};
-  const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, logo.assetId);
+  const channelAssetId = logo.assetId || snapshot?.globalLayers?.logoAssetId || resolveBrandChannelAssets(snapshot?.brandChannel).logo.assetId;
+  const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, channelAssetId);
   if (canonicalUrl) return canonicalUrl;
   const source = (logo.source || '').toString().trim();
   if (!source || LOCAL_LOGO_SOURCE_ALIASES.has(source)) return COMPOSITION_LOCAL_LOGO_URL;
   return source || '';
+}
+
+export function resolveCompositionOutroUrl(project = {}) {
+  const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const outro = snapshot?.globalLayers?.outro || snapshot?.outro || {};
+  const channelAssetId = outro.assetId || snapshot?.globalLayers?.outroAssetId || resolveBrandChannelAssets(snapshot?.brandChannel).outro.assetId;
+  const canonicalUrl = resolveCanonicalPreviewAssetUrl(project, channelAssetId);
+  if (canonicalUrl) return canonicalUrl;
+  return resolveBrandChannelPreviewAssetUrl({ channel: snapshot?.brandChannel, kind: 'outro' });
+}
+
+export function resolveCompositionOutroDurationSeconds(project = {}) {
+  const snapshot = project?.editor_state?.approval_contract_snapshot;
+  const assetId = snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || snapshot?.outro?.assetId;
+  const assetDuration = Number(snapshot?.assets?.[assetId]?.durationSeconds);
+  if (Number.isFinite(assetDuration) && assetDuration > 0) return assetDuration;
+  const outroDuration = Number(snapshot?.outro?.durationSeconds);
+  if (Number.isFinite(outroDuration) && outroDuration > 0) return outroDuration;
+  return resolveBrandChannelAssets(snapshot?.brandChannel).outro.durationSeconds;
 }
 
 export function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
@@ -100,6 +122,7 @@ export function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
 export function buildCompositionRows(rows = [], project = {}) {
   const contract = buildPreviewCompositionContract(project, rows);
   const sourceRows = Array.isArray(contract.rows) ? contract.rows : [];
+  const logoUrl = resolveCompositionLogoUrl(project);
   return sourceRows.map((row, index) => ({
     ...row,
     media: resolveCompositionVideoMedia(project, row, contract),
@@ -110,6 +133,7 @@ export function buildCompositionRows(rows = [], project = {}) {
           blendMode: row.dust.blendMode || 'screen',
         }
       : row?.dust,
+    logo: row?.logo ? { ...row.logo, source: logoUrl } : row?.logo,
     endTime: row.effectiveEndTime,
     image: row.image || resolveRowImageUrlFromContract({ row, rowIndex: index, contract, project, resolveCandidateImageUrl }),
   }));
@@ -121,8 +145,12 @@ export function buildCompositionPreviewAssets({ project = {}, rows = [] } = {}) 
   const compositionRows = buildCompositionRows(rows, project);
   const dustWebmUrl = resolveCompositionDustUrl(project, compositionRows);
   const logoUrl = resolveCompositionLogoUrl(project);
+  const outroUrl = resolveCompositionOutroUrl(project);
+  const outroDurationSeconds = resolveCompositionOutroDurationSeconds(project);
   const assetSignature = buildCompositionAssetSignature({
     dustWebmUrl,
+    logoUrl,
+    outroUrl,
     voiceUrl,
     musicUrl,
   });
@@ -134,6 +162,8 @@ export function buildCompositionPreviewAssets({ project = {}, rows = [] } = {}) 
     compositionRows,
     dustWebmUrl,
     logoUrl,
+    outroUrl,
+    outroDurationSeconds,
     assetSignature,
   };
 }
