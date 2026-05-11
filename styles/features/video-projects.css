@@ -1788,7 +1788,7 @@
 }
 
 .video-motion-editor-panel__title {
-  margin: 0 0 10px;
+  margin: 12px 0 16px;
   color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.88rem;
@@ -1801,7 +1801,7 @@
 .video-motion-picker {
   display: grid;
   gap: 18px;
-  max-height: min(27vh, 310px);
+  max-height: min(40.5vh, 465px);
   overflow: auto;
   padding: 12px 8px 12px 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
