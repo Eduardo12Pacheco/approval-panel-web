@@ -1,3 +1,5 @@
+import { VIDEO_SEGMENT_EFFECT_ASSETS, resolveVideoSegmentEffectUrl } from './overlay-assets.js';
+
 function toSafeObject(value) {
   return value && typeof value === 'object' ? value : {};
 }
@@ -17,10 +19,11 @@ function normalizeImageLookupKey(value = '') {
     .replace(/[^a-z0-9]+/g, '-');
 }
 
-const VIDEO_SEGMENT_EFFECTS = [
-  { assetId: 'effect-layer-01', mediaUrl: '/api/overlays/effect-layer-01.mp4', blendMode: 'screen' },
-  { assetId: 'effect-layer-02', mediaUrl: '/api/overlays/effect-layer-02.mp4', blendMode: 'multiply' },
-];
+const VIDEO_SEGMENT_EFFECTS = VIDEO_SEGMENT_EFFECT_ASSETS.map((asset) => ({
+  assetId: asset.assetId,
+  mediaUrl: resolveVideoSegmentEffectUrl(asset.assetId),
+  blendMode: asset.blendMode,
+}));
 
 function resolveLegacyCandidateUrl(candidate = {}) {
   return (

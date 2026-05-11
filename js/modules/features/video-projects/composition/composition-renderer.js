@@ -1,4 +1,5 @@
 import { AudioManager } from '../audio/audio-manager.js';
+import { resolveVideoSegmentEffectUrl } from './overlay-assets.js';
 
 // composition-renderer.js — Browser-local real-time composition preview
 // Replaces slow Remotion-rendered MP4 previews with DOM/CSS layers + streaming audio.
@@ -62,8 +63,8 @@ const OUTRO_DURATION_SECONDS = 2;
 const PRELOAD_IMAGE_WINDOW_SIZE = 2;
 const VIDEO_SEGMENT_OVERLAY_COLOR = '#3835AF';
 const VIDEO_SEGMENT_OVERLAY_OPACITY = 0.3;
-const VIDEO_SEGMENT_EFFECT_01_URL = '/api/overlays/effect-layer-01.mp4';
-const VIDEO_SEGMENT_EFFECT_02_URL = '/api/overlays/effect-layer-02.mp4';
+const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-layer-01');
+const VIDEO_SEGMENT_EFFECT_02_URL = resolveVideoSegmentEffectUrl('effect-layer-02');
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -145,6 +146,21 @@ function seekVideoElement(video, timeSeconds) {
   if (Math.abs(Number(video.currentTime || 0) - next) > 0.04) {
     try { video.currentTime = next; } catch {}
   }
+}
+
+export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing = false } = {}) {
+  if (!video) return false;
+  try { video.muted = true; } catch {}
+  try { video.playsInline = true; } catch {}
+  seekVideoElement(video, currentTimeSeconds);
+  if (playing) {
+    if (video.paused !== false) {
+      try { void video.play?.().catch(() => {}); } catch {}
+    }
+  } else {
+    try { video.pause?.(); } catch {}
+  }
+  return true;
 }
 
 export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale = 1, x = 0, y = 0 }) {
@@ -1027,9 +1043,7 @@ export class CompositionRenderer {
         }
         element.style.visibility = layer?.src ? 'visible' : 'hidden';
         element.style.objectFit = layer?.objectFit || element.style.objectFit;
-        seekVideoElement(element, layer?.currentTimeSeconds);
-        if (this.#isPlaying && layer?.src) void element.play?.().catch(() => {});
-        else element.pause?.();
+        syncManagedVideoElement({ video: element, currentTimeSeconds: layer?.currentTimeSeconds, playing: Boolean(this.#isPlaying && layer?.src) });
       }
       layers.videoColorOverlay.style.visibility = 'visible';
       layers.videoColorOverlay.style.background = color.backgroundColor;

@@ -12,7 +12,10 @@ import {
 } from '../features/video-projects/render/editor-video-picker.js';
 import {
   buildVideoSegmentPreviewLayerPlan,
+  syncManagedVideoElement,
 } from '../features/video-projects/composition/composition-renderer.js';
+import { buildEditorVideosViewModel } from '../features/video-projects/render/editor-view-model.js';
+import { createRowVideoCommands } from '../features/video-projects/data/row-video-commands.js';
 import {
   resolveVideoProjectCompositionContractForCheck,
   syncVideoSelectorPreviewLayers,
@@ -112,16 +115,45 @@ test('Selector modal uses real effect videos and exposes a play toggle for the p
 
   assert.match(html, /data-action="toggle-video-selector-preview"/);
   assert.match(html, /data-video-selector-preview-toggle/);
-  assert.match(html, /<video[^>]+src="\/api\/overlays\/effect-layer-01\.mp4"[^>]+data-layer="effect-layer-01"/);
-  assert.match(html, /<video[^>]+src="\/api\/overlays\/effect-layer-02\.mp4"[^>]+data-layer="effect-layer-02"/);
+  assert.match(html, /<video[^>]+src="http:\/\/127\.0\.0\.1:3042\/api\/overlays\/effect-layer-01\.mp4"[^>]+data-layer="effect-layer-01"/);
+  assert.match(html, /<video[^>]+src="http:\/\/127\.0\.0\.1:3042\/api\/overlays\/effect-layer-02\.mp4"[^>]+data-layer="effect-layer-02"/);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*mix-blend-mode:\s*screen;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*mix-blend-mode:\s*multiply;/s);
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--overlay\s*\{[^}]*background:\s*#3835AF;[^}]*opacity:\s*0\.3;/s);
 });
 
 test('Selector modal is centered and backdrop layers above the whole editor', () => {
-  assert.match(videoProjectsCss, /\.video-editor-video-selector__backdrop\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*z-index:\s*9000;/s);
-  assert.match(videoProjectsCss, /\.video-editor-video-selector\s*\{[^}]*position:\s*fixed;[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);[^}]*z-index:\s*9001;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__backdrop\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*z-index:\s*2147483000;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector\s*\{[^}]*position:\s*fixed;[^}]*top:\s*50%;[^}]*left:\s*50%;[^}]*transform:\s*translate\(-50%,\s*-50%\);[^}]*z-index:\s*2147483001;/s);
+  assert.match(videoProjectsCss, /\.video-project-detail:has\(\[data-video-selector-modal\]\) \.video-editor-table-wrap,[\s\S]*\.video-project-detail:has\(\[data-video-selector-modal\]\) \.video-editor-actions\s*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/s);
+});
+
+test('Uploaded video library persists through editor_state and survives empty top-level arrays', async () => {
+  const calls = [];
+  const file = { name: 'clip.mp4', type: 'video/mp4', size: 1024 };
+  const project = { draft_id: 'draft-1', video_assets: [], editor_state: {} };
+  const commands = createRowVideoCommands({
+    api: {
+      uploadProjectVideoFile: async () => ({ public_url: 'https://cdn.example/clip.mp4', storage_path: 'projects/x/videos/clip.mp4', bucket: 'video-project-videos' }),
+      saveVideoProjectEditorState: async (payload) => { calls.push(payload); return { ok: true }; },
+    },
+    ui: { toast: () => {} },
+    getProject: () => project,
+    resolveProjectKey: () => 'draft-1',
+    renderSelectedVideoProject: () => {},
+    updateRow: async () => {},
+  });
+
+  await commands.uploadVideoToLibrary('row-1', file);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].draftId, 'draft-1');
+  assert.equal(calls[0].editorState.video_assets[0].src, 'https://cdn.example/clip.mp4');
+  assert.equal(project.editor_state.video_assets[0].src, 'https://cdn.example/clip.mp4');
+
+  const refreshed = buildEditorVideosViewModel({ project: { video_assets: [], editor_state: { video_assets: project.editor_state.video_assets } } });
+  assert.equal(refreshed.length, 1);
+  assert.equal(refreshed[0].src, 'https://cdn.example/clip.mp4');
 });
 
 test('Approval fallback detection covers legacy unsupported video segment operation errors only', () => {
@@ -173,8 +205,8 @@ test('Approval editor service accepts client video segment aliases', () => {
   assert.equal(next.rows[0].media.kind, 'video-segment');
   assert.equal(next.rows[0].media.sourceVideoAssetId, 'video-asset-1');
   assert.equal(next.assets['video-asset-1'].previewUrl, '/videos/source.mp4');
-  assert.equal(next.assets['effect-layer-01'].previewUrl, '/api/overlays/effect-layer-01.mp4');
-  assert.equal(next.assets['effect-layer-02'].previewUrl, '/api/overlays/effect-layer-02.mp4');
+  assert.equal(next.assets['effect-layer-01'].previewUrl, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
+  assert.equal(next.assets['effect-layer-02'].previewUrl, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
 });
 
 test('Local approval fallback video row wins over stale canonical image row in main composition preview', () => {
@@ -210,8 +242,8 @@ test('Local approval fallback video row wins over stale canonical image row in m
 
   assert.equal(compositionRows[0].media.kind, 'video-segment');
   assert.equal(compositionRows[0].media.sourceVideoSrc, '/videos/source.mp4');
-  assert.equal(compositionRows[0].media.effect1Src, '/api/overlays/effect-layer-01.mp4');
-  assert.equal(compositionRows[0].media.effect2Src, '/api/overlays/effect-layer-02.mp4');
+  assert.equal(compositionRows[0].media.effect1Src, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
+  assert.equal(compositionRows[0].media.effect2Src, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
 });
 
 test('Video segment preview layer plan always includes concrete effect video sources', () => {
@@ -226,10 +258,37 @@ test('Video segment preview layer plan always includes concrete effect video sou
   });
 
   assert.deepEqual(plan.layers.map((layer) => layer.name), ['background-video', 'color-overlay', 'effect-layer-01', 'effect-layer-02', 'foreground-video']);
-  assert.equal(plan.layers[2].src, '/api/overlays/effect-layer-01.mp4');
+  assert.equal(plan.layers[2].src, 'http://127.0.0.1:3042/api/overlays/effect-layer-01.mp4');
   assert.equal(plan.layers[2].mixBlendMode, 'screen');
-  assert.equal(plan.layers[3].src, '/api/overlays/effect-layer-02.mp4');
+  assert.equal(plan.layers[3].src, 'http://127.0.0.1:3042/api/overlays/effect-layer-02.mp4');
   assert.equal(plan.layers[3].mixBlendMode, 'multiply');
+});
+
+test('Managed video sync seeks, mutes, plays, pauses, and swallows autoplay promise failures', () => {
+  const calls = [];
+  const video = {
+    currentTime: 0,
+    paused: true,
+    play: () => {
+      calls.push('play');
+      return Promise.reject(new Error('autoplay blocked'));
+    },
+    pause: () => calls.push('pause'),
+  };
+
+  assert.equal(syncManagedVideoElement({ video, currentTimeSeconds: 2.5, playing: true }), true);
+  assert.equal(video.currentTime, 2.5);
+  assert.equal(video.muted, true);
+  assert.equal(video.playsInline, true);
+  assert.deepEqual(calls, ['play']);
+
+  video.paused = false;
+  syncManagedVideoElement({ video, currentTimeSeconds: 2.51, playing: true });
+  assert.deepEqual(calls, ['play']);
+
+  syncManagedVideoElement({ video, currentTimeSeconds: 3, playing: false });
+  assert.equal(video.currentTime, 3);
+  assert.deepEqual(calls, ['play', 'pause']);
 });
 
 test('Editor rows table renders a meaningful video mini-preview instead of a plain black Video placeholder', () => {

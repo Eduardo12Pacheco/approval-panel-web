@@ -1,4 +1,10 @@
 import { resolveCandidateImageUrl } from '../domain/image-candidates.js';
+import { findProjectVideoAsset } from '../domain/video-assets.js';
+import {
+  COMPOSITION_LOCAL_OVERLAY_BASE_URL,
+  resolveVideoSegmentEffectAsset,
+  resolveVideoSegmentEffectUrl,
+} from './overlay-assets.js';
 import {
   buildPreviewCompositionContract,
   resolvePreparedMediaUrl,
@@ -7,7 +13,6 @@ import {
 } from './composition-contract.js';
 
 export const COMPOSITION_DUST_PREVIEW_URL = './assets/dust-preview.webm';
-export const COMPOSITION_LOCAL_OVERLAY_BASE_URL = 'http://127.0.0.1:3042/api/overlays';
 export const COMPOSITION_DUST_PREVIEW_URLS = {
   'dust-1': `${COMPOSITION_LOCAL_OVERLAY_BASE_URL}/dust-1.mp4`,
   'dust-2': `${COMPOSITION_LOCAL_OVERLAY_BASE_URL}/dust-2.mp4`,
@@ -45,15 +50,16 @@ function resolveCompositionVideoUrlForRow(project = {}, row = {}, contract = {})
   const preparedByRow = prepared.find((item) => item?.rowId === row?.rowId || item?.rowId === row?.id || item?.assetId === assetId);
   const canonical = preparedByRow?.mediaUrl ? resolvePreparedMediaUrl(preparedByRow.mediaUrl, contract?.remotionApiUrl) : '';
   if (canonical) return canonical;
-  const videos = [project.video_assets, project.videos, project.custom_videos, project.editor_state?.video_assets].find((items) => Array.isArray(items)) || [];
-  const matched = videos.find((video) => [video.id, video.assetId, video.src, video.public_url, video.storage_public_url].some((value) => value && value === assetId));
+  const matched = findProjectVideoAsset(project, assetId);
   return (matched?.src || matched?.public_url || matched?.storage_public_url || row.media.sourceVideoSrc || '').toString();
 }
 
 function resolveCompositionEffectUrl(contract = {}, assetId = '') {
   const effects = Array.isArray(contract?.manifest?.effects) ? contract.manifest.effects : [];
   const effect = effects.find((item) => item?.assetId === assetId);
-  return resolvePreparedMediaUrl(effect?.mediaUrl || `/api/overlays/${assetId}.mp4`, contract?.remotionApiUrl);
+  const localEffect = resolveVideoSegmentEffectAsset(assetId);
+  const fallbackUrl = localEffect ? resolveVideoSegmentEffectUrl(assetId) : '';
+  return resolvePreparedMediaUrl(effect?.mediaUrl || fallbackUrl, contract?.remotionApiUrl);
 }
 
 function resolveCompositionVideoMedia(project = {}, row = {}, contract = {}) {

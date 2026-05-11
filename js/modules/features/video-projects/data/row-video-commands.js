@@ -1,3 +1,5 @@
+import { mergeProjectVideoAsset } from '../domain/video-assets.js';
+
 export const VIDEO_UPLOAD_ALLOWED_MIME_TYPES = new Set([
   'video/mp4',
   'video/webm',
@@ -71,7 +73,14 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
         file_size: Number(file.size || 0),
         mime_type: file.type || '',
       };
-      project.video_assets = [...(Array.isArray(project.video_assets) ? project.video_assets : []), video];
+      const nextVideoAssets = mergeProjectVideoAsset(project, video);
+      project.video_assets = nextVideoAssets;
+      project.editor_state = {
+        ...(project.editor_state || {}),
+        video_assets: nextVideoAssets,
+        updated_at: new Date().toISOString(),
+      };
+      await api.saveVideoProjectEditorState?.({ draftId, editorState: project.editor_state });
       ui.toast('Video subido a la biblioteca');
       return video;
     } catch (err) {

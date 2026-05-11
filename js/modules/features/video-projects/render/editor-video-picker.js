@@ -1,4 +1,5 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
+import { resolveVideoSegmentEffectUrl } from '../composition/overlay-assets.js';
 import { formatSeconds } from '../domain/formatters.js';
 
 const SHORT_SOURCE_REASON = 'El video es más corto que la frase seleccionada.';
@@ -76,6 +77,8 @@ export function resolveVideoSelectorOpenAction({ row = {}, video = {}, requested
 
 function buildSelectorModal({ rowId, selectedVideo, window }) {
   const sourceDuration = Math.max(0, finiteNumber(selectedVideo.durationSeconds, 0));
+  const effect1Src = resolveVideoSegmentEffectUrl('effect-layer-01');
+  const effect2Src = resolveVideoSegmentEffectUrl('effect-layer-02');
   const left = Number.isFinite(Number(window.windowLeftPercent)) ? finiteNumber(window.windowLeftPercent, 0) : (sourceDuration > 0 ? roundSeconds((finiteNumber(window.sourceInSeconds, 0) / sourceDuration) * 100) : 0);
   const width = Number.isFinite(Number(window.windowWidthPercent)) ? finiteNumber(window.windowWidthPercent, 0) : (sourceDuration > 0 ? roundSeconds((finiteNumber(window.durationSeconds, 0) / sourceDuration) * 100) : 0);
 
@@ -85,8 +88,8 @@ function buildSelectorModal({ rowId, selectedVideo, window }) {
       <div class="video-editor-video-selector__preview" data-video-selector-composition-preview aria-label="Preview de composición">
         <video class="video-editor-video-selector__layer video-editor-video-selector__layer--background" data-layer="background-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
         <span class="video-editor-video-selector__layer video-editor-video-selector__layer--overlay" data-layer="color-overlay"></span>
-        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-01" src="/api/overlays/effect-layer-01.mp4" data-layer="effect-layer-01" muted loop playsinline preload="metadata"></video>
-        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-02" src="/api/overlays/effect-layer-02.mp4" data-layer="effect-layer-02" muted loop playsinline preload="metadata"></video>
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-01" src="${escapeHtmlCore(effect1Src)}" data-layer="effect-layer-01" muted loop playsinline preload="metadata" data-effect-src="${escapeHtmlCore(effect1Src)}"></video>
+        <video class="video-editor-video-selector__layer video-editor-video-selector__layer--effect video-editor-video-selector__layer--effect-02" src="${escapeHtmlCore(effect2Src)}" data-layer="effect-layer-02" muted loop playsinline preload="metadata" data-effect-src="${escapeHtmlCore(effect2Src)}"></video>
         <video class="video-editor-video-selector__layer video-editor-video-selector__layer--foreground" data-layer="foreground-video" src="${escapeHtmlCore(selectedVideo.src)}" muted playsinline preload="metadata"></video>
         <button type="button" class="video-editor-video-selector__play-toggle" data-action="toggle-video-selector-preview" data-video-selector-preview-toggle aria-pressed="false">▶ Preview</button>
       </div>

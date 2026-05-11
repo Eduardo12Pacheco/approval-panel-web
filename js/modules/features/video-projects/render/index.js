@@ -1,9 +1,10 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from '../audio/default-background-music.js';
-import { CompositionRenderer } from '../composition/composition-renderer.js';
+import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js';
 import { formatCount, formatDateLabel, formatSeconds } from '../domain/formatters.js';
 import { getPhaseLabel } from '../domain/status-labels.js';
 import { findMotionPreset } from '../domain/motion-presets.js';
+import { findProjectVideoAsset } from '../domain/video-assets.js';
 import {
   getCandidateQualityScore,
   getImageNaturalQualityScore,
@@ -164,12 +165,7 @@ export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, pla
   const videos = Array.from(modal.querySelectorAll('video[data-layer]'));
   if (!videos.length || !Number.isFinite(seekTime)) return false;
   videos.forEach((video) => {
-    try { video.currentTime = Math.max(0, seekTime); } catch {}
-    if (playing) {
-      try { void video.play?.(); } catch {}
-    } else {
-      try { video.pause?.(); } catch {}
-    }
+    syncManagedVideoElement({ video, currentTimeSeconds: Math.max(0, seekTime), playing });
   });
   return true;
 }
@@ -1280,8 +1276,7 @@ export function renderSelectedVideoProjectView({
         button.addEventListener('click', async () => {
           const rowId = button.dataset.rowId;
           const videoId = button.dataset.videoId;
-          const videos = [project.video_assets, project.videos, project.custom_videos, project.editor_state?.video_assets].find((items) => Array.isArray(items)) || [];
-          const video = videos.find((item) => (item.id || item.assetId || item.src || item.public_url || item.storage_public_url) === videoId);
+          const video = findProjectVideoAsset(project, videoId);
           project._videoSelector = null;
           await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
           updateSelectedVideoProjectCompositionPreview?.({ project });

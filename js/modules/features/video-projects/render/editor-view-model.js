@@ -3,6 +3,7 @@ import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../d
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
+import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
@@ -106,16 +107,6 @@ function createAssetViewModel({ url, title, source, dimensions, currentImageUrl,
   };
 }
 
-function resolveProjectVideos(project = {}) {
-  const candidates = [
-    project.video_assets,
-    project.videos,
-    project.custom_videos,
-    project.editor_state?.video_assets,
-  ].find((items) => Array.isArray(items));
-  return Array.isArray(candidates) ? candidates : [];
-}
-
 function createVideoViewModel(video = {}, index = 0) {
   const src = (video.src || video.previewUrl || video.public_url || video.storage_public_url || video.url || '').toString().trim();
   return {
@@ -128,7 +119,7 @@ function createVideoViewModel(video = {}, index = 0) {
 }
 
 export function buildEditorVideosViewModel({ project = {} } = {}) {
-  return resolveProjectVideos(project)
+  return resolveProjectVideoLibrary(project)
     .map(createVideoViewModel)
     .filter((video) => video.src);
 }
