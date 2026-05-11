@@ -30,6 +30,7 @@ export function normalizeEditorState(editorState = {}) {
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
     timed_rows: Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [],
+    video_assets: Array.isArray(editorState.video_assets) ? editorState.video_assets : [],
     preview_assets: editorState.preview_assets && typeof editorState.preview_assets === 'object' ? editorState.preview_assets : null,
     global_audio: globalAudio,
     updated_at: editorState.updated_at || new Date().toISOString(),

@@ -65,6 +65,8 @@ const VIDEO_SEGMENT_OVERLAY_COLOR = '#3835AF';
 const VIDEO_SEGMENT_OVERLAY_OPACITY = 0.3;
 const VIDEO_SEGMENT_EFFECT_02_URL = resolveVideoSegmentEffectUrl('effect-layer-02');
 const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-layer-01');
+const VIDEO_METADATA_READY_STATE = 1;
+const MANAGED_VIDEO_PENDING_SYNC_KEY = Symbol('managedVideoPendingSync');
 
 // ─────────────────────────────────────────────────────────────
 // Utility Functions — frame math matching Remotion's Math.round
@@ -148,7 +150,11 @@ function seekVideoElement(video, timeSeconds) {
   }
 }
 
-export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing = false } = {}) {
+function hasInsufficientMetadata(video) {
+  return typeof video?.readyState === 'number' && video.readyState < VIDEO_METADATA_READY_STATE;
+}
+
+function applyManagedVideoSync({ video, currentTimeSeconds = 0, playing = false } = {}) {
   if (!video) return false;
   try { video.muted = true; } catch {}
   try { video.playsInline = true; } catch {}
@@ -161,6 +167,46 @@ export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing
     try { video.pause?.(); } catch {}
   }
   return true;
+}
+
+function deferManagedVideoSyncUntilReady({ video, currentTimeSeconds = 0, playing = false } = {}) {
+  if (!video?.addEventListener) return false;
+
+  const pending = video[MANAGED_VIDEO_PENDING_SYNC_KEY];
+  if (pending) {
+    pending.currentTimeSeconds = currentTimeSeconds;
+    pending.playing = playing;
+    return true;
+  }
+
+  const next = { currentTimeSeconds, playing, ready: null };
+  const cleanup = () => {
+    try { video.removeEventListener?.('loadedmetadata', next.ready); } catch {}
+    try { video.removeEventListener?.('canplay', next.ready); } catch {}
+    if (video[MANAGED_VIDEO_PENDING_SYNC_KEY] === next) {
+      delete video[MANAGED_VIDEO_PENDING_SYNC_KEY];
+    }
+  };
+  next.ready = () => {
+    if (hasInsufficientMetadata(video)) return;
+    cleanup();
+    applyManagedVideoSync({ video, currentTimeSeconds: next.currentTimeSeconds, playing: next.playing });
+  };
+
+  video[MANAGED_VIDEO_PENDING_SYNC_KEY] = next;
+  try { video.addEventListener('loadedmetadata', next.ready, { once: true }); } catch {}
+  try { video.addEventListener('canplay', next.ready, { once: true }); } catch {}
+  return true;
+}
+
+export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing = false } = {}) {
+  if (!video) return false;
+  try { video.muted = true; } catch {}
+  try { video.playsInline = true; } catch {}
+  if (hasInsufficientMetadata(video)) {
+    return deferManagedVideoSyncUntilReady({ video, currentTimeSeconds, playing });
+  }
+  return applyManagedVideoSync({ video, currentTimeSeconds, playing });
 }
 
 export function resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale = 1, x = 0, y = 0 }) {
@@ -387,6 +433,8 @@ export function buildCompositionDOM(container) {
   videoEffect2.muted = true;
   videoEffect2.loop = true;
   videoEffect2.playsInline = true;
+  videoEffect2.preload = 'auto';
+  videoEffect2.src = VIDEO_SEGMENT_EFFECT_02_URL;
   stage.appendChild(videoEffect2);
 
   const videoEffect1 = document.createElement('video');
@@ -395,6 +443,8 @@ export function buildCompositionDOM(container) {
   videoEffect1.muted = true;
   videoEffect1.loop = true;
   videoEffect1.playsInline = true;
+  videoEffect1.preload = 'auto';
+  videoEffect1.src = VIDEO_SEGMENT_EFFECT_01_URL;
   stage.appendChild(videoEffect1);
 
   const videoForeground = document.createElement('video');

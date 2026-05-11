@@ -12,8 +12,10 @@ import {
 } from '../features/video-projects/render/editor-video-picker.js';
 import {
   buildVideoSegmentPreviewLayerPlan,
+  buildCompositionDOM,
   syncManagedVideoElement,
 } from '../features/video-projects/composition/composition-renderer.js';
+import { normalizeEditorState } from '../features/video-projects/domain/editor-state.js';
 import { buildEditorVideosViewModel } from '../features/video-projects/render/editor-view-model.js';
 import { createRowVideoCommands } from '../features/video-projects/data/row-video-commands.js';
 import {
@@ -157,6 +159,17 @@ test('Uploaded video library persists through editor_state and survives empty to
   assert.equal(refreshed[0].src, 'https://cdn.example/clip.mp4');
 });
 
+test('Editor state normalization preserves hydrated video assets', () => {
+  const normalized = normalizeEditorState({
+    phase: 'preview_ready',
+    video_assets: [{ id: 'video-1', src: 'https://cdn.example/clip.mp4', durationSeconds: 12 }],
+  });
+
+  assert.deepEqual(normalized.video_assets, [
+    { id: 'video-1', src: 'https://cdn.example/clip.mp4', durationSeconds: 12 },
+  ]);
+});
+
 test('Approval fallback detection covers legacy unsupported video segment operation errors only', () => {
   assert.equal(shouldFallbackApprovalSnapshotOperationError(new Error('unsupported operation: setRowVideoSegment'), 'setRowVideoSegment'), true);
   assert.equal(shouldFallbackApprovalSnapshotOperationError({ code: 'unsupported_operation', message: 'unsupported operation: setRowVideoSegment' }, 'setRowVideoSegment'), true);
@@ -267,6 +280,58 @@ test('Video segment preview layer plan always includes concrete effect video sou
   assert.equal(plan.layers[3].mixBlendMode, 'screen');
 });
 
+test('Effect preview videos use preloadable static WebM URLs in selector and main preview', () => {
+  const selector = resolveVideoSegmentSelectionWindow({
+    sourceDurationSeconds: 20,
+    targetDurationSeconds: 5,
+    requestedSourceInSeconds: 3,
+  });
+  const html = buildEditorVideoPicker({
+    row: { id: 'row-1', startTime: 10, effectiveEndTime: 15, phrase: 'Frase larga' },
+    videos: [{ id: 'video-long', title: 'Long.mp4', src: '/videos/long.mp4', durationSeconds: 20 }],
+    selector: { videoId: 'video-long', ...selector },
+  });
+
+  assert.match(html, /src="\.\/assets\/effect-layer-02\.webm"[^>]+preload="auto"/);
+  assert.match(html, /src="\.\/assets\/effect-layer-01\.webm"[^>]+preload="auto"/);
+
+  const appended = [];
+  const makeVideo = () => ({
+    style: {},
+    muted: false,
+    loop: false,
+    playsInline: false,
+    set className(value) { this._className = value; },
+    set src(value) { this._src = value; },
+    get src() { return this._src; },
+    set preload(value) { this._preload = value; },
+    get preload() { return this._preload; },
+  });
+  const documentRef = globalThis.document;
+  globalThis.document = {
+    createElement(tag) {
+      if (tag === 'video') return makeVideo();
+      return {
+        style: {},
+        appendChild(child) { appended.push(child); },
+        set className(value) { this._className = value; },
+        set textContent(value) { this._textContent = value; },
+        set draggable(value) { this._draggable = value; },
+      };
+    },
+  };
+  try {
+    const container = { appendChild(child) { appended.push(child); } };
+    const dom = buildCompositionDOM(container);
+    assert.equal(dom.layers.videoEffect2.src, './assets/effect-layer-02.webm');
+    assert.equal(dom.layers.videoEffect2.preload, 'auto');
+    assert.equal(dom.layers.videoEffect1.src, './assets/effect-layer-01.webm');
+    assert.equal(dom.layers.videoEffect1.preload, 'auto');
+  } finally {
+    globalThis.document = documentRef;
+  }
+});
+
 test('Managed video sync seeks, mutes, plays, pauses, and swallows autoplay promise failures', () => {
   const calls = [];
   const video = {
@@ -292,6 +357,39 @@ test('Managed video sync seeks, mutes, plays, pauses, and swallows autoplay prom
   syncManagedVideoElement({ video, currentTimeSeconds: 3, playing: false });
   assert.equal(video.currentTime, 3);
   assert.deepEqual(calls, ['play', 'pause']);
+});
+
+test('Managed video sync defers seek and play until metadata is ready', () => {
+  const calls = [];
+  const listeners = new Map();
+  const video = {
+    readyState: 0,
+    currentTime: 0,
+    paused: true,
+    addEventListener: (event, handler, options) => {
+      listeners.set(event, { handler, options });
+      calls.push(`listen:${event}:${Boolean(options?.once)}`);
+    },
+    removeEventListener: (event) => calls.push(`remove:${event}`),
+    play: () => {
+      calls.push('play');
+      return Promise.resolve();
+    },
+    pause: () => calls.push('pause'),
+  };
+
+  assert.equal(syncManagedVideoElement({ video, currentTimeSeconds: 2.5, playing: true }), true);
+  assert.equal(video.currentTime, 0);
+  assert.deepEqual(calls, ['listen:loadedmetadata:true', 'listen:canplay:true']);
+
+  video.readyState = 1;
+  listeners.get('loadedmetadata').handler();
+
+  assert.equal(video.currentTime, 2.5);
+  assert.equal(video.muted, true);
+  assert.equal(video.playsInline, true);
+  assert.ok(calls.includes('remove:canplay'));
+  assert.ok(calls.includes('play'));
 });
 
 test('Editor rows table renders a meaningful video mini-preview instead of a plain black Video placeholder', () => {
