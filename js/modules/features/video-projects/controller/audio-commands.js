@@ -8,11 +8,34 @@ export function createGlobalAudioCommands({
   persistEditorState,
   isApprovalServiceMode,
   commitApprovalSnapshotOperations,
+  createSnapshotDraft,
+  scheduleApprovalMotionPersistence,
+  updateSelectedVideoProjectCompositionPreview,
   renderSelectedVideoProject,
   getSaveTimer,
   setSaveTimer,
   debounceMs,
 }) {
+  function resolveAudioPatch(currentSettings = {}, patch = {}) {
+    return {
+      volume: Number.isFinite(patch.volume) ? Math.max(0, Math.min(1, patch.volume)) : currentSettings?.volume,
+      muted: patch.muted !== undefined ? Boolean(patch.muted) : currentSettings?.muted,
+    };
+  }
+
+  function applyLocalAudioSnapshot(snapshot = {}, kind, settings = {}) {
+    return {
+      ...snapshot,
+      audio: {
+        ...(snapshot.audio || {}),
+        [kind]: {
+          ...(snapshot.audio?.[kind] || {}),
+          ...settings,
+        },
+      },
+    };
+  }
+
   async function updateGlobalAudio(kind, patch) {
     const state = store.getState();
     const project = state.selectedVideoProject;
@@ -20,24 +43,28 @@ export function createGlobalAudioCommands({
     const normalizedKind = kind === 'voice' ? 'voice' : 'music';
 
     if (isApprovalServiceMode(project)) {
-      try {
-        await commitApprovalSnapshotOperations(project, [{ type: 'setAudio', kind: normalizedKind, settings: patch }], { phase: 'editing_dirty' });
-      } catch (err) {
-        console.error(err);
-        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'editing_dirty' });
-      } finally {
-        renderSelectedVideoProject();
-      }
+      const current = normalizeGlobalAudioState(project._globalAudio || project.editor_state?.global_audio || project.editor_state?.approval_contract_snapshot?.audio);
+      const settings = resolveAudioPatch(current[normalizedKind], patch);
+      const next = normalizeGlobalAudioState({ ...current, [normalizedKind]: settings });
+      const snapshot = applyLocalAudioSnapshot(project.editor_state?.approval_contract_snapshot || {}, normalizedKind, next[normalizedKind]);
+      project._globalAudio = next;
+      project.editor_state = normalizeEditorState({
+        ...project.editor_state,
+        approval_contract_snapshot: snapshot,
+        global_audio: project._globalAudio,
+        dirty: true,
+        phase: 'editing_dirty',
+      });
+      createSnapshotDraft?.(`audio:${normalizedKind}`, { type: 'setAudio', kind: normalizedKind, settings: next[normalizedKind] }, (canonicalSnapshot) => applyLocalAudioSnapshot(canonicalSnapshot, normalizedKind, next[normalizedKind]));
+      updateSelectedVideoProjectCompositionPreview?.({ project });
+      scheduleApprovalMotionPersistence?.(project);
       return;
     }
 
     const current = normalizeGlobalAudioState(project._globalAudio);
     const next = {
       ...current,
-      [normalizedKind]: {
-        volume: Number.isFinite(patch.volume) ? Math.max(0, Math.min(1, patch.volume)) : current[normalizedKind]?.volume,
-        muted: patch.muted !== undefined ? Boolean(patch.muted) : current[normalizedKind]?.muted,
-      },
+      [normalizedKind]: resolveAudioPatch(current[normalizedKind], patch),
     };
     project._globalAudio = normalizeGlobalAudioState(next);
     const compositionHash = computeCompositionHash(project);

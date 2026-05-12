@@ -15,6 +15,7 @@ export function createApprovalSnapshotOperations({
   let approvalCommitQueue = Promise.resolve();
   const pendingApprovalMotionOperations = new Map();
   const pendingApprovalMotionDrafts = new Map();
+  const pendingApprovalSnapshotDrafts = new Map();
 
   function createApprovalServiceClient(project) {
     const baseUrl = (project?.editor_state?.pipeline_base_url || store.getState()?.settings?.approvalPipelineBaseUrl || '').toString().trim();
@@ -26,19 +27,28 @@ export function createApprovalSnapshotOperations({
     return project?.editor_state?.pipeline_provider === 'approval' && Boolean(project?.editor_state?.approval_contract_snapshot?.snapshotHash);
   }
 
+  function resolveApprovalSnapshotProjectId(project) {
+    return (
+      project?.editor_state?.approval_contract_snapshot?.projectId
+      || project?.editor_state?.remotion_project_id
+      || ''
+    ).toString().trim();
+  }
+
   function applyCanonicalSnapshot(project, snapshot, { dirty = false, phase = 'preview_ready' } = {}) {
     if (!snapshot?.contractVersion) return;
-    project._editorRows = applyPendingMotionDrafts(normalizePreparedContractRows(snapshot.rows), pendingApprovalMotionDrafts);
-    project._globalAudio = normalizeGlobalAudioState(snapshot.audio);
+    const snapshotDraft = Array.from(pendingApprovalSnapshotDrafts.values()).reduce((next, entry) => entry.apply(next), snapshot);
+    project._editorRows = applyPendingMotionDrafts(normalizePreparedContractRows(snapshotDraft.rows), pendingApprovalMotionDrafts);
+    project._globalAudio = normalizeGlobalAudioState(snapshotDraft.audio);
     project.editor_state = normalizeEditorState({
       ...project.editor_state,
-      approval_contract_snapshot: snapshot,
-      snapshot_id: snapshot.snapshotId,
-      snapshot_hash: snapshot.snapshotHash,
+      approval_contract_snapshot: snapshotDraft,
+      snapshot_id: snapshotDraft.snapshotId,
+      snapshot_hash: snapshotDraft.snapshotHash,
       timed_rows: project._editorRows,
       global_audio: project._globalAudio,
-      composition_hash: snapshot.snapshotHash,
-      last_preview_hash: snapshot.snapshotHash,
+      composition_hash: snapshotDraft.snapshotHash,
+      last_preview_hash: snapshotDraft.snapshotHash,
       dirty,
       phase,
     });
@@ -47,7 +57,8 @@ export function createApprovalSnapshotOperations({
   async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready' } = {}) {
     const client = createApprovalServiceClient(project);
     if (!client) throw new Error('Approval editor service no configurado');
-    const projectId = project.editor_state?.remotion_project_id;
+    const projectId = resolveApprovalSnapshotProjectId(project);
+    if (!projectId) throw new Error('Approval editor service no tiene projectId de snapshot');
     const baseSnapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
     const result = await client.updateSnapshot(projectId, { baseSnapshotHash, operations });
     const snapshot = result?.snapshot || result?.data?.snapshot;
@@ -80,19 +91,24 @@ export function createApprovalSnapshotOperations({
     approvalMotionSaveTimer = setTimeout(() => {
       const pending = Array.from(pendingApprovalMotionOperations.entries());
       pendingApprovalMotionOperations.clear();
-      const operations = pending.map(([, entry]) => entry.operation);
+      const operations = pending.map(([, entry]) => entry.operation).filter(Boolean);
       if (!operations.length) return;
 
       void queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' })
         .then(() => {
-          pending.forEach(([rowId, entry]) => {
+          pending.forEach(([operationKey, entry]) => {
+            const rowId = entry.rowId || operationKey;
             const currentDraft = pendingApprovalMotionDrafts.get(rowId);
             if (currentDraft?.revision === entry.revision) pendingApprovalMotionDrafts.delete(rowId);
+            const currentSnapshotDraft = pendingApprovalSnapshotDrafts.get(operationKey);
+            if (currentSnapshotDraft?.revision === entry.revision) pendingApprovalSnapshotDrafts.delete(operationKey);
           });
         })
         .catch((err) => {
           console.error(err);
-          project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: err?.message || 'No se pudo actualizar snapshot' });
+          const context = resolveOperationErrorContext(operations[0]);
+          const message = err?.message || 'No se pudo actualizar snapshot';
+          project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: context ? `${context}: ${message}` : message });
           ui.toast('Error actualizando snapshot');
         })
         .finally(() => {
@@ -101,19 +117,34 @@ export function createApprovalSnapshotOperations({
     }, debounceMs);
   }
 
-  function createMotionDraft(rowId, operation, localPatch) {
+  function resolveOperationErrorContext(operation = {}) {
+    if (operation?.type === 'setAudio') return `Audio ${operation.kind === 'voice' ? 'voice' : 'music'}`;
+    if (operation?.rowId) return `Fila ${operation.rowId}`;
+    return '';
+  }
+
+  function createMotionDraft(rowId, operation, localPatch, operationKey = rowId) {
     const revision = ++approvalMotionDraftRevision;
-    pendingApprovalMotionDrafts.set(rowId, { patch: localPatch, revision });
-    pendingApprovalMotionOperations.set(rowId, { operation, revision });
+    const previous = pendingApprovalMotionDrafts.get(rowId)?.patch || {};
+    pendingApprovalMotionDrafts.set(rowId, { patch: { ...previous, ...localPatch }, revision });
+    if (operation) pendingApprovalMotionOperations.set(operationKey, { operation, revision, rowId });
+  }
+
+  function createSnapshotDraft(operationKey, operation, apply) {
+    const revision = ++approvalMotionDraftRevision;
+    pendingApprovalSnapshotDrafts.set(operationKey, { apply, revision });
+    if (operation) pendingApprovalMotionOperations.set(operationKey, { operation, revision });
   }
 
   return {
     createApprovalServiceClient,
     isApprovalServiceMode,
+    resolveApprovalSnapshotProjectId,
     applyCanonicalSnapshot,
     commitApprovalSnapshotOperations,
     queueApprovalSnapshotOperations,
     scheduleApprovalMotionPersistence,
     createMotionDraft,
+    createSnapshotDraft,
   };
 }

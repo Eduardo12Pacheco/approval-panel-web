@@ -163,11 +163,12 @@ function flushMicrotasks() {
   });
 }
 
-function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
+function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = false } = {}) {
   const updateSnapshotCalls = [];
   const savedEditorStates = [];
   const renderEvents = [];
   const previewUpdateEvents = [];
+  const toasts = [];
   const state = {
     settings: { approvalPipelineBaseUrl: 'http://approval.local' },
     selectedVideoProject: {
@@ -176,12 +177,26 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
         pipeline_provider: 'approval',
         pipeline_base_url: 'http://approval.local',
         remotion_project_id: 'remotion-1',
-        approval_contract_snapshot: { snapshotHash: 'hash-base', rows: [] },
+        approval_contract_snapshot: {
+          contractVersion: 'approval-editor-service-v1',
+          projectId: 'remotion-1',
+          snapshotHash: 'hash-base',
+          rows: [],
+          brandChannel: 'pelotazo-ecuador',
+          assets: {
+            'brand-logo-ecuador': { assetId: 'brand-logo-ecuador', previewUrl: './assets/logo-alpha.webm', renderPath: 'overlays/logo-alpha.webm' },
+            'brand-logo-colombia': { assetId: 'brand-logo-colombia', previewUrl: './assets/logo-colombia.webm', renderPath: 'overlays/logo-colombia.mp4' },
+          },
+          globalLayers: {
+            logoAssetId: 'brand-logo-ecuador',
+            logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' },
+          },
+        },
         snapshot_hash: 'hash-base',
         phase: 'preview_ready',
       },
       _editorRows: [
-        { id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 10, fromScale: 1, toScale: 1.1 } },
+        { id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 10, fromScale: 1, toScale: 1.1 }, dust: { enabled: false, type: 'dust-1' }, logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' } },
       ],
     },
   };
@@ -190,9 +205,11 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
       return {
         async updateSnapshot(projectId, payload) {
           updateSnapshotCalls.push({ projectId, payload });
+          if (failSnapshotUpdate) throw new Error('remote snapshot unavailable');
           return {
             snapshot: {
-              contractVersion: '1',
+              contractVersion: 'approval-editor-service-v1',
+              projectId,
               snapshotId: `snapshot-${updateSnapshotCalls.length}`,
               snapshotHash: `hash-${updateSnapshotCalls.length}`,
               rows: snapshotRows.length ? snapshotRows : state.selectedVideoProject._editorRows,
@@ -209,7 +226,7 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
   const feature = createVideoProjectsFeature({
     api,
     store: { getState: () => state },
-    ui: { toast() {} },
+    ui: { toast(message) { toasts.push(message); } },
     callbacks: {
       renderSelectedVideoProject: () => renderEvents.push({ motion: state.selectedVideoProject._editorRows[0]?.motion }),
       updateSelectedVideoProjectCompositionPreview: ({ project }) => {
@@ -220,7 +237,7 @@ function createApprovalMotionHarness({ snapshotRows = [] } = {}) {
     },
   });
 
-  return { feature, state, updateSnapshotCalls, savedEditorStates, renderEvents, previewUpdateEvents };
+  return { feature, state, updateSnapshotCalls, savedEditorStates, renderEvents, previewUpdateEvents, toasts };
 }
 
 function createLocalMotionHarness() {
@@ -333,6 +350,99 @@ async function runApprovalUpdateRowOptimisticPatchCheck() {
     assertEqual(previewUpdateEvents.length, 1, 'Expected optimistic patch to update the existing composition preview once immediately');
     assertEqual(previewUpdateEvents[0].motion.toX, 44, 'Expected lightweight preview update to receive the local manual motion draft');
     assertEqual(renderEvents.length, 0, 'Expected manual motion draft input not to trigger a full detail render');
+  } finally {
+    timers.restore();
+  }
+}
+
+async function runApprovalPresetMotionUsesOptimisticDraftCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents } = createApprovalMotionHarness();
+
+    await feature.updateRow('row-1', {
+      motionPresetId: 'Movimiento-Derecha-Izquierda',
+      motion: { fromX: -240, toX: 238.4, fromScale: 1.25, toScale: 1.25 },
+    });
+
+    assertEqual(state.selectedVideoProject._editorRows[0].motionPresetId, 'Movimiento-Derecha-Izquierda', 'Expected preset motion selection to patch the local preset immediately');
+    assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 238.4, 'Expected preset motion selection to patch local motion immediately');
+    assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].motion.toX, 238.4, 'Expected preset motion selection to keep editor state in sync before remote snapshot save');
+    assertEqual(updateSnapshotCalls.length, 0, 'Expected preset motion selection to use debounced snapshot persistence, not an immediate remote update');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected preset motion selection to update the existing composition preview once immediately');
+    assertEqual(renderEvents.length, 0, 'Expected preset motion selection not to trigger a full detail render before debounce persistence');
+  } finally {
+    timers.restore();
+  }
+}
+
+async function runApprovalGlobalRowLayerUsesOptimisticDraftCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents, toasts } = createApprovalMotionHarness({ failSnapshotUpdate: true });
+
+    await feature.updateRow('row-1', { dust: { enabled: true, type: 'dust-2' } });
+    await feature.updateRow('row-1', { logo: { enabled: false } });
+
+    assertEqual(state.selectedVideoProject._editorRows[0].dust.enabled, true, 'Expected global dust change to patch the local row immediately');
+    assertEqual(state.selectedVideoProject._editorRows[0].dust.type, 'dust-2', 'Expected global dust type to patch the local row immediately');
+    assertEqual(state.selectedVideoProject._editorRows[0].logo.enabled, false, 'Expected global logo change to patch local rows immediately');
+    assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].dust.type, 'dust-2', 'Expected global dust change to keep editor state in sync before remote snapshot save');
+    assertEqual(updateSnapshotCalls.length, 0, 'Expected global dust/logo changes to use debounced snapshot persistence, not immediate remote update');
+    assertEqual(previewUpdateEvents.length, 2, 'Expected each global row layer change to update the existing composition preview immediately');
+    assertEqual(renderEvents.length, 0, 'Expected global row layer changes not to trigger a full detail render before debounce persistence');
+    assertDeepEqual(toasts, [], 'Expected no snapshot error toast before debounced persistence runs');
+  } finally {
+    timers.restore();
+  }
+}
+
+async function runApprovalBrandChannelUsesOptimisticDraftCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents, toasts } = createApprovalMotionHarness({ failSnapshotUpdate: true });
+
+    await feature.updateBrandChannel('pelotazo-colombia');
+
+    const snapshot = state.selectedVideoProject.editor_state.approval_contract_snapshot;
+    assertEqual(state.selectedVideoProject.editor_state.brandChannel, 'pelotazo-colombia', 'Expected project selection to patch the editor brand immediately');
+    assertEqual(snapshot.brandChannel, 'pelotazo-colombia', 'Expected project selection to patch canonical snapshot brand immediately');
+    assertEqual(snapshot.globalLayers.logo.assetId, 'brand-logo-colombia', 'Expected Colombia selection to apply Colombia logo asset immediately');
+    assertEqual(state.selectedVideoProject._editorRows[0].logo.source, 'logo-colombia.webm', 'Expected Colombia selection to apply row logo source immediately');
+    assertEqual(updateSnapshotCalls.length, 0, 'Expected project selection to use debounced snapshot persistence, not immediate remote update');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected project selection to update the existing composition preview immediately');
+    assertEqual(renderEvents.length, 0, 'Expected project selection not to trigger a full detail render before debounce persistence');
+    assertDeepEqual(toasts, [], 'Expected no snapshot error toast before debounced project persistence runs');
+  } finally {
+    timers.restore();
+  }
+}
+
+async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, updateSnapshotCalls, toasts } = createApprovalMotionHarness();
+
+    await feature.updateRow('row-1', { dust: { enabled: true, type: 'dust-2' } });
+    await feature.updateRow('row-1', { logo: { enabled: false } });
+    await feature.updateBrandChannel('pelotazo-colombia');
+
+    assertEqual(updateSnapshotCalls.length, 0, 'Expected global drafts to wait for debounce before remote persistence');
+    timers.runPending();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    assertEqual(updateSnapshotCalls.length, 1, 'Expected global drafts to persist with one debounced remote snapshot update');
+    assertDeepEqual(
+      updateSnapshotCalls[0].payload.operations,
+      [
+        { type: 'setRowDust', rowId: 'row-1', enabled: true, dustType: 'dust-2' },
+        { type: 'setLogo', enabled: false, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' },
+        { type: 'setBrandChannel', brandChannel: 'pelotazo-colombia' },
+      ],
+      'Expected debounced remote persistence to include dust, logo, and project operations in order',
+    );
+    assertDeepEqual(toasts, [], 'Expected successful global debounce persistence not to show snapshot errors');
   } finally {
     timers.restore();
   }
@@ -596,6 +706,10 @@ export async function runApprovalMotionDraftCheck() {
   runPatchLocalRowsCheck();
   runCanonicalDraftProtectionCheck();
   await runApprovalUpdateRowOptimisticPatchCheck();
+  await runApprovalPresetMotionUsesOptimisticDraftCheck();
+  await runApprovalGlobalRowLayerUsesOptimisticDraftCheck();
+  await runApprovalBrandChannelUsesOptimisticDraftCheck();
+  await runApprovalGlobalDraftsPersistAfterDebounceCheck();
   await runApprovalMotionDebounceCoalescingCheck();
   await runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck();
   await runLocalMotionDebouncedSaveUsesPatchedRowsCheck();

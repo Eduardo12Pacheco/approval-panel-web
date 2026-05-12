@@ -126,6 +126,12 @@ export class CompositionRenderer {
     this.#renderFrame();
   }
 
+  updateAudioSettings({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds } = {}) {
+    this.#audio.configure({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds });
+    this.#audio.setVoiceVolume(voiceVolume ?? 1, voiceMuted ?? false);
+    this.#audio.setMusicVolume(musicVolume ?? 0.16, musicMuted ?? false);
+  }
+
   async play() {
     if (this.#isPlaying) return;
     this.#isPlaying = true;

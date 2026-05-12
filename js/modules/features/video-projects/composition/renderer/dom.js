@@ -31,7 +31,7 @@ export function buildCompositionDOM(container) {
 
   const videoBackground = document.createElement('video');
   videoBackground.className = 'composition-layer composition-layer--video-background';
-  videoBackground.style.cssText = 'position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;filter:blur(16px) saturate(0.9);transform:scale(1.08);pointer-events:none;visibility:hidden;';
+  videoBackground.style.cssText = 'position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;transform:scale(1.08);pointer-events:none;visibility:hidden;';
   videoBackground.muted = true;
   videoBackground.playsInline = true;
   stage.appendChild(videoBackground);
@@ -43,7 +43,7 @@ export function buildCompositionDOM(container) {
 
   const videoEffect2 = document.createElement('video');
   videoEffect2.className = 'composition-layer composition-layer--video-effect-02';
-  videoEffect2.style.cssText = 'position:absolute;inset:0;z-index:3;width:100%;height:100%;object-fit:cover;mix-blend-mode:multiply;pointer-events:none;visibility:hidden;';
+  videoEffect2.style.cssText = 'position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;mix-blend-mode:multiply;pointer-events:none;visibility:hidden;';
   videoEffect2.muted = true;
   videoEffect2.loop = true;
   videoEffect2.playsInline = true;
@@ -53,7 +53,7 @@ export function buildCompositionDOM(container) {
 
   const videoEffect1 = document.createElement('video');
   videoEffect1.className = 'composition-layer composition-layer--video-effect-01';
-  videoEffect1.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
+  videoEffect1.style.cssText = 'position:absolute;inset:0;z-index:3;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
   videoEffect1.muted = true;
   videoEffect1.loop = true;
   videoEffect1.playsInline = true;
@@ -63,7 +63,7 @@ export function buildCompositionDOM(container) {
 
   const videoForeground = document.createElement('video');
   videoForeground.className = 'composition-layer composition-layer--video-foreground';
-  videoForeground.style.cssText = 'position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:contain;pointer-events:none;visibility:hidden;';
+  videoForeground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:contain;pointer-events:none;visibility:hidden;';
   videoForeground.muted = true;
   videoForeground.playsInline = true;
   stage.appendChild(videoForeground);

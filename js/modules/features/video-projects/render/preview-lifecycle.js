@@ -61,7 +61,16 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
   const renderer = ensureCompositionRenderer(compositionContainer);
   const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
   const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  const audioSettings = {
+    voiceVolume: globalAudioData.voice?.volume ?? 1,
+    voiceMuted: globalAudioData.voice?.muted ?? false,
+    musicVolume: globalAudioData.music?.volume ?? 0.16,
+    musicMuted: globalAudioData.music?.muted ?? false,
+    musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
+    musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+  };
   const applyRowsAndSeek = () => {
+    renderer?.updateAudioSettings?.(audioSettings);
     renderer?.update({ rows: compositionRows });
     const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
     if (imageUrls.length) renderer?.preloadImages(imageUrls);
@@ -76,12 +85,7 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
       outroDurationSeconds,
       voiceUrl,
       musicUrl,
-      voiceVolume: globalAudioData.voice?.volume ?? 1,
-      voiceMuted: globalAudioData.voice?.muted ?? false,
-      musicVolume: globalAudioData.music?.volume ?? 0.16,
-      musicMuted: globalAudioData.music?.muted ?? false,
-      musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
-      musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+      ...audioSettings,
       rows: compositionRows,
     }).then(() => {
       compositionRendererAssetSignature = assetSignature;

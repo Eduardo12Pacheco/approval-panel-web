@@ -113,9 +113,9 @@ export function hydrateVideoSelectorControls({
       const videoId = button.dataset.videoId;
       const video = findProjectVideoAsset(project, videoId);
       project._videoSelector = null;
-      await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
+      const assigned = await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
       updateSelectedVideoProjectCompositionPreview?.({ project });
-      renderSelectedVideoProject?.();
+      if (!assigned) renderSelectedVideoProject?.();
     });
   });
 }

@@ -12,8 +12,8 @@ export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
     ...current,
     ...(hasOwnPatchValue(patch, 'motion') ? { motion: patch.motion } : {}),
     ...(hasOwnPatchValue(patch, 'motionPresetId') ? { motionPresetId: patch.motionPresetId || null } : {}),
-    ...(hasOwnPatchValue(patch, 'dust') ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
-    ...(hasOwnPatchValue(patch, 'logo') ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
+    ...(hasOwnPatchValue(patch, 'dust') ? { dust: { ...(current.dust || {}), ...(patch.dust || {}), enabled: Boolean(patch.dust?.enabled) } } : {}),
+    ...(hasOwnPatchValue(patch, 'logo') ? { logo: { ...(current.logo || {}), ...(patch.logo || {}), enabled: patch.logo?.enabled !== false } } : {}),
     ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
     ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
     ...(hasOwnPatchValue(patch, 'media') ? { media: patch.media?.kind === 'video-segment' ? { ...patch.media } : { kind: 'image' } } : {}),
@@ -104,7 +104,7 @@ export function createRowCommands({
 
     if (isApprovalServiceMode(project)) {
       const operations = [];
-      const shouldDraftMotion = isMotionRowPatch(patch) && patch.manualMotionDraft === true;
+      const shouldDraftMotion = isMotionRowPatch(patch);
       if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
       if (patch.media?.kind === 'video-segment') {
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
@@ -124,8 +124,22 @@ export function createRowCommands({
           operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
         }
       }
-      if (patch.dust !== undefined) operations.push({ type: 'setRowDust', rowId, enabled: Boolean(patch.dust?.enabled), dustType: patch.dust?.type || 'dust-1' });
-      if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
+      if (patch.dust !== undefined) {
+        const localDustPatch = { dust: { ...(rows[index]?.dust || {}), enabled: Boolean(patch.dust?.enabled), type: patch.dust?.type || rows[index]?.dust?.type || 'dust-1', assetId: patch.dust?.enabled ? (patch.dust?.type || rows[index]?.dust?.type || 'dust-1') : null } };
+        project._editorRows = patchLocalEditorRows(project._editorRows, rowId, localDustPatch);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+        createMotionDraft(rowId, { type: 'setRowDust', rowId, enabled: localDustPatch.dust.enabled, dustType: localDustPatch.dust.type }, localDustPatch, `${rowId}:dust`);
+        updateSelectedVideoProjectCompositionPreview({ project });
+        scheduleApprovalMotionPersistence(project);
+      }
+      if (patch.logo !== undefined) {
+        const localLogoPatch = { logo: { enabled: patch.logo?.enabled !== false, source: patch.logo?.source || rows[index]?.logo?.source || 'logo-alpha.webm', assetId: patch.logo?.assetId || rows[index]?.logo?.assetId || null } };
+        project._editorRows = project._editorRows.map((row) => mergeLocalEditorRowPatch(row, localLogoPatch));
+        project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+        project._editorRows.forEach((row) => createMotionDraft(row.id, row.id === rowId ? { type: 'setLogo', enabled: localLogoPatch.logo.enabled, source: localLogoPatch.logo.source, assetId: localLogoPatch.logo.assetId } : null, localLogoPatch, `${rowId}:logo`));
+        updateSelectedVideoProjectCompositionPreview({ project });
+        scheduleApprovalMotionPersistence(project);
+      }
       if (!operations.length) return;
       try {
         await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });

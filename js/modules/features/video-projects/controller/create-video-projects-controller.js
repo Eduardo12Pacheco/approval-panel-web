@@ -137,6 +137,9 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     persistEditorState,
     isApprovalServiceMode: approval.isApprovalServiceMode,
     commitApprovalSnapshotOperations: approval.commitApprovalSnapshotOperations,
+    createSnapshotDraft: approval.createSnapshotDraft,
+    scheduleApprovalMotionPersistence: approval.scheduleApprovalMotionPersistence,
+    updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
     ...timerAccess,
   });
@@ -146,6 +149,8 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     persistEditorState,
     isApprovalServiceMode: approval.isApprovalServiceMode,
     commitApprovalSnapshotOperations: approval.commitApprovalSnapshotOperations,
+    createSnapshotDraft: approval.createSnapshotDraft,
+    scheduleApprovalMotionPersistence: approval.scheduleApprovalMotionPersistence,
     updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
     ...timerAccess,

@@ -18,10 +18,13 @@ import {
 import { normalizeEditorState } from '../domain/editor-state.js';
 import { buildEditorVideosViewModel } from '../render/editor-view-model.js';
 import { createRowVideoCommands } from '../data/row-video-commands.js';
+import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
+import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import {
   resolveVideoProjectCompositionContractForCheck,
   syncVideoSelectorPreviewLayers,
 } from '../render/index.js';
+import { hydrateVideoSelectorControls } from '../render/video-selector-hydration.js';
 import { buildEditorRowsTable } from '../render/editor-markup.js';
 import { shouldFallbackApprovalSnapshotOperationError } from '../index.js';
 
@@ -139,18 +142,20 @@ test('Selector modal uses real effect videos and exposes a play toggle for the p
   assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--overlay\s*\{[^}]*background:\s*#3835AF;[^}]*opacity:\s*0\.3;/s);
 });
 
-test('Video effect preview layers stack above the foreground video', () => {
+test('Video effect preview layers stay behind the foreground video without unintended background blur', () => {
   assert.match(compositionRendererSource, /composition-stage[\s\S]*?isolation:isolate/);
   assert.match(compositionRendererSource, /composition-layer--video-background[\s\S]*?z-index:0/);
   assert.match(compositionRendererSource, /composition-layer--video-color-overlay[\s\S]*?z-index:1/);
-  assert.match(compositionRendererSource, /composition-layer--video-foreground[\s\S]*?z-index:2/);
-  assert.match(compositionRendererSource, /composition-layer--video-effect-02[\s\S]*?z-index:3/);
-  assert.match(compositionRendererSource, /composition-layer--video-effect-01[\s\S]*?z-index:4/);
+  assert.match(compositionRendererSource, /composition-layer--video-effect-02[\s\S]*?z-index:2/);
+  assert.match(compositionRendererSource, /composition-layer--video-effect-01[\s\S]*?z-index:3/);
+  assert.match(compositionRendererSource, /composition-layer--video-foreground[\s\S]*?z-index:4/);
+  assert.doesNotMatch(compositionRendererSource, /composition-layer--video-background[\s\S]*?filter:\s*blur\(/);
 
   assert.match(videoProjectsCss, /\.video-editor-video-selector__preview\s*\{[^}]*isolation:\s*isolate;/s);
-  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--foreground\s*\{[^}]*z-index:\s*2;/s);
-  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*z-index:\s*3;/s);
-  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*z-index:\s*4;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-02\s*\{[^}]*z-index:\s*2;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--effect-01\s*\{[^}]*z-index:\s*3;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--foreground\s*\{[^}]*z-index:\s*4;/s);
+  assert.match(videoProjectsCss, /\.video-editor-video-selector__layer--background\s*\{(?![^}]*filter:\s*blur\()[^}]*transform:\s*scale\(1\.08\);/s);
 });
 
 test('Selector modal is centered and backdrop layers above the whole editor', () => {
@@ -251,6 +256,115 @@ test('Approval editor service accepts client video segment aliases', () => {
   assert.equal(next.assets['effect-layer-01'].previewUrl, './assets/effect-layer-01.webm');
   assert.equal(next.assets['effect-layer-02'].renderPath, 'overlays/effect-layer-02.mp4');
   assert.equal(next.assets['effect-layer-02'].previewUrl, './assets/effect-layer-02.webm');
+});
+
+test('Prepared contract row normalization preserves canonical video segment media for accepted rows', () => {
+  const rows = normalizePreparedContractRows([{
+    rowId: 'seg-002',
+    startTime: 2,
+    endTime: 7,
+    selectedAssetId: 'old-image',
+    media: {
+      kind: 'video-segment',
+      sourceVideoAssetId: 'video-asset-1',
+      sourceInSeconds: 3,
+      durationSeconds: 5,
+      overlayColor: '#3835AF',
+      overlayOpacity: 0.3,
+      effect1AssetId: 'effect-layer-01',
+      effect2AssetId: 'effect-layer-02',
+    },
+  }]);
+
+  assert.equal(rows[0].media.kind, 'video-segment');
+  assert.equal(rows[0].media.sourceVideoAssetId, 'video-asset-1');
+  assert.equal(rows[0].media.sourceInSeconds, 3);
+  assert.equal(rows[0].media.durationSeconds, 5);
+  assert.equal(rows[0].selectedAssetId, null);
+});
+
+test('Approval snapshot operations patch the canonical snapshot project id when remotion project id is absent', async () => {
+  const calls = [];
+  const snapshot = {
+    contractVersion: 'approval-editor-service-v1',
+    projectId: 'approval-project-123',
+    snapshotId: 'approval-project-123:1',
+    snapshotHash: 'hash-1',
+    rows: [{ rowId: 'seg-002', startTime: 2, endTime: 7, media: { kind: 'image' } }],
+  };
+  const project = {
+    draft_id: 'draft-slug-that-is-not-service-project-id',
+    editor_state: {
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'https://approval.local',
+      snapshot_hash: 'hash-1',
+      approval_contract_snapshot: snapshot,
+    },
+  };
+  const operations = createApprovalSnapshotOperations({
+    api: {
+      createApprovalPipelineClient: () => ({
+        updateSnapshot: async (projectId, payload) => {
+          calls.push({ projectId, payload });
+          return { snapshot: { ...snapshot, snapshotHash: 'hash-2', rows: snapshot.rows } };
+        },
+      }),
+    },
+    store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'https://approval.local' } }) },
+    ui: { toast: () => {} },
+    persistEditorState: async () => {},
+    renderSelectedVideoProject: () => {},
+  });
+
+  await operations.commitApprovalSnapshotOperations(project, [{ type: 'setRowMotion', rowId: 'seg-002', motionPresetId: 'none' }]);
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].projectId, 'approval-project-123');
+  assert.equal(calls[0].payload.baseSnapshotHash, 'hash-1');
+});
+
+test('Committing a video segment avoids an extra full editor re-render after a successful assignment', async () => {
+  let clickHandler = null;
+  let renderCount = 0;
+  let previewUpdateCount = 0;
+  const commitButton = {
+    dataset: { rowId: 'seg-002', videoId: 'video-asset-1', sourceIn: '3' },
+    addEventListener(event, handler) {
+      assert.equal(event, 'click');
+      clickHandler = handler;
+    },
+  };
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-action="commit-video-segment"]') return [commitButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+  const project = {
+    _videoSelector: { videoId: 'video-asset-1' },
+    video_assets: [{ id: 'video-asset-1', src: '/videos/source.mp4' }],
+  };
+
+  hydrateVideoSelectorControls({
+    root,
+    project,
+    editorRows: [],
+    assignVideoSegmentToRow: async (rowId, video, sourceIn) => {
+      assert.equal(rowId, 'seg-002');
+      assert.equal(video.src, '/videos/source.mp4');
+      assert.equal(sourceIn, 3);
+      return true;
+    },
+    updateSelectedVideoProjectCompositionPreview: () => { previewUpdateCount += 1; },
+    renderSelectedVideoProject: () => { renderCount += 1; },
+  });
+
+  await clickHandler();
+
+  assert.equal(project._videoSelector, null);
+  assert.equal(previewUpdateCount, 1);
+  assert.equal(renderCount, 0);
 });
 
 test('Local approval fallback video row wins over stale canonical image row in main composition preview', () => {

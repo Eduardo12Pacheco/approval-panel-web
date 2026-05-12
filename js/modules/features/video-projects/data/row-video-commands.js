@@ -113,6 +113,7 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
       },
     });
     ui.toast('Fila cambiada a video');
+    return true;
   }
 
   return { uploadVideoToLibrary, assignVideoSegmentToRow };
