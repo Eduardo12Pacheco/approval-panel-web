@@ -50,6 +50,7 @@ export function createAudioRuntimeServices({ hooks }) {
     renderAudioQueue: hooks.renderAudioQueue,
     downloadAudioJob: hooks.downloadAudioJob,
     dismissAudioJob: hooks.dismissAudioJob,
+    getLatestTrackedJobId: hooks.getLatestTrackedJobId,
     normalizeAudioProgressPercent,
     isTerminalAudioStatus,
     getAudioStatusLabelRuntime,

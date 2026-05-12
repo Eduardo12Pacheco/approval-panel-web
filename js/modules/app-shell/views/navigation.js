@@ -1,0 +1,65 @@
+import { normalizeShellView } from '../navigation.js';
+
+export function createShellNavigationController({
+  state,
+  el,
+  audioFeature,
+  subtitlesController,
+  radarController,
+  ensureApprovalAutoRefresh,
+  refreshVideoProjects,
+  renderSelectedVideoProject,
+}) {
+  function setView(view) {
+    const nextView = normalizeShellView(view);
+
+    state.currentView = nextView;
+    ensureApprovalAutoRefresh();
+    const isApproval = nextView === 'approval';
+    const isScripts = nextView === 'scripts';
+    const isAudio = nextView === 'audio';
+    const isRadar = nextView === 'radar';
+    const isSubtitulos2 = nextView === 'subtitulos2';
+    el.viewApproval.classList.toggle('hidden', !isApproval);
+    el.viewScripts.classList.toggle('hidden', !isScripts);
+    el.viewAudio.classList.toggle('hidden', !isAudio);
+    el.viewRadar?.classList.toggle('hidden', !isRadar);
+    el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
+    el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.view === nextView);
+    });
+
+    if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
+      const nextTrack = audioFeature.getLatestTrackedJobId();
+      if (nextTrack) {
+        audioFeature.startAudioTracking(nextTrack);
+      }
+    }
+
+    if (isAudio) {
+      audioFeature.startAudioQueueSync();
+    } else {
+      audioFeature.stopAudioQueueSync();
+    }
+
+    if (isScripts) {
+      void refreshVideoProjects({ silent: true });
+      renderSelectedVideoProject();
+    }
+
+    if (isSubtitulos2) {
+      void subtitlesController.refreshRemoteStatus();
+      subtitlesController.renderWorkflow();
+    }
+
+    if (isRadar) {
+      radarController.render();
+      void radarController.refreshHealth();
+      void radarController.refreshHistory();
+    } else {
+      radarController.stopPolling();
+    }
+  }
+
+  return { setView };
+}

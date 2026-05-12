@@ -13,6 +13,7 @@ export function createAudioFeature({ api, store, ui, selectors, handlers }) {
     renderAudioQueue: handlers.renderAudioQueue,
     downloadAudioJob: handlers.downloadAudioJob,
     dismissAudioJob: handlers.dismissAudioJob,
+    getLatestTrackedJobId: handlers.getLatestTrackedJobId,
     dependencies: {
       api,
       store,

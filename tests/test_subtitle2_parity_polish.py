@@ -10,6 +10,17 @@ SUBTITLE_WORKFLOW_PATH = ROOT / "js" / "modules" / "subtitles-workflow.mjs"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
 SUBTITLE_RUNTIME_PRESENTATION_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "presentation.js"
 SUBTITLE_CONTROLLER_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "controller.js"
+SUBTITLE_CONTROLLER_SUPPORT_PATHS = [
+    ROOT / "js" / "modules" / "features" / "subtitles" / "controller" / file_name
+    for file_name in [
+        "context.js",
+        "session.js",
+        "render-workflow.js",
+        "table-editor.js",
+        "preview-player.js",
+        "render-commands.js",
+    ]
+]
 SUBTITLE_CSS_DIR = ROOT / "styles" / "features" / "subtitles"
 
 
@@ -49,6 +60,13 @@ def _run_node(script: str):
         cwd=ROOT,
         capture_output=True,
         text=True,
+    )
+
+
+def _read_subtitle_controller_sources() -> str:
+    return "\n".join(
+        [SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8")]
+        + [path.read_text(encoding="utf-8") for path in SUBTITLE_CONTROLLER_SUPPORT_PATHS]
     )
 
 
@@ -120,7 +138,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     css = _read_subtitle_css()
     services = SUBTITLE_RUNTIME_SERVICES_PATH.read_text(encoding="utf-8")
     presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
-    controller = SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8")
+    controller = _read_subtitle_controller_sources()
     subtitle_runtime_source = "\n".join([app_shell, controller, presentation])
 
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
@@ -209,7 +227,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
 
 def test_subtitle2_remote_style_presets_match_backend_contracts():
     workflow = (ROOT / "js" / "modules" / "subtitles-workflow.mjs").read_text(encoding="utf-8")
-    controller = SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8")
+    controller = _read_subtitle_controller_sources()
     presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
 
     assert "Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140'])" in workflow
@@ -225,7 +243,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     css = _read_subtitle_css()
     subtitle_runtime_source = "\n".join([
         APP_SHELL_PATH.read_text(encoding="utf-8"),
-        SUBTITLE_CONTROLLER_PATH.read_text(encoding="utf-8"),
+        _read_subtitle_controller_sources(),
         SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8"),
     ])
 

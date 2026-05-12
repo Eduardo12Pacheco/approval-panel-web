@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_MATRIX_PATH = ROOT / "docs" / "parity" / "contract-matrix.md"
 MAIN_JS_PATH = ROOT / "js" / "main.js"
 COMPOSITION_ROOT_PATH = ROOT / "js" / "modules" / "composition-root.js"
+VIDEO_PROJECTS_CSS_FACADE = ROOT / "styles" / "features" / "video-projects" / "index.css"
+FILE_SIZE_SOFT_CAP_LINES = 500
+FILE_SIZE_EXCEPTIONS = set()
 
 
 def _run_node(script: str):
@@ -15,6 +18,26 @@ def _run_node(script: str):
         capture_output=True,
         text=True,
     )
+
+
+def _read_check_implementation_source(facade_path: str) -> str:
+    script = r"""
+import { readFile } from 'node:fs/promises';
+import { CHECK_MANIFEST } from './js/modules/__checks__/manifest.js';
+
+const facadePath = process.argv[1];
+const entry = CHECK_MANIFEST.find((candidate) => candidate.facadePath === facadePath);
+if (!entry) throw new Error(`missing check manifest entry for ${facadePath}`);
+process.stdout.write(await readFile(entry.implementationPath, 'utf8'));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, facade_path],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
 
 
 def test_contract_matrix_includes_runtime_behavioral_parity_evidence_section():
@@ -860,6 +883,109 @@ if (blank !== '') throw new Error('blank link resolution drift');
     assert "actionBtn.dataset.url || actionBtn.dataset.link || ''" in app_shell_source
 
 
+def test_approval_facade_exports_render_helpers_and_preserves_dom_contracts():
+    script = r"""
+import {
+  buildApprovalNewsCardMarkup,
+  buildQueueMonitorCard,
+  createOptimisticApprovedTopic,
+  formatQueueAttempts,
+  normalizeApprovalQueueItems,
+  normalizeQueueStatus,
+  renderApprovalTopicDetail,
+  renderQueueMonitor,
+  resolveApprovalOrderingAvg,
+  resolveApprovalSourceLink,
+  resolveQueueProgressPercent,
+  shouldDisplayInQueueMonitor,
+  syncPendingItemsAfterApproval,
+} from './js/modules/features/approval/index.js';
+
+const escapeHtml = (value) => (value ?? '').toString()
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;')
+  .replaceAll("'", '&#39;');
+
+if (resolveApprovalOrderingAvg({ promedio_score: '1.25' }).value !== 1.25) throw new Error('ordering export drift');
+if (resolveApprovalSourceLink({ source_url: 'https://example.com/source' }) !== 'https://example.com/source') throw new Error('source link export drift');
+if (normalizeApprovalQueueItems({ rows: [{ queue_id: 'q-row' }] })[0].queue_id !== 'q-row') throw new Error('queue envelope export drift');
+if (normalizeQueueStatus('En revisión') !== 'en_revision') throw new Error('queue status helper export drift');
+if (resolveQueueProgressPercent({ progress: { percent: 63.2 } }, 'processing') !== 63) throw new Error('queue percent helper export drift');
+if (formatQueueAttempts(2) !== 'Intento 2') throw new Error('queue attempts helper export drift');
+if (shouldDisplayInQueueMonitor('completed')) throw new Error('terminal queue helper export drift');
+
+const optimistic = createOptimisticApprovedTopic({
+  cluster_id: 'cluster-1',
+  cantidad_fuentes_total: 2,
+  cantidad_fuentes_aprobadas: 0,
+  sources: [
+    { id_noticia: 'news-1', index: 1 },
+    { id_noticia: 'news-2', index: 2 },
+  ],
+}, { id_noticia: 'news-1' });
+if (optimistic.sources.length !== 1 || optimistic.sources[0].id_noticia !== 'news-2') throw new Error('optimistic helper export drift');
+const synced = syncPendingItemsAfterApproval([{ cluster_id: 'cluster-1', cantidad_fuentes: 2 }], optimistic, { cluster_id: 'cluster-1' });
+if (synced.length !== 1 || synced[0].cantidad_fuentes !== 1) throw new Error('pending sync helper export drift');
+
+const cardMarkup = buildApprovalNewsCardMarkup({ cluster_id: 'cluster A/B', tema_principal: 'Tema <uno>', seleccion: 'AR', jugador: 'Jugador', cantidad_fuentes: 3 });
+if (!cardMarkup.includes('data-card-id="cluster%20A%2FB"')) throw new Error(`card id encoding drift: ${cardMarkup}`);
+if (!cardMarkup.includes('Tema &lt;uno&gt;')) throw new Error(`card escaping drift: ${cardMarkup}`);
+
+const detailEl = {
+  dialogTitle: { textContent: '' },
+  dialogBody: { innerHTML: '' },
+};
+renderApprovalTopicDetail({
+  item: {
+    jugador: 'Jugador',
+    tema_principal: 'Tema',
+    resumen_cluster: 'Resumen',
+    sources: [{
+      id_noticia: 'news/1',
+      index: 7,
+      titular: 'Titular',
+      fuente: 'Fuente',
+      link: 'https://example.com/a b?x=1&y=2',
+    }],
+  },
+  el: detailEl,
+  state: { approvingSourceId: '', deletingSource: false },
+  escapeHtml,
+  resolveApprovalSourceLink,
+});
+const detailMarkup = detailEl.dialogBody.innerHTML;
+if (!detailMarkup.includes('data-action="open-source"')) throw new Error(`missing open action: ${detailMarkup}`);
+if (!detailMarkup.includes('data-action="approve-source"')) throw new Error(`missing approve action: ${detailMarkup}`);
+if (!detailMarkup.includes('data-action="delete-source"')) throw new Error(`missing delete action: ${detailMarkup}`);
+if (!detailMarkup.includes('data-url="https%3A%2F%2Fexample.com%2Fa%20b%3Fx%3D1%26y%3D2"')) throw new Error(`url encoding drift: ${detailMarkup}`);
+if (!detailMarkup.includes('data-id-noticia="news%2F1"')) throw new Error(`id encoding drift: ${detailMarkup}`);
+if (!detailMarkup.includes('data-index="7"')) throw new Error(`index contract drift: ${detailMarkup}`);
+
+const queueCard = buildQueueMonitorCard({ queue_id: 'queue-1', estado_queue: 'processing', tema_principal: 'Job activo', jugador: 'Jugador', fuente: 'Fuente' });
+if (queueCard.id !== 'queue-1' || queueCard.tone !== 'active' || !queueCard.isVisible) throw new Error(`queue card helper drift: ${JSON.stringify(queueCard)}`);
+
+const queueEl = {
+  queueMeta: { textContent: '', classList: { toggle(name, enabled) { this[name] = enabled; } } },
+  queueList: { innerHTML: '' },
+};
+renderQueueMonitor({ queueItems: [{ queue_id: 'queue-1', estado_queue: 'failed', tema_principal: 'Job con error', jugador: 'Jugador', fuente: 'Fuente' }], el: queueEl, escapeHtml });
+if (!queueEl.queueList.innerHTML.includes('data-action="dismiss-approval-queue-job"')) throw new Error(`missing queue dismiss action: ${queueEl.queueList.innerHTML}`);
+if (!queueEl.queueList.innerHTML.includes('data-queue-id="queue-1"')) throw new Error(`missing queue dataset id: ${queueEl.queueList.innerHTML}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+    runtime_source = (ROOT / "js" / "modules" / "app-shell" / "runtime.js").read_text(encoding="utf-8")
+    assert "../features/approval/cards.js" not in runtime_source
+    assert "../features/approval/detail-dialog.js" not in runtime_source
+    assert "../features/approval/queue-monitor.js" not in runtime_source
+    assert "../features/approval/index.js" in runtime_source
+    for token in ["buildApprovalNewsCardMarkup", "renderApprovalTopicDetail", "renderQueueMonitor"]:
+        assert token in runtime_source
+
+
 def test_single_flight_runner_reuses_inflight_promise_for_poll_refreshes():
     script = r"""
 import { createSingleFlightRunner } from './js/modules/core/async/single-flight.js';
@@ -929,11 +1055,165 @@ def test_forbidden_cross_feature_import_boundaries_are_enforced():
             assert token not in source, f"Forbidden cross-feature dependency found: {relative_path} -> {token}"
 
 
+def test_architecture_file_size_soft_cap_and_css_facade_guardrails():
+    guarded_files = [
+        "styles/features/video-projects/index.css",
+        "styles/features/video-projects/layout.css",
+        "styles/features/video-projects/project-list.css",
+        "styles/features/video-projects/setup-images.css",
+        "styles/features/video-projects/setup-audio.css",
+        "styles/features/video-projects/editor-shell.css",
+        "styles/features/video-projects/editor-controls.css",
+        "styles/features/video-projects/preview-composition.css",
+        "styles/features/video-projects/video-selector.css",
+        "styles/features/video-projects/responsive.css",
+        "js/modules/features/video-projects/index.js",
+        "js/modules/features/video-projects/render.js",
+        "js/modules/features/video-projects/render/index.js",
+        "js/modules/features/video-projects/render/project-list-view.js",
+        "js/modules/features/video-projects/render/setup-view.js",
+        "js/modules/features/video-projects/render/editor-shell-view.js",
+        "js/modules/features/video-projects/render/preview-lifecycle.js",
+        "js/modules/features/video-projects/render/editor-hydration.js",
+        "js/modules/features/video-projects/render/video-selector-hydration.js",
+        "js/modules/features/video-projects/render/motion-scrub.js",
+        "js/modules/features/video-projects/controller/create-video-projects-controller.js",
+        "js/modules/features/video-projects/controller/project-loading.js",
+        "js/modules/features/video-projects/controller/editor-state-persistence.js",
+        "js/modules/features/video-projects/controller/approval-snapshot-operations.js",
+        "js/modules/features/video-projects/controller/preview-export-commands.js",
+        "js/modules/features/video-projects/controller/row-commands.js",
+        "js/modules/features/video-projects/controller/audio-commands.js",
+        "js/modules/features/video-projects/controller/brand-commands.js",
+        "js/modules/app-shell.js",
+        "js/modules/app-shell/index.js",
+        "js/modules/app-shell/state.js",
+        "js/modules/app-shell/services.js",
+        "js/modules/app-shell/navigation.js",
+        "js/modules/app-shell/settings.js",
+        "js/modules/app-shell/events/index.js",
+        "js/modules/app-shell/events/scripts.js",
+        "js/modules/app-shell/events/audio.js",
+        "js/modules/app-shell/events/subtitles.js",
+        "js/modules/app-shell/events/approval-dialog.js",
+        "js/modules/app-shell/render-callbacks.js",
+        "js/modules/app-shell/approval-monitor.js",
+        "js/modules/features/video-projects/composition/composition-renderer.js",
+        "js/modules/features/video-projects/composition/renderer/index.js",
+        "js/modules/features/video-projects/composition/renderer/dom.js",
+        "js/modules/features/video-projects/composition/renderer/frame-math.js",
+        "js/modules/features/video-projects/composition/renderer/video-layers.js",
+        "js/modules/features/video-projects/composition/renderer/logo-chroma.js",
+    ]
+
+    oversize = []
+    for relative_path in guarded_files:
+        path = ROOT / relative_path
+        assert path.exists(), f"Missing architecture guardrail target: {relative_path}"
+        line_count = len(path.read_text(encoding="utf-8").splitlines())
+        if line_count > FILE_SIZE_SOFT_CAP_LINES and relative_path not in FILE_SIZE_EXCEPTIONS:
+            oversize.append(f"{relative_path} ({line_count} lines)")
+
+    assert not oversize, "Files exceed 500-line soft cap without exception: " + ", ".join(oversize)
+
+    facade_lines = [line.strip() for line in VIDEO_PROJECTS_CSS_FACADE.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert all(line.startswith("@import './") and line.endswith(".css';") for line in facade_lines)
+
+
+def test_video_projects_render_facade_and_hydration_seams():
+    result = subprocess.run(
+        ["node", "--test", "js/modules/__checks__/video-projects-render-seams.check.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_video_projects_controller_facade_and_use_case_seams():
+    result = subprocess.run(
+        ["node", "--test", "js/modules/__checks__/video-projects-controller-seams.check.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_app_shell_facade_navigation_settings_and_render_callback_seams():
+    result = subprocess.run(
+        ["node", "--test", "js/modules/__checks__/app-shell-seams.check.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_composition_renderer_pure_helper_facade_parity():
+    result = subprocess.run(
+        ["node", "--test", "js/modules/__checks__/composition-renderer-helpers.check.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_app_shell_rollback_scope_is_documented():
+    contract_source = CONTRACT_MATRIX_PATH.read_text(encoding="utf-8")
+    assert "Checkpoint P6 (App Shell Facade Extraction)" in contract_source
+    assert "Rollback Scope (P6 App Shell)" in contract_source
+    assert "js/modules/app-shell/" in contract_source
+    assert "CompositionRenderer" in contract_source
+
+
+def test_video_projects_controller_rollback_scope_is_documented():
+    contract_source = CONTRACT_MATRIX_PATH.read_text(encoding="utf-8")
+    assert "Checkpoint P5 (Video Projects Controller Use-Cases)" in contract_source
+    assert "Rollback Scope (P5 Controller)" in contract_source
+    assert "js/modules/features/video-projects/controller/" in contract_source
+    assert "app-shell" in contract_source
+    assert "CompositionRenderer" in contract_source
+
+
+def test_contract_matrix_documents_check_manifest_source_aggregation():
+    contract_source = CONTRACT_MATRIX_PATH.read_text(encoding="utf-8")
+    assert "Check Organization Manifest" in contract_source
+    assert "js/modules/__checks__/manifest.js" in contract_source
+    assert "implementationPath" in contract_source
+
+
+def test_dependency_boundary_validator_detects_sibling_feature_imports():
+    script = r"""
+import { validateNoSiblingFeatureImports } from './js/modules/__checks__/dependency-boundary-validator.js';
+
+const baseline = validateNoSiblingFeatureImports({
+  'js/modules/features/video-projects/index.js': "import { x } from '../../core/foo.js';",
+  'js/modules/features/audio/index.js': "import { x } from '../../core/bar.js';",
+});
+if (!baseline.ok) throw new Error(`expected baseline pass, got ${JSON.stringify(baseline.violations)}`);
+
+const mutated = validateNoSiblingFeatureImports({
+  'js/modules/features/video-projects/index.js': "import { createAudioController } from '../audio/index.js';",
+});
+if (mutated.ok) throw new Error('expected sibling feature import violation');
+if (mutated.violations[0]?.from !== 'js/modules/features/video-projects/index.js') {
+  throw new Error(`violation source drift: ${JSON.stringify(mutated.violations)}`);
+}
+if (mutated.violations[0]?.feature !== 'audio') {
+  throw new Error(`violation feature drift: ${JSON.stringify(mutated.violations)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_bootstrap_boundary_invariance_and_runtime_helper_delegation_contract():
     main_source = MAIN_JS_PATH.read_text(encoding="utf-8")
     composition_source = COMPOSITION_ROOT_PATH.read_text(encoding="utf-8")
     app_shell_source = (ROOT / "js" / "modules" / "app-shell.js").read_text(encoding="utf-8")
-    parity_checklist_source = (ROOT / "js" / "modules" / "__checks__" / "parity-checklist.js").read_text(encoding="utf-8")
+    parity_checklist_source = _read_check_implementation_source("js/modules/__checks__/parity-checklist.js")
 
     assert "./modules/composition-root.js" in main_source
     assert "./app-shell.js" in composition_source
@@ -978,6 +1258,41 @@ if (!mutated.failures.some((f) => String(f).includes('normalizeAudioProgressPerc
 
 if (!mutated.failures.some((f) => String(f).includes('resolveSubtitleProgressPercentRuntime'))) {
   throw new Error(`expected missing subtitles helper import violation, got ${JSON.stringify(mutated.failures)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_parity_checklist_enforces_video_projects_facade_contracts():
+    script = r"""
+import { runParityChecklist } from './js/modules/__checks__/parity-checklist.js';
+
+const indexHtmlSource = '<div id="authGate"></div><div id="appShell"></div><form id="authForm"></form><input id="searchInput"><select id="countryFilter"></select><select id="sourcesFilter"></select><div id="cards"></div><dialog id="queueDialog"></dialog><dialog id="settingsDialog"></dialog><nav id="sidebarNav"></nav><section id="viewApproval"></section><section id="viewScripts"></section><section id="viewAudio"></section><section id="viewSubtitulos2"></section><button id="audioRunBtn"></button><tbody id="subtitle2RowsBody"></tbody><section id="subtitle2ServiceHealthBanner"></section><section id="subtitle2SessionHistory"></section><section id="subtitle2PreviewStage"></section><video id="subtitle2PreviewVideo"></video><section id="subtitle2PreviewOverlay"></section><section id="subtitle2PreviewCue"></section><section id="subtitle2PreviewTimeline"></section><button id="subtitle2AddRowBtn"></button><button id="subtitle2AnotherVideoBtn"></button>';
+const baseline = runParityChecklist({
+  indexHtmlSource,
+  mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
+  compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
+  appShellSource: "import { normalizeAudioProgressPercent } from './features/audio/runtime/index.js'; import { resolveSubtitleProgressPercentRuntime } from './features/subtitles/runtime/index.js';",
+  stylesSource: "@import './styles/features/video-projects/index.css';",
+  videoProjectsFacadeSource: "export function createVideoProjectsFeature() {}; export { renderSelectedVideoProjectView } from './render.js';",
+});
+if (!baseline.pass) throw new Error(`expected video projects facade baseline pass, got ${JSON.stringify(baseline.failures)}`);
+
+const mutated = runParityChecklist({
+  indexHtmlSource,
+  mainJsSource: "import './modules/composition-root.js'; bootCompositionRoot();",
+  compositionRootSource: "import { bootApp } from './app-shell.js'; bootApp();",
+  appShellSource: "import { normalizeAudioProgressPercent } from './features/audio/runtime/index.js'; import { resolveSubtitleProgressPercentRuntime } from './features/subtitles/runtime/index.js';",
+  stylesSource: "@import './styles/features/video-projects.css';",
+  videoProjectsFacadeSource: "export function createRenamedFeature() {};",
+});
+if (mutated.pass) throw new Error('expected video projects facade contract failure');
+if (!mutated.failures.some((f) => String(f).includes('video-projects/index.css'))) {
+  throw new Error(`expected CSS facade import violation, got ${JSON.stringify(mutated.failures)}`);
+}
+if (!mutated.failures.some((f) => String(f).includes('createVideoProjectsFeature'))) {
+  throw new Error(`expected public factory violation, got ${JSON.stringify(mutated.failures)}`);
 }
 """
     result = _run_node(script)
