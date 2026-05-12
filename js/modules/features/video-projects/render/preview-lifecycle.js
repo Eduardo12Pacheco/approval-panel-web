@@ -1,0 +1,233 @@
+import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js';
+import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
+import { formatSeconds } from '../domain/formatters.js';
+
+let compositionRenderer = null;
+let compositionRendererContainer = null;
+let compositionRendererAssetSignature = '';
+
+export function destroyCompositionRenderer() {
+  if (compositionRenderer) {
+    try { compositionRenderer.destroy(); } catch {}
+    compositionRenderer = null;
+  }
+  compositionRendererContainer = null;
+  compositionRendererAssetSignature = '';
+}
+
+export function ensureCompositionRenderer(container) {
+  if (!compositionRenderer || !compositionRendererContainer || compositionRendererContainer !== container) {
+    destroyCompositionRenderer();
+    compositionRenderer = new CompositionRenderer({ container });
+    compositionRendererContainer = container;
+  }
+  return compositionRenderer;
+}
+
+export function getCompositionRendererForPreview() {
+  return compositionRenderer;
+}
+
+export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, playing = false } = {}) {
+  if (!modal?.querySelectorAll) return false;
+  const seekTime = Number(sourceInSeconds);
+  const videos = Array.from(modal.querySelectorAll('video[data-layer]'));
+  if (!videos.length || !Number.isFinite(seekTime)) return false;
+  videos.forEach((video) => {
+    syncManagedVideoElement({ video, currentTimeSeconds: Math.max(0, seekTime), playing });
+  });
+  return true;
+}
+
+export function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
+  if (!compositionRenderer || !compositionRendererContainer || !project) return false;
+  const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
+  if (!editorRows.length) return false;
+  const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  compositionRenderer.update({ rows: compositionRows });
+  const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
+  if (imageUrls.length) void compositionRenderer.preloadImages(imageUrls);
+  const seekTime = Number(project._previewSeekTime);
+  if (Number.isFinite(seekTime) && seekTime > 0) compositionRenderer.seek(seekTime);
+  return true;
+}
+
+export function hydrateCompositionPreview({ root, project, editorRows }) {
+  const compositionContainer = root?.querySelector?.('[data-composition-container]');
+  if (!compositionContainer || !Array.isArray(editorRows) || !editorRows.length) {
+    destroyCompositionRenderer();
+    return null;
+  }
+  const renderer = ensureCompositionRenderer(compositionContainer);
+  const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  const applyRowsAndSeek = () => {
+    renderer?.update({ rows: compositionRows });
+    const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
+    if (imageUrls.length) renderer?.preloadImages(imageUrls);
+    const seekTime = Number(project._previewSeekTime);
+    if (Number.isFinite(seekTime) && seekTime > 0) renderer?.seek(seekTime);
+  };
+  if (compositionRendererAssetSignature !== assetSignature) {
+    renderer.preload({
+      dustWebmUrl,
+      logoUrl,
+      outroUrl,
+      outroDurationSeconds,
+      voiceUrl,
+      musicUrl,
+      voiceVolume: globalAudioData.voice?.volume ?? 1,
+      voiceMuted: globalAudioData.voice?.muted ?? false,
+      musicVolume: globalAudioData.music?.volume ?? 0.16,
+      musicMuted: globalAudioData.music?.muted ?? false,
+      musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
+      musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+      rows: compositionRows,
+    }).then(() => {
+      compositionRendererAssetSignature = assetSignature;
+      applyRowsAndSeek();
+    });
+  } else {
+    applyRowsAndSeek();
+  }
+  return renderer;
+}
+
+export function hydratePreviewTransport({ root, project, editorRows, selectEditorRow }) {
+  const previewVideo = root.querySelector('[data-preview-video]');
+  const scrubber = root.querySelector('[data-preview-scrubber]');
+  const playButton = root.querySelector('[data-action="toggle-preview-play"]');
+  const playIcon = root.querySelector('[data-preview-play-icon]');
+  const renderer = getCompositionRendererForPreview();
+  const findRowAtTime = (time) => editorRows.find((row) => time >= Number(row.startTime || 0) && time < Number(row.endTime || 0)) || editorRows[editorRows.length - 1];
+  const updatePreviewTimeline = (currentTime, durationValue) => {
+    const configuredDuration = Number(scrubber?.dataset.duration || 0);
+    const duration = Math.max(Number(durationValue || previewVideo?.duration || renderer?.duration || configuredDuration || 0), configuredDuration, 1);
+    const pct = Math.max(0, Math.min((Number(currentTime || 0) / duration) * 100, 100));
+    const progressEl = root.querySelector('[data-preview-progress]');
+    const playheadEl = root.querySelector('[data-preview-playhead]');
+    const currentTimeEl = root.querySelector('[data-preview-current-time]');
+    if (progressEl) progressEl.style.width = `${pct}%`;
+    if (playheadEl) playheadEl.style.left = `${pct}%`;
+    if (currentTimeEl) currentTimeEl.textContent = formatSeconds(currentTime || 0);
+    const currentRow = findRowAtTime(Number(currentTime || 0));
+    if (!currentRow) return;
+    root.querySelectorAll('.video-preview-timeline__marker').forEach((segment) => segment.classList.toggle('is-current', segment.dataset.rowId === currentRow.id));
+    root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => rowEl.classList.toggle('is-current', rowEl.dataset.rowId === currentRow.id));
+  };
+  let previewTimelineFrame = 0;
+  const stopPreviewTimelineLoop = () => {
+    if (!previewTimelineFrame) return;
+    window.cancelAnimationFrame(previewTimelineFrame);
+    previewTimelineFrame = 0;
+  };
+  const startPreviewTimelineLoop = () => {
+    stopPreviewTimelineLoop();
+    const tick = () => {
+      const activeRenderer = getCompositionRendererForPreview();
+      if (activeRenderer) {
+        updatePreviewTimeline(activeRenderer.currentTime, activeRenderer.duration);
+        if (activeRenderer.isPlaying) previewTimelineFrame = window.requestAnimationFrame(tick);
+      } else if (previewVideo) {
+        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+        if (!previewVideo.paused && !previewVideo.ended) previewTimelineFrame = window.requestAnimationFrame(tick);
+      }
+    };
+    previewTimelineFrame = window.requestAnimationFrame(tick);
+  };
+  const restorePreviewSeekTime = () => {
+    if (getCompositionRendererForPreview()) return;
+    const seekTime = Number(project._previewSeekTime);
+    if (!previewVideo || !Number.isFinite(seekTime)) return;
+    const applySeek = () => { try { previewVideo.currentTime = seekTime; } catch {} };
+    if (previewVideo.readyState >= 1) applySeek();
+    else previewVideo.addEventListener('loadedmetadata', applySeek, { once: true });
+  };
+  const seekPreviewFromPointer = (ev) => {
+    if (!scrubber) return;
+    const rect = scrubber.getBoundingClientRect();
+    if (!rect.width) return;
+    const pct = Math.max(0, Math.min((ev.clientX - rect.left) / rect.width, 1));
+    const configuredDuration = Number(scrubber.dataset.duration || 0);
+    const activeRenderer = getCompositionRendererForPreview();
+    const duration = Math.max(Number(activeRenderer?.duration || previewVideo?.duration || 0), configuredDuration, 1);
+    const nextTime = pct * duration;
+    if (activeRenderer) activeRenderer.seek(nextTime);
+    else if (previewVideo) previewVideo.currentTime = nextTime;
+    project._previewSeekTime = nextTime;
+    updatePreviewTimeline(nextTime, duration);
+  };
+  restorePreviewSeekTime();
+  updatePreviewTimeline(Number(project._previewSeekTime || 0));
+  if (renderer) hydrateCompositionTransport({ root, renderer, playButton, playIcon, startPreviewTimelineLoop, stopPreviewTimelineLoop, updatePreviewTimeline });
+  else if (previewVideo) hydrateVideoTransport({ previewVideo, playButton, playIcon, startPreviewTimelineLoop, stopPreviewTimelineLoop, updatePreviewTimeline });
+  hydrateScrubber({ scrubber, seekPreviewFromPointer });
+  hydrateRowSelection({ root, selectEditorRow });
+  return { updatePreviewTimeline };
+}
+
+function hydrateCompositionTransport({ root, renderer, playButton, playIcon, startPreviewTimelineLoop, stopPreviewTimelineLoop, updatePreviewTimeline }) {
+  const handleCompositionPlay = async () => {
+    const activeRenderer = getCompositionRendererForPreview();
+    if (!activeRenderer) return;
+    if (activeRenderer.isPlaying) activeRenderer.pause();
+    else await activeRenderer.play();
+  };
+  playButton?.addEventListener('click', handleCompositionPlay);
+  root.querySelector('.composition-stage')?.addEventListener('click', handleCompositionPlay);
+  const updatePlayIcon = () => {
+    const activeRenderer = getCompositionRendererForPreview();
+    if (!activeRenderer) return;
+    if (activeRenderer.isPlaying) {
+      playButton?.classList.add('is-playing');
+      if (playIcon) playIcon.textContent = '❚❚';
+      startPreviewTimelineLoop();
+    } else {
+      playButton?.classList.remove('is-playing');
+      if (playIcon) playIcon.textContent = '▶';
+      stopPreviewTimelineLoop();
+      updatePreviewTimeline(activeRenderer.currentTime, activeRenderer.duration);
+    }
+  };
+  const pollPlayState = () => {
+    const activeRenderer = getCompositionRendererForPreview();
+    if (!activeRenderer) return;
+    const wasPlaying = playButton?.classList.contains('is-playing');
+    if (wasPlaying !== activeRenderer.isPlaying) updatePlayIcon();
+    window.setTimeout(pollPlayState, 100);
+  };
+  pollPlayState();
+  if (renderer.isPlaying) startPreviewTimelineLoop();
+}
+
+function hydrateVideoTransport({ previewVideo, playButton, playIcon, startPreviewTimelineLoop, stopPreviewTimelineLoop, updatePreviewTimeline }) {
+  previewVideo.addEventListener('loadedmetadata', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+  previewVideo.addEventListener('timeupdate', () => updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration));
+  previewVideo.addEventListener('play', () => { playButton?.classList.add('is-playing'); if (playIcon) playIcon.textContent = '❚❚'; startPreviewTimelineLoop(); });
+  const stop = () => { playButton?.classList.remove('is-playing'); if (playIcon) playIcon.textContent = '▶'; stopPreviewTimelineLoop(); updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration); };
+  previewVideo.addEventListener('pause', stop);
+  previewVideo.addEventListener('ended', stop);
+  const toggle = async () => { if (previewVideo.paused) { try { await previewVideo.play(); } catch {} } else previewVideo.pause(); };
+  previewVideo.addEventListener('click', toggle);
+  playButton?.addEventListener('click', toggle);
+}
+
+function hydrateScrubber({ scrubber, seekPreviewFromPointer }) {
+  if (!scrubber) return;
+  let scrubbing = false;
+  scrubber.addEventListener('pointerdown', (ev) => { ev.preventDefault(); scrubbing = true; scrubber.setPointerCapture?.(ev.pointerId); seekPreviewFromPointer(ev); });
+  scrubber.addEventListener('pointermove', (ev) => { if (scrubbing) seekPreviewFromPointer(ev); });
+  scrubber.addEventListener('pointerup', (ev) => { if (!scrubbing) return; seekPreviewFromPointer(ev); scrubbing = false; scrubber.releasePointerCapture?.(ev.pointerId); });
+  scrubber.addEventListener('pointercancel', () => { scrubbing = false; });
+}
+
+function hydrateRowSelection({ root, selectEditorRow }) {
+  root.querySelectorAll('[data-action="select-row"]').forEach((btn) => {
+    btn.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); selectEditorRow(btn.dataset.rowId, btn.dataset.startTime); });
+  });
+  root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => {
+    rowEl.addEventListener('click', (ev) => { if (!ev.target.closest('button, input, label, select, a')) selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime); });
+    rowEl.addEventListener('keydown', (ev) => { if (ev.key !== 'Enter' && ev.key !== ' ') return; ev.preventDefault(); selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime); });
+  });
+}

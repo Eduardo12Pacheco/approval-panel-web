@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 
@@ -36,6 +37,26 @@ REQUIRED_SELECTOR_IDS = [
 ]
 
 
+def _read_check_implementation_source(facade_path: str) -> str:
+    script = r"""
+import { readFile } from 'node:fs/promises';
+import { CHECK_MANIFEST } from './js/modules/__checks__/manifest.js';
+
+const facadePath = process.argv[1];
+const entry = CHECK_MANIFEST.find((candidate) => candidate.facadePath === facadePath);
+if (!entry) throw new Error(`missing check manifest entry for ${facadePath}`);
+process.stdout.write(await readFile(entry.implementationPath, 'utf8'));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, facade_path],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
 def test_contract_matrix_exists_for_six_baseline_flows():
     assert CONTRACT_MATRIX_PATH.exists(), (
         "Task 1.1 requires docs/parity/contract-matrix.md with baseline flow checkpoints"
@@ -56,7 +77,7 @@ def test_contract_matrix_freezes_network_contract_columns():
 
 def test_parity_checklist_defines_selector_and_bootstrap_contract_assertions():
     assert PARITY_CHECKLIST_PATH.exists(), "Task 1.2 requires js/modules/__checks__/parity-checklist.js"
-    checklist_source = PARITY_CHECKLIST_PATH.read_text(encoding="utf-8")
+    checklist_source = _read_check_implementation_source("js/modules/__checks__/parity-checklist.js")
 
     for selector_id in REQUIRED_SELECTOR_IDS:
         assert selector_id in checklist_source, f"Missing selector contract assertion for #{selector_id}"

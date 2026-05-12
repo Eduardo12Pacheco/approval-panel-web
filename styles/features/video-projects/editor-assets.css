@@ -1,0 +1,116 @@
+/* Editor Assets tab */
+
+.video-editor-assets-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.video-editor-assets-picker__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.video-editor-assets-picker__header .video-editor-control__label {
+  color: var(--text);
+  font-size: 1.02rem;
+  letter-spacing: 0.09em;
+}
+
+.video-editor-assets-picker__header p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.video-editor-assets-picker__upload {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.video-editor-assets-picker__upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.video-editor-assets-picker__upload span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(0, 232, 143, 0.34);
+  background: rgba(0, 232, 143, 0.08);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.video-editor-assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  max-height: 360px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2px 4px 4px 0;
+}
+
+.video-editor-assets-card {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0c0c0c;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.video-editor-assets-card:hover,
+.video-editor-assets-card:focus-visible,
+.video-editor-assets-card.is-selected {
+  border-color: rgba(0, 232, 143, 0.66);
+  background: rgba(0, 232, 143, 0.08);
+  outline: none;
+}
+
+.video-editor-assets-card:hover {
+  transform: translateY(-1px);
+}
+
+.video-editor-assets-card__media {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 96px;
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid #242424;
+  background: #050505;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.video-editor-assets-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  display: block;
+  max-width: 100%;
+}

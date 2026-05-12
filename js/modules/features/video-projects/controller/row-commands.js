@@ -1,0 +1,178 @@
+import { buildCompositionPayload, computeCompositionHash } from '../composition/composition-payload.js';
+import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
+import { normalizeEditorState } from '../domain/editor-state.js';
+import { findMotionPreset } from '../domain/motion-presets.js';
+
+function hasOwnPatchValue(patch, key) {
+  return Object.prototype.hasOwnProperty.call(patch || {}, key);
+}
+
+export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
+  return {
+    ...current,
+    ...(hasOwnPatchValue(patch, 'motion') ? { motion: patch.motion } : {}),
+    ...(hasOwnPatchValue(patch, 'motionPresetId') ? { motionPresetId: patch.motionPresetId || null } : {}),
+    ...(hasOwnPatchValue(patch, 'dust') ? { dust: { enabled: Boolean(patch.dust?.enabled) } } : {}),
+    ...(hasOwnPatchValue(patch, 'logo') ? { logo: { enabled: patch.logo?.enabled !== false } } : {}),
+    ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
+    ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
+    ...(hasOwnPatchValue(patch, 'media') ? { media: patch.media?.kind === 'video-segment' ? { ...patch.media } : { kind: 'image' } } : {}),
+  };
+}
+
+export function patchLocalEditorRows(rows = [], rowId, patch = {}) {
+  const index = Array.isArray(rows) ? rows.findIndex((row) => row?.id === rowId) : -1;
+  if (index === -1) return rows;
+  const nextRows = rows.slice();
+  nextRows[index] = mergeLocalEditorRowPatch(rows[index], patch);
+  return nextRows;
+}
+
+export function applyPendingMotionDrafts(rows = [], drafts = new Map()) {
+  if (!Array.isArray(rows) || !rows.length) return rows;
+  const getDraft = typeof drafts?.get === 'function'
+    ? (rowId) => drafts.get(rowId)
+    : (rowId) => drafts?.[rowId];
+  return rows.map((row) => {
+    const draft = getDraft(row?.id);
+    if (!draft) return row;
+    return mergeLocalEditorRowPatch(row, draft.patch || draft);
+  });
+}
+
+export function shouldFallbackApprovalSnapshotOperationError(error, operationType = '') {
+  const message = (error?.message || error?.error?.message || '').toString();
+  if (error?.code === 'unsupported_operation') return !operationType || message.includes(operationType);
+  return operationType === 'setRowVideoSegment' && message.includes('unsupported operation: setRowVideoSegment');
+}
+
+function isMotionRowPatch(patch = {}) {
+  return hasOwnPatchValue(patch, 'motion') || hasOwnPatchValue(patch, 'motionPresetId');
+}
+
+function resolveMotionPatchForApprovalService(motion) {
+  if (motion && typeof motion === 'object') {
+    const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
+    return { motionPresetId, motion };
+  }
+  const preset = findMotionPreset(motion);
+  if (preset) return { motionPresetId: preset.name, motion: { ...preset } };
+  const normalized = (motion || '').toString().trim().toLowerCase();
+  if (!normalized || normalized === 'zoom 110' || normalized === 'zoom-110' || normalized === 'slow-zoom-in' || normalized === 'slow-zoom') {
+    return { motionPresetId: 'Zoom 110', motion: { fromScale: 1, toScale: 1.1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'none' || normalized === 'still') {
+    return { motionPresetId: 'none', motion: { fromScale: 1, toScale: 1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'slow-zoom-out') {
+    return { motionPresetId: 'slow-zoom-out', motion: { fromScale: 1.08, toScale: 1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'slow-zoom' || normalized === 'slow-zoom-in') {
+    return { motionPresetId: normalized || 'slow-zoom-in', motion: { fromScale: 1, toScale: normalized === 'slow-zoom' ? 1.04 : 1.08, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  }
+  if (normalized === 'pan-left') {
+    return { motionPresetId: 'pan-left', motion: { fromScale: 1.1, toScale: 1.1, fromX: 72, fromY: 0, toX: -72, toY: 0 } };
+  }
+  if (normalized === 'pan-right') {
+    return { motionPresetId: 'pan-right', motion: { fromScale: 1.1, toScale: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 } };
+  }
+  return { motionPresetId: normalized || 'custom', motion: typeof motion === 'object' ? motion : undefined };
+}
+
+export function createRowCommands({
+  store,
+  ui,
+  persistEditorState,
+  isApprovalServiceMode,
+  queueApprovalSnapshotOperations,
+  scheduleApprovalMotionPersistence,
+  createMotionDraft,
+  updateSelectedVideoProjectCompositionPreview,
+  renderSelectedVideoProject,
+  getSaveTimer,
+  setSaveTimer,
+  debounceMs,
+}) {
+  async function updateRow(rowId, patch) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project || !rowId) return;
+
+    const rows = Array.isArray(project._editorRows) ? project._editorRows : [];
+    const index = rows.findIndex((r) => r.id === rowId);
+    if (index === -1) return;
+
+    if (isApprovalServiceMode(project)) {
+      const operations = [];
+      const shouldDraftMotion = isMotionRowPatch(patch) && patch.manualMotionDraft === true;
+      if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
+      if (patch.media?.kind === 'video-segment') {
+        operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
+      }
+      if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
+        const resolvedMotion = patch.motionPresetId
+          ? { motionPresetId: patch.motionPresetId, motion: typeof patch.motion === 'object' ? patch.motion : undefined }
+          : resolveMotionPatchForApprovalService(patch.motion);
+        if (shouldDraftMotion) {
+          const localMotionPatch = { motionPresetId: resolvedMotion.motionPresetId, motion: resolvedMotion.motion };
+          project._editorRows = patchLocalEditorRows(rows, rowId, localMotionPatch);
+          project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+          createMotionDraft(rowId, { type: 'setRowMotion', rowId, ...resolvedMotion }, localMotionPatch);
+          updateSelectedVideoProjectCompositionPreview({ project });
+          scheduleApprovalMotionPersistence(project);
+        } else {
+          operations.push({ type: 'setRowMotion', rowId, ...resolvedMotion });
+        }
+      }
+      if (patch.dust !== undefined) operations.push({ type: 'setRowDust', rowId, enabled: Boolean(patch.dust?.enabled), dustType: patch.dust?.type || 'dust-1' });
+      if (patch.logo !== undefined) operations.push({ type: 'setLogo', enabled: patch.logo?.enabled !== false, source: patch.logo?.source || 'logo-alpha.webm' });
+      if (!operations.length) return;
+      try {
+        await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+      } catch (err) {
+        const canFallbackVideoSegment = patch.media?.kind === 'video-segment'
+          && operations.length === 1
+          && operations[0]?.type === 'setRowVideoSegment'
+          && shouldFallbackApprovalSnapshotOperationError(err, 'setRowVideoSegment');
+        if (canFallbackVideoSegment) {
+          project._editorRows = patchLocalEditorRows(rows, rowId, patch);
+          const compositionHash = computeCompositionHash(project);
+          await persistEditorState(project, { timed_rows: project._editorRows, composition_hash: compositionHash, dirty: true, phase: 'editing_dirty', error: '' });
+          updateSelectedVideoProjectCompositionPreview({ project });
+          return;
+        }
+        console.error(err);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Fila ${rowId}: ${err?.message || 'No se pudo actualizar snapshot'}` });
+        ui.toast('Error actualizando snapshot');
+      } finally {
+        renderSelectedVideoProject();
+      }
+      return;
+    }
+
+    project._editorRows = patchLocalEditorRows(rows, rowId, patch);
+    const compositionHash = computeCompositionHash(project);
+    const lastRenderedHash = project.editor_state?.last_rendered_hash || project.editor_state?.last_preview_hash || project.editor_state?.composition_hash || '';
+    const isDirty = compositionHash !== lastRenderedHash;
+    project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
+
+    if (patch.manualMotionDraft === true) updateSelectedVideoProjectCompositionPreview({ project });
+    else renderSelectedVideoProject();
+
+    clearTimeout(getSaveTimer());
+    setSaveTimer(setTimeout(() => {
+      void persistEditorState(project, { timed_rows: project._editorRows, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
+    }, debounceMs));
+  }
+
+  return { updateRow };
+}
+
+export function normalizeRowsForPreview(project) {
+  if (!Array.isArray(project?._editorRows) || !project._editorRows.length) {
+    project._editorRows = normalizePreparedContractRows(project?.editor_state?.timed_rows);
+  }
+  return project?._editorRows || [];
+}
+
+export { buildCompositionPayload };

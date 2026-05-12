@@ -28,6 +28,7 @@ STYLE_FILES = [
     ROOT / "styles" / "components" / "toast.css",
     ROOT / "styles" / "features" / "approval.css",
     ROOT / "styles" / "features" / "scripts.css",
+    ROOT / "styles" / "features" / "video-projects" / "index.css",
     ROOT / "styles" / "features" / "audio.css",
     ROOT / "styles" / "features" / "subtitles" / "index.css",
     ROOT / "styles" / "features" / "auth.css",
@@ -72,11 +73,30 @@ def test_styles_entry_is_import_only_with_locked_order():
         "@import './styles/components/toast.css';",
         "@import './styles/features/approval.css';",
         "@import './styles/features/scripts.css';",
+        "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
         "@import './styles/components/scrollbars.css';",
+    ]
+    lines = [line.strip() for line in source.splitlines() if line.strip()]
+    assert lines == expected_lines
+
+
+def test_video_projects_css_facade_is_import_only_with_locked_chunk_order():
+    facade_path = ROOT / "styles" / "features" / "video-projects" / "index.css"
+    source = facade_path.read_text(encoding="utf-8")
+    expected_lines = [
+        "@import './layout.css';",
+        "@import './project-list.css';",
+        "@import './setup-images.css';",
+        "@import './setup-audio.css';",
+        "@import './editor-shell.css';",
+        "@import './editor-controls.css';",
+        "@import './preview-composition.css';",
+        "@import './video-selector.css';",
+        "@import './responsive.css';",
     ]
     lines = [line.strip() for line in source.splitlines() if line.strip()]
     assert lines == expected_lines
@@ -124,11 +144,17 @@ if (!result.ok) {
 const sidebar = result.computed['.sidebar'] || {};
 const card = result.computed['.card'] || {};
 const phaseBar = result.computed['.subtitle-phase-bar'] || {};
+const videoProjectsLayout = result.computed['.video-projects-layout'] || {};
+const videoProjectCard = result.computed['.video-project-card'] || {};
+const compositionStage = result.computed['.composition-stage'] || {};
 
 if (sidebar.position !== 'fixed') throw new Error('sidebar position computed-style drift');
 if (sidebar.width !== 'var(--sidebar-collapsed)') throw new Error('sidebar width computed-style drift');
 if (card.display !== 'flex') throw new Error('card display computed-style drift');
 if (phaseBar.display !== 'grid') throw new Error('subtitle phase bar display computed-style drift');
+if (videoProjectsLayout.display !== 'grid') throw new Error('video projects layout display drift');
+if (videoProjectCard.display !== 'grid') throw new Error('video project card display drift');
+if (compositionStage.position !== 'relative') throw new Error('composition stage position drift');
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

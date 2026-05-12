@@ -8,7 +8,7 @@
 @import './styles/components/toast.css';
 @import './styles/features/approval.css';
 @import './styles/features/scripts.css';
-@import './styles/features/video-projects.css';
+@import './styles/features/video-projects/index.css';
 @import './styles/features/audio.css';
 @import './styles/features/subtitles/index.css';
 @import './styles/features/auth.css';

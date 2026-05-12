@@ -27,6 +27,26 @@ def _run_node(script: str):
     )
 
 
+def _read_check_implementation_source(facade_path: str) -> str:
+    script = r"""
+import { readFile } from 'node:fs/promises';
+import { CHECK_MANIFEST } from './js/modules/__checks__/manifest.js';
+
+const facadePath = process.argv[1];
+const entry = CHECK_MANIFEST.find((candidate) => candidate.facadePath === facadePath);
+if (!entry) throw new Error(`missing check manifest entry for ${facadePath}`);
+process.stdout.write(await readFile(entry.implementationPath, 'utf8'));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", script, facade_path],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
 def test_runtime_entrypoint_contract_remains_index_to_main_to_composition_to_app_shell():
     index_source = INDEX_HTML_PATH.read_text(encoding="utf-8")
     main_source = MAIN_JS_PATH.read_text(encoding="utf-8")
@@ -40,7 +60,7 @@ def test_runtime_entrypoint_contract_remains_index_to_main_to_composition_to_app
 
 
 def test_parity_checklist_freezes_three_hop_bootstrap_boundary_including_app_shell_link():
-    source = PARITY_CHECKLIST_PATH.read_text(encoding="utf-8")
+    source = _read_check_implementation_source("js/modules/__checks__/parity-checklist.js")
     assert "COMPOSITION_ROOT_IMPORT_PATH" in source
     assert "APP_SHELL_IMPORT_PATH" in source
     assert "compositionRootSource" in source
