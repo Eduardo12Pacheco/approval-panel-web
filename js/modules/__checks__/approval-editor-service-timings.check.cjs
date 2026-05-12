@@ -2,8 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createApprovalEditorService, normalizeSegments } = require('../../../approval-editor-service/server.js');
-const { alignSegmentsToTranscript } = require('../../../approval-editor-service/lib/real-alignment.js');
+const { createApprovalEditorService, normalizeSegments } = require('../../../services/approval-editor/server.js');
+const { alignSegmentsToTranscript } = require('../../../services/approval-editor/lib/real-alignment.js');
 
 function listen(server) {
   return new Promise((resolve) => {

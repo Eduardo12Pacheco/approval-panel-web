@@ -21,6 +21,10 @@ AUDIO_PATH = ROOT / "styles" / "features" / "audio.css"
 SUBTITLES_PATH = ROOT / "styles" / "features" / "subtitles" / "legacy-base.css"
 AUTH_PATH = ROOT / "styles" / "features" / "auth.css"
 README_PATH = ROOT / "README.md"
+ROOT_GITIGNORE_PATH = ROOT.parent / ".gitignore"
+CONTROL_PANEL_GITIGNORE_PATH = ROOT / ".gitignore"
+VIDEO_PROJECTS_README_PATH = ROOT / "js" / "modules" / "features" / "video-projects" / "README.md"
+VIDEO_PROJECTS_PLAN_PATH = ROOT / "docs" / "video-projects-refactor-plan.md"
 
 
 def _read(path: Path) -> str:
@@ -79,7 +83,7 @@ def test_styles_entry_order_stays_locked_while_rules_move_to_layer_files():
         "@import './styles/components/toast.css';",
         "@import './styles/features/approval.css';",
         "@import './styles/features/scripts.css';",
-        "@import './styles/features/video-projects.css';",
+        "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
@@ -131,6 +135,69 @@ def test_readme_documents_architecture_guardrails_and_slice_workflow_in_spanish(
 def test_readme_does_not_claim_new_capabilities_for_this_change_set():
     source = _read(README_PATH)
     assert "Próximas mejoras sugeridas" not in source
+
+
+def test_readme_documents_current_docs_hygiene_paths_and_no_build_validation():
+    source = _read(README_PATH)
+    for expected in [
+        "assets/",
+        "services/approval-editor/",
+        "services/approval-editor/projects/",
+        "video-projects/controller/*",
+        "video-projects/__checks__/*",
+        "fachadas de compatibilidad",
+        "pytest tests/test_phase8_html_css_readme_structure_refactor.py",
+        "No correr builds",
+    ]:
+        assert expected in source
+
+    assert "servicio local activo" in source
+
+
+def test_video_projects_module_readme_maps_controller_checks_and_split_clients():
+    source = _read(VIDEO_PROJECTS_README_PATH)
+    for expected in [
+        "controller/",
+        "__checks__/",
+        "data/supabase-client.js",
+        "data/remotion-client.js",
+        "data/approval-pipeline-client.js",
+        "composition/renderer/",
+        "domain/image-files.js",
+    ]:
+        assert expected in source
+
+    assert "Compatibility facades remain at root" in source
+
+
+def test_video_projects_refactor_plan_is_marked_historical_before_old_plan_details():
+    source = _read(VIDEO_PROJECTS_PLAN_PATH)
+    historical_note = "## Historical status"
+    assert historical_note in source
+    assert source.index(historical_note) < source.index("## Goal")
+    assert "partially completed" in source
+    assert "js/modules/features/video-projects/README.md" in source
+
+
+def test_control_panel_and_workspace_ignores_protect_runtime_and_python_caches():
+    control_panel_ignore = _read(CONTROL_PANEL_GITIGNORE_PATH)
+    root_ignore = _read(ROOT_GITIGNORE_PATH)
+
+    for expected in [
+        "services/approval-editor/projects/",
+        "__pycache__/",
+        "*.py[cod]",
+        ".pytest_cache/",
+    ]:
+        assert expected in control_panel_ignore
+
+    for expected in [
+        "01-Control-Panel/services/approval-editor/projects/",
+        "__pycache__/",
+        "*.py[cod]",
+        ".pytest_cache/",
+    ]:
+        assert expected in root_ignore
 
 
 def test_approval_pipeline_settings_placeholder_and_help_match_local_service_contract():
@@ -276,7 +343,7 @@ def test_styles_entry_order_reflects_current_feature_layer_stack():
         "@import './styles/components/toast.css';",
         "@import './styles/features/approval.css';",
         "@import './styles/features/scripts.css';",
-        "@import './styles/features/video-projects.css';",
+        "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",

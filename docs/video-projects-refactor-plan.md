@@ -2,6 +2,12 @@
 
 Date: 2026-05-08
 
+## Historical status
+
+This plan is historical and partially completed. The active module map now lives in `js/modules/features/video-projects/README.md`; use that README as the current source of truth for folders, compatibility facades, import boundaries, and validation commands.
+
+The phase plan below remains useful context for why the boundaries exist, but several moves have already happened and the flat-file inventory is stale.
+
 ## Goal
 
 Make `js/modules/features/video-projects/` understandable, navigable, and safe for future maintainers/AI agents while preserving **exactly the same runtime behavior**.

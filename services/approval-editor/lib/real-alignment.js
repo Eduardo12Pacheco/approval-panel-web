@@ -1,13 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { alignPhrasesToTranscript } = require('../../../02-Video-Engine/scripts/lib/phrase-alignment');
+const { alignPhrasesToTranscript } = require('../../../../02-Video-Engine/scripts/lib/phrase-alignment');
 
 const WHISPER_DERIVATIVE_FILE = 'voice-whisper-16khz-mono.wav';
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 30000;
 const DEFAULT_TRANSCRIBE_TIMEOUT_MS = 20 * 60 * 1000;
-const DEFAULT_LOCAL_WHISPER_MODEL = path.resolve(__dirname, '..', '..', '..', 'local', 'models', 'faster-whisper-large-v3');
-const VIDEO_ENGINE_ROOT = path.resolve(__dirname, '..', '..', '..', '02-Video-Engine');
+const DEFAULT_LOCAL_WHISPER_MODEL = path.resolve(__dirname, '..', '..', '..', '..', 'local', 'models', 'faster-whisper-large-v3');
+const VIDEO_ENGINE_ROOT = path.resolve(__dirname, '..', '..', '..', '..', '02-Video-Engine');
 
 function createAlignmentError(code, message, details) {
   const error = new Error(message);

@@ -1,3 +1,4 @@
 __pycache__/
 *.py[cod]
-approval-editor-service/projects/
+.pytest_cache/
+services/approval-editor/projects/

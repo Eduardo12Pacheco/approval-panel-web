@@ -1,7 +1,7 @@
 const { computeApprovalSnapshotHash } = require("./hash");
 const { normalizeAsset } = require("./asset-resolver");
 const { findMotionPreset } = require("./motion-presets");
-const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../03-Contracts-Core/approval-contract-pipeline");
+const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));

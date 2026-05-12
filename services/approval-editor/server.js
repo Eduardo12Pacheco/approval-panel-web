@@ -1,13 +1,13 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const { buildApprovalContractPipeline, computeApprovalSnapshotHash } = require("../../03-Contracts-Core/approval-contract-pipeline");
+const { buildApprovalContractPipeline, computeApprovalSnapshotHash } = require("../../../03-Contracts-Core/approval-contract-pipeline");
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
-const { parseGuionSegments } = require("../../02-Video-Engine/scripts/lib/guion-parsing");
+const { parseGuionSegments } = require("../../../02-Video-Engine/scripts/lib/guion-parsing");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -50,7 +50,7 @@ function readBody(request) {
 const ESTIMATED_SECONDS_PER_WORD = 0.55;
 const MIN_ESTIMATED_SEGMENT_SECONDS = 1.2;
 const WAV_DURATION_FETCH_TIMEOUT_MS = 2500;
-const REMOTION_OVERLAYS_DIR = path.resolve(__dirname, "..", "..", "02-Video-Engine", "assets", "overlays");
+const REMOTION_OVERLAYS_DIR = path.resolve(__dirname, "..", "..", "..", "02-Video-Engine", "assets", "overlays");
 const PUBLIC_OVERLAY_FILES = new Set(["dust-1.mp4", "dust-2.mp4", "logo-alpha.webm", "effect-layer-01.mp4", "effect-layer-02.mp4"]);
 
 function toFinitePositiveNumber(value) {
