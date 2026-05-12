@@ -1,11 +1,15 @@
 import {
   buildScriptSelectionCardMarkup,
-  getScriptPublishStageMeta,
+} from './cards.js';
+import {
   isScriptProcessed,
-  resolveScriptPublishCardState,
   resolveScriptListKey,
   resolveScriptTitle,
-} from './index.js';
+} from './domain.js';
+import {
+  getScriptPublishStageMeta,
+  resolveScriptPublishCardState,
+} from './publish-status.js';
 import { escapeHtmlCore } from '../../core/ui/escape-html.js';
 
 function setProcessButtonStyle(button, { processed = false } = {}) {

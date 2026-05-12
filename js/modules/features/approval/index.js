@@ -11,6 +11,22 @@ const pickFirstText = (...values) => {
   return '';
 };
 
+export { buildApprovalNewsCardMarkup } from './cards.js';
+export { renderApprovalTopicDetail } from './detail-dialog.js';
+export {
+  buildQueueMonitorCard,
+  formatQueueAttempts,
+  getQueueProgressLabel,
+  getQueueStatusLabel,
+  getQueueTone,
+  isQueueTerminalStatus,
+  normalizeQueueStatus,
+  pickFirstNonEmpty,
+  renderQueueMonitor,
+  resolveQueueProgressPercent,
+  shouldDisplayInQueueMonitor,
+} from './queue-monitor.js';
+
 const APPROVAL_AVG_FIELD_PRIORITY = [
   'avg',
   'average',
