@@ -825,7 +825,7 @@ export async function runAppShellLifecycleReplay() {
   const authToggle = assertTokenOrder(
     bootSource,
     [
-      'readSessionStatus({ storage, sessionKey })',
+      'readSessionStatus({ storage, cookieJar, sessionKey })',
       "el.authGate.classList.add('hidden');",
       "el.appShell.classList.remove('hidden');",
       "setView('approval');",

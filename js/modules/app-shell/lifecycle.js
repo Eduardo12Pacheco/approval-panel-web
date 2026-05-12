@@ -5,6 +5,7 @@ export function createAppShellLifecycle({
   el,
   readSessionStatus,
   storage,
+  cookieJar,
   sessionKey,
   setView,
   refreshAll,
@@ -30,7 +31,7 @@ export function createAppShellLifecycle({
   }
 
   function boot() {
-    const session = readSessionStatus({ storage, sessionKey });
+    const session = readSessionStatus({ storage, cookieJar, sessionKey });
     if (session === 'ok') {
       el.authGate.classList.add('hidden');
       el.appShell.classList.remove('hidden');
