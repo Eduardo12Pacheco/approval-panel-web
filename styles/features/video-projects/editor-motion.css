@@ -318,8 +318,10 @@ body.is-motion-scrubbing {
   position: absolute;
   inset: -12%;
   display: block;
-  background: transparent;
-  opacity: 1;
+  background:
+    linear-gradient(135deg, rgba(0, 232, 143, 0.16), transparent 46%),
+    linear-gradient(90deg, rgba(0, 90, 62, 0.72), rgba(7, 45, 35, 0.58));
+  opacity: 0.9;
 }
 
 .video-motion-card__grid-lines {
