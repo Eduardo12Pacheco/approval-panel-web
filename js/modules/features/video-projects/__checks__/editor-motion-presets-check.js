@@ -49,7 +49,7 @@ function runMotionPickerMarkupCheck() {
 
   assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to be selectable');
   assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 110 to render selected state');
-  assert(markup.includes('--motion-to-scale:0.909;'), 'Expected Zoom 110 preview frame to shrink as image zoom increases');
+  assert(markup.includes('--motion-to-scale:0.977;'), 'Expected Zoom 110 preview frame scale to stay readable while hinting zoom');
   assertEqual(JSON.stringify(MOTION_PRESETS), presetsBefore, 'Expected motion picker rendering to leave preset values untouched');
 }
 
@@ -69,7 +69,7 @@ function runViewportSemanticsCheck() {
   assert(style.includes('--motion-to-x:1.00px;'), 'Expected thumbnail frame X to invert source image toX');
   assert(style.includes('--motion-to-y:-1.33px;'), 'Expected thumbnail frame Y to invert source image toY');
   assert(style.includes('--motion-from-scale:1.000;'), 'Expected 100% image scale to keep the viewport frame scale neutral');
-  assert(style.includes('--motion-to-scale:0.800;'), 'Expected 125% image scale to render the viewport frame at inverse scale');
+  assert(style.includes('--motion-to-scale:0.950;'), 'Expected 125% image scale to keep the preview frame readable');
 }
 
 function runManualMotionControlsCheck() {

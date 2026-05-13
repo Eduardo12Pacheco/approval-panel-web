@@ -17,7 +17,8 @@ function normalizeViewportOffset(value) {
 
 function normalizeViewportScale(scale = 1, sourceScaleBase = 1) {
   const sourceScale = Number(sourceScaleBase || 1) * Number(scale || 1);
-  return clamp(1 / Math.max(sourceScale, 0.01), 0.34, 1.18);
+  const viewportScale = 1 / Math.max(sourceScale, 0.01);
+  return clamp(1 + ((viewportScale - 1) * 0.25), 0.92, 1.08);
 }
 
 function formatPresetLabel(name = '') {
