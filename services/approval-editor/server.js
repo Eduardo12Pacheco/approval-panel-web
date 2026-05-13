@@ -314,8 +314,9 @@ function createRenderAdapterFromEnv(env = process.env, renderCommandRunner) {
 }
 
 function resolveRenderedOutputPath(rendered) {
-  const outputPath = (rendered?.finalPath || rendered?.outputPath || rendered?.finalUrl || "").toString().trim();
-  if (outputPath) return outputPath;
+  const candidates = [rendered?.finalPath, rendered?.outputPath, rendered?.finalUrl];
+  const outputPath = candidates.find((candidate) => typeof candidate === "string" && candidate.trim());
+  if (outputPath) return outputPath.trim();
   const error = new Error("Final render adapter completed without a downloadable output path. Check the 02-Video-Engine render adapter configuration and logs.");
   error.code = "render_output_missing";
   return error;

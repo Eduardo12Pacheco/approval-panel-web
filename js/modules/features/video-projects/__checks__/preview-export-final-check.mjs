@@ -39,7 +39,7 @@ function makeApprovalProject() {
   };
 }
 
-function createHarness({ finalDownloadResult }) {
+function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadImpl }) {
   const project = makeApprovalProject();
   const persisted = [];
   const toasts = [];
@@ -53,9 +53,10 @@ function createHarness({ finalDownloadResult }) {
     createApprovalServiceClient: () => ({
       async renderFinal(projectId, payload) {
         renderCalls.push({ projectId, payload });
-        return { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { outputPath: finalDownloadResult?.renderOutputPath || null } };
+        return renderFinalResult || { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { outputPath: finalDownloadResult?.renderOutputPath || null } };
       },
       async finalDownload() {
+        if (finalDownloadImpl) return finalDownloadImpl();
         return finalDownloadResult;
       },
     }),
@@ -102,6 +103,48 @@ test('approval export marks final ready only after backend exposes a final downl
   assert.equal(project.editor_state.last_rendered_hash, 'snapshot-export-hash');
   assert.equal(persisted.some((patch) => patch.phase === 'error'), false);
   assert.equal(toasts.includes('Exportación lista. Descargá el video final.'), true);
+});
+
+test('approval export prefers downloadable outputPath from render-final response before calling download endpoint', async () => {
+  const { project, persisted, commands } = createHarness({
+    renderFinalResult: {
+      lastRenderedSnapshotHash: 'snapshot-export-hash',
+      render: { outputPath: '/api/projects/approval-project-export/files/output/video-final.mp4' },
+    },
+    finalDownloadImpl: () => {
+      throw new Error('download/final should not be called when render-final returned outputPath');
+    },
+  });
+
+  await commands.exportFinal();
+
+  assert.equal(project.editor_state.phase, 'final_ready');
+  assert.equal(project.editor_state.export_status, 'ready');
+  assert.equal(project.editor_state.final_url, '/api/projects/approval-project-export/files/output/video-final.mp4');
+  assert.equal(persisted.some((patch) => patch.phase === 'error'), false);
+});
+
+test('approval export does not mask rendered response with missing outputPath by accepting download fallback', async () => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    const { project, persisted, commands } = createHarness({
+      renderFinalResult: {
+        lastRenderedSnapshotHash: 'snapshot-export-hash',
+        render: { status: 'rendered', outputPath: null },
+      },
+      finalDownloadResult: { finalUrl: '/api/projects/approval-project-export/download/final' },
+    });
+
+    await commands.exportFinal();
+
+    assert.equal(project.editor_state.phase, 'error');
+    assert.equal(project.editor_state.export_status, 'error');
+    assert.match(project.editor_state.error, /no devolvió una URL final descargable/i);
+    assert.equal(persisted.some((patch) => patch.phase === 'final_ready'), false);
+  } finally {
+    console.error = originalConsoleError;
+  }
 });
 
 test('remotion export path sends the canonical preview snapshot payload without dropping global assets or timing', async () => {

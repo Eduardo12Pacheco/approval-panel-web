@@ -2,6 +2,17 @@ import { buildCompositionPayload, computeCompositionHash } from '../composition/
 import { prepareVideoCompositionContract, normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState, sanitizePipelineHealthMetadata } from '../domain/editor-state.js';
 
+function pickDownloadableRenderPath(renderResult) {
+  const render = renderResult?.render || {};
+  return [render.outputPath, render.finalPath, render.finalUrl, renderResult?.outputPath, renderResult?.finalPath, renderResult?.finalUrl]
+    .find((value) => typeof value === 'string' && value.trim())
+    ?.trim() || '';
+}
+
+function isRenderedWithoutDownloadablePath(renderResult) {
+  return renderResult?.render?.status === 'rendered' && !pickDownloadableRenderPath(renderResult);
+}
+
 export function createPreviewExportCommands({
   api,
   store,
@@ -144,8 +155,12 @@ export function createPreviewExportCommands({
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });
         renderSelectedVideoProject();
         const result = await client.renderFinal(projectId, { snapshotHash });
-        const download = typeof client.finalDownload === 'function' ? await client.finalDownload(projectId) : null;
-        const finalUrl = (download?.finalUrl || '').toString().trim();
+        let finalUrl = pickDownloadableRenderPath(result);
+        if (!finalUrl && isRenderedWithoutDownloadablePath(result)) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
+        if (!finalUrl && typeof client.finalDownload === 'function') {
+          const download = await client.finalDownload(projectId);
+          finalUrl = typeof download?.finalUrl === 'string' ? download.finalUrl.trim() : '';
+        }
         if (!finalUrl) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
         await persistEditorState(project, { phase: 'final_ready', final_url: finalUrl, export_status: 'ready', last_rendered_hash: result?.lastRenderedSnapshotHash || snapshotHash, dirty: false, error: '', diagnostics: result?.diagnostics || null });
         ui.toast('Exportación lista. Descargá el video final.');
