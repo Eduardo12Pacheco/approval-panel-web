@@ -131,6 +131,53 @@ if (afterTrack != 10000) throw new Error(`seek should clamp after track, got ${a
     assert result.returncode == 0, result.stderr
 
 
+def test_subtitle2_preview_playback_state_is_available_to_app_shell_events():
+    script = r"""
+import { createSubtitlePreviewPlayer } from './js/modules/features/subtitles/controller/preview-player.js';
+
+const state = { subtitles2: { previewPlaying: false, rows: [], previewCurrentMs: 0 } };
+const playButton = {
+  textContent: '',
+  attributes: {},
+  setAttribute(name, value) { this.attributes[name] = value; },
+};
+const player = createSubtitlePreviewPlayer({
+  state,
+  el: { subtitle2PreviewPlayBtn: playButton },
+  api: {},
+  URLImpl: { revokeObjectURL() {}, createObjectURL() { return ''; } },
+  windowRef: { addEventListener() {}, removeEventListener() {} },
+});
+
+player.renderPreviewPlaybackState();
+if (playButton.textContent !== '▶') {
+  throw new Error(`expected paused icon, got ${playButton.textContent}`);
+}
+if (playButton.attributes['aria-label'] !== 'Reproducir preview') {
+  throw new Error(`paused aria-label drift: ${playButton.attributes['aria-label']}`);
+}
+
+state.subtitles2.previewPlaying = true;
+player.renderPreviewPlaybackState();
+if (playButton.textContent !== '❚❚') {
+  throw new Error(`expected playing icon, got ${playButton.textContent}`);
+}
+if (playButton.attributes.title !== 'Pausar') {
+  throw new Error(`playing title drift: ${playButton.attributes.title}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_app_shell_runtime_defines_subtitle_preview_playback_bridge_before_binding_events():
+    runtime = (ROOT / "js" / "modules" / "app-shell" / "runtime.js").read_text(encoding="utf-8")
+
+    assert "function renderSubtitle2PreviewPlaybackState()" in runtime
+    assert "subtitlesController.renderPreviewPlaybackState?.()" in runtime
+    assert runtime.index("function renderSubtitle2PreviewPlaybackState()") < runtime.index("function bindEvents()")
+
+
 def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_table_headers():
     index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
     app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")

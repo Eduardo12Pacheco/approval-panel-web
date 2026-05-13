@@ -188,6 +188,10 @@ export function bootCompatibilityShell() {
   lifecycle.bootCompatibilityShell();
 }
 
+function renderSubtitle2PreviewPlaybackState() {
+  subtitlesController.renderPreviewPlaybackState?.();
+}
+
 function bindEvents() {
   bindShellEvents({
     bindCore: () => bindCoreEvents({

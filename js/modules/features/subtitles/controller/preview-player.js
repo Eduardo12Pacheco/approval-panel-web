@@ -197,6 +197,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     renderPreviewPlayer,
     renderPreviewOverlay,
     renderPreviewTimeline,
+    renderPreviewPlaybackState,
     applyVideoDuration,
     onLoadedMetadata,
     onTimeUpdate,

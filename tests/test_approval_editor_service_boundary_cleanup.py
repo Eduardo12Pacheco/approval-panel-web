@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,3 +69,53 @@ def test_approval_editor_docs_require_explicit_python_bin_for_services():
     assert '$env:REMOTION_EDITOR_PYTHON_BIN = "C:\\Users\\pelot\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"' in service_readme
     assert "NSSM" in service_readme
     assert "LocalSystem" in service_readme
+
+
+def test_approval_editor_project_audio_previews_are_cacheable_for_editor_reopen():
+    script = r"""
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createApprovalEditorService } = require('./services/approval-editor/server.js');
+
+(async () => {
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-cache-'));
+  const projectId = 'cache-project';
+  const projectDir = path.join(projectsRoot, projectId);
+  fs.mkdirSync(path.join(projectDir, 'audio'), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, 'audio', 'voice-preview.mp3'), 'preview-audio');
+  fs.writeFileSync(path.join(projectDir, 'snapshots.json'), JSON.stringify([{
+    snapshot: { projectId, snapshotId: 's1', snapshotHash: 'h1' },
+    snapshotId: 's1',
+    snapshotHash: 'h1',
+    updatedAt: new Date().toISOString(),
+  }], null, 2));
+
+  const server = createApprovalEditorService({ projectsRoot });
+  try {
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/projects/${projectId}/files/audio/voice-preview.mp3`);
+    const body = await response.text();
+    if (!response.ok) throw new Error(`expected 200, got ${response.status}: ${body}`);
+    if (body !== 'preview-audio') throw new Error(`body drift: ${body}`);
+    const cacheControl = response.headers.get('cache-control') || '';
+    if (!cacheControl.includes('public') || !cacheControl.includes('max-age=')) {
+      throw new Error(`missing cacheable preview header: ${cacheControl}`);
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(projectsRoot, { recursive: true, force: true });
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

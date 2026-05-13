@@ -262,6 +262,7 @@ function sendFile(request, response, filePath, { downloadName = "" } = {}) {
     "content-type": audioContentType(filePath),
   };
   if (downloadName) headers["content-disposition"] = `attachment; filename="${safeDownloadName(downloadName)}"`;
+  if (!downloadName) headers["cache-control"] = "public, max-age=86400";
   const range = request.headers.range;
   if (range) {
     const match = /^bytes=(\d*)-(\d*)$/.exec(range);
