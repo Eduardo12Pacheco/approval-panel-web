@@ -338,7 +338,7 @@ body.is-motion-scrubbing {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 34%;
+  width: 82%;
   aspect-ratio: 16 / 9;
   border: 2px solid #050505;
   background: rgba(245, 245, 245, 0.9);

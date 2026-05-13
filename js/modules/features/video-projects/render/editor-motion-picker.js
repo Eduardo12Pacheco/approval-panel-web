@@ -11,9 +11,13 @@ function normalizeOffset(value) {
   return clamp(Number(value || 0) / MOTION_OFFSET_DIVISOR, -MAX_PREVIEW_OFFSET, MAX_PREVIEW_OFFSET);
 }
 
-function normalizeScale(scale = 1, sourceScaleBase = 1) {
+function normalizeViewportOffset(value) {
+  return normalizeOffset(-Number(value || 0));
+}
+
+function normalizeViewportScale(scale = 1, sourceScaleBase = 1) {
   const sourceScale = Number(sourceScaleBase || 1) * Number(scale || 1);
-  return clamp(1 + ((sourceScale - 1) * 0.28), 0.9, 1.7);
+  return clamp(1 / Math.max(sourceScale, 0.01), 0.34, 1.18);
 }
 
 function formatPresetLabel(name = '') {
@@ -24,15 +28,15 @@ function formatPresetLabel(name = '') {
     .trim();
 }
 
-function buildMotionPreviewStyles(preset = {}) {
+export function buildMotionViewportPreviewStyle(preset = {}) {
   const sourceScaleBase = Number(preset.sourceScaleBase || 1);
-  const fromScale = normalizeScale(preset.fromScale, sourceScaleBase);
-  const toScale = normalizeScale(preset.toScale, sourceScaleBase);
+  const fromScale = normalizeViewportScale(preset.fromScale, sourceScaleBase);
+  const toScale = normalizeViewportScale(preset.toScale, sourceScaleBase);
   const vars = {
-    '--motion-from-x': `${normalizeOffset(preset.fromX).toFixed(2)}px`,
-    '--motion-to-x': `${normalizeOffset(preset.toX).toFixed(2)}px`,
-    '--motion-from-y': `${normalizeOffset(preset.fromY).toFixed(2)}px`,
-    '--motion-to-y': `${normalizeOffset(preset.toY).toFixed(2)}px`,
+    '--motion-from-x': `${normalizeViewportOffset(preset.fromX).toFixed(2)}px`,
+    '--motion-to-x': `${normalizeViewportOffset(preset.toX).toFixed(2)}px`,
+    '--motion-from-y': `${normalizeViewportOffset(preset.fromY).toFixed(2)}px`,
+    '--motion-to-y': `${normalizeViewportOffset(preset.toY).toFixed(2)}px`,
     '--motion-from-scale': fromScale.toFixed(3),
     '--motion-to-scale': toScale.toFixed(3),
     '--motion-easing': (preset.easing || 'linear').toString(),
@@ -65,7 +69,7 @@ export function buildMotionPicker({ rowId = '', selectedMotion = '', motionPrese
                   data-action="update-row-motion"
                   data-row-id="${escapedRowId}"
                   value="${escapeHtmlCore(preset.name)}"
-                  style="${buildMotionPreviewStyles(preset)}"
+                  style="${buildMotionViewportPreviewStyle(preset)}"
                 >
                   <span class="video-motion-card__check" aria-hidden="true">✓</span>
                   <span class="video-motion-card__viewport" aria-hidden="true">

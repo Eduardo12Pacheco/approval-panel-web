@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { buildEditorEffectTabs } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
-import { buildMotionPicker } from '../render/editor-motion-picker.js';
+import { buildMotionPicker, buildMotionViewportPreviewStyle } from '../render/editor-motion-picker.js';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -40,6 +40,7 @@ function runDefaultSelectionCheck() {
 }
 
 function runMotionPickerMarkupCheck() {
+  const presetsBefore = JSON.stringify(MOTION_PRESETS);
   const markup = buildMotionPicker({
     rowId: 'row-1',
     selectedMotion: 'Zoom 110',
@@ -48,7 +49,27 @@ function runMotionPickerMarkupCheck() {
 
   assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to be selectable');
   assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 110 to render selected state');
-  assert(markup.includes('--motion-to-scale:1.028;'), 'Expected Zoom 110 preview animation scale to be present');
+  assert(markup.includes('--motion-to-scale:0.909;'), 'Expected Zoom 110 preview frame to shrink as image zoom increases');
+  assertEqual(JSON.stringify(MOTION_PRESETS), presetsBefore, 'Expected motion picker rendering to leave preset values untouched');
+}
+
+function runViewportSemanticsCheck() {
+  const style = buildMotionViewportPreviewStyle({
+    sourceScaleBase: 1,
+    fromX: 12,
+    fromY: -8,
+    toX: -18,
+    toY: 24,
+    fromScale: 1,
+    toScale: 1.25,
+  });
+
+  assert(style.includes('--motion-from-x:-0.67px;'), 'Expected thumbnail frame X to invert source image fromX');
+  assert(style.includes('--motion-from-y:0.44px;'), 'Expected thumbnail frame Y to invert source image fromY');
+  assert(style.includes('--motion-to-x:1.00px;'), 'Expected thumbnail frame X to invert source image toX');
+  assert(style.includes('--motion-to-y:-1.33px;'), 'Expected thumbnail frame Y to invert source image toY');
+  assert(style.includes('--motion-from-scale:1.000;'), 'Expected 100% image scale to keep the viewport frame scale neutral');
+  assert(style.includes('--motion-to-scale:0.800;'), 'Expected 125% image scale to render the viewport frame at inverse scale');
 }
 
 function runManualMotionControlsCheck() {
@@ -82,6 +103,7 @@ export function runEditorMotionPresetsCheck() {
   runZoom110PresetCheck();
   runDefaultSelectionCheck();
   runMotionPickerMarkupCheck();
+  runViewportSemanticsCheck();
   runManualMotionControlsCheck();
 }
 
