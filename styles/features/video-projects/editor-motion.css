@@ -310,9 +310,8 @@ body.is-motion-scrubbing {
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border: 2px solid rgba(0, 232, 143, 0.78);
-  background: rgba(0, 232, 143, 0.055);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.72), 0 8px 18px rgba(0, 0, 0, 0.24);
+  border: 1px solid transparent;
+  background: transparent;
 }
 
 .video-motion-card__image {
