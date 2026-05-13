@@ -87,7 +87,19 @@ async function materializeAsset({ source, outputPath, fetchImpl }) {
   fs.copyFileSync(source, outputPath);
 }
 
-async function localizeRenderAssets({ projectRoot, snapshot, fetchImpl = globalThis.fetch } = {}) {
+function materializeSafeRelativeAsset({ assetSourceRoot, projectRoot, renderPath }) {
+  if (!assetSourceRoot || !renderPath || isUnsafeRenderPath(renderPath)) return false;
+  const sourcePath = path.resolve(assetSourceRoot, renderPath);
+  const resolvedSourceRoot = path.resolve(assetSourceRoot);
+  if (sourcePath !== resolvedSourceRoot && !sourcePath.startsWith(`${resolvedSourceRoot}${path.sep}`)) return false;
+  if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile()) return false;
+  const outputPath = path.join(projectRoot, "public", renderPath);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.copyFileSync(sourcePath, outputPath);
+  return true;
+}
+
+async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl = globalThis.fetch } = {}) {
   const contract = { ...(snapshot || {}) };
   const sourceAssets = snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {};
   const localizedAssets = {};
@@ -99,6 +111,7 @@ async function localizeRenderAssets({ projectRoot, snapshot, fetchImpl = globalT
     const renderPath = typeof asset.renderPath === "string" ? asset.renderPath.trim() : "";
     const source = firstRenderableSource(asset);
     if (!source || (renderPath && !isUnsafeRenderPath(renderPath))) {
+      materializeSafeRelativeAsset({ assetSourceRoot, projectRoot, renderPath });
       localizedAssets[assetId] = asset;
       continue;
     }
@@ -149,7 +162,7 @@ function upsertProjectIndex(projectsRoot, { projectId, title }) {
   writeJson(indexPath, { projects });
 }
 
-async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl }) {
+async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot }) {
   const projectRoot = path.join(projectsRoot, projectId);
   fs.mkdirSync(path.join(projectRoot, "guion"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "output"), { recursive: true });
@@ -167,7 +180,7 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
     preview: { status: "ready", lastGeneratedAt: nowIso() },
   });
 
-  const localizedSnapshot = await localizeRenderAssets({ projectRoot, snapshot, fetchImpl });
+  const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl });
   const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {
     version: 1,
@@ -211,7 +224,7 @@ function createVideoEngineRenderAdapter({
       throw createAdapterError("render_command_missing", `02-Video-Engine render command not found: ${scriptPath}`, { scriptPath });
     }
     const videoProjectId = resolveProjectId(projectId, snapshot);
-    const projectRoot = await persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash, fetchImpl });
+    const projectRoot = await persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot: path.join(resolvedVideoEngineRoot, "assets") });
     const outputPath = path.join(projectRoot, "output", "video-final.mp4");
     const command = {
       scriptPath,
