@@ -27,10 +27,10 @@ async function parseJsonResponse(response) {
 
 export function createRadarApiClient({ getSettings, fetchImpl = fetch } = {}) {
   const resolveSettings = () => getSettings?.() || {};
-  const resolveBaseUrl = () => trimTrailingSlash(resolveSettings().transcriptServiceBaseUrl || 'http://127.0.0.1:8091');
+  const resolveBaseUrl = () => trimTrailingSlash(resolveSettings().transcriptServiceBaseUrl || 'http://127.0.0.1:8765');
   const resolveApiKey = () => (resolveSettings().transcriptServiceApiKey || '').toString().trim();
 
-  async function request(path, { method = 'GET', body } = {}) {
+  async function request(path, { method = 'GET', body, responseType = 'json' } = {}) {
     const apiKey = resolveApiKey();
     const headers = { Accept: 'application/json' };
     if (apiKey) headers['x-api-key'] = apiKey;
@@ -47,7 +47,7 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch } = {}) {
       const serviceMessage = sanitizeServiceMessage(error?.message, apiKey);
       throw new Error(`Transcript Service no disponible. Revisá que el servicio local esté iniciado y que la URL sea correcta.${serviceMessage ? ` Detalle: ${serviceMessage}` : ''}`);
     }
-    const payload = await parseJsonResponse(response);
+    const payload = responseType === 'text' && response.ok ? await response.text() : await parseJsonResponse(response);
     if (!response.ok) {
       const serviceMessage = sanitizeServiceMessage(extractServiceMessage(payload), apiKey);
       if (response.status === 401 || response.status === 403) {
@@ -68,5 +68,9 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch } = {}) {
     getJob: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}`),
     getTranscript: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/transcript`),
     getMentions: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/mentions`),
+    getSummary: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/summary`),
+    downloadExportText: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/export.txt`, { responseType: 'text' }),
+    cancelJob: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }),
+    deleteJob: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' }),
   };
 }

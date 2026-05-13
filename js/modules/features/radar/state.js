@@ -4,8 +4,7 @@ export function createRadarState() {
     activeJobId: null,
     health: null,
     currentJob: null,
-    transcript: null,
-    mentions: null,
+    summary: null,
     history: [],
     pollingTimer: null,
     pollingInFlight: false,
@@ -20,19 +19,15 @@ export function parseRadarKeywords(value) {
     .filter(Boolean);
 }
 
-export function buildRadarJobPayload({ url, targetType, targetName, targetAliases = '', extraKeywords = '' }) {
+export function buildRadarJobPayload({ url, countries = [], extraKeywords = '' }) {
   const cleanUrl = (url || '').toString().trim();
-  const cleanName = (targetName || '').toString().trim();
   if (!cleanUrl) throw new Error('Pegá un link para investigar.');
-  if (!cleanName) throw new Error('Definí un objetivo para buscar menciones.');
+  const selectedCountries = countries.map((country) => country.toString().trim().toLowerCase()).filter(Boolean);
+  if (!selectedCountries.length) throw new Error('Elegí al menos un país para investigar.');
 
-  const type = ['country', 'player'].includes(targetType) ? targetType : 'player';
-  const aliases = parseRadarKeywords(targetAliases);
-  const target = { type, name: cleanName };
-  if (aliases.length) target.aliases = aliases;
   return {
     url: cleanUrl,
-    target,
+    countries: selectedCountries,
     extra_keywords: parseRadarKeywords(extraKeywords),
   };
 }

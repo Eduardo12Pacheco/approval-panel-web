@@ -360,46 +360,21 @@
             <div>
               <p class="subtitle2-section-label">Radar local</p>
               <h1>Investigación</h1>
-              <p>Pegá un link, definí el objetivo y copiá menciones con timestamps. El navegador solo llama al servicio local.</p>
+              <p>Creá investigaciones por país, monitoreá la cola y descargá el TXT generado por el backend.</p>
             </div>
+            <button id="radarNewJobBtn" class="approve" type="button">+ Nuevo</button>
             <div id="radarHealthStatus" class="subtitle2-health-chip">Servicio sin verificar</div>
           </header>
 
           <section class="audio-screen__grid radar-layout">
             <section class="audio-panel audio-panel--main panel-shell radar-submit-panel">
-              <label class="editor-label audio-field audio-field--grow">
-                <span>Link del video</span>
-                <input id="radarUrlInput" placeholder="https://youtu.be/..." />
-              </label>
-
-              <div class="news-panel__filters" aria-label="Objetivo Radar">
-                <label class="control-group approval-control approval-control--select">
-                  <span class="control-label">Tipo</span>
-                  <select id="radarTargetTypeSelect" data-custom-dropdown data-dropdown-label="Tipo" data-dropdown-placeholder="Tipo">
-                    <option value="country">País</option>
-                    <option value="player">Jugador</option>
-                  </select>
-                </label>
-                <label class="control-group control-group--search approval-control approval-control--search">
-                  <span class="control-label">Objetivo</span>
-                  <input id="radarTargetNameInput" placeholder="Argentina, Messi, Chelsea..." />
-                </label>
-              </div>
-
-              <label class="editor-label audio-field">
-                <span>Alias del objetivo</span>
-                <textarea id="radarTargetAliasesInput" class="script-area" placeholder="albiceleste, selección argentina"></textarea>
-              </label>
-
-              <label class="editor-label audio-field">
-                <span>Keywords extra</span>
-                <textarea id="radarExtraKeywordsInput" class="script-area" placeholder="Messi, Di María, Scaloni"></textarea>
-              </label>
-
-              <div class="audio-actions">
-                <p id="radarProgressStatus" class="meta word-count">Listo para investigar.</p>
-                <button id="radarSubmitBtn" class="approve" type="button">Enviar link</button>
-              </div>
+              <header class="audio-queue-header">
+                <div>
+                  <h3>Cola</h3>
+                  <p id="radarProgressStatus" class="meta word-count">Listo para investigar.</p>
+                </div>
+              </header>
+              <section id="radarQueueList" class="audio-queue-list is-empty">Sin trabajos en cola.</section>
             </section>
 
             <aside class="audio-panel audio-panel--queue panel-shell radar-history-panel">
@@ -413,29 +388,53 @@
             </aside>
           </section>
 
-          <section class="audio-screen__grid radar-results-layout">
-            <section class="panel-shell radar-result-card">
-              <header class="section-heading section-heading--compact">
-                <div>
-                  <h3>Transcripción</h3>
-                  <p class="meta">Formato copiable exacto: (MM:SS) texto.</p>
-                </div>
-                <button id="radarCopyTranscriptBtn" class="secondary" type="button" disabled>Copiar transcripción</button>
+          <dialog id="radarNewJobDialog">
+            <article>
+              <header class="dialog-header">
+                <h2>Nueva investigación</h2>
+                <button id="radarNewJobCancelBtn" class="secondary" type="button">Cerrar</button>
               </header>
-              <pre id="radarTranscriptOutput" class="script-area" aria-live="polite">Todavía no hay transcripción.</pre>
-            </section>
+              <label class="editor-label audio-field audio-field--grow">
+                <span>Link del video</span>
+                <input id="radarUrlInput" placeholder="https://youtu.be/..." />
+              </label>
+              <fieldset class="settings-section">
+                <legend>Países</legend>
+                <label><input id="radarCountryColombia" type="checkbox" value="colombia" /> Colombia</label>
+                <label><input id="radarCountryEcuador" type="checkbox" value="ecuador" /> Ecuador</label>
+                <label><input id="radarCountryArgentina" type="checkbox" value="argentina" /> Argentina</label>
+              </fieldset>
+              <label class="editor-label audio-field">
+                <span>Keywords extra</span>
+                <textarea id="radarExtraKeywordsInput" class="script-area" placeholder="Messi, Di María, Scaloni"></textarea>
+              </label>
+              <p id="radarValidationMessage" class="meta" aria-live="polite"></p>
+              <div class="queue-actions">
+                <button id="radarSubmitBtn" class="approve" type="button">Crear job</button>
+              </div>
+            </article>
+          </dialog>
 
-            <section class="panel-shell radar-result-card">
-              <header class="section-heading section-heading--compact">
-                <div>
-                  <h3>Menciones</h3>
-                  <p class="meta">Timestamp, objetivo, variante y contexto.</p>
-                </div>
-                <button id="radarCopyMentionsBtn" class="secondary" type="button" disabled>Copiar menciones</button>
+          <dialog id="radarSummaryDialog">
+            <article>
+              <header class="dialog-header">
+                <h2>Resumen</h2>
+                <button id="radarSummaryCloseBtn" class="secondary" type="button">Cerrar</button>
               </header>
-              <pre id="radarMentionsOutput" class="script-area" aria-live="polite">Todavía no hay menciones.</pre>
-            </section>
-          </section>
+              <div id="radarSummaryBody" class="topic-dialog-body"></div>
+            </article>
+          </dialog>
+
+          <dialog id="radarConfirmDialog">
+            <article>
+              <header class="dialog-header"><h2 id="radarConfirmTitle">Confirmar acción</h2></header>
+              <p id="radarConfirmMessage">Esta acción modifica el job seleccionado.</p>
+              <div class="queue-actions">
+                <button id="radarConfirmCancelBtn" class="secondary" type="button">Cancelar</button>
+                <button id="radarConfirmAcceptBtn" class="approve" type="button">Confirmar</button>
+              </div>
+            </article>
+          </dialog>
         </section>
 
         <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
@@ -718,7 +717,7 @@
 
             <label class="settings-field">
               Base URL Transcript Service
-              <input id="transcriptServiceBaseUrlInput" placeholder="http://127.0.0.1:8091" />
+              <input id="transcriptServiceBaseUrlInput" placeholder="http://127.0.0.1:8765" />
             </label>
 
             <label class="settings-field">

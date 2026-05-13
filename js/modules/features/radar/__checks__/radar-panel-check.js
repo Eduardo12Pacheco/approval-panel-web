@@ -61,8 +61,10 @@ async function runApiClientCheck() {
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
-      if (url.endsWith('/jobs/job-1/transcript')) return new Response(JSON.stringify({ text: '(00:01) Hola' }), { status: 200 });
-      if (url.endsWith('/jobs/job-1/mentions')) return new Response(JSON.stringify({ matches: [] }), { status: 200 });
+      if (url.endsWith('/jobs/job-1/summary')) return new Response(JSON.stringify({ items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }), { status: 200 });
+      if (url.endsWith('/jobs/job-1/export.txt')) return new Response('TXT backend', { status: 200, headers: { 'content-type': 'text/plain' } });
+      if (url.endsWith('/jobs/job-1/cancel')) return new Response(JSON.stringify({ job_id: 'job-1', status: 'cancelled' }), { status: 200 });
+      if (url.endsWith('/jobs/job-1') && options.method === 'DELETE') return new Response(JSON.stringify({ job_id: 'job-1', status: 'deleted' }), { status: 200 });
       if (url.endsWith('/jobs/job-1')) return new Response(JSON.stringify({ job_id: 'job-1', status: 'succeeded' }), { status: 200 });
       if (url.endsWith('/jobs') && options.method === 'POST') return new Response(JSON.stringify({ job_id: 'job-1', status: 'queued' }), { status: 201 });
       if (url.endsWith('/jobs')) return new Response(JSON.stringify({ items: [{ job_id: 'job-1' }] }), { status: 200 });
@@ -71,21 +73,26 @@ async function runApiClientCheck() {
   });
 
   await api.health();
-  await api.createJob({ url: 'https://youtu.be/1', target: { type: 'country', name: 'Argentina' }, extra_keywords: ['Messi'] });
+  await api.createJob({ url: 'https://youtu.be/1', countries: ['argentina'], extra_keywords: ['Messi'] });
   await api.getJob('job-1');
   await api.history();
-  await api.getTranscript('job-1');
-  await api.getMentions('job-1');
+  await api.getSummary('job-1');
+  await api.downloadExportText('job-1');
+  await api.cancelJob('job-1');
+  await api.deleteJob('job-1');
 
   assertEqual(calls[0].url, 'https://radar.local/api/radar/health', 'health URL drift');
+  assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
   assertEqual(calls[1].url, 'https://radar.local/api/radar/jobs', 'create URL drift');
   assertEqual(calls[1].options.method, 'POST', 'create method drift');
   assertEqual(calls[1].options.headers['x-api-key'], 'secret-token', 'api key header drift');
-  assertEqual(JSON.parse(calls[1].options.body).extra_keywords[0], 'Messi', 'create payload drift');
+  assertEqual(JSON.parse(calls[1].options.body).countries[0], 'argentina', 'create payload country drift');
   assertEqual(calls[2].url, 'https://radar.local/api/radar/jobs/job-1', 'detail URL drift');
   assertEqual(calls[3].url, 'https://radar.local/api/radar/jobs', 'history URL drift');
-  assertEqual(calls[4].url, 'https://radar.local/api/radar/jobs/job-1/transcript', 'transcript URL drift');
-  assertEqual(calls[5].url, 'https://radar.local/api/radar/jobs/job-1/mentions', 'mentions URL drift');
+  assertEqual(calls[4].url, 'https://radar.local/api/radar/jobs/job-1/summary', 'summary URL drift');
+  assertEqual(calls[5].url, 'https://radar.local/api/radar/jobs/job-1/export.txt', 'export URL drift');
+  assertEqual(calls[6].url, 'https://radar.local/api/radar/jobs/job-1/cancel', 'cancel URL drift');
+  assertEqual(calls[7].options.method, 'DELETE', 'delete method drift');
 
   let authMessage = '';
   try {
@@ -115,54 +122,33 @@ function runStateAndRenderCheck() {
   assertDeepEqual(parseRadarKeywords('Messi, Di María\nScaloni'), ['Messi', 'Di María', 'Scaloni'], 'keyword parsing drift');
   const payload = buildRadarJobPayload({
     url: ' https://youtu.be/abc ',
-    targetType: 'country',
-    targetName: 'Argentina',
-    targetAliases: 'albiceleste\nselección argentina',
+    countries: ['colombia', 'argentina'],
     extraKeywords: 'Messi, Di María',
   });
   assertDeepEqual(payload, {
     url: 'https://youtu.be/abc',
-    target: { type: 'country', name: 'Argentina', aliases: ['albiceleste', 'selección argentina'] },
+    countries: ['colombia', 'argentina'],
     extra_keywords: ['Messi', 'Di María'],
   }, 'job payload drift');
 
-  const unsupportedTargetPayload = buildRadarJobPayload({
+  let missingCountryMessage = '';
+  try { buildRadarJobPayload({
     url: 'https://youtu.be/abc',
-    targetType: 'manual',
-    targetName: 'Messi',
-  });
-  assertEqual(unsupportedTargetPayload.target.type, 'player', 'unsupported target type should submit backend-supported player target');
+    countries: [],
+  }); } catch (error) { missingCountryMessage = error.message; }
+  if (!missingCountryMessage.includes('Elegí al menos un país')) throw new Error(`missing country validation drift: ${missingCountryMessage}`);
 
   const state = createRadarState();
   assertEqual(state.status, 'idle', 'initial state drift');
   assertEqual(state.history.length, 0, 'initial history drift');
 
-  const transcript = formatTranscriptCopy({
-    segments: [
-      { start_ms: 12000, text: 'Argentina presiona alto.' },
-      { start_ms: 73000, text: 'Messi aparece entre líneas.' },
-    ],
-  });
-  assertEqual(transcript, '(00:12) Argentina presiona alto.\n(01:13) Messi aparece entre líneas.', 'transcript copy format drift');
-
-  const mentions = formatMentionsCopy({
-    matches: [{ start_ms: 12000, canonical: 'Argentina', keyword: 'albiceleste', text: 'La albiceleste presiona alto.' }],
-  });
-  if (!mentions.includes('(00:12) Argentina [albiceleste] La albiceleste presiona alto.')) {
-    throw new Error(`mentions copy format drift: ${mentions}`);
-  }
-
-  const resultEl = makeElement();
-  renderRadarResults({
-    el: { radarTranscriptOutput: resultEl, radarMentionsOutput: makeElement(), radarCopyTranscriptBtn: makeElement(), radarCopyMentionsBtn: makeElement() },
-    transcript: { text: transcript },
-    mentions: { matches: [{ start_ms: 12000, canonical: 'Argentina', keyword: 'albiceleste', context: 'La albiceleste presiona alto.' }] },
-  });
-  if (!resultEl.textContent.includes('(00:12) Argentina presiona alto.')) throw new Error('expected transcript render to show copyable text');
+  const queueEl = makeElement();
+  renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
+  if (!queueEl.innerHTML.includes('Video uno') || !queueEl.innerHTML.includes('Cancelar')) throw new Error(`queue render drift: ${queueEl.innerHTML}`);
 
   const historyEl = makeElement();
-  renderRadarHistory({ el: { radarHistoryList: historyEl }, history: [{ job_id: 'job-1', status: 'succeeded', target: { name: 'Argentina' }, mention_count: 2 }] });
-  if (!historyEl.innerHTML.includes('Argentina') || !historyEl.innerHTML.includes('2 menciones')) {
+  renderRadarHistory({ el: { radarHistoryList: historyEl }, history: [{ job_id: 'job-1', status: 'succeeded', title: 'Final', selected_countries: ['argentina'], detected_language: 'fr', mention_count: 2, artifacts: { export_txt: true } }] });
+  if (!historyEl.innerHTML.includes('Final') || !historyEl.innerHTML.includes('fr') || !historyEl.innerHTML.includes('Descargar TXT')) {
     throw new Error(`history render drift: ${historyEl.innerHTML}`);
   }
 }
@@ -173,26 +159,33 @@ async function runControllerCheck() {
   const state = createRadarState();
   const el = {
     radarUrlInput: makeElement({ value: 'https://youtu.be/abc' }),
-    radarTargetTypeSelect: makeElement({ value: 'country' }),
-    radarTargetNameInput: makeElement({ value: 'Argentina' }),
-    radarTargetAliasesInput: makeElement({ value: 'albiceleste' }),
+    radarCountryColombia: { checked: false },
+    radarCountryEcuador: { checked: false },
+    radarCountryArgentina: { checked: true },
     radarExtraKeywordsInput: makeElement({ value: 'Messi' }),
     radarSubmitBtn: makeElement(),
     radarHealthStatus: makeElement(),
     radarProgressStatus: makeElement(),
-    radarTranscriptOutput: makeElement(),
-    radarMentionsOutput: makeElement(),
-    radarCopyTranscriptBtn: makeElement(),
-    radarCopyMentionsBtn: makeElement(),
+    radarQueueList: makeElement(),
+    radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
+    radarSummaryDialog: { showModal() { calls.push('summaryModal'); }, close() {} },
+    radarSummaryBody: makeElement(),
+    radarConfirmDialog: { showModal() { calls.push('confirmModal'); }, close() {} },
+    radarConfirmTitle: makeElement(),
+    radarConfirmMessage: makeElement(),
+    radarConfirmAcceptBtn: makeElement(),
+    radarConfirmCancelBtn: makeElement(),
     radarHistoryList: makeElement(),
   };
   const api = {
     async health() { calls.push('health'); return { status: 'ok' }; },
     async createJob(payload) { calls.push({ type: 'create', payload }); return { job_id: 'job-1', status: 'queued' }; },
     async getJob(jobId) { calls.push({ type: 'getJob', jobId }); return { job_id: jobId, status: 'succeeded', progress: { percent: 100 } }; },
-    async getTranscript(jobId) { calls.push({ type: 'transcript', jobId }); return { text: '(00:12) Argentina presiona alto.' }; },
-    async getMentions(jobId) { calls.push({ type: 'mentions', jobId }); return { matches: [{ start_ms: 12000, canonical: 'Argentina', keyword: 'albiceleste', context: 'La albiceleste presiona.' }] }; },
-    async history() { calls.push('history'); return { items: [{ job_id: 'job-1', status: 'succeeded', target: { name: 'Argentina' }, mention_count: 1 }] }; },
+    async getSummary(jobId) { calls.push({ type: 'summary', jobId }); return { items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }; },
+    async downloadExportText(jobId) { calls.push({ type: 'download', jobId }); return 'TXT backend'; },
+    async cancelJob(jobId) { calls.push({ type: 'cancel', jobId }); return { status: 'cancelled' }; },
+    async deleteJob(jobId) { calls.push({ type: 'delete', jobId }); return { status: 'deleted' }; },
+    async history() { calls.push('history'); return { items: [{ job_id: 'job-1', status: 'succeeded', title: 'Final', selected_countries: ['argentina'], detected_language: 'fr', mention_count: 1, artifacts: { export_txt: true } }] }; },
   };
 
   const controller = createRadarController({
@@ -209,18 +202,19 @@ async function runControllerCheck() {
 
   await controller.refreshHealth();
   await controller.submitCurrentJob();
-  await controller.copyTranscript();
-  await controller.copyMentions();
+  await controller.showSummary('job-1');
+  await controller.downloadJob('job-1');
+  await controller.confirmJobAction('job-1', 'cancel');
+  await el.radarConfirmAcceptBtn.listeners.get('click')();
 
   assertEqual(calls[0], 'health', 'health call drift');
   assertEqual(calls[1].type, 'create', 'submit should create a service job');
-  assertEqual(calls[1].payload.target.name, 'Argentina', 'controller target payload drift');
+  assertEqual(calls[1].payload.countries[0], 'argentina', 'controller countries payload drift');
   if (!calls.some((entry) => entry.type === 'getJob')) throw new Error('controller should poll job detail');
-  if (!calls.some((entry) => entry.type === 'transcript')) throw new Error('controller should fetch transcript after success');
-  if (!calls.some((entry) => entry.type === 'mentions')) throw new Error('controller should fetch mentions after success');
+  if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
+  if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');
+  if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (!el.radarProgressStatus.textContent.includes('succeeded')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
-  assertEqual(copied[0], '(00:12) Argentina presiona alto.', 'transcript clipboard drift');
-  if (!copied[1].includes('Argentina [albiceleste]')) throw new Error(`mentions clipboard drift: ${copied[1]}`);
 }
 
 export async function runRadarPanelCheck() {

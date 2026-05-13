@@ -1,5 +1,6 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
 const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
+const DEFAULT_TRANSCRIPT_SERVICE_URL = 'http://127.0.0.1:8765';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
@@ -43,7 +44,7 @@ export function defaultSettingsFactory() {
     remotionApiUrl: DEFAULT_REMOTION_API_URL,
     approvalPipelineBaseUrl: DEFAULT_APPROVAL_EDITOR_SERVICE_URL,
     brandChannel: DEFAULT_BRAND_CHANNEL,
-    transcriptServiceBaseUrl: 'http://127.0.0.1:8091',
+    transcriptServiceBaseUrl: DEFAULT_TRANSCRIPT_SERVICE_URL,
     transcriptServiceApiKey: '',
   };
 }
@@ -92,7 +93,7 @@ export function hydrateSettingsFormValues({ el, settings }) {
     el.brandChannelSelect.value = normalizeBrandChannel(settings.brandChannel);
   }
   if (el.transcriptServiceBaseUrlInput) {
-    el.transcriptServiceBaseUrlInput.value = settings.transcriptServiceBaseUrl || 'http://127.0.0.1:8091';
+    el.transcriptServiceBaseUrlInput.value = settings.transcriptServiceBaseUrl || DEFAULT_TRANSCRIPT_SERVICE_URL;
   }
   if (el.transcriptServiceApiKeyInput) {
     el.transcriptServiceApiKeyInput.value = settings.transcriptServiceApiKey || '';

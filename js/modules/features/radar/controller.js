@@ -4,6 +4,7 @@ import {
   formatTranscriptCopy,
   renderRadarHistory,
   renderRadarResults,
+  renderRadarSummary,
   renderRadarStatus,
 } from './render.js';
 
@@ -21,7 +22,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
 
   function renderAll() {
     renderRadarStatus({ el, state });
-    renderRadarResults({ el, transcript: state.transcript, mentions: state.mentions });
+    renderRadarResults({ el, state });
     renderRadarHistory({ el, history: state.history });
   }
 
@@ -50,9 +51,11 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   function readPayloadFromForm() {
     return buildRadarJobPayload({
       url: el.radarUrlInput?.value,
-      targetType: el.radarTargetTypeSelect?.value,
-      targetName: el.radarTargetNameInput?.value,
-      targetAliases: el.radarTargetAliasesInput?.value,
+      countries: [
+        el.radarCountryColombia?.checked ? 'colombia' : '',
+        el.radarCountryEcuador?.checked ? 'ecuador' : '',
+        el.radarCountryArgentina?.checked ? 'argentina' : '',
+      ],
       extraKeywords: el.radarExtraKeywordsInput?.value,
     });
   }
@@ -61,16 +64,17 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     try {
       const payload = readPayloadFromForm();
       state.status = 'submitting';
-      state.transcript = null;
-      state.mentions = null;
+      state.summary = null;
       renderAll();
       const created = await api.createJob(payload);
       state.activeJobId = created.job_id;
       state.currentJob = created;
+      el.radarNewJobDialog?.close?.();
       renderAll();
       await pollActiveJob();
     } catch (error) {
       state.status = 'error';
+      if (el.radarValidationMessage) el.radarValidationMessage.textContent = error?.message || 'No pude enviar el job Radar';
       toast(error?.message || 'No pude enviar el job Radar');
       renderAll();
     }
@@ -83,8 +87,6 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       const job = await api.getJob(state.activeJobId);
       state.currentJob = job;
       if (job.status === 'succeeded') {
-        state.transcript = await api.getTranscript(state.activeJobId);
-        state.mentions = await api.getMentions(state.activeJobId);
         await refreshHistory();
         return;
       }
@@ -106,6 +108,32 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     toast('Transcripción copiada');
   }
 
+  async function showSummary(jobId) {
+    state.summary = await api.getSummary(jobId);
+    renderRadarSummary({ el, summary: state.summary });
+    el.radarSummaryDialog?.showModal?.();
+  }
+
+  async function downloadJob(jobId) {
+    await api.downloadExportText(jobId);
+    toast('TXT descargado desde el backend');
+  }
+
+  async function confirmJobAction(jobId, action) {
+    if (el.radarConfirmTitle) el.radarConfirmTitle.textContent = action === 'cancel' ? 'Cancelar job' : 'Eliminar job';
+    if (el.radarConfirmMessage) el.radarConfirmMessage.textContent = action === 'cancel'
+      ? '¿Querés cancelar este job? El backend limpiará los artefactos propios en el próximo checkpoint seguro.'
+      : '¿Querés eliminar este job y sus artefactos?';
+    el.radarConfirmAcceptBtn?.listeners?.delete?.('click');
+    el.radarConfirmAcceptBtn?.addEventListener?.('click', async () => {
+      if (action === 'cancel') await api.cancelJob(jobId);
+      else await api.deleteJob(jobId);
+      el.radarConfirmDialog?.close?.();
+      await refreshHistory();
+    });
+    el.radarConfirmDialog?.showModal?.();
+  }
+
   async function copyMentions() {
     const text = formatMentionsCopy(state.mentions || {});
     if (!text) return;
@@ -114,9 +142,25 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   }
 
   function bindEvents() {
+    el.radarNewJobBtn?.addEventListener('click', () => el.radarNewJobDialog?.showModal?.());
+    el.radarNewJobCancelBtn?.addEventListener('click', () => el.radarNewJobDialog?.close?.());
+    el.radarSummaryCloseBtn?.addEventListener('click', () => el.radarSummaryDialog?.close?.());
+    el.radarConfirmCancelBtn?.addEventListener('click', () => el.radarConfirmDialog?.close?.());
     el.radarSubmitBtn?.addEventListener('click', () => { void submitCurrentJob(); });
     el.radarCopyTranscriptBtn?.addEventListener('click', () => { void copyTranscript(); });
     el.radarCopyMentionsBtn?.addEventListener('click', () => { void copyMentions(); });
+    el.radarHistoryList?.addEventListener?.('click', (event) => {
+      const button = event.target?.closest?.('[data-radar-action]');
+      if (!button) return;
+      const jobId = button.dataset.radarJobId;
+      if (button.dataset.radarAction === 'summary') void showSummary(jobId);
+      if (button.dataset.radarAction === 'download') void downloadJob(jobId);
+      if (button.dataset.radarAction === 'delete') void confirmJobAction(jobId, 'delete');
+    });
+    el.radarQueueList?.addEventListener?.('click', (event) => {
+      const button = event.target?.closest?.('[data-radar-action="cancel"]');
+      if (button) void confirmJobAction(button.dataset.radarJobId, 'cancel');
+    });
   }
 
   function stopPolling() {
@@ -132,6 +176,9 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     pollActiveJob,
     copyTranscript,
     copyMentions,
+    showSummary,
+    downloadJob,
+    confirmJobAction,
     render: renderAll,
     stopPolling,
   };

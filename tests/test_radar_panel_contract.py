@@ -8,7 +8,7 @@ APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 BOOTSTRAP_PATH = ROOT / "js" / "modules" / "core" / "bootstrap.js"
 SELECTORS_PATH = ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js"
 APP_STORE_PATH = ROOT / "js" / "modules" / "core" / "state" / "app-store.js"
-RADAR_CHECK_PATH = ROOT / "js" / "modules" / "__checks__" / "radar-panel-check.js"
+RADAR_CHECK_PATH = ROOT / "js" / "modules" / "features" / "radar" / "__checks__" / "radar-panel-check.js"
 
 
 def _run_node_file(path: Path):
@@ -31,12 +31,16 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'data-view="radar"',
         'id="viewRadar"',
         'id="radarUrlInput"',
-        'id="radarTargetTypeSelect"',
-        'id="radarTargetNameInput"',
+        'id="radarNewJobBtn"',
+        'id="radarNewJobDialog"',
+        'id="radarCountryColombia"',
+        'id="radarCountryEcuador"',
+        'id="radarCountryArgentina"',
         'id="radarExtraKeywordsInput"',
+        'id="radarQueueList"',
+        'id="radarSummaryDialog"',
+        'id="radarConfirmDialog"',
         'id="radarSubmitBtn"',
-        'id="radarTranscriptOutput"',
-        'id="radarMentionsOutput"',
         'id="radarHistoryList"',
         'id="transcriptServiceBaseUrlInput"',
         'id="transcriptServiceApiKeyInput"',
@@ -48,8 +52,12 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
     for expected in [
         "viewRadar",
         "radarUrlInput",
-        "radarTargetTypeSelect",
-        "radarCopyTranscriptBtn",
+        "radarNewJobBtn",
+        "radarNewJobDialog",
+        "radarCountryColombia",
+        "radarQueueList",
+        "radarSummaryDialog",
+        "radarConfirmDialog",
         "transcriptServiceBaseUrlInput",
         "transcriptServiceApiKeyInput",
     ]:
@@ -57,6 +65,9 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
 
     assert "transcriptServiceBaseUrl" in app_store_source
     assert "transcriptServiceApiKey" in app_store_source
+    assert "http://127.0.0.1:8765" in app_store_source
+    assert "http://127.0.0.1:8091" not in app_store_source
+    assert 'placeholder="http://127.0.0.1:8765"' in index_source
     assert "transcriptServiceApiKeyInput.value" in app_store_source
     assert "transcriptServiceApiKey: el.transcriptServiceApiKeyInput.value.trim()" in bootstrap_source
     assert "./features/radar/api-client.js" in app_shell_source
