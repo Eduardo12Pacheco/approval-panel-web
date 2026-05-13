@@ -11,7 +11,6 @@ export function createProjectLoadingCommands({
   getCachedProjectDetail = () => null,
   preloadProjectCandidateImages = async () => {},
   fetchAndCacheProjectDetail = async () => null,
-  prefetchListedVideoProjects = () => {},
 }) {
   async function refreshVideoProjects({ silent = false } = {}) {
     const state = store.getState();
@@ -37,7 +36,6 @@ export function createProjectLoadingCommands({
 
       renderVideoProjects();
       renderSelectedVideoProject();
-      prefetchListedVideoProjects();
     } catch (err) {
       console.error(err);
       if (!silent) ui.toast('Error cargando proyectos de edición');

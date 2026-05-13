@@ -13,6 +13,7 @@ import { createEditorStatePersistence } from '../controller/editor-state-persist
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { createPreviewExportCommands } from '../controller/preview-export-commands.js';
 import { mergeLocalEditorRowPatch as mergeRowPatchFromSplitModule } from '../controller/row-commands.js';
+import { hydrateProjectListCards } from '../events/project-list-events.js';
 
 const EXPECTED_FEATURE_API = [
   'refreshVideoProjects',
@@ -84,7 +85,7 @@ test('video projects facade keeps public API shape while delegating to controlle
   assert.doesNotMatch(facadeSource, /async function refreshVideoProjects/);
 });
 
-test('project loading command preserves list refresh render order and selected editor state', async () => {
+test('project loading command preserves list refresh render order and selected editor state without eager detail prefetch', async () => {
   const priorEditorState = { phase: 'preview_ready', timed_rows: [{ id: 'row-1' }] };
   const dependencies = createMinimalDependencies({
     state: {
@@ -109,7 +110,31 @@ test('project loading command preserves list refresh render order and selected e
   assert.equal(state.videoProjects[0].title, 'Fresh row');
   assert.equal(state.selectedVideoProject.title, 'Fresh row');
   assert.deepEqual(state.selectedVideoProject.editor_state.timed_rows, [{ id: 'row-1' }]);
-  assert.deepEqual(dependencies.calls.renders, ['list', 'list', 'detail', 'prefetch', 'list']);
+  assert.deepEqual(dependencies.calls.renders, ['list', 'list', 'detail', 'list']);
+});
+
+test('project list cards still prefetch details from direct user intent events', () => {
+  const listeners = new Map();
+  const card = {
+    dataset: { projectId: encodeURIComponent('draft-1') },
+    addEventListener(type, listener, options) {
+      listeners.set(type, { listener, options });
+    },
+    querySelector() { return null; },
+  };
+  const calls = [];
+
+  hydrateProjectListCards({
+    root: { querySelectorAll: () => [card] },
+    openVideoProject: () => calls.push('open'),
+    prefetchProjectDetail: (projectId) => calls.push(`prefetch:${projectId}`),
+  });
+
+  assert.deepEqual([...listeners.keys()], ['mouseenter', 'focusin', 'touchstart', 'click']);
+  assert.equal(listeners.get('mouseenter').options.once, true);
+  listeners.get('mouseenter').listener();
+  listeners.get('focusin').listener();
+  assert.deepEqual(calls, ['prefetch:draft-1', 'prefetch:draft-1']);
 });
 
 test('controller split modules preserve state persistence, snapshot fallback, preview/export and row helpers', async () => {
