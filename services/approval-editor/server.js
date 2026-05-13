@@ -305,10 +305,10 @@ async function missingRenderAdapter() {
   throw createMissingRenderAdapterError();
 }
 
-function createRenderAdapterFromEnv(env = process.env, renderCommandRunner) {
+function createRenderAdapterFromEnv(env = process.env, renderCommandRunner, fetchImpl = globalThis.fetch) {
   const adapterName = String(env.APPROVAL_EDITOR_RENDER_ADAPTER || "").trim().toLowerCase();
   if (["02-video-engine", "video-engine", "remotion"].includes(adapterName)) {
-    return createVideoEngineRenderAdapter({ env, runCommand: renderCommandRunner });
+    return createVideoEngineRenderAdapter({ env, runCommand: renderCommandRunner, fetchImpl });
   }
   return missingRenderAdapter;
 }
@@ -324,7 +324,7 @@ function resolveRenderedOutputPath(rendered) {
 
 function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter, renderCommandRunner, alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
-  const finalRenderAdapter = renderAdapter || createRenderAdapterFromEnv(env, renderCommandRunner);
+  const finalRenderAdapter = renderAdapter || createRenderAdapterFromEnv(env, renderCommandRunner, fetchImpl);
 
   return http.createServer(async (request, response) => {
     try {

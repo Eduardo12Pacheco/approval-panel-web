@@ -27,6 +27,100 @@ function writeJson(filePath, value) {
   fs.renameSync(tempPath, filePath);
 }
 
+function isHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function isUnsafeRenderPath(value) {
+  const normalized = String(value || "").trim().replace(/\\/g, "/");
+  if (!normalized || normalized.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(normalized)) return true;
+  return normalized.split("/").some((part) => part === "..") || normalized.includes("//");
+}
+
+function sanitizeAssetId(value, fallback) {
+  return String(value || fallback || "asset")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "asset";
+}
+
+function extensionFromSource(source, asset = {}) {
+  const candidates = [source, asset.renderPath, asset.localPath, asset.publicPath, asset.publicUrl, asset.previewUrl, asset.url];
+  for (const candidate of candidates) {
+    try {
+      const pathname = isHttpUrl(candidate) ? new URL(candidate).pathname : String(candidate || "");
+      const ext = path.extname(pathname).toLowerCase();
+      if (/^\.[a-z0-9]{1,8}$/.test(ext)) return ext;
+    } catch {
+      const ext = path.extname(String(candidate || "")).toLowerCase();
+      if (/^\.[a-z0-9]{1,8}$/.test(ext)) return ext;
+    }
+  }
+  if ([asset.type, asset.kind].some((entry) => ["audio", "voice", "music"].includes(String(entry || "").toLowerCase()))) return ".wav";
+  return ".bin";
+}
+
+function generatedFolderForAsset(asset = {}) {
+  const type = String(asset.type || asset.kind || "").toLowerCase();
+  if (["audio", "voice", "music"].includes(type)) return "audio";
+  if (["image", "photo"].includes(type)) return "images";
+  if (["logo", "outro", "overlay", "dust", "video", "video-segment"].includes(type)) return "overlays";
+  return "assets";
+}
+
+function firstRenderableSource(asset = {}) {
+  return [asset.renderPath, asset.localPath, asset.publicPath, asset.publicUrl, asset.url, asset.previewUrl]
+    .find((entry) => typeof entry === "string" && entry.trim());
+}
+
+async function materializeAsset({ source, outputPath, fetchImpl }) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  if (isHttpUrl(source)) {
+    if (typeof fetchImpl !== "function") throw createAdapterError("asset_localization_unavailable", `Cannot localize remote render asset without fetch support: ${source}`, { source });
+    const response = await fetchImpl(source);
+    if (!response?.ok) throw createAdapterError("asset_localization_failed", `Failed to download render asset: ${source}`, { source, status: response?.status });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(outputPath, bytes);
+    return;
+  }
+  fs.copyFileSync(source, outputPath);
+}
+
+async function localizeRenderAssets({ projectRoot, snapshot, fetchImpl = globalThis.fetch } = {}) {
+  const contract = { ...(snapshot || {}) };
+  const sourceAssets = snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {};
+  const localizedAssets = {};
+  for (const [assetId, asset] of Object.entries(sourceAssets)) {
+    if (!asset || typeof asset !== "object") {
+      localizedAssets[assetId] = asset;
+      continue;
+    }
+    const renderPath = typeof asset.renderPath === "string" ? asset.renderPath.trim() : "";
+    const source = firstRenderableSource(asset);
+    if (!source || (renderPath && !isUnsafeRenderPath(renderPath))) {
+      localizedAssets[assetId] = asset;
+      continue;
+    }
+    if (!isHttpUrl(source) && !path.isAbsolute(source)) {
+      localizedAssets[assetId] = asset;
+      continue;
+    }
+    const folder = generatedFolderForAsset(asset);
+    const fileName = `${sanitizeAssetId(asset.id || assetId, assetId)}${extensionFromSource(source, asset)}`;
+    const relativePath = path.posix.join("generated", folder, fileName);
+    const outputPath = path.join(projectRoot, "public", "generated", folder, fileName);
+    await materializeAsset({ source, outputPath, fetchImpl });
+    localizedAssets[assetId] = {
+      ...asset,
+      renderPath: relativePath,
+      ...(asset.localPath && isUnsafeRenderPath(asset.localPath) ? { localPath: relativePath } : {}),
+      ...(asset.publicPath && isUnsafeRenderPath(asset.publicPath) ? { publicPath: relativePath } : {}),
+    };
+  }
+  return { ...contract, assets: localizedAssets };
+}
+
 function readIndex(indexPath) {
   if (!fs.existsSync(indexPath)) return { projects: [] };
   try {
@@ -55,7 +149,7 @@ function upsertProjectIndex(projectsRoot, { projectId, title }) {
   writeJson(indexPath, { projects });
 }
 
-function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash }) {
+async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl }) {
   const projectRoot = path.join(projectsRoot, projectId);
   fs.mkdirSync(path.join(projectRoot, "guion"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "output"), { recursive: true });
@@ -73,7 +167,8 @@ function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snap
     preview: { status: "ready", lastGeneratedAt: nowIso() },
   });
 
-  const contract = { ...snapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
+  const localizedSnapshot = await localizeRenderAssets({ projectRoot, snapshot, fetchImpl });
+  const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {
     version: 1,
     savedAt: nowIso(),
@@ -105,6 +200,7 @@ function createVideoEngineRenderAdapter({
   projectsRoot,
   env = process.env,
   runCommand = defaultRunCommand,
+  fetchImpl = globalThis.fetch,
 } = {}) {
   const resolvedVideoEngineRoot = path.resolve(videoEngineRoot || env.APPROVAL_EDITOR_VIDEO_ENGINE_ROOT || path.join(__dirname, "..", "..", "..", "..", "02-Video-Engine"));
   const resolvedProjectsRoot = path.resolve(projectsRoot || env.APPROVAL_EDITOR_VIDEO_ENGINE_PROJECTS_ROOT || env.REMOTION_EDITOR_PROJECTS_ROOT || path.join(resolvedVideoEngineRoot, "projects"));
@@ -115,7 +211,7 @@ function createVideoEngineRenderAdapter({
       throw createAdapterError("render_command_missing", `02-Video-Engine render command not found: ${scriptPath}`, { scriptPath });
     }
     const videoProjectId = resolveProjectId(projectId, snapshot);
-    const projectRoot = persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash });
+    const projectRoot = await persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash, fetchImpl });
     const outputPath = path.join(projectRoot, "output", "video-final.mp4");
     const command = {
       scriptPath,
