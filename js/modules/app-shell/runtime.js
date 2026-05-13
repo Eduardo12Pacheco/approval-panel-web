@@ -1,7 +1,7 @@
 import { renderToast } from '../core/ui/toast.js';
 import { escapeHtmlCore } from '../core/ui/escape-html.js';
 import { updateWordCounterCore } from '../core/ui/word-count.js';
-import { defaultSettingsFactory } from '../core/state/app-store.js';
+import { defaultSettingsFactory, shouldSkipApprovalBackgroundRefresh } from '../core/state/app-store.js';
 import {
   clearSessionStatus,
   isValidCredentials,
@@ -523,6 +523,9 @@ function ensureApprovalAutoRefresh() {
 }
 
 async function refreshApprovalMonitorData() {
+  if (shouldSkipApprovalBackgroundRefresh({ baseUrl: state.settings?.baseUrl, locationLike: globalThis.location })) {
+    return;
+  }
   await Promise.allSettled([
     refreshQueue({ silent: true }),
     refreshScriptDrafts({ silent: true }),

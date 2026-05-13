@@ -15,6 +15,21 @@ function isRemoteBrowserContext(locationLike = globalThis?.location) {
   return !new Set(['localhost', '127.0.0.1', '::1']).has(hostname);
 }
 
+function isLocalServiceUrl(rawValue) {
+  const value = (rawValue || '').toString().trim();
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return new Set(['localhost', '127.0.0.1', '[::1]', '::1']).has(url.hostname.toLowerCase());
+  } catch {
+    return /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\]|::1)(?::\d+)?(?:\/|$)/i.test(value);
+  }
+}
+
+export function shouldSkipApprovalBackgroundRefresh({ baseUrl, locationLike = globalThis?.location } = {}) {
+  return isRemoteBrowserContext(locationLike) && isLocalServiceUrl(baseUrl);
+}
+
 function normalizeRemotionApiUrl(rawValue, { fallback = DEFAULT_REMOTION_API_URL, locationLike = globalThis?.location } = {}) {
   const value = (rawValue || '').toString().trim();
   if (!value) return fallback;

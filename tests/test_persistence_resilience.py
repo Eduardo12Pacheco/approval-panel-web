@@ -51,6 +51,52 @@ if (saved !== nextSettings) {
     assert result.returncode == 0, result.stderr
 
 
+def test_remote_pages_context_skips_background_local_approval_refreshes():
+    script = r"""
+import { shouldSkipApprovalBackgroundRefresh } from './js/modules/core/state/app-store.js';
+
+const remotePages = { hostname: 'approval-panel-web.pages.dev' };
+
+if (!shouldSkipApprovalBackgroundRefresh({
+  baseUrl: 'http://localhost:5678',
+  locationLike: remotePages,
+})) {
+  throw new Error('remote Pages context should skip background localhost n8n refreshes');
+}
+
+if (!shouldSkipApprovalBackgroundRefresh({
+  baseUrl: 'http://127.0.0.1:5678',
+  locationLike: remotePages,
+})) {
+  throw new Error('remote Pages context should skip background 127.0.0.1 n8n refreshes');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_local_and_remote_approval_urls_keep_background_refreshes_enabled():
+    script = r"""
+import { shouldSkipApprovalBackgroundRefresh } from './js/modules/core/state/app-store.js';
+
+if (shouldSkipApprovalBackgroundRefresh({
+  baseUrl: 'http://localhost:5678',
+  locationLike: { hostname: 'localhost' },
+})) {
+  throw new Error('local app context must keep background localhost n8n refreshes enabled');
+}
+
+if (shouldSkipApprovalBackgroundRefresh({
+  baseUrl: 'https://n8n.example.test',
+  locationLike: { hostname: 'approval-panel-web.pages.dev' },
+})) {
+  throw new Error('remote n8n base URL must keep background refreshes enabled');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_lifecycle_hydrates_and_restores_session_when_event_binding_throws():
     script = r"""
 import { createAppShellLifecycle } from './js/modules/app-shell/lifecycle.js';
