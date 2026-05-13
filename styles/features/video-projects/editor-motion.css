@@ -314,6 +314,20 @@ body.is-motion-scrubbing {
   background: #111;
 }
 
+.video-motion-card__viewport::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  width: 82%;
+  aspect-ratio: 16 / 9;
+  background: rgba(55, 55, 55, 0.78);
+  box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.18), 0 8px 18px rgba(0, 0, 0, 0.24);
+  transform: translate3d(-50%, -50%, 0);
+  pointer-events: none;
+}
+
 .video-motion-card__image {
   position: absolute;
   inset: -12%;
@@ -336,6 +350,7 @@ body.is-motion-scrubbing {
 
 .video-motion-card__motion-box {
   position: absolute;
+  z-index: 2;
   left: 50%;
   top: 50%;
   width: 82%;
