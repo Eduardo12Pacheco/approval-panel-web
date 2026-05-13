@@ -79,9 +79,29 @@ function resolveFinalExportPanelState(editorState = {}) {
   };
 }
 
-function buildFinalExportPanel({ editorState }) {
+function isLocalFileDownloadUrl(value = '') {
+  const url = String(value || '').trim();
+  return /^file:\/\//i.test(url) || /^[a-z]:[\\/]/i.test(url);
+}
+
+function buildApprovalFinalDownloadUrl(project = {}, editorState = {}) {
+  const baseUrl = String(editorState.pipeline_base_url || project?.editor_state?.pipeline_base_url || '').trim().replace(/\/+$/, '');
+  const projectId = String(editorState.remotion_project_id || project?.editor_state?.remotion_project_id || '').trim();
+  if (!baseUrl || !projectId) return '';
+  return `${baseUrl}/api/projects/${encodeURIComponent(projectId)}/download/final?download=1`;
+}
+
+function resolveBrowserFinalUrl({ project = {}, editorState = {} } = {}) {
+  const finalUrl = String(editorState.final_url || '').trim();
+  if (!finalUrl) return '';
+  if (isLocalFileDownloadUrl(finalUrl)) return buildApprovalFinalDownloadUrl(project, editorState) || finalUrl;
+  return finalUrl;
+}
+
+function buildFinalExportPanel({ project, editorState }) {
   const state = resolveFinalExportPanelState(editorState);
-  const finalUrl = editorState.final_url ? escapeHtmlCore(editorState.final_url) : '';
+  const finalUrl = resolveBrowserFinalUrl({ project, editorState });
+  const escapedFinalUrl = finalUrl ? escapeHtmlCore(finalUrl) : '';
   return `
     <section class="video-editor-export-panel video-editor-export-panel--${state.tone}" aria-label="Exportación final">
       <div class="video-editor-export-panel__copy">
@@ -91,7 +111,7 @@ function buildFinalExportPanel({ editorState }) {
         ${state.showProgress ? '<div class="video-editor-export-panel__progress" role="progressbar" aria-label="Exportando video final"><span class="video-editor-export-panel__progress-bar video-editor-export-panel__progress-bar--indeterminate"></span></div>' : ''}
       </div>
       <div class="video-editor-export-panel__actions">
-        ${state.showDownload ? `<a class="video-editor-export-panel__download" href="${finalUrl}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a>` : ''}
+        ${state.showDownload ? `<a class="video-editor-export-panel__download" href="${escapedFinalUrl}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a>` : ''}
         <button class="video-project-primary-action video-project-primary-action--export" type="button" data-action="export-final" ${state.buttonDisabled ? 'disabled' : ''} title="Exportar video final 1080p">${escapeHtmlCore(state.buttonLabel)}</button>
       </div>
     </section>`;
@@ -119,7 +139,7 @@ export function buildEditorShell(project, options = {}) {
         </div>
         <aside class="video-editor-shell__right">${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}${buildEditorStatusPanel({ editorState, onExportFinal })}</aside>
       </section>
-      ${buildFinalExportPanel({ editorState })}
+      ${buildFinalExportPanel({ project, editorState })}
     </section>`;
 }
 

@@ -20,6 +20,7 @@ function buildShell(editorState) {
       title: 'Proyecto de prueba',
       selected_images: ['https://example.test/image.jpg'],
       image_candidates: [],
+      editor_state: editorState,
     },
     {
       selectedRowId: 'row-1',
@@ -88,11 +89,26 @@ function runDirtyReadyPanelCheck() {
   assertIncludes(panel, 'volvé a exportar', 'Expected dirty warning to explain re-export');
 }
 
+function runLegacyLocalPathDownloadCheck() {
+  const markup = buildShell({
+    phase: 'final_ready',
+    export_status: 'ready',
+    final_url: 'file:///C:/renders/project-1/output/video-final.mp4',
+    pipeline_base_url: 'http://127.0.0.1:3042',
+    remotion_project_id: 'approval-project-export',
+  });
+  const panel = getExportPanel(markup);
+
+  assertNotIncludes(panel, 'file:///C:/renders', 'Expected legacy local file URL to be hidden from browser download link');
+  assertIncludes(panel, 'href="http://127.0.0.1:3042/api/projects/approval-project-export/download/final?download=1"', 'Expected legacy final URL to resolve to browser-safe service download endpoint');
+}
+
 export function runEditorFinalExportPanelCheck() {
   runRenderingPanelCheck();
   runReadyPanelCheck();
   runErrorPanelCheck();
   runDirtyReadyPanelCheck();
+  runLegacyLocalPathDownloadCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
