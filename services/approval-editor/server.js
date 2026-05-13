@@ -7,6 +7,7 @@ const { applyContractOperations } = require("./lib/contract-updates");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
+const { createVideoEngineRenderAdapter } = require("./lib/video-engine-render-adapter");
 const { parseGuionSegments } = require("../../../02-Video-Engine/scripts/lib/guion-parsing");
 
 function sendJson(response, status, payload) {
@@ -294,8 +295,35 @@ function toResponseSnapshot(record) {
   return { snapshot: record.snapshot, snapshotId: record.snapshotId, snapshotHash: record.snapshotHash };
 }
 
-function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter = async () => ({}), alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+function createMissingRenderAdapterError() {
+  const error = new Error("Remotion render adapter is not configured for Approval Editor final export. Configure APPROVAL_EDITOR_RENDER_ADAPTER with the 02-Video-Engine render adapter, or inject renderAdapter when creating the service.");
+  error.code = "render_adapter_not_configured";
+  return error;
+}
+
+async function missingRenderAdapter() {
+  throw createMissingRenderAdapterError();
+}
+
+function createRenderAdapterFromEnv(env = process.env, renderCommandRunner) {
+  const adapterName = String(env.APPROVAL_EDITOR_RENDER_ADAPTER || "").trim().toLowerCase();
+  if (["02-video-engine", "video-engine", "remotion"].includes(adapterName)) {
+    return createVideoEngineRenderAdapter({ env, runCommand: renderCommandRunner });
+  }
+  return missingRenderAdapter;
+}
+
+function resolveRenderedOutputPath(rendered) {
+  const outputPath = (rendered?.finalPath || rendered?.outputPath || rendered?.finalUrl || "").toString().trim();
+  if (outputPath) return outputPath;
+  const error = new Error("Final render adapter completed without a downloadable output path. Check the 02-Video-Engine render adapter configuration and logs.");
+  error.code = "render_output_missing";
+  return error;
+}
+
+function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter, renderCommandRunner, alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
+  const finalRenderAdapter = renderAdapter || createRenderAdapterFromEnv(env, renderCommandRunner);
 
   return http.createServer(async (request, response) => {
     try {
@@ -399,8 +427,10 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         if (request.method === "POST" && parts[3] === "render-final") {
           const body = await readBody(request);
           if (body.snapshotHash !== latest.snapshotHash) throw Object.assign(new Error("stale snapshotHash for final render"), { code: "stale_snapshot", details: { expected: latest.snapshotHash, received: body.snapshotHash } });
-          const rendered = await renderAdapter({ projectId, snapshot: latest.snapshot, snapshotHash: latest.snapshotHash });
-          latest.snapshot.render = { ...(latest.snapshot.render || {}), status: "rendered", lastRenderedSnapshotHash: latest.snapshotHash, outputPath: rendered.finalPath || rendered.outputPath || null, updatedAt: new Date().toISOString() };
+          const rendered = await finalRenderAdapter({ projectId, snapshot: latest.snapshot, snapshotHash: latest.snapshotHash });
+          const outputPath = resolveRenderedOutputPath(rendered);
+          if (outputPath instanceof Error) throw outputPath;
+          latest.snapshot.render = { ...(latest.snapshot.render || {}), status: "rendered", lastRenderedSnapshotHash: latest.snapshotHash, outputPath, updatedAt: new Date().toISOString() };
           const snapshots = store.readSnapshots(projectId);
           snapshots[snapshots.length - 1] = latest;
           store.writeSnapshots(projectId, snapshots);
@@ -433,4 +463,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { createApprovalEditorService, normalizeSegments, pickAudioDurationSeconds, parseWavDurationSeconds };
+module.exports = { createApprovalEditorService, normalizeSegments, pickAudioDurationSeconds, parseWavDurationSeconds, createRenderAdapterFromEnv };

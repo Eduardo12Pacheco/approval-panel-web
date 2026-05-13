@@ -177,8 +177,21 @@ export function buildEditorAssetsViewModel({ project = {}, row = null, rowIndex 
   return assets;
 }
 
-export function buildPreviewTimelineViewModel(rows = [], selectedRowId = null) {
-  const totalDuration = Math.max(...rows.map((row) => Number(row.endTime || 0)), 1);
+function resolveFinitePositiveDuration(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0;
+}
+
+function resolveTimelineRowEnd(row = {}) {
+  const effectiveEnd = Number(row.effectiveEndTime);
+  if (Number.isFinite(effectiveEnd) && effectiveEnd > 0) return effectiveEnd;
+  return Number(row.endTime || 0);
+}
+
+export function buildPreviewTimelineViewModel(rows = [], selectedRowId = null, { totalDurationSeconds } = {}) {
+  const latestRowEnd = Math.max(...rows.map(resolveTimelineRowEnd), 0);
+  const configuredDuration = resolveFinitePositiveDuration(totalDurationSeconds);
+  const totalDuration = Math.max(configuredDuration, latestRowEnd, 1);
   const markers = rows.map((row, index) => {
     const start = Math.max(0, Number(row.startTime || 0));
     return {

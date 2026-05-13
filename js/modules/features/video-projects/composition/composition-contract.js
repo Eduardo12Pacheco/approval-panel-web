@@ -109,8 +109,22 @@ export function normalizePreviewAssetManifest(project = {}) {
   };
 }
 
-export function computeEffectiveSegmentTimes(rows = []) {
+function resolveContractTotalDurationSeconds(canonical = {}) {
+  const candidates = [
+    canonical?.totalDurationSeconds,
+    canonical?.audio?.totalDurationSeconds,
+    canonical?.audio?.durationSeconds,
+  ];
+  for (const candidate of candidates) {
+    const duration = Number(candidate);
+    if (Number.isFinite(duration) && duration > 0) return duration;
+  }
+  return null;
+}
+
+export function computeEffectiveSegmentTimes(rows = [], totalDurationSeconds = null) {
   const sourceRows = Array.isArray(rows) ? rows : [];
+  const officialDuration = Number(totalDurationSeconds);
   return sourceRows.map((row = {}, index) => {
     const startTime = Number(row.startTime) || 0;
     const rawEndTime = Number(row.endTime);
@@ -118,7 +132,10 @@ export function computeEffectiveSegmentTimes(rows = []) {
     const nextRow = sourceRows[index + 1] || null;
     const nextStartTime = nextRow ? Number(nextRow.startTime) : NaN;
     const hasNextStartAfterCurrent = Number.isFinite(nextStartTime) && nextStartTime > startTime;
-    const effectiveEndTime = hasNextStartAfterCurrent ? nextStartTime : ownEndTime;
+    const isLastRow = index === sourceRows.length - 1;
+    const effectiveEndTime = hasNextStartAfterCurrent
+      ? nextStartTime
+      : (isLastRow && Number.isFinite(officialDuration) && officialDuration > ownEndTime ? officialDuration : ownEndTime);
     return {
       ...row,
       startTime,
@@ -151,10 +168,11 @@ function mergeCanonicalRowsWithLocalRows(canonicalRows = [], localRows = []) {
 export function buildPreviewCompositionContract(project = {}, rows = []) {
   const canonical = project?.editor_state?.approval_contract_snapshot || project?.approval_contract_snapshot;
   if (canonical?.contractVersion === 'approval-editor-service-v1') {
+    const totalDurationSeconds = resolveContractTotalDurationSeconds(canonical);
     return {
       remotionApiUrl: toTrimmedString(project?.editor_state?.pipeline_base_url || project?.editor_state?.remotion_api_url),
       manifest: normalizePreviewAssetManifest(project),
-      rows: computeEffectiveSegmentTimes(mergeCanonicalRowsWithLocalRows(canonical.rows, rows)),
+      rows: computeEffectiveSegmentTimes(mergeCanonicalRowsWithLocalRows(canonical.rows, rows), totalDurationSeconds),
       canonical,
       snapshotHash: canonical.snapshotHash,
       snapshotId: canonical.snapshotId,

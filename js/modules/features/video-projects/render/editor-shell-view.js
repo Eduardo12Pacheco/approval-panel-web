@@ -1,10 +1,11 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
+import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
 import { formatCount } from '../domain/formatters.js';
 import { buildEditorShellViewModel } from './editor-view-model.js';
 import { buildEditorDetailRail, buildEditorRowsTable, buildPreviewTimeline } from './editor-markup.js';
 import { buildPhaseBadge } from './setup-view.js';
 
-function buildPreviewMonitor({ previewUrl, rows = [], selectedRowId = null }) {
+function buildPreviewMonitor({ project = {}, previewUrl, rows = [], selectedRowId = null }) {
   const activeSelectedRowId = selectedRowId || rows[0]?.id || null;
   const hasRows = Array.isArray(rows) && rows.length > 0;
   if (!hasRows) {
@@ -14,10 +15,13 @@ function buildPreviewMonitor({ previewUrl, rows = [], selectedRowId = null }) {
         ${previewUrl ? `<a href="${escapeHtmlCore(previewUrl)}" target="_blank" rel="noopener noreferrer">Abrir preview renderizada</a>` : ''}
       </div>`;
   }
+  const { compositionRows, outroDurationSeconds } = buildCompositionPreviewAssets({ project, rows });
+  const latestCompositionEnd = Math.max(...compositionRows.map((row) => Number(row.endTime || 0)), 0);
+  const totalDurationSeconds = latestCompositionEnd + Math.max(0, Number(outroDurationSeconds || 0));
   return `
     <div class="video-preview-monitor video-preview-monitor--composition">
       <div class="video-preview-stage" data-composition-container></div>
-      ${buildPreviewTimeline(rows, activeSelectedRowId)}
+      ${buildPreviewTimeline(compositionRows, activeSelectedRowId, { totalDurationSeconds })}
       <div class="video-preview-monitor__footer"><span>Preview local</span></div>
     </div>`;
 }
@@ -47,7 +51,7 @@ export function buildEditorShell(project, options = {}) {
     <section class="video-editor-shell" data-editor-phase="${escapeHtmlCore((editorState.phase || 'idle').toString())}">
       <section class="video-editor-shell__workspace">
         <div class="video-editor-shell__left">
-          <div class="video-editor-shell__card video-editor-shell__card--preview"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Preview Card — Top</span><h4>Vista previa</h4></div></div>${buildPreviewMonitor({ previewUrl: editorState.preview_url, rows: editorRows, selectedRowId: activeSelectedRowId })}</div>
+          <div class="video-editor-shell__card video-editor-shell__card--preview"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Preview Card — Top</span><h4>Vista previa</h4></div></div>${buildPreviewMonitor({ project, previewUrl: editorState.preview_url, rows: editorRows, selectedRowId: activeSelectedRowId })}</div>
           <div class="video-editor-shell__card video-editor-shell__card--table"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Table Card — Bottom</span><h4>${formatCount(editorRows.length, 'fila')}</h4></div></div>${buildEditorRowsTable(editorRows, { selectedRowId: activeSelectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading, project })}</div>
         </div>
         <aside class="video-editor-shell__right">${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}${buildEditorStatusPanel({ editorState, onExportFinal })}</aside>

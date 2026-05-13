@@ -110,13 +110,27 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
   return renderer;
 }
 
+export function resolvePreviewTimelineCurrentRow(rows = [], time = 0) {
+  const currentTime = Number(time || 0);
+  if (!Number.isFinite(currentTime) || !Array.isArray(rows) || !rows.length) return null;
+  return rows.find((row) => {
+    const start = Number(row.startTime || 0);
+    const effectiveEnd = Number(row.effectiveEndTime);
+    const end = Number.isFinite(effectiveEnd) && effectiveEnd > 0
+      ? effectiveEnd
+      : Number(row.endTime || 0);
+    return currentTime >= start && currentTime < end;
+  }) || null;
+}
+
 export function hydratePreviewTransport({ root, project, editorRows, selectEditorRow }) {
   const previewVideo = root.querySelector('[data-preview-video]');
   const scrubber = root.querySelector('[data-preview-scrubber]');
   const playButton = root.querySelector('[data-action="toggle-preview-play"]');
   const playIcon = root.querySelector('[data-preview-play-icon]');
   const renderer = getCompositionRendererForPreview();
-  const findRowAtTime = (time) => editorRows.find((row) => time >= Number(row.startTime || 0) && time < Number(row.endTime || 0)) || editorRows[editorRows.length - 1];
+  const timelineRows = buildCompositionPreviewAssets({ project, rows: editorRows }).compositionRows;
+  const findRowAtTime = (time) => resolvePreviewTimelineCurrentRow(timelineRows, time);
   const updatePreviewTimeline = (currentTime, durationValue) => {
     const configuredDuration = Number(scrubber?.dataset.duration || 0);
     const duration = Math.max(Number(durationValue || previewVideo?.duration || renderer?.duration || configuredDuration || 0), configuredDuration, 1);
@@ -128,9 +142,8 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     if (playheadEl) playheadEl.style.left = `${pct}%`;
     if (currentTimeEl) currentTimeEl.textContent = formatSeconds(currentTime || 0);
     const currentRow = findRowAtTime(Number(currentTime || 0));
-    if (!currentRow) return;
-    root.querySelectorAll('.video-preview-timeline__marker').forEach((segment) => segment.classList.toggle('is-current', segment.dataset.rowId === currentRow.id));
-    root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => rowEl.classList.toggle('is-current', rowEl.dataset.rowId === currentRow.id));
+    root.querySelectorAll('.video-preview-timeline__marker').forEach((segment) => segment.classList.toggle('is-current', Boolean(currentRow && segment.dataset.rowId === currentRow.id)));
+    root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => rowEl.classList.toggle('is-current', Boolean(currentRow && rowEl.dataset.rowId === currentRow.id)));
   };
   let previewTimelineFrame = 0;
   const stopPreviewTimelineLoop = () => {

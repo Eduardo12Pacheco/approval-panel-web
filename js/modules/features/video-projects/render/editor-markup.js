@@ -6,9 +6,9 @@ import {
 } from './editor-view-model.js';
 import { buildEditorEffectTabs } from './editor-effect-tabs.js';
 
-export function buildPreviewTimeline(rows = [], selectedRowId = null) {
+export function buildPreviewTimeline(rows = [], selectedRowId = null, { totalDurationSeconds } = {}) {
   if (!rows.length) return '';
-  const timeline = buildPreviewTimelineViewModel(rows, selectedRowId);
+  const timeline = buildPreviewTimelineViewModel(rows, selectedRowId, { totalDurationSeconds });
   const { totalDuration } = timeline;
 
   return `

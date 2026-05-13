@@ -145,7 +145,9 @@ export function createPreviewExportCommands({
         renderSelectedVideoProject();
         const result = await client.renderFinal(projectId, { snapshotHash });
         const download = typeof client.finalDownload === 'function' ? await client.finalDownload(projectId) : null;
-        await persistEditorState(project, { phase: 'final_ready', final_url: download?.finalUrl || '', export_status: 'ready', last_rendered_hash: result?.lastRenderedSnapshotHash || snapshotHash, dirty: false, error: '', diagnostics: result?.diagnostics || null });
+        const finalUrl = (download?.finalUrl || '').toString().trim();
+        if (!finalUrl) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
+        await persistEditorState(project, { phase: 'final_ready', final_url: finalUrl, export_status: 'ready', last_rendered_hash: result?.lastRenderedSnapshotHash || snapshotHash, dirty: false, error: '', diagnostics: result?.diagnostics || null });
         ui.toast('Exportación lista. Descargá el video final.');
       } catch (err) {
         console.error(err);
