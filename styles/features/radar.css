@@ -1,0 +1,74 @@
+#viewRadar .radar-screen__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px 24px;
+  align-items: start;
+  padding: 18px 20px;
+}
+
+#viewRadar .radar-screen__header > div:first-child {
+  min-width: 0;
+}
+
+#viewRadar #radarNewJobBtn {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  min-width: 168px;
+  height: 54px;
+  align-self: start;
+}
+
+#viewRadar #radarHealthStatus {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: -6px;
+}
+
+#viewRadar .subtitle2-health-chip {
+  padding: 8px 12px;
+  border: 1px solid #2A2A2A;
+  background: #0A0A0A;
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewRadar .subtitle2-health-chip.is-online {
+  border-color: #00E88F55;
+  color: #00E88F;
+}
+
+#viewRadar .subtitle2-health-chip.is-offline {
+  border-color: #F7B95555;
+  color: #F7B955;
+}
+
+#viewRadar .radar-layout {
+  grid-template-columns: minmax(0, 1fr) 400px;
+}
+
+#viewRadar .radar-transcriptions-panel,
+#viewRadar .radar-queue-panel {
+  min-height: calc(100vh - 260px);
+}
+
+#viewRadar .radar-transcriptions-panel .audio-queue-header h3,
+#viewRadar .radar-queue-panel .audio-queue-header h3 {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 960px) {
+  #viewRadar .radar-screen__header {
+    grid-template-columns: 1fr;
+  }
+
+  #viewRadar #radarNewJobBtn,
+  #viewRadar #radarHealthStatus {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}

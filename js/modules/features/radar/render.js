@@ -35,8 +35,14 @@ export function formatMentionsCopy(mentions = {}) {
 
 export function renderRadarStatus({ el, state }) {
   if (el.radarHealthStatus) {
-    const status = state.health?.status || 'sin verificar';
-    el.radarHealthStatus.textContent = `Servicio: ${status}`;
+    const status = state.health?.status || 'unknown';
+    const isReachable = status === 'ok' || status === 'degraded';
+    el.radarHealthStatus.textContent = isReachable ? 'Servicio activo' : 'Servicio inactivo';
+    el.radarHealthStatus.title = status === 'degraded'
+      ? 'El servicio responde, pero hay dependencias runtime pendientes de validar.'
+      : '';
+    el.radarHealthStatus.classList?.toggle?.('is-online', isReachable);
+    el.radarHealthStatus.classList?.toggle?.('is-offline', !isReachable);
   }
   if (el.radarProgressStatus) {
     const percent = state.currentJob?.progress?.percent;
@@ -73,7 +79,7 @@ export function renderRadarHistory({ el, history = [] }) {
   if (!el.radarHistoryList) return;
   if (!history.length) {
     el.radarHistoryList.classList?.add?.('is-empty');
-    el.radarHistoryList.innerHTML = 'Sin trabajos todavía.';
+    el.radarHistoryList.innerHTML = 'Sin transcripciones todavía.';
     return;
   }
   el.radarHistoryList.classList?.remove?.('is-empty');

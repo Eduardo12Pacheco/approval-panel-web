@@ -367,24 +367,24 @@
           </header>
 
           <section class="audio-screen__grid radar-layout">
-            <section class="audio-panel audio-panel--main panel-shell radar-submit-panel">
+            <section class="audio-panel audio-panel--main panel-shell radar-transcriptions-panel">
               <header class="audio-queue-header">
                 <div>
-                  <h3>Cola</h3>
-                  <p id="radarProgressStatus" class="meta word-count">Listo para investigar.</p>
+                  <h3>Transcripciones</h3>
+                  <p class="meta word-count">Trabajos terminados y listos para descargar.</p>
+                </div>
+              </header>
+              <section id="radarHistoryList" class="audio-queue-list is-empty">Sin transcripciones todavía.</section>
+            </section>
+
+            <aside class="audio-panel audio-panel--queue panel-shell radar-queue-panel">
+              <header class="audio-queue-header">
+                <div>
+                  <h3>Cola de jobs</h3>
+                  <p id="radarProgressStatus" class="meta">Listo para investigar.</p>
                 </div>
               </header>
               <section id="radarQueueList" class="audio-queue-list is-empty">Sin trabajos en cola.</section>
-            </section>
-
-            <aside class="audio-panel audio-panel--queue panel-shell radar-history-panel">
-              <header class="audio-queue-header">
-                <div>
-                  <h3>Historial reciente</h3>
-                  <p class="meta">Trabajos del servicio local.</p>
-                </div>
-              </header>
-              <section id="radarHistoryList" class="audio-queue-list is-empty">Sin trabajos todavía.</section>
             </aside>
           </section>
 
