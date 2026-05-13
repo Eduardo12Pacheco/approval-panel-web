@@ -47,8 +47,9 @@ export function renderRadarStatus({ el, state }) {
   if (el.radarProgressStatus) {
     const percent = state.currentJob?.progress?.percent;
     const suffix = Number.isFinite(Number(percent)) ? ` · ${percent}%` : '';
+    const errorMessage = state.currentJob?.error?.message;
     el.radarProgressStatus.textContent = state.currentJob
-      ? `Estado: ${state.currentJob.status}${suffix}`
+      ? `${humanJobStatus(state.currentJob.status)}${suffix}${errorMessage ? ` · ${errorMessage}` : ''}`
       : 'Listo para investigar.';
   }
   if (el.radarSubmitBtn) el.radarSubmitBtn.disabled = ['queued', 'running'].includes(state.currentJob?.status);
@@ -57,49 +58,72 @@ export function renderRadarStatus({ el, state }) {
 export function renderRadarResults({ el, state }) {
   if (!el.radarQueueList) return;
   const job = state.currentJob;
-  if (!job || ['succeeded', 'failed', 'cancelled'].includes(job.status)) {
+  if (!job || job.status === 'succeeded' || job.status === 'cancelled') {
     el.radarQueueList.classList?.add?.('is-empty');
     el.radarQueueList.innerHTML = 'Sin trabajos en cola.';
     return;
   }
   const countries = (job.selected_countries || job.countries || []).join(', ');
   const title = job.title || job.url || job.job_id;
+  const isFailed = job.status === 'failed';
+  const error = job.error?.message || job.error?.code || '';
   el.radarQueueList.classList?.remove?.('is-empty');
   el.radarQueueList.innerHTML = `
-    <article class="audio-queue-item" data-radar-job-id="${escapeHtml(job.job_id)}">
-      <strong>${escapeHtml(title)}</strong>
-      <span>${escapeHtml(job.status || 'queued')}</span>
-      <small>${escapeHtml(countries)}</small>
-      <button type="button" data-radar-action="cancel" data-radar-job-id="${escapeHtml(job.job_id)}">Cancelar</button>
+    <article class="audio-queue-item radar-job-card ${isFailed ? 'is-failed' : 'is-active'}" data-radar-job-id="${escapeHtml(job.job_id)}">
+      <div class="radar-job-card__main">
+        <span class="radar-kicker">${isFailed ? 'Job fallido' : 'Procesando'}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(countries || 'Sin país')}</small>
+        ${error ? `<p class="radar-error-text">${escapeHtml(error)}</p>` : ''}
+      </div>
+      <span class="radar-status-chip ${isFailed ? 'is-failed' : 'is-processing'}">${escapeHtml(humanJobStatus(job.status || 'queued'))}</span>
+      <button type="button" data-radar-action="${isFailed ? 'delete' : 'cancel'}" data-radar-job-id="${escapeHtml(job.job_id)}">${isFailed ? 'Eliminar' : 'Cancelar'}</button>
     </article>
   `;
 }
 
 export function renderRadarHistory({ el, history = [] }) {
   if (!el.radarHistoryList) return;
-  if (!history.length) {
+  const completed = history.filter((job) => job.status === 'succeeded');
+  if (!completed.length) {
     el.radarHistoryList.classList?.add?.('is-empty');
     el.radarHistoryList.innerHTML = 'Sin transcripciones todavía.';
     return;
   }
   el.radarHistoryList.classList?.remove?.('is-empty');
-  el.radarHistoryList.innerHTML = history.map((job) => {
+  el.radarHistoryList.innerHTML = completed.map((job) => {
     const target = job.title || job.target?.name || (job.selected_countries || []).join(', ') || 'Sin título';
     const count = Number(job.mention_count || job.matches_count || 0);
     const language = job.detected_language || 'idioma pendiente';
     const canDownload = job.artifacts?.export_txt;
     return `
-      <article class="audio-queue-item" data-radar-job-id="${escapeHtml(job.job_id)}">
-        <strong>${escapeHtml(target)}</strong>
-        <span>${escapeHtml(job.status || 'unknown')}</span>
-        <span>${escapeHtml(language)}</span>
-        <small>${count} ${count === 1 ? 'mención' : 'menciones'}</small>
-        <button type="button" data-radar-action="summary" data-radar-job-id="${escapeHtml(job.job_id)}">Ver resumen</button>
-        <button type="button" data-radar-action="download" data-radar-job-id="${escapeHtml(job.job_id)}" ${canDownload ? '' : 'disabled'}>Descargar TXT</button>
-        <button type="button" data-radar-action="delete" data-radar-job-id="${escapeHtml(job.job_id)}">Eliminar</button>
+      <article class="audio-queue-item radar-transcript-card" data-radar-job-id="${escapeHtml(job.job_id)}">
+        <div class="radar-job-card__main">
+          <span class="radar-kicker">Transcripción lista</span>
+          <strong>${escapeHtml(target)}</strong>
+          <small>${escapeHtml(language)} · ${count} ${count === 1 ? 'mención' : 'menciones'}</small>
+        </div>
+        <div class="radar-card-actions">
+          <button type="button" data-radar-action="summary" data-radar-job-id="${escapeHtml(job.job_id)}">Resumen</button>
+          <button type="button" data-radar-action="download" data-radar-job-id="${escapeHtml(job.job_id)}" ${canDownload ? '' : 'disabled'}>Descargar TXT</button>
+          <button type="button" data-radar-action="delete" data-radar-job-id="${escapeHtml(job.job_id)}">Eliminar</button>
+        </div>
       </article>
     `;
   }).join('');
+}
+
+function humanJobStatus(status = '') {
+  const map = {
+    queued: 'En cola',
+    running: 'Procesando',
+    succeeded: 'Completado',
+    failed: 'Falló',
+    cancelled: 'Cancelado',
+    cancel_requested: 'Cancelando',
+    delete_requested: 'Eliminando',
+  };
+  return map[status] || status || 'Sin estado';
 }
 
 export function renderRadarSummary({ el, summary }) {

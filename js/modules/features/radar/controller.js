@@ -158,8 +158,10 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       if (button.dataset.radarAction === 'delete') void confirmJobAction(jobId, 'delete');
     });
     el.radarQueueList?.addEventListener?.('click', (event) => {
-      const button = event.target?.closest?.('[data-radar-action="cancel"]');
-      if (button) void confirmJobAction(button.dataset.radarJobId, 'cancel');
+      const button = event.target?.closest?.('[data-radar-action]');
+      if (!button) return;
+      if (button.dataset.radarAction === 'cancel') void confirmJobAction(button.dataset.radarJobId, 'cancel');
+      if (button.dataset.radarAction === 'delete') void confirmJobAction(button.dataset.radarJobId, 'delete');
     });
   }
 

@@ -214,7 +214,7 @@ async function runControllerCheck() {
   if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
   if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
-  if (!el.radarProgressStatus.textContent.includes('succeeded')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
+  if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
 }
 
 export async function runRadarPanelCheck() {
