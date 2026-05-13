@@ -26,20 +26,83 @@ function buildPreviewMonitor({ project = {}, previewUrl, rows = [], selectedRowI
     </div>`;
 }
 
-function buildEditorStatusPanel({ editorState, onExportFinal }) {
+function resolveFinalExportPanelState(editorState = {}) {
   const phase = editorState.phase || 'idle';
   const dirty = Boolean(editorState.dirty);
   const exportStatus = editorState.export_status || 'idle';
-  const isRendering = phase === 'preparing' || phase === 'preview_rendering' || phase === 'final_rendering';
-  const canExport = !isRendering && (phase === 'preview_ready' || phase === 'editing_dirty' || phase === 'final_ready' || phase === 'error');
-  void exportStatus;
-  void onExportFinal;
+  const isRendering = phase === 'final_rendering' || exportStatus === 'rendering';
+  const isReady = phase === 'final_ready' || exportStatus === 'ready';
+  const hasError = phase === 'error' || exportStatus === 'error';
+  if (isRendering) {
+    return {
+      tone: 'rendering',
+      title: 'Exportando video final',
+      detail: 'Estamos renderizando el MP4 final. Podés revisar el editor mientras termina.',
+      buttonLabel: 'Exportando…',
+      buttonDisabled: true,
+      showProgress: true,
+      showDownload: false,
+    };
+  }
+  if (hasError) {
+    return {
+      tone: 'error',
+      title: 'Error exportando',
+      detail: editorState.error || 'No se pudo exportar el video final.',
+      buttonLabel: 'Reintentar exportación',
+      buttonDisabled: false,
+      showProgress: false,
+      showDownload: false,
+    };
+  }
+  if (isReady) {
+    return {
+      tone: dirty ? 'dirty' : 'ready',
+      title: 'Exportación lista',
+      detail: dirty
+        ? 'Cambios pendientes: modificaste el proyecto después del último final; volvé a exportar para actualizar el video.'
+        : 'El final está listo. Si detectás un error, corregí el proyecto y volvé a renderizar.',
+      buttonLabel: 'Volver a renderizar',
+      buttonDisabled: false,
+      showProgress: false,
+      showDownload: Boolean(editorState.final_url),
+    };
+  }
+  return {
+    tone: 'idle',
+    title: 'Exportación pendiente',
+    detail: dirty ? 'Cambios sin exportar. Renderizá el final cuando termines de revisar.' : 'Cuando el editor esté correcto, generá el video final.',
+    buttonLabel: 'Exportar final',
+    buttonDisabled: false,
+    showProgress: false,
+    showDownload: false,
+  };
+}
+
+function buildFinalExportPanel({ editorState }) {
+  const state = resolveFinalExportPanelState(editorState);
+  const finalUrl = editorState.final_url ? escapeHtmlCore(editorState.final_url) : '';
+  return `
+    <section class="video-editor-export-panel video-editor-export-panel--${state.tone}" aria-label="Exportación final">
+      <div class="video-editor-export-panel__copy">
+        <span class="video-projects-eyebrow">Exportación final</span>
+        <h4>${escapeHtmlCore(state.title)}</h4>
+        <p>${escapeHtmlCore(state.detail)}</p>
+        ${state.showProgress ? '<div class="video-editor-export-panel__progress" role="progressbar" aria-label="Exportando video final"><span class="video-editor-export-panel__progress-bar video-editor-export-panel__progress-bar--indeterminate"></span></div>' : ''}
+      </div>
+      <div class="video-editor-export-panel__actions">
+        ${state.showDownload ? `<a class="video-editor-export-panel__download" href="${finalUrl}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a>` : ''}
+        <button class="video-project-primary-action video-project-primary-action--export" type="button" data-action="export-final" ${state.buttonDisabled ? 'disabled' : ''} title="Exportar video final 1080p">${escapeHtmlCore(state.buttonLabel)}</button>
+      </div>
+    </section>`;
+}
+
+function buildEditorStatusPanel({ editorState }) {
+  const dirty = Boolean(editorState.dirty);
   return `
     <div class="video-editor-status-panel">
-      <div class="video-editor-status-panel__header"><span class="video-projects-eyebrow">Acciones</span>${dirty ? '<span class="video-project-dirty-badge" title="Cambios sin exportar">● Sin exportar</span>' : ''}</div>
-      <div class="video-editor-actions"><button class="video-project-primary-action video-project-primary-action--export" type="button" data-action="export-final" ${canExport ? '' : 'disabled'} title="Exportar video final 1080p">${phase === 'final_rendering' ? 'Exportando…' : 'Exportar final'}</button></div>
-      ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}
-      ${editorState.final_url ? `<div class="video-editor-download"><a href="${escapeHtmlCore(editorState.final_url)}" target="_blank" rel="noopener noreferrer" download>Descargar video final</a></div>` : ''}
+      <div class="video-editor-status-panel__header"><span class="video-projects-eyebrow">Estado de edición</span>${dirty ? '<span class="video-project-dirty-badge" title="Cambios sin exportar">● Sin exportar</span>' : ''}</div>
+      <p>Usá el panel inferior para exportar, descargar o volver a renderizar el final.</p>
     </div>`;
 }
 
@@ -56,6 +119,7 @@ export function buildEditorShell(project, options = {}) {
         </div>
         <aside class="video-editor-shell__right">${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}${buildEditorStatusPanel({ editorState, onExportFinal })}</aside>
       </section>
+      ${buildFinalExportPanel({ editorState })}
     </section>`;
 }
 

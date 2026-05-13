@@ -13,6 +13,11 @@ function isRenderedWithoutDownloadablePath(renderResult) {
   return renderResult?.render?.status === 'rendered' && !pickDownloadableRenderPath(renderResult);
 }
 
+function resolveBrowserFinalDownloadUrl(client, projectId, fallbackUrl = '') {
+  if (typeof client?.finalDownloadUrl === 'function') return client.finalDownloadUrl(projectId);
+  return fallbackUrl;
+}
+
 export function createPreviewExportCommands({
   api,
   store,
@@ -155,13 +160,14 @@ export function createPreviewExportCommands({
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });
         renderSelectedVideoProject();
         const result = await client.renderFinal(projectId, { snapshotHash });
-        let finalUrl = pickDownloadableRenderPath(result);
-        if (!finalUrl && isRenderedWithoutDownloadablePath(result)) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
-        if (!finalUrl && typeof client.finalDownload === 'function') {
+        let downloadableOutput = pickDownloadableRenderPath(result);
+        if (!downloadableOutput && isRenderedWithoutDownloadablePath(result)) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
+        if (!downloadableOutput && typeof client.finalDownload === 'function') {
           const download = await client.finalDownload(projectId);
-          finalUrl = typeof download?.finalUrl === 'string' ? download.finalUrl.trim() : '';
+          downloadableOutput = typeof download?.finalUrl === 'string' ? download.finalUrl.trim() : '';
         }
-        if (!finalUrl) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
+        if (!downloadableOutput) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
+        const finalUrl = resolveBrowserFinalDownloadUrl(client, projectId, downloadableOutput);
         await persistEditorState(project, { phase: 'final_ready', final_url: finalUrl, export_status: 'ready', last_rendered_hash: result?.lastRenderedSnapshotHash || snapshotHash, dirty: false, error: '', diagnostics: result?.diagnostics || null });
         ui.toast('Exportación lista. Descargá el video final.');
       } catch (err) {

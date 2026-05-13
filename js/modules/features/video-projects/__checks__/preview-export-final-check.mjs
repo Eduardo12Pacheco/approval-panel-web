@@ -59,6 +59,9 @@ function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadIm
         if (finalDownloadImpl) return finalDownloadImpl();
         return finalDownloadResult;
       },
+      finalDownloadUrl(projectId) {
+        return `https://approval.local/api/projects/${encodeURIComponent(projectId)}/download/final?download=1`;
+      },
     }),
     async persistEditorState(targetProject, patch) {
       targetProject.editor_state = { ...(targetProject.editor_state || {}), ...patch };
@@ -99,10 +102,30 @@ test('approval export marks final ready only after backend exposes a final downl
   assert.equal(renderCalls.length, 1);
   assert.equal(project.editor_state.phase, 'final_ready');
   assert.equal(project.editor_state.export_status, 'ready');
-  assert.equal(project.editor_state.final_url, '/api/projects/approval-project-export/download/final');
+  assert.equal(project.editor_state.final_url, 'https://approval.local/api/projects/approval-project-export/download/final?download=1');
   assert.equal(project.editor_state.last_rendered_hash, 'snapshot-export-hash');
   assert.equal(persisted.some((patch) => patch.phase === 'error'), false);
   assert.equal(toasts.includes('Exportación lista. Descargá el video final.'), true);
+});
+
+test('approval export stores browser-download endpoint instead of raw local final path', async () => {
+  const { project, persisted, commands } = createHarness({
+    renderFinalResult: {
+      lastRenderedSnapshotHash: 'snapshot-export-hash',
+      render: { outputPath: 'C:\\renders\\approval-project-export\\output\\video-final.mp4' },
+    },
+    finalDownloadImpl: () => {
+      throw new Error('download/final JSON should not be needed when render-final returned outputPath');
+    },
+  });
+
+  await commands.exportFinal();
+
+  assert.equal(project.editor_state.phase, 'final_ready');
+  assert.equal(project.editor_state.export_status, 'ready');
+  assert.equal(project.editor_state.final_url, 'https://approval.local/api/projects/approval-project-export/download/final?download=1');
+  assert.equal(project.editor_state.final_url.includes('C:\\renders'), false);
+  assert.equal(persisted.some((patch) => patch.final_url?.startsWith('C:\\')), false);
 });
 
 test('approval export prefers downloadable outputPath from render-final response before calling download endpoint', async () => {
@@ -120,7 +143,7 @@ test('approval export prefers downloadable outputPath from render-final response
 
   assert.equal(project.editor_state.phase, 'final_ready');
   assert.equal(project.editor_state.export_status, 'ready');
-  assert.equal(project.editor_state.final_url, '/api/projects/approval-project-export/files/output/video-final.mp4');
+  assert.equal(project.editor_state.final_url, 'https://approval.local/api/projects/approval-project-export/download/final?download=1');
   assert.equal(persisted.some((patch) => patch.phase === 'error'), false);
 });
 

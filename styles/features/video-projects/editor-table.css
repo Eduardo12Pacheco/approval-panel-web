@@ -34,7 +34,8 @@
 }
 
 .video-project-detail:has([data-video-selector-modal]) .video-editor-table-wrap,
-.video-project-detail:has([data-video-selector-modal]) .video-editor-actions {
+.video-project-detail:has([data-video-selector-modal]) .video-editor-actions,
+.video-project-detail:has([data-video-selector-modal]) .video-editor-export-panel {
   opacity: 0;
   pointer-events: none;
 }

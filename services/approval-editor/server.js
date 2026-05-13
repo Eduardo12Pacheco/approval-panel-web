@@ -250,13 +250,18 @@ function resolveSafeProjectFile(projectDir, relativePath) {
   return filePath;
 }
 
-function sendFile(request, response, filePath) {
+function safeDownloadName(fileName) {
+  return path.basename(String(fileName || "download")).replace(/["\\\r\n]/g, "_");
+}
+
+function sendFile(request, response, filePath, { downloadName = "" } = {}) {
   const stat = fs.statSync(filePath);
   const headers = {
     "access-control-allow-origin": "*",
     "accept-ranges": "bytes",
     "content-type": audioContentType(filePath),
   };
+  if (downloadName) headers["content-disposition"] = `attachment; filename="${safeDownloadName(downloadName)}"`;
   const range = request.headers.range;
   if (range) {
     const match = /^bytes=(\d*)-(\d*)$/.exec(range);
@@ -439,7 +444,14 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           return ok(response, { projectId, snapshotHash: latest.snapshotHash, lastRenderedSnapshotHash: latest.snapshotHash, render: latest.snapshot.render }, 202);
         }
         if (request.method === "GET" && parts[3] === "status") return ok(response, { projectId, ...toResponseSnapshot(latest), render: latest.snapshot.render || {} });
-        if (request.method === "GET" && parts[3] === "download" && parts[4] === "final") return ok(response, { projectId, snapshotHash: latest.snapshotHash, finalUrl: latest.snapshot.render?.outputPath || null });
+        if (request.method === "GET" && parts[3] === "download" && parts[4] === "final") {
+          const finalPath = latest.snapshot.render?.outputPath || "";
+          if (url.searchParams.get("download") === "1") {
+            if (!finalPath || !fs.existsSync(finalPath) || !fs.statSync(finalPath).isFile()) throw Object.assign(new Error("Final render output is not available for download"), { code: "final_output_missing" });
+            return sendFile(request, response, finalPath, { downloadName: "video-final.mp4" });
+          }
+          return ok(response, { projectId, snapshotHash: latest.snapshotHash, finalUrl: finalPath || null });
+        }
       }
 
       if (request.method === "GET" && parts[0] === "api" && parts[1] === "assets" && parts[2]) {

@@ -34,7 +34,7 @@ export function createApprovalPipelineClient({ fetchImpl = fetch, resolveBaseUrl
     renderFinal: (projectId, payload = {}) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/render-final`, { method: 'POST', body: payload }),
     status: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/status`),
     finalDownload: (projectId) => jsonFetch(`/api/projects/${encodeURIComponent(projectId)}/download/final`),
-    finalDownloadUrl: (projectId) => `${ensureBaseUrl()}/api/projects/${encodeURIComponent(projectId)}/download/final`,
+    finalDownloadUrl: (projectId) => `${ensureBaseUrl()}/api/projects/${encodeURIComponent(projectId)}/download/final?download=1`,
     assetUrl: (assetId) => `${ensureBaseUrl()}/api/assets/${encodeURIComponent(assetId)}`,
   };
 }
