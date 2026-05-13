@@ -15,6 +15,9 @@ export function hydrateSelectedProjectState(project) {
   if (contractRows.length) project._editorRows = contractRows;
   else if (timedRows.length) project._editorRows = timedRows;
   project._previewAssets = editorState.preview_assets || null;
+  if (Array.isArray(editorState.video_assets)) {
+    project.video_assets = editorState.video_assets;
+  }
   project._globalAudio = normalizeGlobalAudioState(editorState.global_audio);
   setVideoProjectStep(project, 'images');
 }

@@ -112,7 +112,7 @@ export function buildCompositionDOM(container) {
   const outroVideo = document.createElement('video');
   outroVideo.className = 'composition-layer composition-layer--outro-video';
   outroVideo.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;visibility:hidden;pointer-events:none;';
-  outroVideo.muted = true;
+  outroVideo.muted = false;
   outroVideo.playsInline = true;
   outroVideo.preload = 'auto';
   outro.appendChild(outroVideo);

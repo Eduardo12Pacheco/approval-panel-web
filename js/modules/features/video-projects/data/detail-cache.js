@@ -29,6 +29,26 @@ export function createVideoProjectDetailCache({ api, store, normalizeRows, resol
     detailCache.set(key, { detail, cachedAt: Date.now() });
   }
 
+  function mergeCachedProjectEditorState(projectId, editorState = {}) {
+    const key = (projectId || '').toString();
+    if (!key || !editorState || typeof editorState !== 'object') return;
+    const cached = detailCache.get(key);
+    if (!cached?.detail) return;
+
+    const mergedEditorState = {
+      ...(cached.detail.editor_state || {}),
+      ...editorState,
+    };
+    const detail = {
+      ...cached.detail,
+      editor_state: mergedEditorState,
+    };
+    if (Array.isArray(mergedEditorState.video_assets)) {
+      detail.video_assets = mergedEditorState.video_assets;
+    }
+    detailCache.set(key, { detail, cachedAt: Date.now() });
+  }
+
   function collectCandidateUrls(project = {}) {
     const candidates = Array.isArray(project.image_candidates) ? project.image_candidates : [];
     const urls = [];
@@ -103,6 +123,7 @@ export function createVideoProjectDetailCache({ api, store, normalizeRows, resol
   return {
     getCachedProjectDetail,
     setCachedProjectDetail,
+    mergeCachedProjectEditorState,
     collectCandidateUrls,
     preloadProjectCandidateImages,
     fetchAndCacheProjectDetail,

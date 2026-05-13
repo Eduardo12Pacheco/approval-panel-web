@@ -47,9 +47,9 @@ function hasInsufficientMetadata(video) {
   return typeof video?.readyState === 'number' && video.readyState < VIDEO_METADATA_READY_STATE;
 }
 
-function applyManagedVideoSync({ video, currentTimeSeconds = 0, playing = false } = {}) {
+function applyManagedVideoSync({ video, currentTimeSeconds = 0, playing = false, muted = true } = {}) {
   if (!video) return false;
-  try { video.muted = true; } catch {}
+  try { video.muted = Boolean(muted); } catch {}
   try { video.playsInline = true; } catch {}
   seekVideoElement(video, currentTimeSeconds);
   if (playing) {
@@ -62,17 +62,18 @@ function applyManagedVideoSync({ video, currentTimeSeconds = 0, playing = false 
   return true;
 }
 
-function deferManagedVideoSyncUntilReady({ video, currentTimeSeconds = 0, playing = false } = {}) {
+function deferManagedVideoSyncUntilReady({ video, currentTimeSeconds = 0, playing = false, muted = true } = {}) {
   if (!video?.addEventListener) return false;
 
   const pending = video[MANAGED_VIDEO_PENDING_SYNC_KEY];
-  if (pending) {
-    pending.currentTimeSeconds = currentTimeSeconds;
-    pending.playing = playing;
-    return true;
-  }
+    if (pending) {
+      pending.currentTimeSeconds = currentTimeSeconds;
+      pending.playing = playing;
+      pending.muted = muted;
+      return true;
+    }
 
-  const next = { currentTimeSeconds, playing, ready: null };
+  const next = { currentTimeSeconds, playing, muted, ready: null };
   const cleanup = () => {
     try { video.removeEventListener?.('loadedmetadata', next.ready); } catch {}
     try { video.removeEventListener?.('canplay', next.ready); } catch {}
@@ -83,7 +84,7 @@ function deferManagedVideoSyncUntilReady({ video, currentTimeSeconds = 0, playin
   next.ready = () => {
     if (hasInsufficientMetadata(video)) return;
     cleanup();
-    applyManagedVideoSync({ video, currentTimeSeconds: next.currentTimeSeconds, playing: next.playing });
+    applyManagedVideoSync({ video, currentTimeSeconds: next.currentTimeSeconds, playing: next.playing, muted: next.muted });
   };
 
   video[MANAGED_VIDEO_PENDING_SYNC_KEY] = next;
@@ -92,12 +93,12 @@ function deferManagedVideoSyncUntilReady({ video, currentTimeSeconds = 0, playin
   return true;
 }
 
-export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing = false } = {}) {
+export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing = false, muted = true } = {}) {
   if (!video) return false;
-  try { video.muted = true; } catch {}
+  try { video.muted = Boolean(muted); } catch {}
   try { video.playsInline = true; } catch {}
   if (hasInsufficientMetadata(video)) {
-    return deferManagedVideoSyncUntilReady({ video, currentTimeSeconds, playing });
+    return deferManagedVideoSyncUntilReady({ video, currentTimeSeconds, playing, muted });
   }
-  return applyManagedVideoSync({ video, currentTimeSeconds, playing });
+  return applyManagedVideoSync({ video, currentTimeSeconds, playing, muted });
 }

@@ -6,6 +6,7 @@ import { buildEditorShell } from '../render/editor-shell-view.js';
 import { resolvePreviewTimelineCurrentRow } from '../render/preview-lifecycle.js';
 import { resolveBrandChannelAssets } from '../composition/overlay-assets.js';
 import { resolveVideoProjectCompositionContractForCheck } from '../composition/composition-view-model.js';
+import { resolveActiveSegment } from '../composition/renderer/frame-math.js';
 
 test('preview timeline marker positions use effective composition duration including outro', () => {
   const rows = [
@@ -94,6 +95,17 @@ test('preview contract extends final visual row through official audio duration 
 
   assert.equal(compositionRows[0].endTime, 1.5);
   assert.equal(compositionRows[1].endTime, 9.5);
+});
+
+test('preview active segment starts outro at official narration audio boundary', () => {
+  const rows = [
+    { id: 'row-1', startTime: 0, endTime: 1.5 },
+    { id: 'row-2', startTime: 1.5, endTime: 4.25 },
+  ];
+
+  assert.equal(resolveActiveSegment(9.49, rows, 2, { compositionDurationSeconds: 9.5 }).type, 'segment');
+  assert.equal(resolveActiveSegment(9.5, rows, 2, { compositionDurationSeconds: 9.5 }).type, 'outro');
+  assert.equal(resolveActiveSegment(9.5, rows, 2, { compositionDurationSeconds: 9.5 }).localTime, 0);
 });
 
 test('brand outro duration metadata matches full final asset durations', () => {

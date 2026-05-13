@@ -111,6 +111,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     resolveProjectKey: resolveVideoProjectKey,
     renderSelectedVideoProject,
     updateRow,
+    mergeCachedProjectEditorState: detailCache.mergeCachedProjectEditorState,
   });
 
   const rowVideos = createRowVideoCommands({

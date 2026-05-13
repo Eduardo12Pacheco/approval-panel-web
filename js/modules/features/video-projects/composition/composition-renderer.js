@@ -344,7 +344,7 @@ export class CompositionRenderer {
         if (layers.outroVideo.getAttribute('src') !== this._outroUrl) {
           layers.outroVideo.src = this._outroUrl;
         }
-        syncManagedVideoElement({ video: layers.outroVideo, currentTimeSeconds: resolved.localTime, playing: this.#isPlaying });
+        syncManagedVideoElement({ video: layers.outroVideo, currentTimeSeconds: resolved.localTime, playing: this.#isPlaying, muted: false });
       } else {
         layers.outroVideo.style.visibility = 'hidden';
         layers.outroText.style.visibility = 'visible';

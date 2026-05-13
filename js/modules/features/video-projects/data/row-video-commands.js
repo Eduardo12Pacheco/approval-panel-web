@@ -42,7 +42,7 @@ export function readVideoDuration(file) {
   });
 }
 
-export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow }) {
+export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, mergeCachedProjectEditorState = () => {} }) {
   async function uploadVideoToLibrary(rowId, file) {
     const project = getProject();
     if (!project || !rowId || !file) return null;
@@ -66,6 +66,8 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
         id: upload?.assetId || upload?.public_url || upload?.storage_public_url || file.name,
         title: file.name || 'Video',
         src: upload?.public_url || upload?.storage_public_url || '',
+        public_url: upload?.public_url || upload?.storage_public_url || '',
+        storage_public_url: upload?.storage_public_url || upload?.public_url || '',
         durationSeconds,
         duration_seconds: durationSeconds,
         storage_bucket: upload?.bucket || upload?.storage_bucket,
@@ -81,6 +83,7 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
         updated_at: new Date().toISOString(),
       };
       await api.saveVideoProjectEditorState?.({ draftId, editorState: project.editor_state });
+      mergeCachedProjectEditorState(draftId, project.editor_state);
       ui.toast('Video subido a la biblioteca');
       return video;
     } catch (err) {

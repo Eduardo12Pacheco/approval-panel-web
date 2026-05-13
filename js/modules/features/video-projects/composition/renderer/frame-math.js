@@ -143,10 +143,13 @@ export function resolveActiveImageDimensions({ activeUrl, segment, cacheImage, i
   return { imageWidth: undefined, imageHeight: undefined };
 }
 
-export function resolveActiveSegment(time, rows, outroDuration = OUTRO_DURATION_SECONDS) {
+export function resolveActiveSegment(time, rows, outroDuration = OUTRO_DURATION_SECONDS, { compositionDurationSeconds } = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return { type: 'empty' };
   }
+
+  const latestEnd = rows.reduce((max, seg) => Math.max(max, Number(seg.endTime) || 0), 0);
+  const officialCompositionEnd = finitePositive(compositionDurationSeconds, latestEnd);
 
   for (let i = 0; i < rows.length; i++) {
     const segment = rows[i];
@@ -161,9 +164,17 @@ export function resolveActiveSegment(time, rows, outroDuration = OUTRO_DURATION_
     }
   }
 
-  const latestEnd = rows.reduce((max, seg) => Math.max(max, Number(seg.endTime) || 0), 0);
-  const outroStart = latestEnd;
-  const outroEnd = latestEnd + outroDuration;
+  if (time < officialCompositionEnd && latestEnd < officialCompositionEnd) {
+    const lastSegment = rows[rows.length - 1];
+    const start = Number(lastSegment?.startTime) || 0;
+    const duration = Math.max(0, officialCompositionEnd - start);
+    const localTime = Math.max(0, time - start);
+    const localProgress = duration > 0 ? Math.min(1, localTime / duration) : 1;
+    return { type: 'segment', segment: lastSegment, localProgress, localTime };
+  }
+
+  const outroStart = officialCompositionEnd;
+  const outroEnd = outroStart + outroDuration;
 
   if (time >= outroStart && time < outroEnd) {
     const localTime = time - outroStart;
