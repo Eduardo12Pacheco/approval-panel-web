@@ -97,6 +97,69 @@ if (shouldSkipApprovalBackgroundRefresh({
     assert result.returncode == 0, result.stderr
 
 
+def test_remote_pages_context_skips_initial_boot_local_approval_refreshes_only_when_silent():
+    script = r"""
+import { shouldSkipApprovalInitialBootRefresh } from './js/modules/core/state/app-store.js';
+
+const remotePages = { hostname: 'approval-panel-web.pages.dev' };
+
+if (!shouldSkipApprovalInitialBootRefresh({
+  baseUrl: 'http://localhost:5678',
+  locationLike: remotePages,
+  refreshOptions: { silent: true, source: 'boot' },
+})) {
+  throw new Error('remote Pages silent boot should skip localhost n8n refreshes');
+}
+
+if (shouldSkipApprovalInitialBootRefresh({
+  baseUrl: 'http://localhost:5678',
+  locationLike: remotePages,
+  refreshOptions: {},
+})) {
+  throw new Error('manual refreshAll calls must keep localhost n8n refreshes enabled');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_initial_boot_refresh_marks_refresh_all_as_silent_boot_context():
+    script = r"""
+import { createAppShellLifecycle } from './js/modules/app-shell/lifecycle.js';
+
+const refreshCalls = [];
+const el = {
+  authGate: { classList: { add() {}, remove() {} } },
+  appShell: { classList: { add() {}, remove() {} } },
+  runQueueBtn: { textContent: '' },
+};
+
+const lifecycle = createAppShellLifecycle({
+  bindEvents() {},
+  customDropdowns: { mountAll() {} },
+  hydrateSettingsForm() {},
+  el,
+  readSessionStatus() { return 'ok'; },
+  storage: {},
+  cookieJar: {},
+  sessionKey: 'approval-panel-session-v1',
+  setView() {},
+  refreshAll(options) { refreshCalls.push(options); },
+  renderSearchRefreshState() {},
+  renderSelectedScriptEditor() {},
+  renderSelectedVideoProject() {},
+});
+
+lifecycle.bootCompatibilityShell();
+
+if (JSON.stringify(refreshCalls) !== JSON.stringify([{ silent: true, source: 'boot' }])) {
+  throw new Error(`expected initial boot refresh to be marked silent boot, got ${JSON.stringify(refreshCalls)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_lifecycle_hydrates_and_restores_session_when_event_binding_throws():
     script = r"""
 import { createAppShellLifecycle } from './js/modules/app-shell/lifecycle.js';

@@ -1,7 +1,11 @@
 import { renderToast } from '../core/ui/toast.js';
 import { escapeHtmlCore } from '../core/ui/escape-html.js';
 import { updateWordCounterCore } from '../core/ui/word-count.js';
-import { defaultSettingsFactory, shouldSkipApprovalBackgroundRefresh } from '../core/state/app-store.js';
+import {
+  defaultSettingsFactory,
+  shouldSkipApprovalBackgroundRefresh,
+  shouldSkipApprovalInitialBootRefresh,
+} from '../core/state/app-store.js';
 import {
   clearSessionStatus,
   isValidCredentials,
@@ -492,7 +496,16 @@ function hydrateSettingsForm() {
   hydrateSettingsFormValues({ el, settings: state.settings });
 }
 
-async function refreshAll() {
+async function refreshAll(options = {}) {
+  if (shouldSkipApprovalInitialBootRefresh({
+    baseUrl: state.settings?.baseUrl,
+    locationLike: globalThis.location,
+    refreshOptions: options,
+  })) {
+    await refreshVideoProjects({ silent: true });
+    return;
+  }
+
   await Promise.all([refreshPending(), refreshQueue(), refreshScriptDrafts(), refreshVideoProjects({ silent: true })]);
 }
 

@@ -857,7 +857,7 @@ export async function runAppShellLifecycleReplay() {
       "el.authGate.classList.add('hidden');",
       "el.appShell.classList.remove('hidden');",
       "setView('approval');",
-      'refreshAll();',
+      "refreshAll({ silent: true, source: 'boot' });",
       "el.authGate.classList.remove('hidden');",
       "el.appShell.classList.add('hidden');",
     ],
@@ -869,7 +869,8 @@ export async function runAppShellLifecycleReplay() {
     runtimeSource,
     [
       'hydrateSettingsForm: settingsController.hydrateSettingsForm',
-      'function refreshAll()',
+      'function refreshAll(options = {})',
+      'shouldSkipApprovalInitialBootRefresh',
       'refreshPending()',
       'refreshQueue()',
       'refreshScriptDrafts()',

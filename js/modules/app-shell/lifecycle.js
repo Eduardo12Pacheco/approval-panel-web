@@ -40,7 +40,7 @@ export function createAppShellLifecycle({
       el.authGate.classList.add('hidden');
       el.appShell.classList.remove('hidden');
       setView('approval');
-      refreshAll();
+      refreshAll({ silent: true, source: 'boot' });
       return;
     }
     el.authGate.classList.remove('hidden');

@@ -30,6 +30,12 @@ export function shouldSkipApprovalBackgroundRefresh({ baseUrl, locationLike = gl
   return isRemoteBrowserContext(locationLike) && isLocalServiceUrl(baseUrl);
 }
 
+export function shouldSkipApprovalInitialBootRefresh({ baseUrl, locationLike = globalThis?.location, refreshOptions = {} } = {}) {
+  return refreshOptions?.silent === true
+    && refreshOptions?.source === 'boot'
+    && shouldSkipApprovalBackgroundRefresh({ baseUrl, locationLike });
+}
+
 function normalizeRemotionApiUrl(rawValue, { fallback = DEFAULT_REMOTION_API_URL, locationLike = globalThis?.location } = {}) {
   const value = (rawValue || '').toString().trim();
   if (!value) return fallback;
