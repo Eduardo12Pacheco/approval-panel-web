@@ -322,8 +322,6 @@ body.is-motion-scrubbing {
     linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 44%),
     linear-gradient(90deg, #575757, #2c2c2c);
   opacity: 0.95;
-  transform: translate3d(var(--motion-image-from-x, 0), var(--motion-image-from-y, 0), 0) scale(var(--motion-image-from-scale, 1));
-  transform-origin: center;
 }
 
 .video-motion-card__grid-lines {
@@ -345,12 +343,12 @@ body.is-motion-scrubbing {
   border: 2px solid #050505;
   background: rgba(245, 245, 245, 0.9);
   box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.42), 0 8px 18px rgba(0, 0, 0, 0.34);
-  transform: translate3d(-50%, -50%, 0);
+  transform: translate3d(calc(-50% + var(--motion-from-x)), calc(-50% + var(--motion-from-y)), 0) scale(var(--motion-from-scale));
   transform-origin: center;
 }
 
-.video-motion-card:hover .video-motion-card__image,
-.video-motion-card:focus-visible .video-motion-card__image {
+.video-motion-card:hover .video-motion-card__motion-box,
+.video-motion-card:focus-visible .video-motion-card__motion-box {
   animation: video-motion-preview 2.4s var(--motion-easing, linear) infinite;
 }
 
@@ -366,22 +364,22 @@ body.is-motion-scrubbing {
 
 @keyframes video-motion-preview {
   0% {
-    transform: translate3d(var(--motion-image-from-x, 0), var(--motion-image-from-y, 0), 0) scale(var(--motion-image-from-scale, 1));
+    transform: translate3d(calc(-50% + var(--motion-from-x)), calc(-50% + var(--motion-from-y)), 0) scale(var(--motion-from-scale));
     opacity: 0;
   }
 
   10% {
-    transform: translate3d(var(--motion-image-from-x, 0), var(--motion-image-from-y, 0), 0) scale(var(--motion-image-from-scale, 1));
+    transform: translate3d(calc(-50% + var(--motion-from-x)), calc(-50% + var(--motion-from-y)), 0) scale(var(--motion-from-scale));
     opacity: 1;
   }
 
   78% {
-    transform: translate3d(var(--motion-image-to-x, 0), var(--motion-image-to-y, 0), 0) scale(var(--motion-image-to-scale, 1));
+    transform: translate3d(calc(-50% + var(--motion-to-x)), calc(-50% + var(--motion-to-y)), 0) scale(var(--motion-to-scale));
     opacity: 1;
   }
 
   100% {
-    transform: translate3d(var(--motion-image-to-x, 0), var(--motion-image-to-y, 0), 0) scale(var(--motion-image-to-scale, 1));
+    transform: translate3d(calc(-50% + var(--motion-to-x)), calc(-50% + var(--motion-to-y)), 0) scale(var(--motion-to-scale));
     opacity: 0;
   }
 }

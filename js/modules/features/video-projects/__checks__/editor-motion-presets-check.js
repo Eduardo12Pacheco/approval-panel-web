@@ -49,7 +49,7 @@ function runMotionPickerMarkupCheck() {
 
   assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to be selectable');
   assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 110 to render selected state');
-  assert(markup.includes('--motion-image-to-scale:1.028;'), 'Expected Zoom 110 preview image scale to be present');
+  assert(markup.includes('--motion-to-scale:0.909;'), 'Expected Zoom 110 preview frame to shrink as image zoom increases');
   assertEqual(JSON.stringify(MOTION_PRESETS), presetsBefore, 'Expected motion picker rendering to leave preset values untouched');
 }
 
@@ -64,12 +64,12 @@ function runViewportSemanticsCheck() {
     toScale: 1.25,
   });
 
-  assert(style.includes('--motion-image-from-x:0.67px;'), 'Expected thumbnail image X to follow source image fromX');
-  assert(style.includes('--motion-image-from-y:-0.44px;'), 'Expected thumbnail image Y to follow source image fromY');
-  assert(style.includes('--motion-image-to-x:-1.00px;'), 'Expected thumbnail image X to follow source image toX');
-  assert(style.includes('--motion-image-to-y:1.33px;'), 'Expected thumbnail image Y to follow source image toY');
-  assert(style.includes('--motion-image-from-scale:1.000;'), 'Expected 100% image scale to keep the preview image neutral');
-  assert(style.includes('--motion-image-to-scale:1.070;'), 'Expected 125% image scale to zoom the preview image without shrinking the viewport frame');
+  assert(style.includes('--motion-from-x:-0.67px;'), 'Expected thumbnail frame X to invert source image fromX');
+  assert(style.includes('--motion-from-y:0.44px;'), 'Expected thumbnail frame Y to invert source image fromY');
+  assert(style.includes('--motion-to-x:1.00px;'), 'Expected thumbnail frame X to invert source image toX');
+  assert(style.includes('--motion-to-y:-1.33px;'), 'Expected thumbnail frame Y to invert source image toY');
+  assert(style.includes('--motion-from-scale:1.000;'), 'Expected 100% image scale to keep the viewport frame scale neutral');
+  assert(style.includes('--motion-to-scale:0.800;'), 'Expected 125% image scale to render the viewport frame at inverse scale');
 }
 
 function runManualMotionControlsCheck() {
