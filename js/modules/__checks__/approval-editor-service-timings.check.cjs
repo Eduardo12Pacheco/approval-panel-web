@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createApprovalEditorService, normalizeSegments } = require('../../../services/approval-editor/server.js');
-const { alignSegmentsToTranscript } = require('../../../services/approval-editor/lib/real-alignment.js');
+const { alignSegmentsToTranscript, resolvePythonBin } = require('../../../services/approval-editor/lib/real-alignment.js');
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -131,6 +131,35 @@ function testEstimatedFallbackRequiresExplicitOptIn() {
   assert.deepEqual(segments.map((segment) => segment.timingSource), ['estimated-text-weight', 'estimated-text-weight']);
 }
 
+function testPythonBinEnvPrecedence() {
+  const pythonBin = resolvePythonBin(
+    {
+      REMOTION_EDITOR_PYTHON_BIN: 'C:\\Tools\\Python311\\python.exe',
+      APPROVAL_EDITOR_PYTHON_BIN: 'C:\\Other\\python.exe',
+      LOCALAPPDATA: 'C:\\Users\\demo\\AppData\\Local',
+    },
+    { platform: 'win32', existsSync: () => true },
+  );
+
+  assert.equal(pythonBin, 'C:\\Tools\\Python311\\python.exe');
+}
+
+function testWindowsPythonBinUsesKnownLocalPythonBeforePyLauncher() {
+  const localAppData = 'C:\\Users\\demo\\AppData\\Local';
+  const expected = path.win32.join(localAppData, 'Programs', 'Python', 'Python311', 'python.exe');
+
+  const pythonBin = resolvePythonBin(
+    { LOCALAPPDATA: localAppData },
+    {
+      platform: 'win32',
+      existsSync: (candidate) => candidate === expected,
+    },
+  );
+
+  assert.equal(pythonBin, expected);
+  assert.notEqual(pythonBin, 'py');
+}
+
 async function testServiceUsesInjectedRealAlignmentTimings() {
   const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-service-timings-'));
   const server = createApprovalEditorService({
@@ -252,6 +281,8 @@ async function main() {
   testPreservesAlignedSegmentTimes();
   testFallbackEstimateCannotBecomeReadyByDefault();
   testEstimatedFallbackRequiresExplicitOptIn();
+  testPythonBinEnvPrecedence();
+  testWindowsPythonBinUsesKnownLocalPythonBeforePyLauncher();
   await testServiceUsesInjectedRealAlignmentTimings();
   await testServiceDoesNotMarkFailedAlignmentReadyByDefault();
   await testServiceUsesPreviewAudioDerivativesButKeepsRenderOriginals();

@@ -113,8 +113,25 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function resolvePythonBin(env = process.env) {
-  return env.REMOTION_EDITOR_PYTHON_BIN || env.APPROVAL_EDITOR_PYTHON_BIN || (process.platform === 'win32' ? 'py' : 'python3');
+function resolveWindowsPythonCandidates(env = process.env) {
+  const roots = [env.LOCALAPPDATA, env.USERPROFILE ? path.win32.join(env.USERPROFILE, 'AppData', 'Local') : ''].filter(Boolean);
+  const versions = ['Python311', 'Python312', 'Python310'];
+  return roots.flatMap((root) => versions.map((version) => path.win32.join(root, 'Programs', 'Python', version, 'python.exe')));
+}
+
+function resolvePythonBin(env = process.env, { platform = process.platform, existsSync = fs.existsSync } = {}) {
+  if (env.REMOTION_EDITOR_PYTHON_BIN) return env.REMOTION_EDITOR_PYTHON_BIN;
+  if (env.APPROVAL_EDITOR_PYTHON_BIN) return env.APPROVAL_EDITOR_PYTHON_BIN;
+  if (platform === 'win32') {
+    const candidate = resolveWindowsPythonCandidates(env).find((pythonPath) => existsSync(pythonPath));
+    if (candidate) return candidate;
+    return 'py';
+  }
+  return 'python3';
+}
+
+function pythonBinGuidance(pythonBin) {
+  return `Python command "${pythonBin}" is unavailable for Whisper alignment. Set REMOTION_EDITOR_PYTHON_BIN or APPROVAL_EDITOR_PYTHON_BIN to a full Python 3.11 python.exe path for the Approval Editor service/NSSM account.`;
 }
 
 function buildWhisperEnv(env = process.env, overrides = {}) {
@@ -144,7 +161,7 @@ function runTranscribeAudio({ whisperPath, transcriptPath, env = process.env, re
       { cwd: remotionEditorRoot, env: attempt.env, encoding: 'utf8', windowsHide: true, timeout: Number.isFinite(timeout) ? timeout : DEFAULT_TRANSCRIBE_TIMEOUT_MS },
     );
     if (result.error) {
-      failures.push(`${attempt.label}: ${result.error.message}`);
+      failures.push(`${attempt.label}: ${result.error.message}. ${pythonBinGuidance(pythonBin)}`);
       continue;
     }
     if (result.status === 0) return { transcript: readJson(transcriptPath), backendAttempt: attempt.label, stdout: result.stdout || '' };
@@ -219,5 +236,6 @@ module.exports = {
   prepareRealVoiceAlignment,
   resolveFfmpegPath,
   runTranscribeAudio,
+  resolvePythonBin,
   buildWhisperEnv,
 };

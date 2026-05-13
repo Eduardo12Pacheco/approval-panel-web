@@ -59,3 +59,12 @@ def test_active_docs_show_new_service_path_and_manual_snapshot_migration():
     assert "node .\\services\\approval-editor\\server.js" in combined
     assert "01-Control-Panel/approval-editor-service/projects/" in combined
     assert "01-Control-Panel/services/approval-editor/projects/" in combined
+
+
+def test_approval_editor_docs_require_explicit_python_bin_for_services():
+    service_readme = read("01-Control-Panel/services/approval-editor/README.md")
+
+    assert '$env:REMOTION_EDITOR_PYTHON_BIN = "py"' not in service_readme
+    assert '$env:REMOTION_EDITOR_PYTHON_BIN = "C:\\Users\\pelot\\AppData\\Local\\Programs\\Python\\Python311\\python.exe"' in service_readme
+    assert "NSSM" in service_readme
+    assert "LocalSystem" in service_readme

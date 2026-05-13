@@ -13,11 +13,13 @@ $env:APPROVAL_EDITOR_SERVICE_PORT = "3042"
 $env:STT_WHISPER_MODEL = "C:\Users\pelot\Desktop\n8n\local\models\faster-whisper-large-v3"
 $env:STT_WHISPER_DEVICE = "cuda"
 $env:STT_WHISPER_COMPUTE_TYPE = "float16"
-$env:REMOTION_EDITOR_PYTHON_BIN = "py"
+$env:REMOTION_EDITOR_PYTHON_BIN = "C:\Users\pelot\AppData\Local\Programs\Python\Python311\python.exe"
 # Optional only if ffmpeg-static is not available from 02-Video-Engine/node_modules:
 # $env:FFMPEG_PATH = "C:\path\to\ffmpeg.exe"
 node .\services\approval-editor\server.js
 ```
+
+For NSSM/service usage, do not rely on the Windows `py` launcher. Services can run as `LocalSystem` or another non-interactive account that cannot see the current user's Python launcher registry. Configure `REMOTION_EDITOR_PYTHON_BIN` or `APPROVAL_EDITOR_PYTHON_BIN` with the full Python 3.11 `python.exe` path, then restart the Approval Editor service so the environment is reloaded.
 
 If CUDA transcription fails, the service retries `cpu/int8` once. If real alignment still fails, `/api/projects/create-from-approval` returns `alignmentStatus.status = "failed"` and the browser client refuses to enter the editor with fake ready timings.
 
