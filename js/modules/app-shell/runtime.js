@@ -50,6 +50,18 @@ const lastNewsSearchKey = 'approval-panel-last-news-search-at-v1';
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
 const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 15000;
+
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    const requestFrame = globalThis.requestAnimationFrame;
+    if (typeof requestFrame === 'function') {
+      requestFrame(resolve);
+      return;
+    }
+    resolve();
+  });
+}
+
 function defaultSettings() {
   return defaultSettingsFactory();
 }
@@ -793,6 +805,7 @@ async function openScriptEditor(clusterId) {
 
 async function openVideoProject(projectId) {
   await videoProjectsFeature.openVideoProject(projectId);
+  await waitForNextFrame();
   el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
 

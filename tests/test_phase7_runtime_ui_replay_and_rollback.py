@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_MATRIX_PATH = ROOT / "docs" / "parity" / "contract-matrix.md"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
+APP_SHELL_RUNTIME_PATH = ROOT / "js" / "modules" / "app-shell" / "runtime.js"
 SUBTITLES_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
 SUBTITLES_RUNTIME_CONTROLLERS_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "controllers.js"
 AUDIO_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "audio" / "runtime" / "services.js"
@@ -147,6 +148,26 @@ def test_app_shell_declares_single_timer_auto_refresh_for_queue_and_drafts():
     assert "createSingleFlightRunner" in app_shell_source
     assert "refreshQueue({ silent: true })" in app_shell_source
     assert "refreshScriptDrafts({ silent: true })" in app_shell_source
+
+
+def test_open_video_project_defers_scroll_until_after_render_frame():
+    runtime_source = APP_SHELL_RUNTIME_PATH.read_text(encoding="utf-8")
+
+    assert "function waitForNextFrame()" in runtime_source
+    assert "const requestFrame = globalThis.requestAnimationFrame;" in runtime_source
+    assert "if (typeof requestFrame === 'function')" in runtime_source
+    assert "resolve();" in runtime_source
+    assert "async function openVideoProject(projectId)" in runtime_source
+
+    open_project_source = runtime_source[
+        runtime_source.index("async function openVideoProject(projectId)"):
+        runtime_source.index("function closeVideoProject()")
+    ]
+    assert "await videoProjectsFeature.openVideoProject(projectId);" in open_project_source
+    assert "await waitForNextFrame();" in open_project_source
+    assert "el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });" in open_project_source
+    assert open_project_source.index("await videoProjectsFeature.openVideoProject(projectId);") < open_project_source.index("await waitForNextFrame();")
+    assert open_project_source.index("await waitForNextFrame();") < open_project_source.index("el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });")
 
 
 def test_approval_queue_monitor_can_dismiss_error_jobs_visually_without_backend_mutation():
