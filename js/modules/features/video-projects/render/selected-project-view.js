@@ -2,7 +2,7 @@ import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { buildSelectedVideoProjectViewModel } from './view-model.js';
 import { buildProjectPhaseText, buildSetupPhaseContent, hydrateSetupPhaseInteractions } from './setup-view.js';
 import { buildEditorPhaseContent } from './editor-shell-view.js';
-import { destroyCompositionRenderer } from './preview-lifecycle.js';
+import { captureCompositionPreviewSeekTime, destroyCompositionRenderer } from './preview-lifecycle.js';
 import { hydrateEditorPhaseInteractions } from './editor-hydration.js';
 
 export function renderSelectedVideoProjectView({
@@ -57,6 +57,7 @@ export function renderSelectedVideoProjectView({
     ? buildEditorPhaseContent({ project, viewModel })
     : buildSetupPhaseContent({ project, viewModel });
 
+  captureCompositionPreviewSeekTime(project);
   el.videoProjectDetail.innerHTML = `
     <header class="video-project-detail__header">
       <div>

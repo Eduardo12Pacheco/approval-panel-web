@@ -3,6 +3,7 @@ import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../d
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { resolveRowImageUrl } from '../composition/composition-view-model.js';
 import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/image-candidates.js';
+import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
@@ -225,7 +226,7 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
 
 export function buildEditorDetailRailViewModel({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const voice = globalAudio?.voice || { volume: 1, muted: false };
-  const music = globalAudio?.music || { volume: 0.16, muted: false };
+  const music = globalAudio?.music || { volume: DEFAULT_MUSIC_VOLUME, muted: false };
   const detailImageUrl = row ? resolveRowImageUrl(row, rowIndex, project) : '';
   const snapshot = project?.editor_state?.approval_contract_snapshot || {};
   const brandChannel = normalizeBrandChannel(
@@ -244,8 +245,8 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     missingAssetLabel: row ? (row.selectedAssetId || 'Sin imagen asignada').toString().slice(0, 40) : '',
     voiceVolumePercent: Math.round((voice.volume ?? 1) * 100),
     voiceVolumeValue: voice.volume ?? 1,
-    musicVolumePercent: Math.round((music.volume ?? 0.16) * 100),
-    musicVolumeValue: music.volume ?? 0.16,
+    musicVolumePercent: Math.round((music.volume ?? DEFAULT_MUSIC_VOLUME) * 100),
+    musicVolumeValue: music.volume ?? DEFAULT_MUSIC_VOLUME,
     activeEffectTab: resolveEditorEffectTab(project._editorEffectTab),
     activeMotionEditorTab: resolveMotionEditorTab(project._motionEditorTab),
     assets: buildEditorAssetsViewModel({ project, row, rowIndex }),

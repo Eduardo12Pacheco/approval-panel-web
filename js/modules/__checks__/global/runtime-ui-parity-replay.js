@@ -21,6 +21,7 @@ import {
   resolveCompositionDustUrl,
   resolveCompositionLogoUrl,
 } from '../../features/video-projects/composition/composition-view-model.js';
+import { captureCompositionPreviewSeekTime } from '../../features/video-projects/render/preview-lifecycle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MODULES_ROOT = path.resolve(__dirname, '..', '..');
@@ -229,6 +230,33 @@ function replayCompositionAssetsScenario() {
     },
   });
   if (missingLogoUrl !== './assets/logo-alpha.webm') return { ok: false, reason: 'local logo fallback drift' };
+
+  return { ok: true };
+}
+
+async function replayPreviewPlayheadPreservationScenario() {
+  const project = { _previewSeekTime: 0 };
+  const activeRenderer = { currentTime: 12.4 };
+  const captured = captureCompositionPreviewSeekTime(project, activeRenderer);
+  if (!captured) return { ok: false, reason: 'active composition renderer time was not captured before rerender' };
+  if (project._previewSeekTime !== 12.4) return { ok: false, reason: 'captured playhead time drift' };
+
+  const invalidProject = { _previewSeekTime: 8.25 };
+  const invalidCaptured = captureCompositionPreviewSeekTime(invalidProject, { currentTime: Number.NaN });
+  if (invalidCaptured) return { ok: false, reason: 'invalid renderer time should not be captured' };
+  if (invalidProject._previewSeekTime !== 8.25) return { ok: false, reason: 'invalid renderer time overwrote existing playhead' };
+
+  const selectedProjectViewSource = await readModuleSource('features/video-projects/render/selected-project-view.js');
+  const renderSource = extractFunctionSource(selectedProjectViewSource, 'renderSelectedVideoProjectView');
+  const captureBeforeReplace = assertTokenOrder(
+    renderSource,
+    [
+      'captureCompositionPreviewSeekTime(project);',
+      'el.videoProjectDetail.innerHTML = `',
+    ],
+    'preview playhead capture must run before detail rerender replaces the composition container',
+  );
+  if (!captureBeforeReplace.ok) return captureBeforeReplace;
 
   return { ok: true };
 }
@@ -968,6 +996,7 @@ export async function runProtectedFlowsReplay() {
     { name: 'auth/session', run: async () => replayAuthSessionScenario() },
     { name: 'settings', run: async () => replaySettingsScenario() },
     { name: 'composition/assets', run: async () => replayCompositionAssetsScenario() },
+    { name: 'composition/playhead-preservation', run: replayPreviewPlayheadPreservationScenario },
     { name: 'approval', run: replayApprovalScenario },
     { name: 'scripts', run: replayScriptsScenario },
     { name: 'scripts/facade-parity', run: replayScriptsFacadeParityScenario },

@@ -72,6 +72,7 @@
   min-height: 0;
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
   background: #0c0c0c;
   color: var(--text);
   text-align: left;
@@ -81,8 +82,7 @@
 }
 
 .video-editor-assets-card:hover,
-.video-editor-assets-card:focus-visible,
-.video-editor-assets-card.is-selected {
+.video-editor-assets-card:focus-visible {
   border-color: rgba(0, 232, 143, 0.66);
   background: rgba(0, 232, 143, 0.08);
   outline: none;
@@ -90,6 +90,12 @@
 
 .video-editor-assets-card:hover {
   transform: translateY(-1px);
+}
+
+.video-editor-assets-card.is-selected {
+  border-color: rgba(0, 232, 143, 0.9);
+  background: rgba(0, 232, 143, 0.1);
+  box-shadow: 0 0 0 2px rgba(0, 232, 143, 0.28);
 }
 
 .video-editor-assets-card__media {
@@ -101,6 +107,7 @@
   padding: 6px;
   overflow: hidden;
   border: 1px solid #242424;
+  border-radius: 10px;
   background: #050505;
   color: var(--muted);
   font-size: 0.7rem;

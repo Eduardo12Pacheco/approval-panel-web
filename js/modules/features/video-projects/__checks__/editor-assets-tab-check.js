@@ -84,6 +84,7 @@ function runAssetsMarkupCheck() {
   assert(markup.includes('data-action="assign-row-asset"'), 'Expected asset cards to assign an existing row asset');
   assert(markup.includes('data-action="upload-assets-image"'), 'Expected Assets tab upload input');
   assert(markup.includes('Imágenes'), 'Expected Assets UI label to be localized as Imágenes');
+  assert(markup.includes('video-editor-assets-card is-selected'), 'Expected current row image card to get selected styling class');
   assert(markup.includes('aria-pressed="true"'), 'Expected current row image to be visibly selected');
   assert(markup.includes('https://cdn.example.com/custom-2.png'), 'Expected custom upload asset to render');
 }
@@ -92,10 +93,13 @@ function runAssetsThumbnailStyleCheck() {
   const styles = readVideoProjectsStyles();
   const mediaRule = getCssRule(styles, '.video-editor-assets-card__media');
   const imageRule = getCssRule(styles, '.video-editor-assets-card__media img');
+  const selectedRule = getCssRule(styles, '.video-editor-assets-card.is-selected');
 
   assertCssDeclaration(mediaRule, 'place-items', 'center', 'Expected asset media wrapper to center thumbnails');
   assertCssDeclaration(imageRule, 'object-fit', 'contain', 'Expected asset thumbnails to preserve full image inside card');
   assertCssDeclaration(imageRule, 'object-position', 'center center', 'Expected asset thumbnails to be visually centered');
+  assertCssDeclaration(selectedRule, 'border-color', 'rgba(0, 232, 143, 0.9)', 'Expected selected asset card to use a clear green border');
+  assertCssDeclaration(selectedRule, 'box-shadow', '0 0 0 2px rgba(0, 232, 143, 0.28)', 'Expected selected asset card to use a clear green selected halo');
 }
 
 function runChangeImageNavigationCheck() {

@@ -35,8 +35,8 @@ const result = await runProtectedFlowsReplay();
 if (!result.ok) {
   throw new Error(`replay failed: ${JSON.stringify(result.failures)}`);
 }
-if (result.passed.length !== 11) {
-  throw new Error(`expected 11 protected scenarios, got ${result.passed.length}`);
+if (result.passed.length !== 12) {
+  throw new Error(`expected 12 protected scenarios, got ${result.passed.length}`);
 }
 if (!result.passed.includes('scripts/facade-parity')) {
   throw new Error(`missing scripts/facade-parity scenario: ${JSON.stringify(result.passed)}`);

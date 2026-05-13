@@ -1,10 +1,12 @@
 import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js';
 import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
+import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { formatSeconds } from '../domain/formatters.js';
 
 let compositionRenderer = null;
 let compositionRendererContainer = null;
 let compositionRendererAssetSignature = '';
+let compositionRendererProject = null;
 
 export function destroyCompositionRenderer() {
   if (compositionRenderer) {
@@ -13,6 +15,7 @@ export function destroyCompositionRenderer() {
   }
   compositionRendererContainer = null;
   compositionRendererAssetSignature = '';
+  compositionRendererProject = null;
 }
 
 export function ensureCompositionRenderer(container) {
@@ -26,6 +29,15 @@ export function ensureCompositionRenderer(container) {
 
 export function getCompositionRendererForPreview() {
   return compositionRenderer;
+}
+
+export function captureCompositionPreviewSeekTime(project, renderer = compositionRenderer) {
+  if (!project || !renderer) return false;
+  if (renderer === compositionRenderer && compositionRendererProject && compositionRendererProject !== project) return false;
+  const seekTime = Number(renderer.currentTime);
+  if (!Number.isFinite(seekTime) || seekTime < 0) return false;
+  project._previewSeekTime = seekTime;
+  return true;
 }
 
 export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, playing = false } = {}) {
@@ -59,12 +71,13 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
     return null;
   }
   const renderer = ensureCompositionRenderer(compositionContainer);
-  const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } };
+  compositionRendererProject = project;
+  const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } };
   const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
   const audioSettings = {
     voiceVolume: globalAudioData.voice?.volume ?? 1,
     voiceMuted: globalAudioData.voice?.muted ?? false,
-    musicVolume: globalAudioData.music?.volume ?? 0.16,
+    musicVolume: globalAudioData.music?.volume ?? DEFAULT_MUSIC_VOLUME,
     musicMuted: globalAudioData.music?.muted ?? false,
     musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
     musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,

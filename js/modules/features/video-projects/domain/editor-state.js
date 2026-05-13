@@ -1,3 +1,5 @@
+export const DEFAULT_MUSIC_VOLUME = 0.65;
+
 export function sanitizePipelineHealthMetadata(healthPayload) {
   if (!healthPayload || typeof healthPayload !== 'object') return null;
   const sanitized = {};
@@ -53,7 +55,7 @@ export function normalizeGlobalAudioState(globalAudio = {}) {
       muted: Boolean(globalAudio?.voice?.muted),
     },
     music: {
-      volume: Number.isFinite(musicVolume) ? Math.max(0, Math.min(1, musicVolume)) : 0.16,
+      volume: Number.isFinite(musicVolume) ? Math.max(0, Math.min(1, musicVolume)) : DEFAULT_MUSIC_VOLUME,
       muted: Boolean(globalAudio?.music?.muted),
     },
   };

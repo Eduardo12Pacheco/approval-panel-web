@@ -1,5 +1,12 @@
 import { fileURLToPath } from 'node:url';
 import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer } from '../composition/composition-renderer.js';
+import {
+  LOGO_HEIGHT,
+  LOGO_LEFT,
+  LOGO_TOP,
+  LOGO_WIDTH,
+  shouldChromaKeyLogo,
+} from '../composition/renderer/logo-chroma.js';
 
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
@@ -77,6 +84,14 @@ export function runCompositionCoverPanCheck() {
 
   assertEqual(matchingDomDimensions.imageWidth, 901, 'Expected DOM width to be trusted when src matches active image URL');
   assertEqual(matchingDomDimensions.imageHeight, 1601, 'Expected DOM height to be trusted when src matches active image URL');
+
+  assertEqual(shouldChromaKeyLogo('./assets/logo-colombia.webm'), true, 'Expected Colombia preview logo to use chroma-key canvas path');
+  assertEqual(shouldChromaKeyLogo('../02-Video-Engine/assets/overlays/logo-green.mp4?cache=1'), true, 'Expected legacy green-screen logo to keep chroma-key path');
+  assertEqual(shouldChromaKeyLogo('./assets/logo-alpha.webm'), false, 'Expected alpha logo to keep direct video path');
+  assertEqual(LOGO_LEFT, 52, 'Expected chroma fix to preserve logo left placement');
+  assertEqual(LOGO_TOP, 38, 'Expected chroma fix to preserve logo top placement');
+  assertEqual(LOGO_WIDTH, 220, 'Expected chroma fix to preserve logo width');
+  assertEqual(LOGO_HEIGHT, 124, 'Expected chroma fix to preserve logo height');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

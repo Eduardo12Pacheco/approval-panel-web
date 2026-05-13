@@ -1,4 +1,5 @@
 import { AudioManager } from '../audio/audio-manager.js';
+import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import {
   DEFAULT_FPS,
   DUST_VIDEO_OPACITY,
@@ -129,7 +130,7 @@ export class CompositionRenderer {
   updateAudioSettings({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds } = {}) {
     this.#audio.configure({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds });
     this.#audio.setVoiceVolume(voiceVolume ?? 1, voiceMuted ?? false);
-    this.#audio.setMusicVolume(musicVolume ?? 0.16, musicMuted ?? false);
+    this.#audio.setMusicVolume(musicVolume ?? DEFAULT_MUSIC_VOLUME, musicMuted ?? false);
   }
 
   async play() {

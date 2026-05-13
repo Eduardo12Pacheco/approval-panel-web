@@ -4,13 +4,14 @@ export const LOGO_WIDTH = 220;
 export const LOGO_HEIGHT = 124;
 export const LOGO_OPACITY = 0.94;
 export const LOGO_DROP_SHADOW = 'drop-shadow(0 10px 24px rgba(0,0,0,0.55))';
-export const GREEN_SCREEN_LOGO_PATTERN = /logo-green\.mp4(?:$|[?#])/i;
+export const CHROMA_KEY_LOGO_PATTERN = /(?:logo-green\.mp4|logo-colombia\.webm)(?:$|[?#])/i;
+export const GREEN_SCREEN_LOGO_PATTERN = CHROMA_KEY_LOGO_PATTERN;
 export const CHROMA_GREEN_MIN = 80;
 export const CHROMA_GREEN_DOMINANCE = 1.22;
 export const CHROMA_EDGE_ALPHA = 0.42;
 
 export function shouldChromaKeyLogo(src = '') {
-  return GREEN_SCREEN_LOGO_PATTERN.test(src || '');
+  return CHROMA_KEY_LOGO_PATTERN.test(src || '');
 }
 
 export function drawChromaKeyVideoFrame(video, canvas) {

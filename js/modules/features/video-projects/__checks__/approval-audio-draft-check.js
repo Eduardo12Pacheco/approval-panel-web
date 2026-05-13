@@ -1,6 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import { createGlobalAudioCommands } from '../controller/audio-commands.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
+import { normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
 
 function assertEqual(actual, expected, message) {
@@ -85,6 +86,26 @@ function assertZeroVolumeDoesNotSnapToDefault() {
   assertEqual(detail.musicVolumePercent, 0, 'Expected zero music volume label to remain 0%');
 }
 
+function assertDefaultMusicVolumeIsSixtyFivePercent() {
+  const normalized = normalizeGlobalAudioState({});
+  const detail = buildEditorDetailRailViewModel({
+    row: { id: 'row-1', phrase: 'Fila', startTime: 0, endTime: 1 },
+    globalAudio: {},
+  });
+
+  assertEqual(normalized.voice.volume, 1, 'Expected default voice volume to remain unchanged');
+  assertEqual(normalized.music.volume, 0.65, 'Expected default music volume to be 65%');
+  assertEqual(detail.voiceVolumeValue, 1, 'Expected editor UI default voice slider to remain 100%');
+  assertEqual(detail.musicVolumeValue, 0.65, 'Expected editor UI default music slider to be 65%');
+  assertEqual(detail.musicVolumePercent, 65, 'Expected editor UI default music label to be 65%');
+}
+
+function assertExplicitMusicVolumeIsPreserved() {
+  const normalized = normalizeGlobalAudioState({ music: { volume: 0.16, muted: false } });
+
+  assertEqual(normalized.music.volume, 0.16, 'Expected existing explicit music volume to be preserved');
+}
+
 function assertCanonicalApplyKeepsPendingAudioDraft() {
   const project = makeApprovalProject();
   const operations = createApprovalSnapshotOperations({
@@ -112,6 +133,8 @@ function assertCanonicalApplyKeepsPendingAudioDraft() {
 
 export async function runApprovalAudioDraftCheck() {
   await assertApprovalAudioUsesOptimisticDrafts();
+  assertDefaultMusicVolumeIsSixtyFivePercent();
+  assertExplicitMusicVolumeIsPreserved();
   assertZeroVolumeDoesNotSnapToDefault();
   assertCanonicalApplyKeepsPendingAudioDraft();
   return { ok: true };

@@ -1,3 +1,5 @@
+import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
+
 function resolveVideoProjectKey(row = {}) {
   return (row.project_id || row.draft_id || row.id_noticia || row.cluster_id || '').toString();
 }
@@ -143,7 +145,7 @@ export async function prepareVideoCompositionContract({ project, settings, api }
       compositionProjectId,
       timedRows,
       previewAssets: status?.previewAssets || created?.previewAssets || null,
-      globalAudio: canonicalSnapshot?.audio || statusSnapshot?.audio || { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } },
+      globalAudio: canonicalSnapshot?.audio || statusSnapshot?.audio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } },
       approvalContractSnapshot: canonicalSnapshot || statusSnapshot || null,
       snapshotId: created?.snapshotId || canonicalSnapshot?.snapshotId || statusSnapshot?.snapshotId || '',
       snapshotHash: created?.snapshotHash || canonicalSnapshot?.snapshotHash || statusSnapshot?.snapshotHash || '',
