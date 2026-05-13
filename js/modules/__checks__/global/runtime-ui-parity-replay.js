@@ -808,7 +808,6 @@ export async function runAppShellLifecycleReplay() {
   const bootOrder = assertTokenOrder(
     bootCompatibilityShell,
     [
-      'bindEvents();',
       'customDropdowns.mountAll();',
       'hydrateSettingsForm();',
       "el.runQueueBtn.textContent = 'Actualizar cola';",
@@ -816,8 +815,9 @@ export async function runAppShellLifecycleReplay() {
       'renderSelectedScriptEditor();',
       'renderSelectedVideoProject();',
       'boot();',
+      'bindEvents();',
     ],
-    'app-shell boot order drift',
+    'app-shell resilient boot order drift',
   );
   if (!bootOrder.ok) return bootOrder;
 

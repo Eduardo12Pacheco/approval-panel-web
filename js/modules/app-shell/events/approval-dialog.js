@@ -21,7 +21,7 @@ export function bindApprovalDialogEvents({
     void runSearchRefresh();
   });
 
-  el.dialogBody.addEventListener('click', async (ev) => {
+  el.dialogBody?.addEventListener('click', async (ev) => {
     const actionBtn = ev.target.closest('button[data-action]');
     if (!actionBtn) return;
 

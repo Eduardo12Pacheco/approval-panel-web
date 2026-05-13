@@ -18,7 +18,6 @@ export function createAppShellLifecycle({
   }
 
   function bootCompatibilityShell() {
-    bindEvents();
     customDropdowns.mountAll();
     hydrateSettingsForm();
     if (el.runQueueBtn) {
@@ -28,6 +27,11 @@ export function createAppShellLifecycle({
     renderSelectedScriptEditor();
     renderSelectedVideoProject();
     boot();
+    try {
+      bindEvents();
+    } catch (err) {
+      console.warn('Control Panel event binding skipped after boot:', err);
+    }
   }
 
   function boot() {

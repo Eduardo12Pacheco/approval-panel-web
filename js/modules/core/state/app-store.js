@@ -49,8 +49,13 @@ export function defaultSettingsFactory() {
 }
 
 export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory = defaultSettingsFactory }) {
-  const raw = storage.getItem(storageKey);
   const defaults = defaultsFactory();
+  let raw = null;
+  try {
+    raw = storage.getItem(storageKey);
+  } catch {
+    return defaults;
+  }
   if (!raw) return defaults;
   try {
     const merged = { ...defaults, ...JSON.parse(raw) };
@@ -64,7 +69,9 @@ export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory =
 }
 
 export function saveSettingsToStorage({ storage, storageKey, nextSettings }) {
-  storage.setItem(storageKey, JSON.stringify(nextSettings));
+  try {
+    storage.setItem(storageKey, JSON.stringify(nextSettings));
+  } catch {}
   return nextSettings;
 }
 
