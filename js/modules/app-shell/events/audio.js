@@ -1,14 +1,20 @@
 export function bindAudioEvents({ el, audioFeature, updateWordCounter }) {
-  el.audioTextArea.addEventListener('input', () => {
-    updateWordCounter(el.audioTextArea.value, el.audioWordCount);
-  });
+  if (el.audioTextArea) {
+    el.audioTextArea.addEventListener('input', () => {
+      updateWordCounter(el.audioTextArea.value, el.audioWordCount);
+    });
+  }
 
-  el.audioClearBtn.addEventListener('click', () => {
-    el.audioTextArea.value = '';
-    updateWordCounter('', el.audioWordCount);
-  });
+  if (el.audioClearBtn) {
+    el.audioClearBtn.addEventListener('click', () => {
+      el.audioTextArea.value = '';
+      updateWordCounter('', el.audioWordCount);
+    });
+  }
 
-  el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
+  if (el.audioRunBtn) {
+    el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
+  }
 
   el.audioQueueList?.addEventListener('click', async (ev) => {
     const button = ev.target.closest('button[data-action]');
