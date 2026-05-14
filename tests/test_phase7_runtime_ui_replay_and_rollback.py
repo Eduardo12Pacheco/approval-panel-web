@@ -163,10 +163,10 @@ def test_open_video_project_defers_scroll_until_after_render_frame():
         runtime_source.index("async function openVideoProject(projectId)"):
         runtime_source.index("function closeVideoProject()")
     ]
-    assert "await videoProjectsFeature.openVideoProject(projectId);" in open_project_source
+    assert "await lb.vp.openVideoProject(projectId);" in open_project_source
     assert "await waitForNextFrame();" in open_project_source
     assert "el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });" in open_project_source
-    assert open_project_source.index("await videoProjectsFeature.openVideoProject(projectId);") < open_project_source.index("await waitForNextFrame();")
+    assert open_project_source.index("await lb.vp.openVideoProject(projectId);") < open_project_source.index("await waitForNextFrame();")
     assert open_project_source.index("await waitForNextFrame();") < open_project_source.index("el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });")
 
 

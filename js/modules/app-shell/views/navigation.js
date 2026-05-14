@@ -9,6 +9,7 @@ export function createShellNavigationController({
   ensureApprovalAutoRefresh,
   refreshVideoProjects,
   renderSelectedVideoProject,
+  lazyPreload,
 }) {
   function setView(view) {
     const nextView = normalizeShellView(view);
@@ -22,6 +23,12 @@ export function createShellNavigationController({
 
     // Only auto-refresh approval/queue monitor when on approval or scripts views.
     ensureApprovalAutoRefresh(isApproval || isScripts);
+
+    // Preload feature modules in background before the view renders.
+    if (isScripts) lazyPreload('video-projects');
+    if (isAudio) lazyPreload('audio');
+    if (isSubtitulos2) lazyPreload('subtitles');
+    if (isRadar) lazyPreload('radar');
     el.viewApproval.classList.toggle('hidden', !isApproval);
     el.viewScripts.classList.toggle('hidden', !isScripts);
     el.viewAudio.classList.toggle('hidden', !isAudio);

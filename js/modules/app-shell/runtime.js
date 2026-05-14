@@ -32,6 +32,7 @@ import {
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
 import { createSettingsController } from './settings.js';
 import { createAppShellComposition } from './composition.js';
+import { createLazyBridge } from './lazy-bridge.js';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
 import { bindScriptEvents } from './events/scripts.js';
@@ -112,17 +113,15 @@ const {
   el,
   customDropdowns,
   approvalApi,
+  ttsApi,
   approvalFeature,
   scriptsFeature,
-  videoProjectsFeature,
-  radarController,
-  subtitlesController,
-  audioFeature,
-  ttsApi,
+  lazy,
   runQueueRefresh,
   runScriptDraftsRefresh,
-  runVideoProjectsRefresh,
 } = composition;
+
+const lb = createLazyBridge(lazy);
 
 const settingsController = createSettingsController({
   state,
@@ -148,12 +147,13 @@ const approvalSearch = createApprovalSearchController({
 const navigation = createShellNavigationController({
   state,
   el,
-  audioFeature,
-  subtitlesController,
-  radarController,
+  audioFeature: lb.af,
+  subtitlesController: lb.sc,
+  radarController: lb.rc,
   ensureApprovalAutoRefresh,
   refreshVideoProjects,
   renderSelectedVideoProject,
+  lazyPreload: (f) => lb.preload(f),
 });
 const { setView } = navigation;
 
@@ -161,7 +161,7 @@ const voiceController = createScriptToAudioVoiceController({
   state,
   el,
   customDropdowns,
-  audioFeature,
+  audioFeature: lb.af,
   toast,
   updateWordCounter,
   setView,
@@ -205,7 +205,7 @@ export function bootCompatibilityShell() {
 }
 
 function renderSubtitle2PreviewPlaybackState() {
-  subtitlesController.renderPreviewPlaybackState?.();
+  lb.sc.renderPreviewPlaybackState?.();
 }
 
 function bindEvents() {
@@ -227,7 +227,7 @@ function bindEvents() {
       renderCards,
       reloadPage: () => location.reload(),
     }),
-    bindRadar: () => radarController.bindEvents(),
+    bindRadar: () => lb.rc.bindEvents(),
     bindScripts: () => bindScriptEvents({
       state,
       el,
@@ -240,8 +240,8 @@ function bindEvents() {
       downloadSelectedScriptDocx,
       refreshVideoProjects,
     }),
-    bindAudio: () => bindAudioEvents({ el, audioFeature, updateWordCounter }),
-    bindSubtitles: () => bindSubtitlesEvents({ state, el, subtitlesController, renderSubtitle2PreviewPlaybackState }),
+    bindAudio: () => bindAudioEvents({ el, audioFeature: lb.af, updateWordCounter }),
+    bindSubtitles: () => bindSubtitlesEvents({ state, el, subtitlesController: lb.sc, renderSubtitle2PreviewPlaybackState }),
     bindApprovalDialog: () => bindApprovalDialogEvents({
       state,
       el,
@@ -274,7 +274,7 @@ function legacyBindEvents() {
     reloadPage: () => location.reload(),
   });
 
-  radarController.bindEvents();
+  lb.rc.bindEvents();
 
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
@@ -330,7 +330,7 @@ function legacyBindEvents() {
     updateWordCounter('', el.audioWordCount);
   });
 
-  el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
+  el.audioRunBtn.addEventListener('click', lb.af.runAudioGeneration);
   el.queueList?.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-action="dismiss-approval-queue-job"]');
     if (!button) return;
@@ -345,23 +345,23 @@ function legacyBindEvents() {
   });
 
 
-  el.subtitle2UploadInput?.addEventListener('change', subtitlesController.onUploadSelected);
-  el.subtitle2SourceLanguagePicker?.addEventListener('change', subtitlesController.onSourceLanguageChanged);
-  el.subtitle2SaveBtn?.addEventListener('click', subtitlesController.onSaveClicked);
-  el.subtitle2ReadyBtn?.addEventListener('click', subtitlesController.onReadyClicked);
-  el.subtitle2DownloadBtn?.addEventListener('click', subtitlesController.onDownloadClicked);
-  el.subtitle2AddRowBtn?.addEventListener('click', subtitlesController.onAddRowClicked);
-  el.subtitle2AnotherVideoBtn?.addEventListener('click', subtitlesController.resetEditorForAnotherVideo);
-  el.subtitle2RowsBody?.addEventListener('input', subtitlesController.onTableInput);
-  el.subtitle2RowsBody?.addEventListener('change', subtitlesController.onTableInput);
-  el.subtitle2RowsBody?.addEventListener('click', subtitlesController.onTableClick);
-  el.subtitle2RowsBody?.addEventListener('dragstart', subtitlesController.onDraftDragStart);
-  el.subtitle2RowsBody?.addEventListener('dragover', subtitlesController.onDraftDragOver);
-  el.subtitle2RowsBody?.addEventListener('dragleave', subtitlesController.onDraftDragLeave);
-  el.subtitle2RowsBody?.addEventListener('drop', subtitlesController.onDraftDrop);
-  el.subtitle2RowsBody?.addEventListener('dragend', subtitlesController.onDraftDragEnd);
-  el.subtitle2PreviewVideo?.addEventListener('timeupdate', subtitlesController.onPreviewTimeUpdate);
-  el.subtitle2PreviewVideo?.addEventListener('loadedmetadata', subtitlesController.onPreviewLoadedMetadata);
+  el.subtitle2UploadInput?.addEventListener('change', lb.sc.onUploadSelected);
+  el.subtitle2SourceLanguagePicker?.addEventListener('change', lb.sc.onSourceLanguageChanged);
+  el.subtitle2SaveBtn?.addEventListener('click', lb.sc.onSaveClicked);
+  el.subtitle2ReadyBtn?.addEventListener('click', lb.sc.onReadyClicked);
+  el.subtitle2DownloadBtn?.addEventListener('click', lb.sc.onDownloadClicked);
+  el.subtitle2AddRowBtn?.addEventListener('click', lb.sc.onAddRowClicked);
+  el.subtitle2AnotherVideoBtn?.addEventListener('click', lb.sc.resetEditorForAnotherVideo);
+  el.subtitle2RowsBody?.addEventListener('input', lb.sc.onTableInput);
+  el.subtitle2RowsBody?.addEventListener('change', lb.sc.onTableInput);
+  el.subtitle2RowsBody?.addEventListener('click', lb.sc.onTableClick);
+  el.subtitle2RowsBody?.addEventListener('dragstart', lb.sc.onDraftDragStart);
+  el.subtitle2RowsBody?.addEventListener('dragover', lb.sc.onDraftDragOver);
+  el.subtitle2RowsBody?.addEventListener('dragleave', lb.sc.onDraftDragLeave);
+  el.subtitle2RowsBody?.addEventListener('drop', lb.sc.onDraftDrop);
+  el.subtitle2RowsBody?.addEventListener('dragend', lb.sc.onDraftDragEnd);
+  el.subtitle2PreviewVideo?.addEventListener('timeupdate', lb.sc.onPreviewTimeUpdate);
+  el.subtitle2PreviewVideo?.addEventListener('loadedmetadata', lb.sc.onPreviewLoadedMetadata);
   el.subtitle2PreviewVideo?.addEventListener('play', () => {
     state.subtitles2.previewPlaying = true;
     renderSubtitle2PreviewPlaybackState();
@@ -370,21 +370,21 @@ function legacyBindEvents() {
     state.subtitles2.previewPlaying = false;
     renderSubtitle2PreviewPlaybackState();
   });
-  el.subtitle2PreviewPlayBtn?.addEventListener('click', subtitlesController.onPreviewToggleClicked);
-  el.subtitle2PreviewTimeline?.addEventListener('click', subtitlesController.onPreviewTimelineClick);
-  el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', subtitlesController.onPreviewTimelineDragStart);
+  el.subtitle2PreviewPlayBtn?.addEventListener('click', lb.sc.onPreviewToggleClicked);
+  el.subtitle2PreviewTimeline?.addEventListener('click', lb.sc.onPreviewTimelineClick);
+  el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', lb.sc.onPreviewTimelineDragStart);
   el.subtitle2SessionHistory?.addEventListener('click', (ev) => {
     const renameButton = ev.target.closest('[data-action="rename-subtitle-session"]');
     if (renameButton) {
       const sessionId = (renameButton.dataset.sessionId || '').trim();
       const currentName = (renameButton.dataset.sessionName || sessionId).trim();
-      if (sessionId) void subtitlesController.renameHistorySession(sessionId, currentName);
+      if (sessionId) void lb.sc.renameHistorySession(sessionId, currentName);
       return;
     }
     const deleteButton = ev.target.closest('[data-action="delete-subtitle-session"]');
     if (deleteButton) {
       const sessionId = (deleteButton.dataset.sessionId || '').trim();
-      if (sessionId) void subtitlesController.deleteHistorySession(sessionId);
+      if (sessionId) void lb.sc.deleteHistorySession(sessionId);
       return;
     }
     const button = ev.target.closest('[data-action="resume-subtitle-session"]');
@@ -392,8 +392,8 @@ function legacyBindEvents() {
     const sessionId = (button.dataset.sessionId || '').trim();
     if (!sessionId) return;
     void (async () => {
-      const detail = await subtitlesController.hydrateSession(sessionId, { render: false });
-      subtitlesController.setPhaseFromRemoteStatus(detail);
+      const detail = await lb.sc.hydrateSession(sessionId, { render: false });
+      lb.sc.setPhaseFromRemoteStatus(detail);
     })();
   });
 
@@ -406,12 +406,12 @@ function legacyBindEvents() {
     if (!jobId) return;
 
     if (action === 'dismiss-audio-job') {
-      audioFeature.dismissAudioJob(jobId);
+      lb.af.dismissAudioJob(jobId);
       return;
     }
 
     if (action === 'download-audio-job') {
-      await audioFeature.downloadAudioJob(jobId);
+      await lb.af.downloadAudioJob(jobId);
     }
   });
 
@@ -472,16 +472,16 @@ function legacySetView(view) {
   });
 
   if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
-    const nextTrack = audioFeature.getLatestTrackedJobId();
+    const nextTrack = lb.af.getLatestTrackedJobId();
     if (nextTrack) {
-      audioFeature.startAudioTracking(nextTrack);
+      lb.af.startAudioTracking(nextTrack);
     }
   }
 
   if (isAudio) {
-    audioFeature.startAudioQueueSync();
+    lb.af.startAudioQueueSync();
   } else {
-    audioFeature.stopAudioQueueSync();
+    lb.af.stopAudioQueueSync();
   }
 
   if (isScripts) {
@@ -490,16 +490,16 @@ function legacySetView(view) {
   }
 
   if (isSubtitulos2) {
-    void subtitlesController.refreshRemoteStatus();
-    subtitlesController.renderWorkflow();
+    void lb.sc.refreshRemoteStatus();
+    lb.sc.renderWorkflow();
   }
 
   if (isRadar) {
-    radarController.render();
-    void radarController.refreshHealth();
-    void radarController.refreshHistory();
+    lb.rc.render();
+    void lb.rc.refreshHealth();
+    void lb.rc.refreshHistory();
   } else {
-    radarController.stopPolling();
+    lb.rc.stopPolling();
   }
 
 }
@@ -541,7 +541,8 @@ async function refreshScriptDrafts(options = {}) {
 }
 
 async function refreshVideoProjects(options = {}) {
-  await runVideoProjectsRefresh(options);
+  const feat = await lb.videoProjectsFeature();
+  await feat.refreshVideoProjects(options);
 }
 
 function ensureApprovalAutoRefresh(start = true) {
@@ -775,7 +776,7 @@ function renderVideoProjects() {
     state,
     el,
     openVideoProject,
-    prefetchProjectDetail: videoProjectsFeature.prefetchProjectDetail,
+    prefetchProjectDetail: lb.vp.prefetchProjectDetail,
   });
 }
 
@@ -784,22 +785,22 @@ function renderSelectedVideoProject() {
     state,
     el,
     closeVideoProject,
-    toggleImageSelection: videoProjectsFeature.toggleImageSelection,
-    goToAudioStep: videoProjectsFeature.goToAudioStep,
-    goToImagesStep: videoProjectsFeature.goToImagesStep,
-    uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
-    selectDefaultBackgroundMusic: videoProjectsFeature.selectDefaultBackgroundMusic,
-    uploadCustomImages: videoProjectsFeature.uploadCustomImages,
-    preparePreview: videoProjectsFeature.preparePreview,
-    refreshPreview: videoProjectsFeature.refreshPreview,
-    exportFinal: videoProjectsFeature.exportFinal,
-    updateRow: videoProjectsFeature.updateRow,
-    assignExistingImageToRow: videoProjectsFeature.assignExistingImageToRow,
-    uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
-    uploadVideoToLibrary: videoProjectsFeature.uploadVideoToLibrary,
-    assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
-    updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
-    updateBrandChannel: videoProjectsFeature.updateBrandChannel,
+    toggleImageSelection: lb.vp.toggleImageSelection,
+    goToAudioStep: lb.vp.goToAudioStep,
+    goToImagesStep: lb.vp.goToImagesStep,
+    uploadProjectAudio: lb.vp.uploadProjectAudio,
+    selectDefaultBackgroundMusic: lb.vp.selectDefaultBackgroundMusic,
+    uploadCustomImages: lb.vp.uploadCustomImages,
+    preparePreview: lb.vp.preparePreview,
+    refreshPreview: lb.vp.refreshPreview,
+    exportFinal: lb.vp.exportFinal,
+    updateRow: lb.vp.updateRow,
+    assignExistingImageToRow: lb.vp.assignExistingImageToRow,
+    uploadAndAssignImage: lb.vp.uploadAndAssignImage,
+    uploadVideoToLibrary: lb.vp.uploadVideoToLibrary,
+    assignVideoSegmentToRow: lb.vp.assignVideoSegmentToRow,
+    updateGlobalAudio: lb.vp.updateGlobalAudio,
+    updateBrandChannel: lb.vp.updateBrandChannel,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast: toast,
@@ -823,7 +824,7 @@ async function openScriptEditor(clusterId) {
 }
 
 async function openVideoProject(projectId) {
-  await videoProjectsFeature.openVideoProject(projectId);
+  await lb.vp.openVideoProject(projectId);
   await waitForNextFrame();
   el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
@@ -927,7 +928,7 @@ async function legacyRunVoiceAiFromSelectedScript({ voiceProfile = null } = {}) 
   updateWordCounter(pronunciationText, el.audioWordCount);
   setView('audio');
 
-  await audioFeature.runAudioGenerationFromText({
+  await lb.af.runAudioGenerationFromText({
     text: pronunciationText,
     voiceProfile: preset,
     title: buildVoiceAiJobTitle(selected),
