@@ -142,6 +142,7 @@ export class CompositionRenderer {
   }
 
   updateAudioSettings({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds } = {}) {
+    if (!this.#audio) return;
     this.#audio.configure({ voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds });
     this.#audio.setVoiceVolume(voiceVolume ?? 1, voiceMuted ?? false);
     this.#audio.setMusicVolume(musicVolume ?? DEFAULT_MUSIC_VOLUME, musicMuted ?? false);

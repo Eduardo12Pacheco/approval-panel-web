@@ -20,6 +20,10 @@ export function destroyCompositionRenderer() {
 
 export function ensureCompositionRenderer(container) {
   if (!compositionRenderer || !compositionRendererContainer || compositionRendererContainer !== container) {
+    // Cancel in-flight preload on the old renderer before destroying it.
+    if (compositionRenderer && compositionRenderer._preloadInProgress) {
+      compositionRenderer._preloadInProgress = null;
+    }
     destroyCompositionRenderer();
     compositionRenderer = new CompositionRenderer({ container });
     compositionRendererContainer = container;
