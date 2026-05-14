@@ -789,6 +789,7 @@ function renderSelectedScriptEditor() {
 }
 
 async function renderVideoProjects() {
+  if (!state.selectedVideoProject && !state.videoProjects?.length) return;
   await _ensureVideoProjectsRender();
   renderVideoProjectsListView({
     state,
@@ -799,6 +800,7 @@ async function renderVideoProjects() {
 }
 
 async function renderSelectedVideoProject() {
+  if (!state.selectedVideoProject) return;
   await _ensureVideoProjectsRender();
   renderSelectedVideoProjectView({
     state,
