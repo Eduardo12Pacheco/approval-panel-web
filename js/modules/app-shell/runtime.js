@@ -559,7 +559,6 @@ async function refreshScriptDrafts(options = {}) {
 }
 
 async function refreshVideoProjects(options = {}) {
-  await _ensureVideoProjectsRender();
   await runVideoProjectsRefresh(options);
 }
 
