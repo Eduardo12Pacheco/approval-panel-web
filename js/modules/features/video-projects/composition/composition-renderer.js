@@ -413,6 +413,8 @@ export class CompositionRenderer {
     const segmentKey = segment.image || '';
 
     layers.outro.style.visibility = 'hidden';
+    layers.outroVideo.style.visibility = 'hidden';
+    layers.outroText.style.visibility = 'hidden';
     const isVideoSegment = segment.media?.kind === 'video-segment';
     if (isVideoSegment) {
       const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime });
