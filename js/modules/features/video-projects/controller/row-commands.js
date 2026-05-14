@@ -158,6 +158,7 @@ export function createRowCommands({
         console.error(err);
         project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Fila ${rowId}: ${err?.message || 'No se pudo actualizar snapshot'}` });
         ui.toast('Error actualizando snapshot');
+        throw err;
       } finally {
         renderSelectedVideoProject();
       }

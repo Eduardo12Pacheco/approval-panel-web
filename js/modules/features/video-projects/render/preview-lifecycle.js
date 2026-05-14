@@ -46,7 +46,17 @@ export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, pla
   const videos = Array.from(modal.querySelectorAll('video[data-layer]'));
   if (!videos.length || !Number.isFinite(seekTime)) return false;
   videos.forEach((video) => {
-    syncManagedVideoElement({ video, currentTimeSeconds: Math.max(0, seekTime), playing });
+    const layer = (video?.dataset?.layer || video?.getAttribute?.('data-layer') || '').toString();
+    const isDecorativeEffect = layer === 'effect-layer-01' || layer === 'effect-layer-02';
+    if (isDecorativeEffect && playing) {
+      try { video.muted = true; } catch {}
+      try { video.playsInline = true; } catch {}
+      if (video.paused !== false) {
+        try { void video.play?.().catch(() => {}); } catch {}
+      }
+      return;
+    }
+    syncManagedVideoElement({ video, currentTimeSeconds: isDecorativeEffect ? 0 : Math.max(0, seekTime), playing });
   });
   return true;
 }

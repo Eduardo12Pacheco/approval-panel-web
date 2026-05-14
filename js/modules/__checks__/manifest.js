@@ -116,6 +116,13 @@ export const CHECK_MANIFEST = [
     exportedHelpers: ['runCompositionCoverPanCheck'],
   },
   {
+    facadePath: 'js/modules/__checks__/video-segment-stability-check.js',
+    implementationPath: 'js/modules/features/video-projects/__checks__/video-segment-stability-check.js',
+    owner: 'video-projects',
+    commandKind: 'node-cli',
+    exportedHelpers: ['runVideoSegmentStabilityCheck'],
+  },
+  {
     facadePath: 'js/modules/__checks__/editor-motion-presets-check.js',
     implementationPath: 'js/modules/features/video-projects/__checks__/editor-motion-presets-check.js',
     owner: 'video-projects',

@@ -14,6 +14,7 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
   const durationSeconds = Math.max(0, finiteNumber(media.durationSeconds, 0));
   const clampedLocalTime = clamp(finiteNumber(localTime, 0), 0, durationSeconds);
   const currentTimeSeconds = sourceInSeconds + clampedLocalTime;
+  const effectTimeSeconds = clampedLocalTime;
   const sourceVideoSrc = media.sourceVideoSrc || media.src || '';
 
   return {
@@ -24,8 +25,8 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
     layers: [
       { name: 'background-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'cover' },
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
-      { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds, mixBlendMode: media.effect2BlendMode || 'multiply' },
-      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds, mixBlendMode: media.effect1BlendMode || 'screen' },
+      { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect2BlendMode || 'multiply' },
+      { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect1BlendMode || 'screen' },
       { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
     ],
   };
@@ -101,4 +102,13 @@ export function syncManagedVideoElement({ video, currentTimeSeconds = 0, playing
     return deferManagedVideoSyncUntilReady({ video, currentTimeSeconds, playing, muted });
   }
   return applyManagedVideoSync({ video, currentTimeSeconds, playing, muted });
+}
+
+export function clearManagedVideoElement(video) {
+  if (!video) return false;
+  try { video.pause?.(); } catch {}
+  try { video.removeAttribute?.('src'); } catch {}
+  try { video.load?.(); } catch {}
+  try { video.currentTime = 0; } catch {}
+  return true;
 }

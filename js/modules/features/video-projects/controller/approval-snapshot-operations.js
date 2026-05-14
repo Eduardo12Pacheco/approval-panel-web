@@ -54,14 +54,39 @@ export function createApprovalSnapshotOperations({
     });
   }
 
+  function isStaleBaseSnapshotHashError(error) {
+    const message = (error?.message || error?.error?.message || '').toString();
+    return /stale\s+baseSnapshotHash/i.test(message) || (/baseSnapshotHash/i.test(message) && /stale|conflict|409/i.test(message));
+  }
+
+  function extractSnapshot(payload) {
+    return payload?.snapshot || payload?.data?.snapshot || null;
+  }
+
+  async function fetchLatestApprovalSnapshot(client, projectId) {
+    if (typeof client?.snapshot !== 'function') return null;
+    const latest = await client.snapshot(projectId);
+    return extractSnapshot(latest);
+  }
+
   async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready' } = {}) {
     const client = createApprovalServiceClient(project);
     if (!client) throw new Error('Approval editor service no configurado');
     const projectId = resolveApprovalSnapshotProjectId(project);
     if (!projectId) throw new Error('Approval editor service no tiene projectId de snapshot');
     const baseSnapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
-    const result = await client.updateSnapshot(projectId, { baseSnapshotHash, operations });
-    const snapshot = result?.snapshot || result?.data?.snapshot;
+    const updateWithHash = (hash) => client.updateSnapshot(projectId, { baseSnapshotHash: hash, operations });
+    let result;
+    try {
+      result = await updateWithHash(baseSnapshotHash);
+    } catch (err) {
+      if (!isStaleBaseSnapshotHashError(err)) throw err;
+      const latestSnapshot = await fetchLatestApprovalSnapshot(client, projectId);
+      if (!latestSnapshot?.snapshotHash) throw err;
+      applyCanonicalSnapshot(project, latestSnapshot, { dirty: true, phase });
+      result = await updateWithHash(latestSnapshot.snapshotHash);
+    }
+    const snapshot = extractSnapshot(result);
     if (!snapshot) throw new Error('Approval editor service no devolvió snapshot');
     applyCanonicalSnapshot(project, snapshot, { dirty: true, phase });
     await persistEditorState(project, {

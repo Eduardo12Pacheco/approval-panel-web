@@ -7,6 +7,7 @@ import {
   PRELOAD_IMAGE_WINDOW_SIZE,
   buildCompositionDOM,
   buildVideoSegmentPreviewLayerPlan,
+  clearManagedVideoElement,
   drawChromaKeyVideoFrame,
   finitePositive,
   interpolateLinear,
@@ -20,7 +21,7 @@ import {
   syncManagedVideoElement,
 } from './renderer/index.js';
 
-export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
+export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the
@@ -301,6 +302,21 @@ export class CompositionRenderer {
     }
   }
 
+  #hideVideoSegmentLayers({ clear = false } = {}) {
+    const videoLayers = [
+      this.#dom?.layers?.videoBackground,
+      this.#dom?.layers?.videoEffect1,
+      this.#dom?.layers?.videoEffect2,
+      this.#dom?.layers?.videoForeground,
+    ];
+    videoLayers.forEach((element) => {
+      if (!element) return;
+      element.style.visibility = 'hidden';
+      if (clear && element.getAttribute?.('src')) clearManagedVideoElement(element);
+    });
+    if (this.#dom?.layers?.videoColorOverlay) this.#dom.layers.videoColorOverlay.style.visibility = 'hidden';
+  }
+
   #renderFrame() {
     if (!this.#dom) return;
 
@@ -308,11 +324,7 @@ export class CompositionRenderer {
     const resolved = resolveActiveSegment(this.#currentTime, this.#rows, finitePositive(this._outroDurationSeconds, OUTRO_DURATION_SECONDS));
 
     if (resolved.type === 'empty') {
-      layers.videoBackground.style.visibility = 'hidden';
-      layers.videoColorOverlay.style.visibility = 'hidden';
-      layers.videoEffect1.style.visibility = 'hidden';
-      layers.videoEffect2.style.visibility = 'hidden';
-      layers.videoForeground.style.visibility = 'hidden';
+      this.#hideVideoSegmentLayers({ clear: true });
       layers.image.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
@@ -326,11 +338,7 @@ export class CompositionRenderer {
     }
 
     if (resolved.type === 'outro') {
-      layers.videoBackground.style.visibility = 'hidden';
-      layers.videoColorOverlay.style.visibility = 'hidden';
-      layers.videoEffect1.style.visibility = 'hidden';
-      layers.videoEffect2.style.visibility = 'hidden';
-      layers.videoForeground.style.visibility = 'hidden';
+      this.#hideVideoSegmentLayers({ clear: true });
       layers.image.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
@@ -377,11 +385,7 @@ export class CompositionRenderer {
       layers.videoEffect2.style.mixBlendMode = effect2.mixBlendMode;
       layers.image.style.visibility = 'hidden';
     } else {
-      layers.videoBackground.style.visibility = 'hidden';
-      layers.videoColorOverlay.style.visibility = 'hidden';
-      layers.videoEffect1.style.visibility = 'hidden';
-      layers.videoEffect2.style.visibility = 'hidden';
-      layers.videoForeground.style.visibility = 'hidden';
+      this.#hideVideoSegmentLayers({ clear: true });
       layers.image.style.visibility = 'visible';
     }
 

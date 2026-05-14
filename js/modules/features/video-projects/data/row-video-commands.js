@@ -101,20 +101,25 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
     const project = getProject();
     const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
     const row = rows.find((item) => item?.id === rowId || item?.rowId === rowId);
+    if (!project || !row) return false;
     const durationSeconds = Math.max(0, Number(row?.effectiveEndTime ?? row?.endTime ?? 0) - Number(row?.startTime || 0));
-    await updateRow(rowId, {
-      media: {
-        kind: 'video-segment',
-        sourceVideoAssetId: video.id || video.assetId || video.src,
-        sourceVideoSrc: video.src || video.public_url || video.storage_public_url || '',
-        sourceInSeconds: Number(sourceInSeconds || 0),
-        durationSeconds,
-        overlayColor: '#3835AF',
-        overlayOpacity: 0.3,
-        effect1AssetId: 'effect-layer-01',
-        effect2AssetId: 'effect-layer-02',
-      },
-    });
+    try {
+      await updateRow(rowId, {
+        media: {
+          kind: 'video-segment',
+          sourceVideoAssetId: video.id || video.assetId || video.src,
+          sourceVideoSrc: video.src || video.public_url || video.storage_public_url || '',
+          sourceInSeconds: Number(sourceInSeconds || 0),
+          durationSeconds,
+          overlayColor: '#3835AF',
+          overlayOpacity: 0.3,
+          effect1AssetId: 'effect-layer-01',
+          effect2AssetId: 'effect-layer-02',
+        },
+      });
+    } catch {
+      return false;
+    }
     ui.toast('Fila cambiada a video');
     return true;
   }
