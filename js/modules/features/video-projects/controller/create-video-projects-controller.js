@@ -50,6 +50,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     ui,
     persistEditorState,
     renderSelectedVideoProject,
+    updateSelectedVideoProjectCompositionPreview,
     debounceMs: SAVE_DEBOUNCE_MS,
   });
 

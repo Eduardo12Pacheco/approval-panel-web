@@ -34,6 +34,7 @@ export function buildCompositionDOM(container) {
   videoBackground.style.cssText = 'position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;transform:scale(1.08);pointer-events:none;visibility:hidden;';
   videoBackground.muted = true;
   videoBackground.playsInline = true;
+  videoBackground.preload = 'auto';
   stage.appendChild(videoBackground);
 
   const videoColorOverlay = document.createElement('div');
@@ -66,6 +67,7 @@ export function buildCompositionDOM(container) {
   videoForeground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:contain;pointer-events:none;visibility:hidden;';
   videoForeground.muted = true;
   videoForeground.playsInline = true;
+  videoForeground.preload = 'auto';
   stage.appendChild(videoForeground);
 
   const image = document.createElement('img');

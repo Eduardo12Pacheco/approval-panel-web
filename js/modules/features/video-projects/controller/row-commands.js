@@ -171,7 +171,7 @@ export function createRowCommands({
     const isDirty = compositionHash !== lastRenderedHash;
     project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
 
-    if (patch.manualMotionDraft === true) updateSelectedVideoProjectCompositionPreview({ project });
+    if (patch.manualMotionDraft === true || isMotionRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else renderSelectedVideoProject();
 
     clearTimeout(getSaveTimer());

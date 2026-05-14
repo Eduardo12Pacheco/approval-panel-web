@@ -527,7 +527,9 @@ async function runLocalMotionDebouncedSaveUsesPatchedRowsCheck() {
     });
 
     assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 77, 'Expected local non-approval motion patch to update local rows immediately');
-    assertEqual(renderEvents.length, 1, 'Expected local non-approval motion patch to render local preview immediately');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected local non-approval motion patch to update the existing composition preview');
+    assertEqual(previewUpdateEvents[0].motion.toX, 77, 'Expected local lightweight preview update to receive the local motion patch');
+    assertEqual(renderEvents.length, 0, 'Expected local non-approval motion patch not to trigger a full detail render');
 
     timers.runPending();
     await flushMicrotasks();

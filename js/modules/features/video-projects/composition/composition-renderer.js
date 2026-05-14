@@ -29,7 +29,7 @@ export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVid
 
 export class CompositionRenderer {
   #container; #fps; #currentTime; #isPlaying; #assetsReady; #rows;
-  #dom; #imageCache; #imageCacheOrder; #activeSegmentKey; #audio; #rafId; #audioStartToken;
+  #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #rafId; #audioStartToken;
   #viewportWidth; #viewportHeight; #frameCount;
 
   constructor({ container, fps = DEFAULT_FPS }) {
@@ -41,6 +41,7 @@ export class CompositionRenderer {
     this.#rows = [];
     this.#imageCache = new Map();
     this.#imageCacheOrder = [];
+    this.#videoPreloadCache = new Map();
     this.#activeSegmentKey = null;
     this.#audio = new AudioManager();
     this.#rafId = null;
@@ -95,6 +96,7 @@ export class CompositionRenderer {
         if (imageUrls.length > 0) {
           await this.preloadImages(imageUrls, { limit: PRELOAD_IMAGE_WINDOW_SIZE });
         }
+        this.#preloadVideoSegments(rows);
       }
 
       if ((voiceUrl || musicUrl) && this.#audio) {
@@ -134,6 +136,24 @@ export class CompositionRenderer {
         }
       });
     await Promise.all(tasks);
+  }
+
+  #preloadVideoSegments(rows = []) {
+    const sources = rows
+      .map((row) => row?.media?.kind === 'video-segment' ? (row.media.sourceVideoSrc || row.media.src || '') : '')
+      .filter(Boolean);
+    sources.forEach((src) => {
+      if (this.#videoPreloadCache.has(src)) return;
+      try {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.src = src;
+        video.load?.();
+        this.#videoPreloadCache.set(src, video);
+      } catch {}
+    });
   }
 
   update({ rows } = {}) {
@@ -246,6 +266,7 @@ export class CompositionRenderer {
     this.#assetsReady = false;
     this.#imageCache.clear();
     this.#imageCacheOrder.length = 0;
+    this.#videoPreloadCache.clear();
     this.#activeSegmentKey = null;
   }
 

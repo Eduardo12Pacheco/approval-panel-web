@@ -130,6 +130,12 @@ function hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline
       const rowId = control.dataset.rowId;
       if (!rowId) return;
       const preset = findMotionPreset(control.value);
+      root.querySelectorAll('[data-action="update-row-motion"]').forEach((button) => {
+        if (button.dataset.rowId !== rowId) return;
+        const isSelected = button.value === control.value;
+        button.classList.toggle('is-selected', isSelected);
+        button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      });
       updateRow?.(rowId, { motionPresetId: preset?.name || control.value, motion: preset ? { ...preset } : control.value });
     });
   });

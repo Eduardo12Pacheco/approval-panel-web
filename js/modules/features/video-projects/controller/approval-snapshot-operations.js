@@ -8,6 +8,7 @@ export function createApprovalSnapshotOperations({
   ui,
   persistEditorState,
   renderSelectedVideoProject,
+  updateSelectedVideoProjectCompositionPreview,
   debounceMs = 400,
 }) {
   let approvalMotionSaveTimer = null;
@@ -137,7 +138,9 @@ export function createApprovalSnapshotOperations({
           ui.toast('Error actualizando snapshot');
         })
         .finally(() => {
-          renderSelectedVideoProject();
+          if (!updateSelectedVideoProjectCompositionPreview?.({ project })) {
+            renderSelectedVideoProject();
+          }
         });
     }, debounceMs);
   }
