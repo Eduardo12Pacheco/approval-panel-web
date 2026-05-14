@@ -117,12 +117,64 @@ function buildFinalExportPanel({ project, editorState }) {
     </section>`;
 }
 
-function buildEditorStatusPanel({ editorState }) {
+function resolveEditorStatusPanelState(editorState = {}) {
+  const phase = editorState.phase || 'idle';
   const dirty = Boolean(editorState.dirty);
+  const exportStatus = editorState.export_status || 'idle';
+  const isRendering = phase === 'final_rendering' || exportStatus === 'rendering';
+  const isReady = phase === 'final_ready' || exportStatus === 'ready';
+  const hasError = phase === 'error' || exportStatus === 'error';
+  if (isRendering) {
+    return {
+      tone: 'rendering',
+      label: 'Exportando final',
+      detail: 'Estamos generando el MP4 final. Cuando termine, vas a poder descargarlo.',
+    };
+  }
+  if (hasError) {
+    return {
+      tone: 'error',
+      label: 'Error de exportación',
+      detail: editorState.error || 'No se pudo exportar el video final. Revisá el error y reintentá.',
+    };
+  }
+  if (isReady && dirty) {
+    return {
+      tone: 'dirty',
+      label: 'Cambios pendientes',
+      detail: 'El video descargable no incluye los últimos cambios. Volvé a renderizar para actualizarlo.',
+    };
+  }
+  if (isReady) {
+    return {
+      tone: 'ready',
+      label: 'Video final listo',
+      detail: 'Podés descargarlo. Si cambiás algo, vas a tener que volver a renderizar.',
+    };
+  }
+  if (dirty || phase === 'editing_dirty') {
+    return {
+      tone: 'dirty',
+      label: 'Cambios sin exportar',
+      detail: 'Renderizá el final para que el video descargable coincida con el preview actual.',
+    };
+  }
+  return {
+    tone: 'idle',
+    label: 'Sin exportar',
+    detail: 'Cuando el preview esté correcto, exportá el final para generar el video descargable.',
+  };
+}
+
+function buildEditorStatusPanel({ editorState }) {
+  const status = resolveEditorStatusPanelState(editorState);
   return `
-    <div class="video-editor-status-panel">
-      <div class="video-editor-status-panel__header"><span class="video-projects-eyebrow">Estado de edición</span>${dirty ? '<span class="video-project-dirty-badge" title="Cambios sin exportar">● Sin exportar</span>' : ''}</div>
-      <p>Usá el panel inferior para exportar, descargar o volver a renderizar el final.</p>
+    <div class="video-editor-status-panel video-editor-status-panel--${escapeHtmlCore(status.tone)}" role="status" aria-live="polite">
+      <div class="video-editor-status-panel__header">
+        <span class="video-projects-eyebrow">Estado del video</span>
+        <span class="video-editor-status-panel__badge">● ${escapeHtmlCore(status.label)}</span>
+      </div>
+      <p>${escapeHtmlCore(status.detail)}</p>
     </div>`;
 }
 

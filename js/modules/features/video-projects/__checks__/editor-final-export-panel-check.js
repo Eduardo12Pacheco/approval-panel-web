@@ -48,9 +48,19 @@ function getExportPanel(markup) {
   return markup.slice(start, end + '</section>'.length);
 }
 
+function getStatusPanel(markup) {
+  const marker = '<div class="video-editor-status-panel ';
+  const start = markup.indexOf(marker);
+  assert(start >= 0, 'Expected editor status panel to render');
+  const end = markup.indexOf('</div>', markup.indexOf('<p>', start));
+  assert(end > start, 'Expected editor status panel to close');
+  return markup.slice(start, end + '</div>'.length);
+}
+
 function runRenderingPanelCheck() {
   const markup = buildShell({ phase: 'final_rendering', export_status: 'rendering' });
   const panel = getExportPanel(markup);
+  const statusPanel = getStatusPanel(markup);
 
   assert(markup.indexOf('video-editor-shell__workspace') < markup.indexOf('video-editor-export-panel'), 'Expected export panel below editor workspace');
   assertIncludes(panel, 'Exportando video final', 'Expected final rendering status copy');
@@ -58,35 +68,64 @@ function runRenderingPanelCheck() {
   assertIncludes(panel, 'video-editor-export-panel__progress-bar--indeterminate', 'Expected indeterminate progress when no percentage exists');
   assertIncludes(panel, 'data-action="export-final" disabled', 'Expected disabled export button while rendering');
   assertNotIncludes(panel, 'Descargar video final', 'Rendering panel must not expose download link');
+  assertIncludes(statusPanel, 'Estado del video', 'Expected status panel heading');
+  assertIncludes(statusPanel, 'Exportando final', 'Expected rendering status badge');
 }
 
 function runReadyPanelCheck() {
   const markup = buildShell({ phase: 'final_ready', export_status: 'ready', final_url: 'https://example.test/final.mp4' });
   const panel = getExportPanel(markup);
+  const statusPanel = getStatusPanel(markup);
 
   assertIncludes(panel, 'Exportación lista', 'Expected ready status copy');
   assertIncludes(panel, 'href="https://example.test/final.mp4"', 'Expected final download link inside export panel');
   assertIncludes(panel, 'Descargar video final', 'Expected download action inside export panel');
   assertIncludes(panel, 'data-action="export-final"', 'Expected stable export action for re-render');
   assertIncludes(panel, 'Volver a renderizar', 'Expected re-render copy for ready final');
+  assertIncludes(statusPanel, 'Video final listo', 'Expected ready status badge');
+  assertIncludes(statusPanel, 'Podés descargarlo', 'Expected ready status guidance');
 }
 
 function runErrorPanelCheck() {
   const markup = buildShell({ phase: 'error', export_status: 'error', error: 'Falló Remotion' });
   const panel = getExportPanel(markup);
+  const statusPanel = getStatusPanel(markup);
 
   assertIncludes(panel, 'Error exportando', 'Expected export error status copy');
   assertIncludes(panel, 'Falló Remotion', 'Expected backend error message in export panel');
   assertIncludes(panel, 'data-action="export-final"', 'Expected stable export action for retry');
   assertIncludes(panel, 'Reintentar exportación', 'Expected retry copy in error state');
+  assertIncludes(statusPanel, 'Error de exportación', 'Expected status panel error badge');
+  assertIncludes(statusPanel, 'Falló Remotion', 'Expected status panel backend error message');
 }
 
 function runDirtyReadyPanelCheck() {
   const markup = buildShell({ phase: 'final_ready', export_status: 'ready', final_url: 'https://example.test/final.mp4', dirty: true });
   const panel = getExportPanel(markup);
+  const statusPanel = getStatusPanel(markup);
 
   assertIncludes(panel, 'Cambios pendientes', 'Expected dirty ready state warning');
   assertIncludes(panel, 'volvé a exportar', 'Expected dirty warning to explain re-export');
+  assertIncludes(statusPanel, 'Cambios pendientes', 'Expected dirty ready status badge');
+  assertIncludes(statusPanel, 'no incluye los últimos cambios', 'Expected dirty ready status guidance');
+}
+
+function runDirtyEditingStatusPanelCheck() {
+  const markup = buildShell({ phase: 'editing_dirty', export_status: 'idle', dirty: true });
+  const statusPanel = getStatusPanel(markup);
+
+  assertIncludes(statusPanel, 'video-editor-status-panel--dirty', 'Expected dirty editing status tone');
+  assertIncludes(statusPanel, 'Cambios sin exportar', 'Expected dirty editing status badge');
+  assertIncludes(statusPanel, 'coincida con el preview actual', 'Expected dirty editing guidance');
+}
+
+function runIdleStatusPanelCheck() {
+  const markup = buildShell({ phase: 'preview_ready', export_status: 'idle', dirty: false });
+  const statusPanel = getStatusPanel(markup);
+
+  assertIncludes(statusPanel, 'video-editor-status-panel--idle', 'Expected idle status tone');
+  assertIncludes(statusPanel, 'Sin exportar', 'Expected idle status badge');
+  assertIncludes(statusPanel, 'exportá el final', 'Expected idle status guidance');
 }
 
 function runLegacyLocalPathDownloadCheck() {
@@ -108,6 +147,8 @@ export function runEditorFinalExportPanelCheck() {
   runReadyPanelCheck();
   runErrorPanelCheck();
   runDirtyReadyPanelCheck();
+  runDirtyEditingStatusPanelCheck();
+  runIdleStatusPanelCheck();
   runLegacyLocalPathDownloadCheck();
 }
 
