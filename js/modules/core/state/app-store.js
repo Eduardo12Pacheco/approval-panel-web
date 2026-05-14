@@ -1,6 +1,7 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
 const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
 const DEFAULT_TRANSCRIPT_SERVICE_URL = 'http://127.0.0.1:8765';
+const DEFAULT_SUBTITLES_SERVICE_URL = 'http://127.0.0.1:8092';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
@@ -62,6 +63,10 @@ export function defaultSettingsFactory() {
     ttsApiKey: '',
     ttsBasicUser: '',
     ttsBasicPass: '',
+    subtitlesBaseUrl: DEFAULT_SUBTITLES_SERVICE_URL,
+    subtitlesApiKey: '',
+    subtitlesBasicUser: '',
+    subtitlesBasicPass: '',
     remotionApiUrl: DEFAULT_REMOTION_API_URL,
     approvalPipelineBaseUrl: DEFAULT_APPROVAL_EDITOR_SERVICE_URL,
     brandChannel: DEFAULT_BRAND_CHANNEL,
@@ -104,6 +109,18 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.ttsApiKeyInput.value = settings.ttsApiKey;
   el.ttsBasicUserInput.value = settings.ttsBasicUser;
   el.ttsBasicPassInput.value = settings.ttsBasicPass;
+  if (el.subtitlesBaseUrlInput) {
+    el.subtitlesBaseUrlInput.value = settings.subtitlesBaseUrl || DEFAULT_SUBTITLES_SERVICE_URL;
+  }
+  if (el.subtitlesApiKeyInput) {
+    el.subtitlesApiKeyInput.value = settings.subtitlesApiKey || '';
+  }
+  if (el.subtitlesBasicUserInput) {
+    el.subtitlesBasicUserInput.value = settings.subtitlesBasicUser || '';
+  }
+  if (el.subtitlesBasicPassInput) {
+    el.subtitlesBasicPassInput.value = settings.subtitlesBasicPass || '';
+  }
   if (el.remotionApiUrlInput) {
     el.remotionApiUrlInput.value = normalizeRemotionApiUrl(settings.remotionApiUrl, { fallback: DEFAULT_REMOTION_API_URL });
   }

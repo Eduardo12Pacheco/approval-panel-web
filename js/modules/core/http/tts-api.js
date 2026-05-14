@@ -13,26 +13,42 @@ export const TTS_PARITY_ENDPOINTS = [
 ];
 
 export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = btoa }) {
-  function getTtsBasicAuthHeader() {
-    const settings = getSettings();
-    const user = (settings.ttsBasicUser || '').trim();
-    const pass = (settings.ttsBasicPass || '').toString();
-    if (!user || !pass) {
-      throw new Error('Configurá usuario y contraseña de Audio API');
+  function getBasicAuthHeader({ user, pass, label }) {
+    const username = (user || '').trim();
+    const password = (pass || '').toString();
+    if (!username || !password) {
+      throw new Error(`Configurá usuario y contraseña de ${label}`);
     }
-    return `Basic ${btoaImpl(`${user}:${pass}`)}`;
+    return `Basic ${btoaImpl(`${username}:${password}`)}`;
   }
 
-  function buildTtsHeaders(contentType = null) {
+  function getTtsBasicAuthHeader() {
     const settings = getSettings();
-    const apiKey = (settings.ttsApiKey || '').trim();
-    if (!apiKey) {
-      throw new Error('Configuración de Audio API incompleta');
+    return getBasicAuthHeader({
+      user: settings.ttsBasicUser,
+      pass: settings.ttsBasicPass,
+      label: 'Audio API',
+    });
+  }
+
+  function getSubtitlesBasicAuthHeader() {
+    const settings = getSettings();
+    return getBasicAuthHeader({
+      user: settings.subtitlesBasicUser || settings.ttsBasicUser,
+      pass: settings.subtitlesBasicPass || settings.ttsBasicPass,
+      label: 'Subtítulos',
+    });
+  }
+
+  function buildAuthHeaders({ apiKey, basicAuthHeader, label, contentType = null }) {
+    const key = (apiKey || '').trim();
+    if (!key) {
+      throw new Error(`Configuración de ${label} incompleta`);
     }
 
     const headers = {
-      'x-api-key': apiKey,
-      Authorization: getTtsBasicAuthHeader(),
+      'x-api-key': key,
+      Authorization: basicAuthHeader,
     };
 
     if (contentType) {
@@ -42,11 +58,40 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     return headers;
   }
 
+  function buildTtsHeaders(contentType = null) {
+    const settings = getSettings();
+    return buildAuthHeaders({
+      apiKey: settings.ttsApiKey,
+      basicAuthHeader: getTtsBasicAuthHeader(),
+      label: 'Audio API',
+      contentType,
+    });
+  }
+
+  function buildSubtitlesHeaders(contentType = null) {
+    const settings = getSettings();
+    return buildAuthHeaders({
+      apiKey: settings.subtitlesApiKey || settings.ttsApiKey,
+      basicAuthHeader: getSubtitlesBasicAuthHeader(),
+      label: 'Subtítulos',
+      contentType,
+    });
+  }
+
   function resolveBaseUrl() {
     const settings = getSettings();
     const baseUrl = (settings.ttsBaseUrl || '').trim();
     if (!baseUrl) {
       throw new Error('Configuración de Audio API incompleta');
+    }
+    return baseUrl;
+  }
+
+  function resolveSubtitlesBaseUrl() {
+    const settings = getSettings();
+    const baseUrl = (settings.subtitlesBaseUrl || settings.ttsBaseUrl || '').trim();
+    if (!baseUrl) {
+      throw new Error('Configuración de Subtítulos incompleta');
     }
     return baseUrl;
   }
@@ -236,6 +281,143 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     return res.blob();
   }
 
+  async function subtitlesGet(path) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders();
+    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `GET ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesPost(path, payload) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders('application/json');
+    const res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `POST ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesPut(path, payload) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders('application/json');
+    const res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `PUT ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesPatch(path, payload) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders('application/json');
+    const res = await fetchImpl(`${baseUrl}${path}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `PATCH ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesDelete(path) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders();
+    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'DELETE', headers });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `DELETE ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesPostForm(path, formData) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders();
+    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'POST', headers, body: formData });
+    const raw = await res.text();
+    let data = {};
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      data = { raw };
+    }
+    if (!res.ok) {
+      const message = data?.error?.message || data?.detail?.message || data?.message || `POST ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return data;
+  }
+
+  async function subtitlesGetBlob(path) {
+    const baseUrl = resolveSubtitlesBaseUrl();
+    const headers = buildSubtitlesHeaders();
+    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    if (!res.ok) {
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+      const message = data?.error?.message || data?.detail?.message || `GET ${path} ${res.status}`;
+      throw new Error(message);
+    }
+    return res.blob();
+  }
+
   return {
     get,
     post,
@@ -245,42 +427,42 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     postForm,
     getBlob,
     buildTtsHeaders,
-    getSubtitlesHealth: () => get('/api/subtitles/health'),
+    getSubtitlesHealth: () => subtitlesGet('/api/subtitles/health'),
     createSubtitleSession(formData) {
-      return postForm('/api/subtitles/sessions', formData);
+      return subtitlesPostForm('/api/subtitles/sessions', formData);
     },
     listSubtitleSessions(limit = 20) {
-      return get(`/api/subtitles/sessions?limit=${encodeURIComponent(limit)}`);
+      return subtitlesGet(`/api/subtitles/sessions?limit=${encodeURIComponent(limit)}`);
     },
     getSubtitleSession(sessionId) {
-      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
+      return subtitlesGet(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
     },
     deleteSubtitleSession(sessionId) {
-      return del(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
+      return subtitlesDelete(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`);
     },
     renameSubtitleSession(sessionId, displayName) {
-      return patch(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`, { display_name: displayName });
+      return subtitlesPatch(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}`, { display_name: displayName });
     },
     getSubtitleSegments(sessionId) {
-      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`);
+      return subtitlesGet(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`);
     },
     updateSubtitleSegments(sessionId, payload) {
-      return put(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`, payload);
+      return subtitlesPut(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/segments`, payload);
     },
     startSubtitleRender(sessionId, payload) {
-      return post(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`, payload);
+      return subtitlesPost(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`, payload);
     },
     getSubtitleRenderStatus(sessionId) {
-      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`);
+      return subtitlesGet(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/render`);
     },
     getSubtitleDownload(sessionId) {
-      return get(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download`);
+      return subtitlesGet(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download`);
     },
     downloadSubtitleRender(sessionId) {
-      return getBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download/file`);
+      return subtitlesGetBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/download/file`);
     },
     getSubtitlePreviewVideo(sessionId) {
-      return getBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`);
+      return subtitlesGetBlob(`/api/subtitles/sessions/${encodeURIComponent(sessionId)}/preview/video`);
     },
   };
 }

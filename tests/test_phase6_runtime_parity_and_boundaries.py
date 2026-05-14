@@ -141,6 +141,10 @@ const api = createTtsApiClient({
     ttsApiKey: 'api-key-1',
     ttsBasicUser: 'user',
     ttsBasicPass: 'pass',
+    subtitlesBaseUrl: 'http://127.0.0.1:8092',
+    subtitlesApiKey: 'subtitles-key-1',
+    subtitlesBasicUser: 'subs-user',
+    subtitlesBasicPass: 'subs-pass',
   }),
   btoaImpl: (value) => Buffer.from(value).toString('base64'),
   fetchImpl: async (url, options = {}) => {
@@ -158,9 +162,9 @@ if ('x-user-email' in postCall.options.headers) throw new Error('x-user-email sh
 
 await api.deleteSubtitleSession('session-1');
 const deleteCall = calls[1];
-if (deleteCall.url !== 'http://localhost:8088/api/subtitles/sessions/session-1') throw new Error('subtitle delete url drift');
+if (deleteCall.url !== 'http://127.0.0.1:8092/api/subtitles/sessions/session-1') throw new Error('subtitle delete url drift');
 if (deleteCall.options.method !== 'DELETE') throw new Error('subtitle delete method drift');
-if (deleteCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('subtitle delete auth drift');
+if (deleteCall.options.headers['x-api-key'] !== 'subtitles-key-1') throw new Error('subtitle delete auth drift');
 
 const apiMissingCreds = createTtsApiClient({
   getSettings: () => ({ ttsBaseUrl: 'http://localhost:8088', ttsApiKey: 'k', ttsBasicUser: '', ttsBasicPass: '' }),
