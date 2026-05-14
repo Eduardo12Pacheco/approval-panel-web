@@ -1,7 +1,7 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
 
 export const DEFAULT_FPS = 30;
-export const OUTRO_DURATION_SECONDS = 2;
+export const OUTRO_DURATION_SECONDS = 30;
 export const PRELOAD_IMAGE_WINDOW_SIZE = 2;
 
 export function secondsToFrame(seconds, fps = DEFAULT_FPS) {
