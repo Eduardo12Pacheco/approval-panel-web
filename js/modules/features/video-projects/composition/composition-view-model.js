@@ -106,11 +106,9 @@ export function resolveCompositionOutroUrl(project = {}) {
 export function resolveCompositionOutroDurationSeconds(project = {}) {
   const snapshot = project?.editor_state?.approval_contract_snapshot;
   const brandChannel = snapshot?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel;
-  // Brand channel defines authoritative outro duration; snapshot values can be stale.
-  const brandDuration = resolveBrandChannelAssets(brandChannel).outro.durationSeconds;
-  const snapshotDuration = Number(snapshot?.outro?.durationSeconds);
-  if (Number.isFinite(snapshotDuration) && snapshotDuration > 0 && snapshotDuration < brandDuration + 10) return snapshotDuration;
-  return brandDuration;
+  // Brand channel defines the authoritative outro duration.
+  // Snapshot values can be stale or wrong — always prefer the configured asset.
+  return resolveBrandChannelAssets(brandChannel).outro.durationSeconds;
 }
 
 export function resolveRowImageUrl(row = {}, rowIndex = 0, project = {}) {
