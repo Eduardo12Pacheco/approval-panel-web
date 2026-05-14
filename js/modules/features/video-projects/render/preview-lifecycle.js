@@ -145,19 +145,28 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
   const renderer = getCompositionRendererForPreview();
   const timelineRows = buildCompositionPreviewAssets({ project, rows: editorRows }).compositionRows;
   const findRowAtTime = (time) => resolvePreviewTimelineCurrentRow(timelineRows, time);
+  const progressEl = root.querySelector('[data-preview-progress]');
+  const playheadEl = root.querySelector('[data-preview-playhead]');
+  const currentTimeEl = root.querySelector('[data-preview-current-time]');
+  const timelineMarkers = Array.from(root.querySelectorAll('.video-preview-timeline__marker'));
+  const editorRowEls = Array.from(root.querySelectorAll('.video-editor-row[data-row-id]'));
   const updatePreviewTimeline = (currentTime, durationValue) => {
     const configuredDuration = Number(scrubber?.dataset.duration || 0);
     const duration = Math.max(Number(durationValue || previewVideo?.duration || renderer?.duration || configuredDuration || 0), configuredDuration, 1);
     const pct = Math.max(0, Math.min((Number(currentTime || 0) / duration) * 100, 100));
-    const progressEl = root.querySelector('[data-preview-progress]');
-    const playheadEl = root.querySelector('[data-preview-playhead]');
-    const currentTimeEl = root.querySelector('[data-preview-current-time]');
     if (progressEl) progressEl.style.width = `${pct}%`;
     if (playheadEl) playheadEl.style.left = `${pct}%`;
     if (currentTimeEl) currentTimeEl.textContent = formatSeconds(currentTime || 0);
     const currentRow = findRowAtTime(Number(currentTime || 0));
-    root.querySelectorAll('.video-preview-timeline__marker').forEach((segment) => segment.classList.toggle('is-current', Boolean(currentRow && segment.dataset.rowId === currentRow.id)));
-    root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => rowEl.classList.toggle('is-current', Boolean(currentRow && rowEl.dataset.rowId === currentRow.id)));
+    const currentId = currentRow?.id;
+    for (let i = 0; i < timelineMarkers.length; i++) {
+      const segment = timelineMarkers[i];
+      if (segment) segment.classList.toggle('is-current', Boolean(currentId && segment.dataset.rowId === currentId));
+    }
+    for (let i = 0; i < editorRowEls.length; i++) {
+      const rowEl = editorRowEls[i];
+      if (rowEl) rowEl.classList.toggle('is-current', Boolean(currentId && rowEl.dataset.rowId === currentId));
+    }
   };
   let previewTimelineFrame = 0;
   const stopPreviewTimelineLoop = () => {
@@ -214,8 +223,13 @@ function hydrateCompositionTransport({ root, renderer, playButton, playIcon, sta
   const handleCompositionPlay = async () => {
     const activeRenderer = getCompositionRendererForPreview();
     if (!activeRenderer) return;
-    if (activeRenderer.isPlaying) activeRenderer.pause();
-    else await activeRenderer.play();
+    if (activeRenderer.isPlaying) {
+      activeRenderer.pause();
+      updatePlayIcon();
+    } else {
+      await activeRenderer.play();
+      updatePlayIcon();
+    }
   };
   playButton?.addEventListener('click', handleCompositionPlay);
   root.querySelector('.composition-stage')?.addEventListener('click', handleCompositionPlay);
@@ -233,14 +247,7 @@ function hydrateCompositionTransport({ root, renderer, playButton, playIcon, sta
       updatePreviewTimeline(activeRenderer.currentTime, activeRenderer.duration);
     }
   };
-  const pollPlayState = () => {
-    const activeRenderer = getCompositionRendererForPreview();
-    if (!activeRenderer) return;
-    const wasPlaying = playButton?.classList.contains('is-playing');
-    if (wasPlaying !== activeRenderer.isPlaying) updatePlayIcon();
-    window.setTimeout(pollPlayState, 100);
-  };
-  pollPlayState();
+  updatePlayIcon();
   if (renderer.isPlaying) startPreviewTimelineLoop();
 }
 

@@ -14,12 +14,14 @@ export function createShellNavigationController({
     const nextView = normalizeShellView(view);
 
     state.currentView = nextView;
-    ensureApprovalAutoRefresh();
     const isApproval = nextView === 'approval';
     const isScripts = nextView === 'scripts';
     const isAudio = nextView === 'audio';
     const isRadar = nextView === 'radar';
     const isSubtitulos2 = nextView === 'subtitulos2';
+
+    // Only auto-refresh approval/queue monitor when on approval or scripts views.
+    ensureApprovalAutoRefresh(isApproval || isScripts);
     el.viewApproval.classList.toggle('hidden', !isApproval);
     el.viewScripts.classList.toggle('hidden', !isScripts);
     el.viewAudio.classList.toggle('hidden', !isAudio);

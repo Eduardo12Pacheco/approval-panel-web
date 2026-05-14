@@ -29,7 +29,8 @@ export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVid
 
 export class CompositionRenderer {
   #container; #fps; #currentTime; #isPlaying; #assetsReady; #rows;
-  #dom; #imageCache; #activeSegmentKey; #audio; #rafId; #audioStartToken;
+  #dom; #imageCache; #imageCacheOrder; #activeSegmentKey; #audio; #rafId; #audioStartToken;
+  #viewportWidth; #viewportHeight; #frameCount;
 
   constructor({ container, fps = DEFAULT_FPS }) {
     this.#container = container;
@@ -39,11 +40,14 @@ export class CompositionRenderer {
     this.#assetsReady = false;
     this.#rows = [];
     this.#imageCache = new Map();
+    this.#imageCacheOrder = [];
     this.#activeSegmentKey = null;
     this.#audio = new AudioManager();
     this.#rafId = null;
     this.#audioStartToken = 0;
+    this.#frameCount = 0;
     this.#dom = buildCompositionDOM(container);
+    this.#updateViewportDimensions();
   }
 
   async preload({ dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {
@@ -119,6 +123,12 @@ export class CompositionRenderer {
           img.src = url;
           await img.decode();
           this.#imageCache.set(url, img);
+          // LRU: track insertion order, evict oldest when over limit.
+          this.#imageCacheOrder.push(url);
+          while (this.#imageCacheOrder.length > IMAGE_CACHE_MAX_SIZE) {
+            const oldest = this.#imageCacheOrder.shift();
+            if (oldest) this.#imageCache.delete(oldest);
+          }
         } catch {
           // Ignore failed preloads — will fallback on render.
         }
@@ -234,6 +244,7 @@ export class CompositionRenderer {
     this.#currentTime = 0;
     this.#assetsReady = false;
     this.#imageCache.clear();
+    this.#imageCacheOrder.length = 0;
     this.#activeSegmentKey = null;
   }
 
@@ -281,10 +292,17 @@ export class CompositionRenderer {
   #rafTick() {
     if (!this.#isPlaying) return;
 
+    this.#frameCount += 1;
+
     if (this.#audio.ctx && this.#audio.ctx.state === 'running') {
       this.#syncTimeFromAudio();
     } else {
       this.#currentTime = Math.min(this.#currentTime + 1 / 60, this.duration);
+    }
+
+    // Refresh viewport cache lazily — layout reads are forced-sync expensive.
+    if (this.#frameCount % 60 === 0) {
+      this.#updateViewportDimensions();
     }
 
     if (this.#currentTime >= this.duration) {
@@ -318,6 +336,11 @@ export class CompositionRenderer {
       if (clear && element.getAttribute?.('src')) clearManagedVideoElement(element);
     });
     if (this.#dom?.layers?.videoColorOverlay) this.#dom.layers.videoColorOverlay.style.visibility = 'hidden';
+  }
+
+  #updateViewportDimensions() {
+    this.#viewportWidth = this.#dom?.stage?.clientWidth || this.#container?.clientWidth || 1920;
+    this.#viewportHeight = this.#dom?.stage?.clientHeight || this.#container?.clientHeight || 1080;
   }
 
   #renderFrame() {
@@ -416,8 +439,8 @@ export class CompositionRenderer {
       cacheImage: this.#imageCache.get(segmentKey),
       imageElement: layers.image,
     });
-    const viewportWidth = this.#dom.stage.clientWidth || this.#container.clientWidth || 1920;
-    const viewportHeight = this.#dom.stage.clientHeight || this.#container.clientHeight || 1080;
+    const viewportWidth = this.#viewportWidth;
+    const viewportHeight = this.#viewportHeight;
     const layer = resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, x, y });
     const imageStyle = resolveCoverPanImageStyle(layer);
     layers.image.style.width = imageStyle.width;
@@ -491,6 +514,12 @@ export class CompositionRenderer {
 
   async #swapSegmentImage(imgEl, url) {
     if (this.#imageCache.has(url)) {
+      // LRU: bump this URL to the most-recently-used end.
+      const idx = this.#imageCacheOrder.indexOf(url);
+      if (idx !== -1) {
+        this.#imageCacheOrder.splice(idx, 1);
+        this.#imageCacheOrder.push(url);
+      }
       imgEl.src = url;
       return;
     }

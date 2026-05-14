@@ -75,7 +75,11 @@ export function bindCoreEvents({
     refreshAll();
   });
 
+  let searchDebounceTimer = 0;
   [el.searchInput, el.countryFilter, el.sourcesFilter].forEach((inputEl) => {
-    inputEl.addEventListener('input', renderCards);
+    inputEl.addEventListener('input', () => {
+      window.clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = window.setTimeout(renderCards, 300);
+    });
   });
 }

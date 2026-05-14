@@ -893,7 +893,7 @@ export async function runAppShellSetViewReplay() {
     [
       'const nextView = normalizeShellView(view);',
       'state.currentView = nextView;',
-      'ensureApprovalAutoRefresh();',
+      'ensureApprovalAutoRefresh(isApproval || isScripts);',
       "el.viewApproval.classList.toggle('hidden', !isApproval);",
       "el.viewScripts.classList.toggle('hidden', !isScripts);",
       "el.viewAudio.classList.toggle('hidden', !isAudio);",

@@ -544,7 +544,14 @@ async function refreshVideoProjects(options = {}) {
   await runVideoProjectsRefresh(options);
 }
 
-function ensureApprovalAutoRefresh() {
+function ensureApprovalAutoRefresh(start = true) {
+  if (!start) {
+    if (state.approvalAutoRefreshTimer) {
+      clearInterval(state.approvalAutoRefreshTimer);
+      state.approvalAutoRefreshTimer = null;
+    }
+    return;
+  }
   if (state.approvalAutoRefreshTimer) return;
 
   const run = () => {
