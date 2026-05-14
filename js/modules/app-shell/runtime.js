@@ -49,7 +49,7 @@ const lastNewsSearchKey = 'approval-panel-last-news-search-at-v1';
 
 const AUTH_USER = 'paneladmin';
 const AUTH_PASS = 'Guiones2026!';
-const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 15000;
+const APPROVAL_AUTO_REFRESH_INTERVAL_MS = 30000;
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -508,6 +508,9 @@ function hydrateSettingsForm() {
   hydrateSettingsFormValues({ el, settings: state.settings });
 }
 
+const MIN_REFRESH_INTERVAL_MS = 5000;
+let lastRefreshAllTime = 0;
+
 async function refreshAll(options = {}) {
   if (shouldSkipApprovalInitialBootRefresh({
     baseUrl: state.settings?.baseUrl,
@@ -517,6 +520,10 @@ async function refreshAll(options = {}) {
     await refreshVideoProjects({ silent: true });
     return;
   }
+
+  const now = Date.now();
+  if (now - lastRefreshAllTime < MIN_REFRESH_INTERVAL_MS) return;
+  lastRefreshAllTime = now;
 
   await Promise.all([refreshPending(), refreshQueue(), refreshScriptDrafts(), refreshVideoProjects({ silent: true })]);
 }
@@ -547,10 +554,15 @@ function ensureApprovalAutoRefresh() {
   state.approvalAutoRefreshTimer = setInterval(run, APPROVAL_AUTO_REFRESH_INTERVAL_MS);
 }
 
+let lastMonitorRefreshTime = 0;
+
 async function refreshApprovalMonitorData() {
   if (shouldSkipApprovalBackgroundRefresh({ baseUrl: state.settings?.baseUrl, locationLike: globalThis.location })) {
     return;
   }
+  const now = Date.now();
+  if (now - lastMonitorRefreshTime < MIN_REFRESH_INTERVAL_MS) return;
+  lastMonitorRefreshTime = now;
   await Promise.allSettled([
     refreshQueue({ silent: true }),
     refreshScriptDrafts({ silent: true }),

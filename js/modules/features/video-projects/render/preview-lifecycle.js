@@ -113,6 +113,10 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
     }).then(() => {
       compositionRendererAssetSignature = assetSignature;
       applyRowsAndSeek();
+    }).catch((err) => {
+      console.warn('Composition preview preload failed, applying rows without full preload:', err);
+      compositionRendererAssetSignature = assetSignature;
+      applyRowsAndSeek();
     });
   } else {
     applyRowsAndSeek();

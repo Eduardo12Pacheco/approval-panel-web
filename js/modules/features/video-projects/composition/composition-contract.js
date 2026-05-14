@@ -42,12 +42,26 @@ function resolveSelectedImageEntryUrl(entry = null, resolveCandidateImageUrl = (
   return '';
 }
 
+const LOCALHOST_PATTERN = /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[::1\]|::1)(:\d+)?(\/|$)/i;
+
+function isLocalhostUrl(raw) {
+  try {
+    return new Set(['localhost', '127.0.0.1', '[::1]', '::1']).has(new URL(raw).hostname);
+  } catch {
+    return LOCALHOST_PATTERN.test(raw);
+  }
+}
+
 export function resolvePreparedMediaUrl(rawUrl = '', remotionApiUrl = '') {
   const value = toTrimmedString(rawUrl);
   if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
   const baseUrl = toTrimmedString(remotionApiUrl);
   if (!baseUrl) return value;
+  // Never construct mixed-content URLs against a localhost base from an
+  // HTTPS origin — browser ORB/CORS will block them. Relative asset paths
+  // are resolved against the origin (CDN) and already work there.
+  if (isLocalhostUrl(baseUrl)) return value;
   try {
     return new URL(value, `${baseUrl.replace(/\/+$/, '')}/`).toString();
   } catch {
