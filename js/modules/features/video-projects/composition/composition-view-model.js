@@ -59,9 +59,12 @@ function resolveCompositionVideoUrlForRow(project = {}, row = {}, contract = {})
 function resolveCompositionEffectUrl(contract = {}, assetId = '') {
   const effects = Array.isArray(contract?.manifest?.effects) ? contract.manifest.effects : [];
   const effect = effects.find((item) => item?.assetId === assetId);
+  // Effect assets are served statically from the CDN origin.
+  // Never resolve against localhost remotionApiUrl — browser ORB blocks
+  // video from http://127.0.0.1 on https:// pages.
+  if (effect?.mediaUrl && /^https?:\/\//i.test(effect.mediaUrl)) return effect.mediaUrl;
   const localEffect = resolveVideoSegmentEffectAsset(assetId);
-  const fallbackUrl = localEffect ? resolveVideoSegmentEffectUrl(assetId) : '';
-  return resolvePreparedMediaUrl(effect?.mediaUrl || fallbackUrl, contract?.remotionApiUrl);
+  return localEffect ? resolveVideoSegmentEffectUrl(assetId) : '';
 }
 
 function resolveCompositionVideoMedia(project = {}, row = {}, contract = {}) {

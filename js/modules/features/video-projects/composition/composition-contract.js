@@ -58,10 +58,6 @@ export function resolvePreparedMediaUrl(rawUrl = '', remotionApiUrl = '') {
   if (/^https?:\/\//i.test(value)) return value;
   const baseUrl = toTrimmedString(remotionApiUrl);
   if (!baseUrl) return value;
-  // Never construct mixed-content URLs against a localhost base from an
-  // HTTPS origin — browser ORB/CORS will block them. Relative asset paths
-  // are resolved against the origin (CDN) and already work there.
-  if (isLocalhostUrl(baseUrl)) return value;
   try {
     return new URL(value, `${baseUrl.replace(/\/+$/, '')}/`).toString();
   } catch {
