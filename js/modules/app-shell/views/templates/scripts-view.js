@@ -3,7 +3,6 @@
  * 1:1 parity — exact DOM structure from original index.html.
  */
 export const scriptsViewHTML = `\
-        <section id="viewScripts" class="view hidden scripts-view video-projects-view">
           <header class="panel-shell video-projects-hero">
             <div>
               <h1>Proyectos de edici\u00f3n</h1>
@@ -25,7 +24,4 @@ export const scriptsViewHTML = `\
               </header>
               <main id="videoProjectsList" class="video-projects-list" aria-live="polite"></main>
             </section>
-
-            <article id="videoProjectDetail" class="panel-shell video-project-detail hidden" aria-live="polite"></article>
-          </section>
-        </section>`;
+          </section>`;

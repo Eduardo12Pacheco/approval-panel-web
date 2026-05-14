@@ -3,7 +3,6 @@
  * 1:1 parity — exact DOM structure from original index.html.
  */
 export const audioViewHTML = `\
-        <section id="viewAudio" class="view hidden">
           <div class="audio-screen">
             <header class="panel-shell audio-screen__header">
               <div>
@@ -49,5 +48,4 @@ export const audioViewHTML = `\
                 </section>
               </aside>
             </section>
-          </div>
-        </section>`;
+          </div>`;

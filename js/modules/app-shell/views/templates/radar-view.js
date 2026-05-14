@@ -3,7 +3,6 @@
  * 1:1 parity — exact DOM structure from original index.html.
  */
 export const radarViewHTML = `\
-        <section id="viewRadar" class="view hidden radar-screen">
           <header class="panel-shell radar-screen__header">
             <div>
               <p class="subtitle2-section-label">Radar local</p>
@@ -82,5 +81,4 @@ export const radarViewHTML = `\
                 <button id="radarConfirmAcceptBtn" class="approve" type="button">Confirmar</button>
               </div>
             </article>
-          </dialog>
-        </section>`;
+          </dialog>`;

@@ -3,7 +3,6 @@
  * 1:1 parity — exact DOM structure from original index.html.
  */
 export const subtitlesViewHTML = `\
-        <section id="viewSubtitulos2" class="view hidden subtitle2-screen">
           <section class="subtitle2-workspace">
             <section class="subtitle2-master-card">
               <header class="subtitle2-screen__header">
@@ -179,5 +178,4 @@ export const subtitlesViewHTML = `\
                 <div id="subtitle2SessionHistory" class="subtitle-history-list">Todav\u00eda no hay sesiones remotas.</div>
               </div>
             </aside>
-          </section>
-        </section>`;
+          </section>`;
