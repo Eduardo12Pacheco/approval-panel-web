@@ -67,7 +67,9 @@ function runRenderingPanelCheck() {
   assertIncludes(panel, 'role="progressbar"', 'Expected accessible progress activity');
   assertIncludes(panel, 'video-editor-export-panel__progress-bar--indeterminate', 'Expected indeterminate progress when no percentage exists');
   assertIncludes(panel, 'data-action="export-final" disabled', 'Expected disabled export button while rendering');
-  assertNotIncludes(panel, 'Descargar video final', 'Rendering panel must not expose download link');
+  assertIncludes(panel, 'video-editor-export-panel__download--disabled', 'Rendering panel must show disabled download state');
+  assertIncludes(panel, 'aria-disabled="true"', 'Disabled download must be announced as disabled');
+  assertIncludes(panel, 'Descargar video final', 'Rendering panel should keep download action visible but disabled');
   assertIncludes(statusPanel, 'Estado del video', 'Expected status panel heading');
   assertIncludes(statusPanel, 'Exportando final', 'Expected rendering status badge');
 }
@@ -80,8 +82,10 @@ function runReadyPanelCheck() {
   assertIncludes(panel, 'Exportación lista', 'Expected ready status copy');
   assertIncludes(panel, 'href="https://example.test/final.mp4"', 'Expected final download link inside export panel');
   assertIncludes(panel, 'Descargar video final', 'Expected download action inside export panel');
+  assertIncludes(panel, 'video-editor-export-panel__download--active', 'Ready final should make download the primary green action');
   assertIncludes(panel, 'data-action="export-final"', 'Expected stable export action for re-render');
   assertIncludes(panel, 'Volver a renderizar', 'Expected re-render copy for ready final');
+  assertIncludes(panel, 'video-project-secondary-action--export', 'Ready final should make re-render a secondary action');
   assertIncludes(statusPanel, 'Video final listo', 'Expected ready status badge');
   assertIncludes(statusPanel, 'Podés descargarlo', 'Expected ready status guidance');
 }
@@ -106,6 +110,9 @@ function runDirtyReadyPanelCheck() {
 
   assertIncludes(panel, 'Cambios pendientes', 'Expected dirty ready state warning');
   assertIncludes(panel, 'volvé a exportar', 'Expected dirty warning to explain re-export');
+  assertIncludes(panel, 'video-editor-export-panel__download--disabled', 'Dirty final should block stale download');
+  assertNotIncludes(panel, 'href="https://example.test/final.mp4"', 'Dirty final should not expose stale final download URL');
+  assertIncludes(panel, 'video-project-primary-action--export', 'Dirty final should make re-render the primary action');
   assertIncludes(statusPanel, 'Cambios pendientes', 'Expected dirty ready status badge');
   assertIncludes(statusPanel, 'no incluye los últimos cambios', 'Expected dirty ready status guidance');
 }
@@ -121,8 +128,11 @@ function runDirtyEditingStatusPanelCheck() {
 
 function runIdleStatusPanelCheck() {
   const markup = buildShell({ phase: 'preview_ready', export_status: 'idle', dirty: false });
+  const panel = getExportPanel(markup);
   const statusPanel = getStatusPanel(markup);
 
+  assertIncludes(panel, 'video-editor-export-panel__download--disabled', 'Idle final should show disabled download action');
+  assertIncludes(panel, 'Exportar final', 'Idle final should make export available');
   assertIncludes(statusPanel, 'video-editor-status-panel--idle', 'Expected idle status tone');
   assertIncludes(statusPanel, 'Sin exportar', 'Expected idle status badge');
   assertIncludes(statusPanel, 'exportá el final', 'Expected idle status guidance');
