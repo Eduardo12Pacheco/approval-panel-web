@@ -106,5 +106,6 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     onPreviewTimelineDragStart: (ev) => previewPlayer.onTimelineDragStart(ev),
     renameHistorySession: (sessionId, currentName) => sessionController.renameHistorySession(sessionId, currentName),
     deleteHistorySession: deleteSubtitle2HistorySession,
+    activate: () => {},  // no-op: subtitles controller handles init via setView
   };
 }

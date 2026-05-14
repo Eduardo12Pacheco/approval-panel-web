@@ -14,6 +14,7 @@ export function createAudioFeature({ api, store, ui, selectors, handlers }) {
     downloadAudioJob: handlers.downloadAudioJob,
     dismissAudioJob: handlers.dismissAudioJob,
     getLatestTrackedJobId: handlers.getLatestTrackedJobId,
+    activate: () => {},  // no-op: audio controller handles its own state
     dependencies: {
       api,
       store,

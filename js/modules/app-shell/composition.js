@@ -18,6 +18,11 @@ import { createRadarState } from '../features/radar/state.js';
 import { getDomSelectors } from '../shared/dom/selectors.js';
 import { createShellState } from './state.js';
 
+// Shared mutable Sets — populated by navigation guards to track per-view state.
+const _cssLoaded = new Set();
+const _domInjected = new Set();
+const _visited = new Set();
+
 export function createAppShellComposition({
   documentRef,
   windowRef,
@@ -182,7 +187,21 @@ export function createAppShellComposition({
     handlers: { ...audioRuntime },
   });
 
+  // -----------------------------------------------------------------------
+  // Lazy factories — for navigation-guard use.
+  // Pattern: _ensure*() returns the feature (same eagerly-created instance).
+  // In future phases, these can be converted to dynamic import() with lazy creation
+  // while the navigation guard interface remains stable.
+  // -----------------------------------------------------------------------
+  async function _ensureApprovalFeature() { return approvalFeature; }
+  async function _ensureScriptsFeature() { return scriptsFeature; }
+  async function _ensureVideoProjectsFeature() { return { feature: videoProjectsFeature, api: videoProjectsApi }; }
+  async function _ensureAudioFeature() { return { feature: audioFeature, controller: audioController, runtime: audioRuntime }; }
+  async function _ensureSubtitlesFeature() { return subtitlesController; }
+  async function _ensureRadarFeature() { return { controller: radarController, api: radarApi }; }
+
   return {
+    // Eager pieces
     state,
     el,
     store,
@@ -198,6 +217,19 @@ export function createAppShellComposition({
     runQueueRefresh: createSingleFlightRunner((options) => approvalFeature.refreshQueue(options)),
     runScriptDraftsRefresh: createSingleFlightRunner((options) => scriptsFeature.refreshScriptDrafts(options)),
     runVideoProjectsRefresh: createSingleFlightRunner((options) => videoProjectsFeature.refreshVideoProjects(options)),
+
+    // Lazy factory interface — used by navigation guards
+    _ensureApprovalFeature,
+    _ensureScriptsFeature,
+    _ensureVideoProjectsFeature,
+    _ensureAudioFeature,
+    _ensureSubtitlesFeature,
+    _ensureRadarFeature,
+
+    // Tracker Sets — populated by navigation guards
+    _cssLoaded,
+    _domInjected,
+    _visited,
   };
 }
 

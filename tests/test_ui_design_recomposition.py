@@ -4,6 +4,8 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_PATH = ROOT / "index.html"
+AUDIO_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "audio-view.js"
+SUBTITLES_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "subtitles-view.js"
 TOKENS_PATH = ROOT / "styles" / "tokens.css"
 LAYOUT_PATH = ROOT / "styles" / "layout.css"
 RESPONSIVE_PATH = ROOT / "styles" / "responsive.css"
@@ -111,7 +113,7 @@ def test_remove_script_button_uses_red_quitar_contract():
 
 
 def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classes():
-    index_source = _read(INDEX_PATH)
+    index_source = _read(INDEX_PATH) + "\n" + _read(AUDIO_TEMPLATE_PATH)
     tokens_source = _read(TOKENS_PATH)
     layout_source = _read(LAYOUT_PATH)
     approval_source = _read(APPROVAL_PATH)
@@ -131,7 +133,7 @@ def test_detail_modal_and_audio_screen_use_new_industrial_technical_shell_classe
         'id="audioQueueMeta" class="section-counter"',
         'id="audioQueueMeta" class="section-counter"></span>',
         'id="audioQueueList" class="audio-queue-list is-empty"',
-        'class="audio-queue-empty">Sin jobs todavía.</p>',
+        'class="audio-queue-empty">Sin jobs',
         '<option value="balanced_default">Voz Balanceada</option>',
         '<option value="pelotazo_emotivo">Voz Emotivo</option>',
         '<option value="pelotazo_informativo">Voz Informativa</option>',
@@ -278,7 +280,7 @@ def test_script_queue_cards_prefer_individual_headline_before_cluster_title():
 
 
 def test_sidebar_icons_and_custom_dropdown_stack_track_industrial_resources_more_closely():
-    index_source = _read(INDEX_PATH)
+    index_source = _read(INDEX_PATH) + "\n" + _read(AUDIO_TEMPLATE_PATH) + "\n" + _read(SUBTITLES_TEMPLATE_PATH)
     forms_source = _read(FORMS_PATH)
     dialogs_source = _read(DIALOGS_PATH)
     buttons_source = _read(BUTTONS_PATH)

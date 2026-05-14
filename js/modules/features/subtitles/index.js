@@ -9,6 +9,7 @@ export function createSubtitlesFeature({ api, store, ui, selectors, handlers }) 
     onTableClick: handlers.onTableClick,
     pollStatus: handlers.pollStatus,
     renderWorkflow: handlers.renderWorkflow,
+    activate: () => {},  // no-op: subtitles controller handles its own init
     dependencies: {
       api,
       store,

@@ -12,6 +12,7 @@ export function createAppShellLifecycle({
   renderSearchRefreshState,
   renderSelectedScriptEditor,
   renderSelectedVideoProject,
+  _visited,
 }) {
   function bootApp() {
     bootCompatibilityShell();
@@ -39,6 +40,8 @@ export function createAppShellLifecycle({
     if (session === 'ok') {
       el.authGate.classList.add('hidden');
       el.appShell.classList.remove('hidden');
+      // Fire-and-forget: lazy load CSS+DOM for approval view asynchronously
+      // Approval DOM is already in index.html (not in a template), so no FOUC
       setView('approval');
       refreshAll({ silent: true, source: 'boot' });
       return;
@@ -47,5 +50,14 @@ export function createAppShellLifecycle({
     el.appShell.classList.add('hidden');
   }
 
-  return { bootApp, bootCompatibilityShell, boot };
+  /**
+   * Mark a view as visited. Called by navigation guards after the first
+   * successful navigation to a view. Used by refreshAll() to defer API
+   * calls until the user has actually entered the relevant view.
+   */
+  function markVisited(viewName) {
+    _visited.add(viewName);
+  }
+
+  return { bootApp, bootCompatibilityShell, boot, markVisited };
 }

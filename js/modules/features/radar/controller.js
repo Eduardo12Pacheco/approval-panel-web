@@ -183,5 +183,6 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     confirmJobAction,
     render: renderAll,
     stopPolling,
+    activate: () => {},  // no-op: radar init handled by setView logic
   };
 }

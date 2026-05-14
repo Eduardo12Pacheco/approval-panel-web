@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = ROOT / "index.html"
+RADAR_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "radar-view.js"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 BOOTSTRAP_PATH = ROOT / "js" / "modules" / "core" / "bootstrap.js"
 SELECTORS_PATH = ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js"
@@ -21,7 +22,7 @@ def _run_node_file(path: Path):
 
 
 def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors():
-    index_source = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    index_source = INDEX_HTML_PATH.read_text(encoding="utf-8") + "\n" + RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
     selectors_source = SELECTORS_PATH.read_text(encoding="utf-8")
     app_store_source = APP_STORE_PATH.read_text(encoding="utf-8")
     bootstrap_source = BOOTSTRAP_PATH.read_text(encoding="utf-8")

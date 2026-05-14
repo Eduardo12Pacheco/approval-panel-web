@@ -35,6 +35,7 @@ const EXPECTED_FEATURE_API = [
   'assignVideoSegmentToRow',
   'updateGlobalAudio',
   'updateBrandChannel',
+  'activate',
 ];
 
 function createMinimalDependencies(overrides = {}) {

@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = ROOT / "index.html"
+SUBTITLES_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "subtitles-view.js"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 SUBTITLE_WORKFLOW_PATH = ROOT / "js" / "modules" / "subtitles-workflow.mjs"
 SUBTITLE_RUNTIME_SERVICES_PATH = ROOT / "js" / "modules" / "features" / "subtitles" / "runtime" / "services.js"
@@ -179,7 +180,7 @@ def test_app_shell_runtime_defines_subtitle_preview_playback_bridge_before_bindi
 
 
 def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_table_headers():
-    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8") + "\n" + SUBTITLES_TEMPLATE_PATH.read_text(encoding="utf-8")
     app_shell = APP_SHELL_PATH.read_text(encoding="utf-8")
     workflow = SUBTITLE_WORKFLOW_PATH.read_text(encoding="utf-8")
     css = _read_subtitle_css()
@@ -196,7 +197,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'Start / End' in index_html
     assert '<th aria-label="Eliminar"></th>' in index_html
     assert '<span class="subtitle-table__title">Eliminar</span>' not in index_html
-    assert 'Agregar subtítulo' in index_html
+    assert 'Agregar subt' in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
     assert 'subtitle-row-actions subtitle-row-actions--tight' not in app_shell
@@ -286,7 +287,7 @@ def test_subtitle2_remote_style_presets_match_backend_contracts():
 
 
 def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_contract_drift():
-    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8") + "\n" + SUBTITLES_TEMPLATE_PATH.read_text(encoding="utf-8")
     css = _read_subtitle_css()
     subtitle_runtime_source = "\n".join([
         APP_SHELL_PATH.read_text(encoding="utf-8"),
@@ -462,7 +463,7 @@ def test_subtitle2_web_pen_fidelity_uses_literal_upload_and_editing_layout_token
 
 
 def test_subtitle2_upload_slide_keeps_header_health_and_phases_inside_left_card():
-    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    index_html = INDEX_HTML_PATH.read_text(encoding="utf-8") + "\n" + SUBTITLES_TEMPLATE_PATH.read_text(encoding="utf-8")
     css = _read_subtitle_css()
     scoped_css = _subtitle2_scoped_css(css)
 

@@ -1301,6 +1301,8 @@ if (!mutated.failures.some((f) => String(f).includes('createVideoProjectsFeature
 
 def test_subtitles_navigation_contract_uses_single_remote_view_without_mode_toggle():
     index_source = (ROOT / "index.html").read_text(encoding="utf-8")
+    subtitles_template = (ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "subtitles-view.js").read_text(encoding="utf-8")
+    dom_source = index_source + "\n" + subtitles_template
     selectors_source = (ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js").read_text(encoding="utf-8")
     bootstrap_source = (ROOT / "js" / "modules" / "core" / "bootstrap.js").read_text(encoding="utf-8")
 
@@ -1310,11 +1312,11 @@ def test_subtitles_navigation_contract_uses_single_remote_view_without_mode_togg
         'id="subtitle2ServiceHealthBanner"',
         'id="subtitle2SessionHistory"',
     ]:
-        assert expected in index_source
+        assert expected in dom_source
 
     for forbidden in [
         'id="subtitleModeSelect"',
         'subtitlesMode:',
         'subtitleModeSelect:',
     ]:
-        assert forbidden not in "\n".join([index_source, selectors_source, bootstrap_source])
+        assert forbidden not in "\n".join([dom_source, selectors_source, bootstrap_source])

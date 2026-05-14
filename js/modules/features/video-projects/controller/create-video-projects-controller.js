@@ -177,5 +177,6 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     assignVideoSegmentToRow: rowVideos.assignVideoSegmentToRow,
     updateGlobalAudio: globalAudio.updateGlobalAudio,
     updateBrandChannel: brand.updateBrandChannel,
+    activate: () => {},  // no-op: video-projects init happens on first view render
   };
 }

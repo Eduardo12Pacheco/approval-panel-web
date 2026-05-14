@@ -140,6 +140,15 @@ const {
   runQueueRefresh,
   runScriptDraftsRefresh,
   runVideoProjectsRefresh,
+  _ensureApprovalFeature,
+  _ensureScriptsFeature,
+  _ensureVideoProjectsFeature,
+  _ensureAudioFeature,
+  _ensureSubtitlesFeature,
+  _ensureRadarFeature,
+  _cssLoaded,
+  _domInjected,
+  _visited,
 } = composition;
 
 const settingsController = createSettingsController({
@@ -169,9 +178,21 @@ const navigation = createShellNavigationController({
   audioFeature,
   subtitlesController,
   radarController,
+  approvalFeature,
+  scriptsFeature,
+  videoProjectsFeature,
   ensureApprovalAutoRefresh,
   refreshVideoProjects,
   renderSelectedVideoProject,
+  _ensureApprovalFeature,
+  _ensureScriptsFeature,
+  _ensureVideoProjectsFeature,
+  _ensureAudioFeature,
+  _ensureSubtitlesFeature,
+  _ensureRadarFeature,
+  _cssLoaded,
+  _domInjected,
+  _visited,
 });
 const { setView } = navigation;
 
@@ -212,6 +233,7 @@ const lifecycle = createAppShellLifecycle({
   renderSearchRefreshState: approvalSearch.renderSearchRefreshState,
   renderSelectedScriptEditor: renderers.renderSelectedScriptEditor,
   renderSelectedVideoProject: renderers.renderSelectedVideoProject,
+  _visited,
 });
 
 export function bootApp() {
@@ -535,7 +557,10 @@ async function refreshAll(options = {}) {
     locationLike: globalThis.location,
     refreshOptions: options,
   })) {
-    await refreshVideoProjects({ silent: true });
+    // Defer video projects RPC until user visits the scripts view
+    if (_visited.has('scripts')) {
+      await refreshVideoProjects({ silent: true });
+    }
     return;
   }
 
@@ -543,7 +568,12 @@ async function refreshAll(options = {}) {
   if (now - lastRefreshAllTime < MIN_REFRESH_INTERVAL_MS) return;
   lastRefreshAllTime = now;
 
-  await Promise.all([refreshPending(), refreshQueue(), refreshScriptDrafts(), refreshVideoProjects({ silent: true })]);
+  const tasks = [refreshPending(), refreshQueue(), refreshScriptDrafts()];
+  // Only refresh video projects if the user has already visited that view
+  if (_visited.has('scripts')) {
+    tasks.push(refreshVideoProjects({ silent: true }));
+  }
+  await Promise.all(tasks);
 }
 
 async function refreshPending() {
@@ -948,7 +978,7 @@ async function legacyRunVoiceAiFromSelectedScript({ voiceProfile = null } = {}) 
   el.audioPresetSelect.value = preset;
   el.audioPresetSelect.dispatchEvent(new Event('change', { bubbles: true }));
   updateWordCounter(pronunciationText, el.audioWordCount);
-  setView('audio');
+  await setView('audio');
 
   await audioFeature.runAudioGenerationFromText({
     text: pronunciationText,

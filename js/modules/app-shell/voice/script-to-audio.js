@@ -83,7 +83,7 @@ export function createScriptToAudioVoiceController({
     el.audioPresetSelect.value = preset;
     el.audioPresetSelect.dispatchEvent(new Event('change', { bubbles: true }));
     updateWordCounter(pronunciationText, el.audioWordCount);
-    setView('audio');
+    await setView('audio');
 
     await audioFeature.runAudioGenerationFromText({
       text: pronunciationText,

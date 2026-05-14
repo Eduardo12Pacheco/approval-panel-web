@@ -457,5 +457,6 @@ export function createApprovalFeature({ api, store, ui, selectors, callbacks, he
     approveSourceFromTopic,
     decision,
     runQueue,
+    activate: () => {},  // no-op: approval already booted as first view
   };
 }

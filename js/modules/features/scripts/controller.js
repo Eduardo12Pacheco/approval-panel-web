@@ -237,5 +237,6 @@ export function createScriptsFeature({ api, store, ui, selectors, callbacks, hel
     publishSelectedScript,
     downloadSelectedScriptDocx,
     dismissProcessedScript,
+    activate: () => {},  // no-op: scripts always available with approval
   };
 }

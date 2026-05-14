@@ -75,6 +75,7 @@ def test_styles_entry_is_import_only_with_locked_order():
         "@import './styles/features/scripts.css';",
         "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
+        "@import './styles/features/radar.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
