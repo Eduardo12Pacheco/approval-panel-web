@@ -59,14 +59,17 @@ export class CompositionRenderer {
       this._voiceUrl = voiceUrl || null;
       this._musicUrl = musicUrl || null;
 
-      this.#audio.configure({
-        voiceVolume,
-        voiceMuted,
-        musicVolume,
-        musicMuted,
-        musicFadeInSeconds,
-        musicFadeOutSeconds,
-      });
+      // Guard against race: destroy() may null audio/dom while preload is in-flight.
+      if (this.#audio) {
+        this.#audio.configure({
+          voiceVolume,
+          voiceMuted,
+          musicVolume,
+          musicMuted,
+          musicFadeInSeconds,
+          musicFadeOutSeconds,
+        });
+      }
 
       if (dustWebmUrl && this.#dom?.layers?.dust) {
         this.#dom.layers.dust.src = dustWebmUrl;
@@ -90,7 +93,7 @@ export class CompositionRenderer {
         }
       }
 
-      if (voiceUrl || musicUrl) {
+      if ((voiceUrl || musicUrl) && this.#audio) {
         this.#audio.setSourceUrls(voiceUrl, musicUrl);
       }
 
@@ -385,7 +388,7 @@ export class CompositionRenderer {
       layers.videoEffect2.style.mixBlendMode = effect2.mixBlendMode;
       layers.image.style.visibility = 'hidden';
     } else {
-      this.#hideVideoSegmentLayers({ clear: true });
+      this.#hideVideoSegmentLayers({ clear: false });
       layers.image.style.visibility = 'visible';
     }
 
