@@ -24,4 +24,6 @@ export const scriptsViewHTML = `\
               </header>
               <main id="videoProjectsList" class="video-projects-list" aria-live="polite"></main>
             </section>
+
+            <article id="videoProjectDetail" class="panel-shell video-project-detail hidden" aria-live="polite"></article>
           </section>`;

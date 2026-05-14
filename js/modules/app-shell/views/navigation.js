@@ -28,6 +28,15 @@ const VIEW_TO_CSS = Object.freeze({
   subtitulos2: 'subtitulos2',
 });
 
+/**
+ * CSS cascade dependencies. Some feature CSS files depend on earlier entries
+ * in the cascade. radar.css uses audio.css layout classes. subtitles uses
+ * its own standalone styles.
+ */
+const VIEW_TO_CSS_DEPS = Object.freeze({
+  radar: ['audio'],
+});
+
 export function createShellNavigationController({
   state,
   el,
@@ -59,7 +68,15 @@ export function createShellNavigationController({
     // 1. Ensure feature module is loaded (memoized async factory)
     await _ensureFeatureForView(nextView);
 
-    // 2. Inject feature CSS if not already loaded
+    // 2. Inject feature CSS if not already loaded.
+    //    Some views depend on earlier cascade entries: radar needs audio layout classes.
+    const cssDeps = VIEW_TO_CSS_DEPS[nextView] || [];
+    for (const dep of cssDeps) {
+      if (!_cssLoaded.has(dep)) {
+        injectFeatureCSS(dep);
+        _cssLoaded.add(dep);
+      }
+    }
     if (!_cssLoaded.has(VIEW_TO_CSS[nextView] || nextView)) {
       injectFeatureCSS(VIEW_TO_CSS[nextView] || nextView);
       _cssLoaded.add(VIEW_TO_CSS[nextView] || nextView);
