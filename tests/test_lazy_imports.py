@@ -207,6 +207,40 @@ class TestNavigationGuards:
         assert "injectViewTemplate" in source, \
             "navigation.js must call injectViewTemplate for DOM on-demand"
 
+    def test_dom_selectors_refreshed_after_template_injection(self):
+        """Lazy templates must refresh cached selectors after inserting DOM.
+
+        The app-shell captures `el` once at boot, before lazy view nodes like
+        videoProjectsList exist. After `injectViewTemplate()`, navigation must
+        refresh that mutable selector object so feature renderers do not keep
+        stale null references.
+        """
+        source = _read_source(APP_SHELL_DIR / "views" / "navigation.js")
+        assert "getDomSelectors" in source, \
+            "navigation.js must import getDomSelectors to refresh lazy DOM refs"
+        assert "Object.assign(el, getDomSelectors" in source, \
+            "navigation.js must refresh cached selectors after template injection"
+
+    def test_lazy_view_events_bound_after_template_injection(self):
+        """Lazy view controls need event handlers after their DOM exists."""
+        source = _read_source(APP_SHELL_DIR / "views" / "navigation.js")
+        injection_index = source.find("injectViewTemplate")
+        bind_index = source.find("bindViewEvents")
+        assert "bindViewEvents" in source, \
+            "navigation.js must accept a bindViewEvents callback for lazy DOM views"
+        assert "_eventsBound" in source, \
+            "navigation.js must bind lazy view events once per view"
+        assert injection_index != -1 and bind_index > injection_index, \
+            "lazy view events must be bound after template injection"
+
+    def test_video_projects_render_guard_uses_dom_presence_not_project_count(self):
+        """The project list must render empty/loaded states once lazy DOM exists."""
+        source = _read_source(APP_SHELL_DIR / "runtime.js")
+        assert "if (!el.videoProjectsList && !state.selectedVideoProject) return;" in source, \
+            "renderVideoProjects must not skip rendering just because project count is currently zero"
+        assert "!state.videoProjects?.length) return" not in source, \
+            "renderVideoProjects must allow the list renderer to handle zero-project state"
+
 
 # ---------------------------------------------------------------------------
 # Task 2.9 — FOUC prevention

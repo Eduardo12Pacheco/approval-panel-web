@@ -1,6 +1,7 @@
 import { normalizeShellView } from '../navigation.js';
 import { injectFeatureCSS, isFeatureCSSInjected } from '../../core/ui/css-loader.js';
 import { injectViewTemplate } from '../../core/ui/dom-injector.js';
+import { getDomSelectors } from '../../shared/dom/selectors.js';
 import { scriptsViewHTML } from './templates/scripts-view.js';
 import { audioViewHTML } from './templates/audio-view.js';
 import { radarViewHTML } from './templates/radar-view.js';
@@ -38,6 +39,7 @@ const VIEW_TO_CSS_DEPS = Object.freeze({
 });
 
 export function createShellNavigationController({
+  documentRef = globalThis.document,
   state,
   el,
   audioFeature,
@@ -58,7 +60,10 @@ export function createShellNavigationController({
   _cssLoaded,
   _domInjected,
   _visited,
+  bindViewEvents = () => {},
 }) {
+  const _eventsBound = new Set();
+
   /**
    * Lazy-load a feature view: ensure factory, inject CSS, inject DOM,
    * activate feature, reveal view. Uses tracking Sets to prevent
@@ -86,7 +91,16 @@ export function createShellNavigationController({
     const template = VIEW_TO_TEMPLATE[nextView];
     if (template && !_domInjected.has(nextView)) {
       injectViewTemplate(template.containerId, template.html);
+      Object.assign(el, getDomSelectors(documentRef));
       _domInjected.add(nextView);
+    }
+
+    // 3b. Bind view-specific events after lazy DOM exists. Boot-time binders
+    // may have skipped these handlers because selectors were null before the
+    // template was injected.
+    if (!_eventsBound.has(nextView)) {
+      bindViewEvents(nextView);
+      _eventsBound.add(nextView);
     }
 
     // 4. Activate the feature controller

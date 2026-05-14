@@ -173,6 +173,7 @@ const approvalSearch = createApprovalSearchController({
 });
 
 const navigation = createShellNavigationController({
+  documentRef: document,
   state,
   el,
   audioFeature,
@@ -193,6 +194,7 @@ const navigation = createShellNavigationController({
   _cssLoaded,
   _domInjected,
   _visited,
+  bindViewEvents,
 });
 const { setView } = navigation;
 
@@ -293,6 +295,35 @@ function bindEvents() {
       windowRef: window,
     }),
   });
+}
+
+function bindViewEvents(viewName) {
+  if (viewName === 'scripts') {
+    bindScriptEvents({
+      state,
+      el,
+      updateWordCounter,
+      renderScriptCards,
+      renderSelectedScriptEditor,
+      publishSelectedScript,
+      openVoiceAiPresetDialog: voiceController.openVoiceAiPresetDialog,
+      confirmVoiceAiPresetSelection: voiceController.confirmVoiceAiPresetSelection,
+      downloadSelectedScriptDocx,
+      refreshVideoProjects,
+    });
+    return;
+  }
+  if (viewName === 'audio') {
+    bindAudioEvents({ el, audioFeature, updateWordCounter });
+    return;
+  }
+  if (viewName === 'radar') {
+    radarController.bindEvents();
+    return;
+  }
+  if (viewName === 'subtitulos2') {
+    bindSubtitlesEvents({ state, el, subtitlesController, renderSubtitle2PreviewPlaybackState });
+  }
 }
 
 function legacyBindEvents() {
@@ -819,7 +850,7 @@ function renderSelectedScriptEditor() {
 }
 
 async function renderVideoProjects() {
-  if (!state.selectedVideoProject && !state.videoProjects?.length) return;
+  if (!el.videoProjectsList && !state.selectedVideoProject) return;
   await _ensureVideoProjectsRender();
   renderVideoProjectsListView({
     state,

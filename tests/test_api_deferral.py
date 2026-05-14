@@ -99,6 +99,19 @@ def test_runtime_passes_visited_to_navigation():
         'runtime.js must pass _visited (or markVisited) to createShellNavigationController'
 
 
+def test_runtime_passes_lazy_view_event_binder_to_navigation():
+    """runtime.js must pass lazy view event binders to navigation."""
+    source = _read_file('js/modules/app-shell/runtime.js')
+    nav_block = source.split('createShellNavigationController(')[1]
+    nav_block = nav_block.split('});')[0]
+    assert 'bindViewEvents' in nav_block, \
+        'runtime.js must pass bindViewEvents to createShellNavigationController'
+    assert 'function bindViewEvents' in source, \
+        'runtime.js must define bindViewEvents for lazy DOM views'
+    assert 'bindScriptEvents' in source and 'bindSubtitlesEvents' in source and 'bindAudioEvents' in source, \
+        'bindViewEvents must cover scripts, subtitles, and audio lazy controls'
+
+
 # ---------------------------------------------------------------------------
 # 3.1.6 — navigation.js receives _visited and calls markVisited
 # ---------------------------------------------------------------------------
