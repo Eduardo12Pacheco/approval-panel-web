@@ -22,17 +22,34 @@ import {
 } from '../features/approval/index.js';
 import { isScriptProcessed } from '../features/scripts/index.js';
 import { renderScriptCardsView, renderScriptStatsView, renderSelectedScriptEditorView } from '../features/scripts/render.js';
-import { renderSelectedVideoProjectView, renderVideoProjectsListView, updateSelectedVideoProjectCompositionPreview as updateSelectedVideoProjectCompositionPreviewView } from '../features/video-projects/render.js';
-import {
-  getAudioStatusClassRuntime,
-  getAudioStatusLabelRuntime,
-  isTerminalAudioStatus,
-  normalizeAudioProgressPercent,
-} from '../features/audio/runtime/index.js';
+// Video Projects render (~60 modules) — loaded on first use, not at boot.
+let _renderVideoProjectsListView = null;
+let _renderSelectedVideoProjectView = null;
+let _updateSelectedVideoProjectCompositionPreviewView = null;
+async function _ensureVideoProjectsRender() {
+  if (_renderVideoProjectsListView) return;
+  const mod = await import('../features/video-projects/render.js');
+  _renderVideoProjectsListView = mod.renderVideoProjectsListView;
+  _renderSelectedVideoProjectView = mod.renderSelectedVideoProjectView;
+  _updateSelectedVideoProjectCompositionPreviewView = mod.updateSelectedVideoProjectCompositionPreview;
+}
+function renderVideoProjectsListView(...args) { return _renderVideoProjectsListView?.(...args); }
+function renderSelectedVideoProjectView(...args) { return _renderSelectedVideoProjectView?.(...args); }
+function updateSelectedVideoProjectCompositionPreviewView(...args) { return _updateSelectedVideoProjectCompositionPreviewView?.(...args); }
+// Audio runtime helpers (~8 modules) — loaded on first use.
+let _audioRuntime = null;
+async function _ensureAudioRuntime() {
+  if (_audioRuntime) return _audioRuntime;
+  _audioRuntime = await import('../features/audio/runtime/index.js');
+  return _audioRuntime;
+}
+function getAudioStatusClassRuntime(...args) { return _audioRuntime?.getAudioStatusClassRuntime?.(...args); }
+function getAudioStatusLabelRuntime(...args) { return _audioRuntime?.getAudioStatusLabelRuntime?.(...args); }
+function isTerminalAudioStatus(...args) { return _audioRuntime?.isTerminalAudioStatus?.(...args); }
+function normalizeAudioProgressPercent(...args) { return _audioRuntime?.normalizeAudioProgressPercent?.(...args); }
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
 import { createSettingsController } from './settings.js';
 import { createAppShellComposition } from './composition.js';
-import { createLazyBridge } from './lazy-bridge.js';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
 import { bindScriptEvents } from './events/scripts.js';
@@ -113,15 +130,17 @@ const {
   el,
   customDropdowns,
   approvalApi,
-  ttsApi,
   approvalFeature,
   scriptsFeature,
-  lazy,
+  videoProjectsFeature,
+  radarController,
+  subtitlesController,
+  audioFeature,
+  ttsApi,
   runQueueRefresh,
   runScriptDraftsRefresh,
+  runVideoProjectsRefresh,
 } = composition;
-
-const lb = createLazyBridge(lazy);
 
 const settingsController = createSettingsController({
   state,
@@ -147,13 +166,12 @@ const approvalSearch = createApprovalSearchController({
 const navigation = createShellNavigationController({
   state,
   el,
-  audioFeature: lb.af,
-  subtitlesController: lb.sc,
-  radarController: lb.rc,
+  audioFeature,
+  subtitlesController,
+  radarController,
   ensureApprovalAutoRefresh,
   refreshVideoProjects,
   renderSelectedVideoProject,
-  lazyPreload: (f) => lb.preload(f),
 });
 const { setView } = navigation;
 
@@ -161,7 +179,7 @@ const voiceController = createScriptToAudioVoiceController({
   state,
   el,
   customDropdowns,
-  audioFeature: lb.af,
+  audioFeature,
   toast,
   updateWordCounter,
   setView,
@@ -205,7 +223,7 @@ export function bootCompatibilityShell() {
 }
 
 function renderSubtitle2PreviewPlaybackState() {
-  lb.sc.renderPreviewPlaybackState?.();
+  subtitlesController.renderPreviewPlaybackState?.();
 }
 
 function bindEvents() {
@@ -227,7 +245,7 @@ function bindEvents() {
       renderCards,
       reloadPage: () => location.reload(),
     }),
-    bindRadar: () => lb.rc.bindEvents(),
+    bindRadar: () => radarController.bindEvents(),
     bindScripts: () => bindScriptEvents({
       state,
       el,
@@ -240,8 +258,8 @@ function bindEvents() {
       downloadSelectedScriptDocx,
       refreshVideoProjects,
     }),
-    bindAudio: () => bindAudioEvents({ el, audioFeature: lb.af, updateWordCounter }),
-    bindSubtitles: () => bindSubtitlesEvents({ state, el, subtitlesController: lb.sc, renderSubtitle2PreviewPlaybackState }),
+    bindAudio: () => bindAudioEvents({ el, audioFeature, updateWordCounter }),
+    bindSubtitles: () => bindSubtitlesEvents({ state, el, subtitlesController, renderSubtitle2PreviewPlaybackState }),
     bindApprovalDialog: () => bindApprovalDialogEvents({
       state,
       el,
@@ -274,7 +292,7 @@ function legacyBindEvents() {
     reloadPage: () => location.reload(),
   });
 
-  lb.rc.bindEvents();
+  radarController.bindEvents();
 
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
@@ -330,7 +348,7 @@ function legacyBindEvents() {
     updateWordCounter('', el.audioWordCount);
   });
 
-  el.audioRunBtn.addEventListener('click', lb.af.runAudioGeneration);
+  el.audioRunBtn.addEventListener('click', audioFeature.runAudioGeneration);
   el.queueList?.addEventListener('click', (ev) => {
     const button = ev.target.closest('[data-action="dismiss-approval-queue-job"]');
     if (!button) return;
@@ -345,23 +363,23 @@ function legacyBindEvents() {
   });
 
 
-  el.subtitle2UploadInput?.addEventListener('change', lb.sc.onUploadSelected);
-  el.subtitle2SourceLanguagePicker?.addEventListener('change', lb.sc.onSourceLanguageChanged);
-  el.subtitle2SaveBtn?.addEventListener('click', lb.sc.onSaveClicked);
-  el.subtitle2ReadyBtn?.addEventListener('click', lb.sc.onReadyClicked);
-  el.subtitle2DownloadBtn?.addEventListener('click', lb.sc.onDownloadClicked);
-  el.subtitle2AddRowBtn?.addEventListener('click', lb.sc.onAddRowClicked);
-  el.subtitle2AnotherVideoBtn?.addEventListener('click', lb.sc.resetEditorForAnotherVideo);
-  el.subtitle2RowsBody?.addEventListener('input', lb.sc.onTableInput);
-  el.subtitle2RowsBody?.addEventListener('change', lb.sc.onTableInput);
-  el.subtitle2RowsBody?.addEventListener('click', lb.sc.onTableClick);
-  el.subtitle2RowsBody?.addEventListener('dragstart', lb.sc.onDraftDragStart);
-  el.subtitle2RowsBody?.addEventListener('dragover', lb.sc.onDraftDragOver);
-  el.subtitle2RowsBody?.addEventListener('dragleave', lb.sc.onDraftDragLeave);
-  el.subtitle2RowsBody?.addEventListener('drop', lb.sc.onDraftDrop);
-  el.subtitle2RowsBody?.addEventListener('dragend', lb.sc.onDraftDragEnd);
-  el.subtitle2PreviewVideo?.addEventListener('timeupdate', lb.sc.onPreviewTimeUpdate);
-  el.subtitle2PreviewVideo?.addEventListener('loadedmetadata', lb.sc.onPreviewLoadedMetadata);
+  el.subtitle2UploadInput?.addEventListener('change', subtitlesController.onUploadSelected);
+  el.subtitle2SourceLanguagePicker?.addEventListener('change', subtitlesController.onSourceLanguageChanged);
+  el.subtitle2SaveBtn?.addEventListener('click', subtitlesController.onSaveClicked);
+  el.subtitle2ReadyBtn?.addEventListener('click', subtitlesController.onReadyClicked);
+  el.subtitle2DownloadBtn?.addEventListener('click', subtitlesController.onDownloadClicked);
+  el.subtitle2AddRowBtn?.addEventListener('click', subtitlesController.onAddRowClicked);
+  el.subtitle2AnotherVideoBtn?.addEventListener('click', subtitlesController.resetEditorForAnotherVideo);
+  el.subtitle2RowsBody?.addEventListener('input', subtitlesController.onTableInput);
+  el.subtitle2RowsBody?.addEventListener('change', subtitlesController.onTableInput);
+  el.subtitle2RowsBody?.addEventListener('click', subtitlesController.onTableClick);
+  el.subtitle2RowsBody?.addEventListener('dragstart', subtitlesController.onDraftDragStart);
+  el.subtitle2RowsBody?.addEventListener('dragover', subtitlesController.onDraftDragOver);
+  el.subtitle2RowsBody?.addEventListener('dragleave', subtitlesController.onDraftDragLeave);
+  el.subtitle2RowsBody?.addEventListener('drop', subtitlesController.onDraftDrop);
+  el.subtitle2RowsBody?.addEventListener('dragend', subtitlesController.onDraftDragEnd);
+  el.subtitle2PreviewVideo?.addEventListener('timeupdate', subtitlesController.onPreviewTimeUpdate);
+  el.subtitle2PreviewVideo?.addEventListener('loadedmetadata', subtitlesController.onPreviewLoadedMetadata);
   el.subtitle2PreviewVideo?.addEventListener('play', () => {
     state.subtitles2.previewPlaying = true;
     renderSubtitle2PreviewPlaybackState();
@@ -370,21 +388,21 @@ function legacyBindEvents() {
     state.subtitles2.previewPlaying = false;
     renderSubtitle2PreviewPlaybackState();
   });
-  el.subtitle2PreviewPlayBtn?.addEventListener('click', lb.sc.onPreviewToggleClicked);
-  el.subtitle2PreviewTimeline?.addEventListener('click', lb.sc.onPreviewTimelineClick);
-  el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', lb.sc.onPreviewTimelineDragStart);
+  el.subtitle2PreviewPlayBtn?.addEventListener('click', subtitlesController.onPreviewToggleClicked);
+  el.subtitle2PreviewTimeline?.addEventListener('click', subtitlesController.onPreviewTimelineClick);
+  el.subtitle2PreviewTimelineTrack?.addEventListener('mousedown', subtitlesController.onPreviewTimelineDragStart);
   el.subtitle2SessionHistory?.addEventListener('click', (ev) => {
     const renameButton = ev.target.closest('[data-action="rename-subtitle-session"]');
     if (renameButton) {
       const sessionId = (renameButton.dataset.sessionId || '').trim();
       const currentName = (renameButton.dataset.sessionName || sessionId).trim();
-      if (sessionId) void lb.sc.renameHistorySession(sessionId, currentName);
+      if (sessionId) void subtitlesController.renameHistorySession(sessionId, currentName);
       return;
     }
     const deleteButton = ev.target.closest('[data-action="delete-subtitle-session"]');
     if (deleteButton) {
       const sessionId = (deleteButton.dataset.sessionId || '').trim();
-      if (sessionId) void lb.sc.deleteHistorySession(sessionId);
+      if (sessionId) void subtitlesController.deleteHistorySession(sessionId);
       return;
     }
     const button = ev.target.closest('[data-action="resume-subtitle-session"]');
@@ -392,8 +410,8 @@ function legacyBindEvents() {
     const sessionId = (button.dataset.sessionId || '').trim();
     if (!sessionId) return;
     void (async () => {
-      const detail = await lb.sc.hydrateSession(sessionId, { render: false });
-      lb.sc.setPhaseFromRemoteStatus(detail);
+      const detail = await subtitlesController.hydrateSession(sessionId, { render: false });
+      subtitlesController.setPhaseFromRemoteStatus(detail);
     })();
   });
 
@@ -406,12 +424,12 @@ function legacyBindEvents() {
     if (!jobId) return;
 
     if (action === 'dismiss-audio-job') {
-      lb.af.dismissAudioJob(jobId);
+      audioFeature.dismissAudioJob(jobId);
       return;
     }
 
     if (action === 'download-audio-job') {
-      await lb.af.downloadAudioJob(jobId);
+      await audioFeature.downloadAudioJob(jobId);
     }
   });
 
@@ -472,16 +490,16 @@ function legacySetView(view) {
   });
 
   if (isAudio && !state.audioPollingTimer && !state.audioStreamController) {
-    const nextTrack = lb.af.getLatestTrackedJobId();
+    const nextTrack = audioFeature.getLatestTrackedJobId();
     if (nextTrack) {
-      lb.af.startAudioTracking(nextTrack);
+      audioFeature.startAudioTracking(nextTrack);
     }
   }
 
   if (isAudio) {
-    lb.af.startAudioQueueSync();
+    audioFeature.startAudioQueueSync();
   } else {
-    lb.af.stopAudioQueueSync();
+    audioFeature.stopAudioQueueSync();
   }
 
   if (isScripts) {
@@ -490,16 +508,16 @@ function legacySetView(view) {
   }
 
   if (isSubtitulos2) {
-    void lb.sc.refreshRemoteStatus();
-    lb.sc.renderWorkflow();
+    void subtitlesController.refreshRemoteStatus();
+    subtitlesController.renderWorkflow();
   }
 
   if (isRadar) {
-    lb.rc.render();
-    void lb.rc.refreshHealth();
-    void lb.rc.refreshHistory();
+    radarController.render();
+    void radarController.refreshHealth();
+    void radarController.refreshHistory();
   } else {
-    lb.rc.stopPolling();
+    radarController.stopPolling();
   }
 
 }
@@ -541,8 +559,8 @@ async function refreshScriptDrafts(options = {}) {
 }
 
 async function refreshVideoProjects(options = {}) {
-  const feat = await lb.videoProjectsFeature();
-  await feat.refreshVideoProjects(options);
+  await _ensureVideoProjectsRender();
+  await runVideoProjectsRefresh(options);
 }
 
 function ensureApprovalAutoRefresh(start = true) {
@@ -771,43 +789,46 @@ function renderSelectedScriptEditor() {
   });
 }
 
-function renderVideoProjects() {
+async function renderVideoProjects() {
+  await _ensureVideoProjectsRender();
   renderVideoProjectsListView({
     state,
     el,
     openVideoProject,
-    prefetchProjectDetail: lb.vp.prefetchProjectDetail,
+    prefetchProjectDetail: videoProjectsFeature.prefetchProjectDetail,
   });
 }
 
-function renderSelectedVideoProject() {
+async function renderSelectedVideoProject() {
+  await _ensureVideoProjectsRender();
   renderSelectedVideoProjectView({
     state,
     el,
     closeVideoProject,
-    toggleImageSelection: lb.vp.toggleImageSelection,
-    goToAudioStep: lb.vp.goToAudioStep,
-    goToImagesStep: lb.vp.goToImagesStep,
-    uploadProjectAudio: lb.vp.uploadProjectAudio,
-    selectDefaultBackgroundMusic: lb.vp.selectDefaultBackgroundMusic,
-    uploadCustomImages: lb.vp.uploadCustomImages,
-    preparePreview: lb.vp.preparePreview,
-    refreshPreview: lb.vp.refreshPreview,
-    exportFinal: lb.vp.exportFinal,
-    updateRow: lb.vp.updateRow,
-    assignExistingImageToRow: lb.vp.assignExistingImageToRow,
-    uploadAndAssignImage: lb.vp.uploadAndAssignImage,
-    uploadVideoToLibrary: lb.vp.uploadVideoToLibrary,
-    assignVideoSegmentToRow: lb.vp.assignVideoSegmentToRow,
-    updateGlobalAudio: lb.vp.updateGlobalAudio,
-    updateBrandChannel: lb.vp.updateBrandChannel,
+    toggleImageSelection: videoProjectsFeature.toggleImageSelection,
+    goToAudioStep: videoProjectsFeature.goToAudioStep,
+    goToImagesStep: videoProjectsFeature.goToImagesStep,
+    uploadProjectAudio: videoProjectsFeature.uploadProjectAudio,
+    selectDefaultBackgroundMusic: videoProjectsFeature.selectDefaultBackgroundMusic,
+    uploadCustomImages: videoProjectsFeature.uploadCustomImages,
+    preparePreview: videoProjectsFeature.preparePreview,
+    refreshPreview: videoProjectsFeature.refreshPreview,
+    exportFinal: videoProjectsFeature.exportFinal,
+    updateRow: videoProjectsFeature.updateRow,
+    assignExistingImageToRow: videoProjectsFeature.assignExistingImageToRow,
+    uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
+    uploadVideoToLibrary: videoProjectsFeature.uploadVideoToLibrary,
+    assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
+    updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
+    updateBrandChannel: videoProjectsFeature.updateBrandChannel,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast: toast,
   });
 }
 
-function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
+async function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
+  await _ensureVideoProjectsRender();
   return updateSelectedVideoProjectCompositionPreviewView({ project: project || state.selectedVideoProject });
 }
 
@@ -824,7 +845,7 @@ async function openScriptEditor(clusterId) {
 }
 
 async function openVideoProject(projectId) {
-  await lb.vp.openVideoProject(projectId);
+  await videoProjectsFeature.openVideoProject(projectId);
   await waitForNextFrame();
   el.viewScripts?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
 }
@@ -928,7 +949,7 @@ async function legacyRunVoiceAiFromSelectedScript({ voiceProfile = null } = {}) 
   updateWordCounter(pronunciationText, el.audioWordCount);
   setView('audio');
 
-  await lb.af.runAudioGenerationFromText({
+  await audioFeature.runAudioGenerationFromText({
     text: pronunciationText,
     voiceProfile: preset,
     title: buildVoiceAiJobTitle(selected),
