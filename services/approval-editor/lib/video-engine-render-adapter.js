@@ -4,6 +4,31 @@ const { spawn } = require("child_process");
 const { createEditorProject, stableId } = require("../../../../02-Video-Engine/scripts/lib/editor-project");
 const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
+const AUTHORITATIVE_DUST_ASSETS = {
+  "dust-1": {
+    assetId: "dust-1",
+    id: "dust-1",
+    type: "dust",
+    role: "dust",
+    source: { kind: "local", bridge: "approval-panel" },
+    publicUrl: "./assets/dust-1.webm",
+    previewUrl: "./assets/dust-1.webm",
+    renderPath: "overlays/dust-1.mp4",
+    status: "ready",
+  },
+  "dust-2": {
+    assetId: "dust-2",
+    id: "dust-2",
+    type: "dust",
+    role: "dust",
+    source: { kind: "local", bridge: "approval-panel" },
+    publicUrl: "./assets/dust-2.webm",
+    previewUrl: "./assets/dust-2.webm",
+    renderPath: "overlays/dust-2.mp4",
+    status: "ready",
+  },
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -210,6 +235,7 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
     ...(snapshot || {}),
     assets: {
       ...(snapshot?.assets || {}),
+      ...AUTHORITATIVE_DUST_ASSETS,
       ...authoritativeBrandAssets,
     },
     globalLayers: {
