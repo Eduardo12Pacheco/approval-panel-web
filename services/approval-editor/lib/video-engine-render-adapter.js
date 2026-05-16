@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const { createEditorProject, stableId } = require("../../../../02-Video-Engine/scripts/lib/editor-project");
+const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
 function nowIso() {
   return new Date().toISOString();
@@ -92,11 +93,34 @@ function materializeSafeRelativeAsset({ assetSourceRoot, projectRoot, renderPath
   const sourcePath = path.resolve(assetSourceRoot, renderPath);
   const resolvedSourceRoot = path.resolve(assetSourceRoot);
   if (sourcePath !== resolvedSourceRoot && !sourcePath.startsWith(`${resolvedSourceRoot}${path.sep}`)) return false;
-  if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile()) return false;
+  if (!fs.existsSync(sourcePath)) return false;
   const outputPath = path.join(projectRoot, "public", renderPath);
+  if (fs.statSync(sourcePath).isDirectory()) {
+    fs.cpSync(sourcePath, outputPath, { recursive: true });
+    return true;
+  }
+  if (!fs.statSync(sourcePath).isFile()) return false;
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.copyFileSync(sourcePath, outputPath);
   return true;
+}
+
+function inferBrandChannel(snapshot = {}) {
+  const explicitBrandChannel = String(snapshot?.brandChannel || "").trim();
+  if (explicitBrandChannel) return normalizeBrandChannel(explicitBrandChannel);
+
+  const candidates = [
+    snapshot?.globalLayers?.logoAssetId,
+    snapshot?.globalLayers?.outroAssetId,
+    snapshot?.globalLayers?.logo?.assetId,
+    snapshot?.globalLayers?.outro?.assetId,
+    snapshot?.outro?.assetId,
+    ...Object.keys(snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {}),
+  ].map((value) => String(value || "").toLowerCase());
+
+  if (candidates.some((value) => value.includes("colombia"))) return "pelotazo-colombia";
+  if (candidates.some((value) => value.includes("ecuador"))) return "pelotazo-ecuador";
+  return normalizeBrandChannel(null);
 }
 
 async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl = globalThis.fetch } = {}) {
@@ -180,7 +204,40 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
     preview: { status: "ready", lastGeneratedAt: nowIso() },
   });
 
-  const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl });
+  const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
+  const authoritativeBrandAssets = buildBrandAssetRecords(channelAssets);
+  const snapshotWithAuthoritativeBrandAssets = {
+    ...(snapshot || {}),
+    assets: {
+      ...(snapshot?.assets || {}),
+      ...authoritativeBrandAssets,
+    },
+    globalLayers: {
+      ...(snapshot?.globalLayers || {}),
+      logoAssetId: channelAssets.logo.assetId,
+      outroAssetId: channelAssets.outro.assetId,
+      logo: {
+        ...(snapshot?.globalLayers?.logo || {}),
+        enabled: snapshot?.globalLayers?.logo?.enabled !== false,
+        assetId: channelAssets.logo.assetId,
+        source: channelAssets.logo.source,
+        preferredSource: channelAssets.logo.source,
+      },
+      outro: {
+        ...(snapshot?.globalLayers?.outro || {}),
+        enabled: snapshot?.globalLayers?.outro?.enabled !== false,
+        assetId: channelAssets.outro.assetId,
+      },
+    },
+    outro: {
+      ...(snapshot?.outro || {}),
+      enabled: snapshot?.outro?.enabled !== false,
+      assetId: channelAssets.outro.assetId,
+      durationSeconds: channelAssets.outro.durationSeconds,
+      label: channelAssets.outro.label,
+    },
+  };
+  const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot: snapshotWithAuthoritativeBrandAssets, fetchImpl });
   const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {
     version: 1,
