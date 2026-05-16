@@ -1,14 +1,13 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const { buildApprovalContractPipeline, computeApprovalSnapshotHash } = require("../../../03-Contracts-Core/approval-contract-pipeline");
+const { buildApprovalContractPipeline, computeApprovalSnapshotHash, parseGuionSegments } = require("../../../03-Contracts-Core/approval-contract-pipeline");
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
 const { createVideoEngineRenderAdapter } = require("./lib/video-engine-render-adapter");
-const { parseGuionSegments } = require("../../../02-Video-Engine/scripts/lib/guion-parsing");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {

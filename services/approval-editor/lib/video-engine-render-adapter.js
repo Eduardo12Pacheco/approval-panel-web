@@ -1,8 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
-const { createEditorProject, stableId } = require("../../../../02-Video-Engine/scripts/lib/editor-project");
-const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
+const { stableId, normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
 const AUTHORITATIVE_DUST_ASSETS = {
   "dust-1": {
@@ -211,6 +210,52 @@ function upsertProjectIndex(projectsRoot, { projectId, title }) {
   writeJson(indexPath, { projects });
 }
 
+function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
+  const rows = (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row, index) => ({
+    id: String(row?.id || `row-${index + 1}`),
+    index,
+    phrase: String(row?.phrase || row?.caption || row?.text || "").trim(),
+    startTime: Number(row?.startTime ?? row?.start_time ?? row?.start ?? index * 3),
+    endTime: Number(row?.endTime ?? row?.end_time ?? row?.end ?? (index + 1) * 3),
+    selectedAssetId: row?.selectedAssetId || null,
+    candidates: [],
+    motion: row?.motion || "slow-zoom-in",
+    dust: row?.dust || { enabled: false },
+    filter: row?.filter || { enabled: true, mode: "cover" },
+    transition: row?.transition || "none",
+    sfx: row?.sfx || null,
+    caption: String(row?.caption || row?.phrase || row?.text || "").trim(),
+    lockedPhrase: true,
+    warnings: [],
+    status: "ready",
+  }));
+
+  return {
+    schemaVersion: 1,
+    projectId,
+    title: title || projectId,
+    fps: 30,
+    canvas: { width: 1280, height: 720 },
+    assets: [],
+    globalLayers: {
+      logoAssetId: snapshot?.globalLayers?.logoAssetId || snapshot?.globalLayers?.logo?.assetId || null,
+      outroAssetId: snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || null,
+      logo: { enabled: snapshot?.globalLayers?.logo?.enabled !== false, position: "top-left" },
+      dustDefault: false,
+      filterDefault: true,
+    },
+    audio: {
+      music: { volume: Number(snapshot?.audio?.music?.volume ?? 0.15), muted: Boolean(snapshot?.audio?.music?.muted) },
+      voice: { volume: Number(snapshot?.audio?.voice?.volume ?? 1), muted: Boolean(snapshot?.audio?.voice?.muted) },
+    },
+    rows,
+    selectedRowId: rows[0]?.id || null,
+    preview: { status: "ready", lastGeneratedAt: nowIso() },
+    renderStatus: { status: "idle", outputPath: null, diagnosticsPath: null },
+    phase: "preview_ready",
+  };
+}
+
 async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot }) {
   const projectRoot = path.join(projectsRoot, projectId);
   fs.mkdirSync(path.join(projectRoot, "guion"), { recursive: true });
@@ -221,13 +266,7 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
     .filter(Boolean);
   fs.writeFileSync(path.join(projectRoot, "guion", "guion.txt"), `${scriptLines.join("\n") || snapshot.title || projectId}\n`, "utf8");
 
-  const editorProject = createEditorProject(projectRoot, { projectId, title: snapshot.title || projectId, seedMedia: false });
-  writeJson(path.join(projectRoot, "editor-project.json"), {
-    ...editorProject,
-    title: snapshot.title || editorProject.title,
-    phase: "preview_ready",
-    preview: { status: "ready", lastGeneratedAt: nowIso() },
-  });
+  writeJson(path.join(projectRoot, "editor-project.json"), buildMinimalRenderScaffold({ projectId, title: snapshot.title || projectId, snapshot }));
 
   const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
   const authoritativeBrandAssets = buildBrandAssetRecords(channelAssets);
@@ -328,4 +367,4 @@ function createVideoEngineRenderAdapter({
   };
 }
 
-module.exports = { createVideoEngineRenderAdapter, persistSnapshotForVideoEngine };
+module.exports = { createVideoEngineRenderAdapter, persistSnapshotForVideoEngine, buildMinimalRenderScaffold };
