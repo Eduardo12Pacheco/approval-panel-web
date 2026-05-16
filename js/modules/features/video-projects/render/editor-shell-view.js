@@ -128,67 +128,6 @@ function buildFinalExportPanel({ project, editorState }) {
     </section>`;
 }
 
-function resolveEditorStatusPanelState(editorState = {}) {
-  const phase = editorState.phase || 'idle';
-  const dirty = Boolean(editorState.dirty);
-  const exportStatus = editorState.export_status || 'idle';
-  const isRendering = phase === 'final_rendering' || exportStatus === 'rendering';
-  const isReady = phase === 'final_ready' || exportStatus === 'ready';
-  const hasError = phase === 'error' || exportStatus === 'error';
-  if (isRendering) {
-    return {
-      tone: 'rendering',
-      label: 'Exportando final',
-      detail: 'Estamos generando el MP4 final. Cuando termine, vas a poder descargarlo.',
-    };
-  }
-  if (hasError) {
-    return {
-      tone: 'error',
-      label: 'Error de exportación',
-      detail: editorState.error || 'No se pudo exportar el video final. Revisá el error y reintentá.',
-    };
-  }
-  if (isReady && dirty) {
-    return {
-      tone: 'dirty',
-      label: 'Cambios pendientes',
-      detail: 'El video descargable no incluye los últimos cambios. Volvé a renderizar para actualizarlo.',
-    };
-  }
-  if (isReady) {
-    return {
-      tone: 'ready',
-      label: 'Video final listo',
-      detail: 'Podés descargarlo. Si cambiás algo, vas a tener que volver a renderizar.',
-    };
-  }
-  if (dirty || phase === 'editing_dirty') {
-    return {
-      tone: 'dirty',
-      label: 'Cambios sin exportar',
-      detail: 'Renderizá el final para que el video descargable coincida con el preview actual.',
-    };
-  }
-  return {
-    tone: 'idle',
-    label: 'Sin exportar',
-    detail: 'Cuando el preview esté correcto, exportá el final para generar el video descargable.',
-  };
-}
-
-function buildEditorStatusPanel({ editorState }) {
-  const status = resolveEditorStatusPanelState(editorState);
-  return `
-    <div class="video-editor-status-panel video-editor-status-panel--${escapeHtmlCore(status.tone)}" role="status" aria-live="polite">
-      <div class="video-editor-status-panel__header">
-        <span class="video-projects-eyebrow">Estado del video</span>
-        <span class="video-editor-status-panel__badge">● ${escapeHtmlCore(status.label)}</span>
-      </div>
-      <p>${escapeHtmlCore(status.detail)}</p>
-    </div>`;
-}
-
 export function buildEditorShell(project, options = {}) {
   const { editorRows = [], selectedRowId = null, globalAudio = {}, editorState = {}, onRowSelect, onImageReplace, onUploadAssign, onExportFinal, rowImageUploading } = options;
   const shell = buildEditorShellViewModel(project, { editorRows, selectedRowId });
@@ -200,7 +139,7 @@ export function buildEditorShell(project, options = {}) {
           <div class="video-editor-shell__card video-editor-shell__card--preview"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Preview Card — Top</span><h4>Vista previa</h4></div></div>${buildPreviewMonitor({ project, previewUrl: editorState.preview_url, rows: editorRows, selectedRowId: activeSelectedRowId })}</div>
           <div class="video-editor-shell__card video-editor-shell__card--table"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Table Card — Bottom</span><h4>${formatCount(editorRows.length, 'fila')}</h4></div></div>${buildEditorRowsTable(editorRows, { selectedRowId: activeSelectedRowId, onRowSelect, onImageReplace, onUploadAssign, rowImageUploading, project })}</div>
         </div>
-        <aside class="video-editor-shell__right">${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}${buildEditorStatusPanel({ editorState, onExportFinal })}</aside>
+        <aside class="video-editor-shell__right">${buildEditorDetailRail({ row: selectedRow, globalAudio, project, rowIndex: selectedRowIndex })}</aside>
       </section>
       ${buildFinalExportPanel({ project, editorState })}
     </section>`;
@@ -222,9 +161,6 @@ export function buildEditorPhaseContent({ project, viewModel }) {
   const mainContent = (editorPhase === 'preparing' || editorPhase === 'preview_rendering' || (editorPhase === 'error' && !editorRows.length))
     ? buildPreviewPreparingPanel(editorState)
     : buildEditorShell(project, { editorRows, selectedRowId: project._selectedEditorRowId || null, globalAudio, editorState, rowImageUploading: project._rowImageUploading || null });
-  const sideContent = editorShellMode ? '' : `
-    <div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Estado</span><h3>${buildPhaseBadge(editorPhase, editorState.dirty)}</h3></div></div>
-    <div class="video-editor-meta"><div><span>Proyecto Remotion</span><strong>${escapeHtmlCore((editorState.remotion_project_id || '—').toString())}</strong></div><div><span>Filas</span><strong>${editorRows.length}</strong></div><div><span>Preview local</span><strong>${editorRows.length ? 'Lista' : 'Pendiente'}</strong></div><div><span>Exportación</span><strong>${editorState.export_status === 'ready' ? 'Lista' : 'Pendiente'}</strong></div></div>
-    ${editorState.error ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>` : ''}`;
+  const sideContent = editorShellMode || !editorState.error ? '' : `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error)}</p>`;
   return { mainContent, sideContent };
 }

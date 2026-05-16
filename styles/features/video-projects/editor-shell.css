@@ -86,16 +86,11 @@
 }
 
 .video-editor-shell__right {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 14px;
   position: sticky;
   top: 18px;
 }
 
-.video-editor-detail,
-.video-editor-status-panel,
-.video-editor-meta {
+.video-editor-detail {
   display: grid;
   gap: 12px;
 }
@@ -104,67 +99,10 @@
   min-height: 100%;
 }
 
-.video-editor-detail__section,
-.video-editor-status-panel,
-.video-editor-meta div {
+.video-editor-detail__section {
   padding: 14px;
   border: 1px solid var(--border);
   background: var(--surface-soft);
-}
-
-.video-editor-status-panel {
-  gap: 8px;
-}
-
-.video-editor-status-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.video-editor-status-panel__badge {
-  color: var(--text);
-  font-weight: 900;
-  line-height: 1.2;
-}
-
-.video-editor-status-panel p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.video-editor-status-panel--ready {
-  border-color: rgba(0, 232, 143, 0.44);
-}
-
-.video-editor-status-panel--ready .video-editor-status-panel__badge {
-  color: var(--accent);
-}
-
-.video-editor-status-panel--dirty {
-  border-color: rgba(245, 208, 154, 0.42);
-}
-
-.video-editor-status-panel--dirty .video-editor-status-panel__badge {
-  color: #f5d09a;
-}
-
-.video-editor-status-panel--rendering {
-  border-color: rgba(86, 160, 255, 0.46);
-}
-
-.video-editor-status-panel--rendering .video-editor-status-panel__badge {
-  color: #8bb9ff;
-}
-
-.video-editor-status-panel--error {
-  border-color: rgba(255, 89, 89, 0.5);
-}
-
-.video-editor-status-panel--error .video-editor-status-panel__badge {
-  color: #ff8a8a;
 }
 
 .video-editor-detail__copy strong {

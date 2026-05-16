@@ -250,22 +250,3 @@
     flex: 1 1 220px;
   }
 }
-
-.video-editor-meta div {
-  overflow: hidden;
-}
-
-.video-editor-meta span {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--accent);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.video-editor-meta strong {
-  display: block;
-  overflow-wrap: anywhere;
-}
