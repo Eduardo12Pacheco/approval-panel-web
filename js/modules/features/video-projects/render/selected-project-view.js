@@ -56,6 +56,7 @@ export function renderSelectedVideoProjectView({
   const { mainContent, sideContent } = inEditorPhase
     ? buildEditorPhaseContent({ project, viewModel })
     : buildSetupPhaseContent({ project, viewModel });
+  const shouldRenderSide = Boolean(sideContent && !editorShellMode);
 
   captureCompositionPreviewSeekTime(project);
   el.videoProjectDetail.innerHTML = `
@@ -71,7 +72,7 @@ export function renderSelectedVideoProjectView({
     ${detailPending ? '<p class="video-projects-empty">Cargando imágenes del proyecto…</p>' : ''}
     <section class="video-project-detail__workspace ${editorShellMode ? 'video-project-detail__workspace--editor-shell' : ''}">
       <div class="video-project-detail__main">${mainContent}</div>
-      <aside class="video-project-detail__side ${editorShellMode ? 'video-project-detail__side--hidden' : ''}">${sideContent}</aside>
+      ${shouldRenderSide ? `<aside class="video-project-detail__side">${sideContent}</aside>` : ''}
     </section>`;
 
   el.videoProjectDetail.querySelector('[data-action="back-to-video-projects"]')?.addEventListener('click', closeVideoProject);
