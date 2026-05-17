@@ -246,6 +246,37 @@
   letter-spacing: -0.04em;
 }
 
+.video-preview-preparing__card h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.4rem, 1rem + 1vw, 2rem);
+  line-height: 1.1;
+}
+
+.video-preview-preparing__card--error p {
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+
+.video-preview-preparing__card--error small {
+  max-width: 72ch;
+  padding: 12px 14px;
+  border: 1px dashed rgba(255, 107, 107, 0.42);
+  color: #ff8f8f;
+  line-height: 1.4;
+}
+
+.video-preview-preparing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 .video-preview-spinner {
   width: 42px;
   height: 42px;

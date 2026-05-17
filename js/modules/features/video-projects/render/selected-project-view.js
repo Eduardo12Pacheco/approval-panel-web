@@ -106,5 +106,7 @@ export function renderSelectedVideoProjectView({
     updateSelectedVideoProjectCompositionPreview,
     showToast,
     exportFinal,
+    preparePreview,
+    goToAudioStep,
   });
 }

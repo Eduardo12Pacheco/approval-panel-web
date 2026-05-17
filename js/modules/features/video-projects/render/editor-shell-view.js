@@ -149,10 +149,11 @@ export function buildPreviewPreparingPanel(editorState) {
   const phase = editorState.phase || 'idle';
   const isRendering = phase === 'preparing' || phase === 'preview_rendering';
   const hasError = phase === 'error';
+  const errorMessage = escapeHtmlCore(editorState.error || 'Error preparando editor');
   return `
     <div class="video-project-section-heading"><div><span class="video-projects-eyebrow">Fase 3</span><h3>Editor ${buildPhaseBadge(phase, false)}</h3></div></div>
     <div class="video-preview-preparing">
-      ${isRendering ? `<div class="video-preview-preparing__card" role="status" aria-live="polite"><div class="video-preview-spinner" aria-hidden="true"></div><p>Preparando editor/timings… Esto puede tardar unos minutos.</p></div>` : hasError ? `<p class="video-projects-empty video-projects-empty--error">${escapeHtmlCore(editorState.error || 'Error preparando editor')}</p>` : `<p>Editor listo. Abrí la edición para ajustar filas y exportar.</p>`}
+      ${isRendering ? `<div class="video-preview-preparing__card" role="status" aria-live="polite"><div class="video-preview-spinner" aria-hidden="true"></div><p>Preparando editor/timings… Esto puede tardar unos minutos.</p></div>` : hasError ? `<div class="video-preview-preparing__card video-preview-preparing__card--error" role="alert"><span class="video-projects-eyebrow">No se perdió el proyecto</span><h4>No se pudo preparar el editor</h4><p>Tu guion, imágenes, voz y música siguen guardados. Corregí el problema y podés reintentar sin empezar de cero.</p><small>${errorMessage}</small><div class="video-preview-preparing__actions"><button class="video-project-primary-action" type="button" data-action="retry-prepare-preview">Reintentar preparar editor</button><button class="video-project-secondary-action" type="button" data-action="return-to-audio-step">← Volver a audios</button></div></div>` : `<p>Editor listo. Abrí la edición para ajustar filas y exportar.</p>`}
     </div>`;
 }
 

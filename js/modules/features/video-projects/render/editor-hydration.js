@@ -20,6 +20,8 @@ export function hydrateEditorPhaseInteractions({
   updateSelectedVideoProjectCompositionPreview,
   showToast,
   exportFinal,
+  preparePreview,
+  goToAudioStep,
 }) {
   if (!['preview_ready', 'editing_dirty', 'final_ready', 'error'].includes(editorPhase)) return;
   if (editorRows.length) hydrateCompositionPreview({ root, project, editorRows });
@@ -40,6 +42,17 @@ export function hydrateEditorPhaseInteractions({
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
   hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, updateBrandChannel });
+  root.querySelector('[data-action="retry-prepare-preview"]')?.addEventListener('click', () => preparePreview?.());
+  root.querySelector('[data-action="return-to-audio-step"]')?.addEventListener('click', () => {
+    if (project?.editor_state?.phase === 'error') {
+      project.editor_state = {
+        ...project.editor_state,
+        phase: 'idle',
+        last_prepare_error: project.editor_state.error || project.editor_state.last_prepare_error || '',
+      };
+    }
+    goToAudioStep?.();
+  });
   root.querySelector('[data-action="export-final"]')?.addEventListener('click', () => exportFinal?.());
 }
 
