@@ -156,6 +156,7 @@ function runStateAndRenderCheck() {
 async function runControllerCheck() {
   const calls = [];
   const copied = [];
+  const downloads = [];
   const state = createRadarState();
   const el = {
     radarUrlInput: makeElement({ value: 'https://youtu.be/abc' }),
@@ -197,6 +198,26 @@ async function runControllerCheck() {
       setTimeout(callback) { callback(); return 1; },
       clearTimeout() {},
       clipboard: { async writeText(value) { copied.push(value); } },
+      document: {
+        body: { appendChild(link) { downloads.push({ type: 'append', link }); } },
+        createElement(tagName) {
+          if (tagName !== 'a') throw new Error(`unexpected download element: ${tagName}`);
+          return {
+            href: '',
+            download: '',
+            rel: '',
+            click() { downloads.push({ type: 'click', href: this.href, download: this.download, rel: this.rel }); },
+            remove() { downloads.push({ type: 'remove' }); },
+          };
+        },
+      },
+      URL: {
+        createObjectURL(blob) {
+          downloads.push({ type: 'blob', blob });
+          return 'blob:radar-export';
+        },
+        revokeObjectURL(href) { downloads.push({ type: 'revoke', href }); },
+      },
     },
   });
 
@@ -213,6 +234,12 @@ async function runControllerCheck() {
   if (!calls.some((entry) => entry.type === 'getJob')) throw new Error('controller should poll job detail');
   if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
   if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');
+  if (!downloads.some((entry) => entry.type === 'click' && entry.href === 'blob:radar-export' && entry.download === 'job-1.txt')) {
+    throw new Error(`controller should trigger browser TXT download: ${JSON.stringify(downloads)}`);
+  }
+  if (!downloads.some((entry) => entry.type === 'revoke' && entry.href === 'blob:radar-export')) {
+    throw new Error(`controller should revoke TXT download URL: ${JSON.stringify(downloads)}`);
+  }
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
 }

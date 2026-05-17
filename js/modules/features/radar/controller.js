@@ -14,6 +14,8 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   const setTimeoutImpl = browser.setTimeout || setTimeout;
   const clearTimeoutImpl = browser.clearTimeout || clearTimeout;
   const clipboard = browser.clipboard || globalThis.navigator?.clipboard;
+  const documentImpl = browser.document || globalThis.document;
+  const urlImpl = browser.URL || globalThis.URL;
   const pollDelayMs = Number(browser.pollDelayMs || 2000);
 
   function toast(message) {
@@ -115,8 +117,31 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   }
 
   async function downloadJob(jobId) {
-    await api.downloadExportText(jobId);
-    toast('TXT descargado desde el backend');
+    const text = await api.downloadExportText(jobId);
+    triggerTextDownload({ text, filename: buildExportFilename(jobId) });
+    toast('TXT descargado');
+  }
+
+  function buildExportFilename(jobId) {
+    const safeJobId = (jobId || 'radar-export').toString().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '');
+    return `${safeJobId || 'radar-export'}.txt`;
+  }
+
+  function triggerTextDownload({ text, filename }) {
+    if (!documentImpl?.createElement || !urlImpl?.createObjectURL) {
+      throw new Error('El navegador no permite crear la descarga del TXT');
+    }
+
+    const blob = new Blob([text || ''], { type: 'text/plain;charset=utf-8' });
+    const href = urlImpl.createObjectURL(blob);
+    const link = documentImpl.createElement('a');
+    link.href = href;
+    link.download = filename;
+    link.rel = 'noopener';
+    documentImpl.body?.appendChild?.(link);
+    link.click?.();
+    link.remove?.();
+    urlImpl.revokeObjectURL?.(href);
   }
 
   async function confirmJobAction(jobId, action) {
