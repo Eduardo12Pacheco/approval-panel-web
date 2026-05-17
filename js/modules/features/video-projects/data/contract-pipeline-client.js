@@ -161,22 +161,13 @@ export async function prepareVideoCompositionContract({ project, settings, api }
 
   const { approvalClient, approvalBaseUrl, remotionProvider } = resolvedProvider;
   let approvalHealth = null;
+  let sanitizedApprovalHealth = null;
   try {
     approvalHealth = await approvalClient.health();
-    const sanitizedApprovalHealth = sanitizeProviderHealthMetadata(approvalHealth);
+    sanitizedApprovalHealth = sanitizeProviderHealthMetadata(approvalHealth);
     if (!isHealthyApprovalResponse(approvalHealth)) {
       throw new Error('Approval health no está lista');
     }
-    return await executePreparation({
-      client: approvalClient,
-      providerId: 'approval',
-      providerMetadata: {
-        id: 'approval',
-        baseUrl: approvalBaseUrl,
-        fallbackFrom: '',
-        health: sanitizedApprovalHealth,
-      },
-    });
   } catch {
     return executePreparation({
       ...remotionProvider,
@@ -187,4 +178,15 @@ export async function prepareVideoCompositionContract({ project, settings, api }
       },
     });
   }
+
+  return executePreparation({
+    client: approvalClient,
+    providerId: 'approval',
+    providerMetadata: {
+      id: 'approval',
+      baseUrl: approvalBaseUrl,
+      fallbackFrom: '',
+      health: sanitizedApprovalHealth,
+    },
+  });
 }

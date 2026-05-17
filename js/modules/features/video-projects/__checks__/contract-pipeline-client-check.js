@@ -78,12 +78,18 @@ function makeApprovalEditorProject() {
 async function captureExpectedConsoleErrors(action, expectedMessage) {
   const originalConsoleError = console.error;
   const captured = [];
+  let expectedRejection = false;
   console.error = (...args) => {
     captured.push(args);
   };
 
   try {
-    await action();
+    try {
+      await action();
+    } catch (error) {
+      if (!String(error?.message || error).includes(expectedMessage)) throw error;
+      expectedRejection = true;
+    }
     await new Promise((resolve) => setTimeout(resolve, 450));
   } finally {
     console.error = originalConsoleError;
@@ -94,7 +100,7 @@ async function captureExpectedConsoleErrors(action, expectedMessage) {
     for (const args of unexpected) originalConsoleError(...args);
     throw new Error(`Unexpected console.error while exercising expected failure path: ${unexpected.length}`);
   }
-  if (!captured.length) {
+  if (!captured.length && !expectedRejection) {
     throw new Error('Expected failure path to log the caught service error');
   }
 }
@@ -435,17 +441,34 @@ export async function runContractPipelineClientCheck() {
     },
     createRemotionClient() {
       nonReadyCalls.push({ type: 'remotion-adapter' });
-      return fakeAdapter;
+      return {
+        async createFromApproval() {
+          nonReadyCalls.push({ type: 'remotion-create' });
+          throw new Error('Remotion fallback should not run when healthy approval preparation fails');
+        },
+        async status() {
+          nonReadyCalls.push({ type: 'remotion-status' });
+          throw new Error('Remotion fallback should not run when healthy approval preparation fails');
+        },
+      };
     },
   };
 
-  const preparedNonReadyFallback = await prepareVideoCompositionContract({
-    project: baseProject(),
-    settings: { remotionApiUrl: 'https://remotion.local', approvalPipelineBaseUrl: 'https://approval.local' },
-    api: apiWithNonReadyApproval,
-  });
-  if (preparedNonReadyFallback.provider !== 'remotion') {
-    throw new Error('Expected non-ready approval payload to fallback to remotion');
+  let nonReadyError = '';
+  try {
+    await prepareVideoCompositionContract({
+      project: baseProject(),
+      settings: { remotionApiUrl: 'https://remotion.local', approvalPipelineBaseUrl: 'https://approval.local' },
+      api: apiWithNonReadyApproval,
+    });
+  } catch (error) {
+    nonReadyError = error?.message || '';
+  }
+  if (!nonReadyError.includes('Alineación de audio pendiente')) {
+    throw new Error('Expected healthy approval preparation failures to stay on approval provider and surface the real error');
+  }
+  if (nonReadyCalls.some((entry) => entry.type === 'remotion-create' || entry.type === 'remotion-status')) {
+    throw new Error('Expected non-ready approval payload not to fallback to remotion');
   }
 
   const apiWithApprovalDebugHealth = {
