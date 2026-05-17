@@ -140,7 +140,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     setVideoProjectStep,
   });
 
-  const { updateRow } = createRowCommands({
+  const { updateRow, swapRowImages } = createRowCommands({
     store,
     ui,
     persistEditorState,
@@ -221,6 +221,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     refreshPreview: previewExport.refreshPreview,
     exportFinal: previewExport.exportFinal,
     updateRow,
+    swapRowImages,
     assignExistingImageToRow: rowImages.assignExistingImageToRow,
     uploadAndAssignImage: rowImages.uploadAndAssignImage,
     uploadVideoToLibrary: rowVideos.uploadVideoToLibrary,

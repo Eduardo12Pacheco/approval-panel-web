@@ -5,6 +5,7 @@ import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../r
 import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
 import { resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
+import { hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -115,15 +116,66 @@ function runChangeImageNavigationCheck() {
   assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
 }
 
-export function runEditorAssetsTabCheck() {
+function createSwapThumb(rowId, assetId) {
+  const listeners = new Map();
+  return {
+    dataset: { rowId, assetId },
+    classList: { add() {}, remove() {} },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    listeners,
+  };
+}
+
+function createDataTransfer() {
+  const data = new Map();
+  return {
+    effectAllowed: '',
+    dropEffect: '',
+    setData(type, value) { data.set(type, value); },
+    getData(type) { return data.get(type) || ''; },
+  };
+}
+
+async function runRowImageSwapHydrationCheck() {
+  const imageA = createSwapThumb('row-a', 'asset-a.jpg');
+  const imageB = createSwapThumb('row-b', 'asset-b.jpg');
+  const video = createSwapThumb('row-video', 'video-thumb.jpg');
+  const calls = [];
+  const swaps = [];
+  const hydrated = hydrateRowImageSwapControls({
+    root: { querySelectorAll: () => [imageA, imageB, video] },
+    editorRows: [
+      { id: 'row-a', selectedAssetId: 'asset-a.jpg' },
+      { id: 'row-b', selectedAssetId: 'asset-b.jpg' },
+      { id: 'row-video', selectedAssetId: 'video-thumb.jpg', media: { kind: 'video-segment' } },
+    ],
+    updateRow: async (rowId, patch) => calls.push({ rowId, patch }),
+    swapRowImages: async (sourceRowId, targetRowId) => swaps.push({ sourceRowId, targetRowId }),
+  });
+  const transfer = createDataTransfer();
+
+  assertEqual(hydrated, 3, 'Expected every rendered swap thumb to be hydrated');
+  imageA.listeners.get('dragstart')({ dataTransfer: transfer, preventDefault() { throw new Error('Image rows should be draggable'); } });
+  await imageB.listeners.get('drop')({ dataTransfer: transfer, preventDefault() {} });
+  assertEqual(swaps.length, 1, 'Expected an image drop to request one atomic row-image swap');
+  assertEqual(swaps[0].sourceRowId, 'row-a', 'Expected swap source row to come from the dragged image');
+  assertEqual(swaps[0].targetRowId, 'row-b', 'Expected swap target row to come from the drop target');
+  assertEqual(calls.length, 0, 'Expected updateRow fallback not to run when swapRowImages is available');
+
+  video.listeners.get('dragstart')({ dataTransfer: createDataTransfer(), preventDefault() { calls.push({ blocked: true }); } });
+  assertEqual(calls.some((call) => call.blocked), true, 'Expected video rows to be blocked from image swap drag');
+}
+
+export async function runEditorAssetsTabCheck() {
   runAssetsViewModelCheck();
   runAssetsTabResolutionCheck();
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
+  await runRowImageSwapHydrationCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  runEditorAssetsTabCheck();
+  await runEditorAssetsTabCheck();
   console.log('editor-assets-tab-check: ok');
 }

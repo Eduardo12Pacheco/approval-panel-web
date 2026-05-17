@@ -225,6 +225,7 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
       selectedClass: isSelected ? 'is-selected' : '',
       uploadingThisRow,
       imageUrl: resolveRowImageUrl(row, index, project),
+      imageSwapAssetId: row?.selectedAssetId || resolveRowImageUrl(row, index, project),
       startTimeValue: String(Number(row.startTime || 0)),
       startTimeLabel: formatSeconds(row.startTime),
       endTimeLabel: formatSeconds(row.endTime),

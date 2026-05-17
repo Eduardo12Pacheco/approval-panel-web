@@ -16,6 +16,7 @@ export function hydrateEditorPhaseInteractions({
   updateGlobalAudio,
   updateBrandChannel,
   updateRow,
+  swapRowImages,
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
   showToast,
@@ -38,6 +39,7 @@ export function hydrateEditorPhaseInteractions({
   };
   const previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
   hydrateEditorTabs({ root, project, renderSelectedVideoProject });
+  hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
@@ -54,6 +56,67 @@ export function hydrateEditorPhaseInteractions({
     goToAudioStep?.();
   });
   root.querySelector('[data-action="export-final"]')?.addEventListener('click', () => exportFinal?.());
+}
+
+export function hydrateRowImageSwapControls({ root, editorRows = [], updateRow, swapRowImages } = {}) {
+  const imageRowsById = new Map(
+    editorRows
+      .filter((row) => row?.id && row?.media?.kind !== 'video-segment')
+      .map((row) => [row.id, row]),
+  );
+  const thumbs = [...(root?.querySelectorAll?.('[data-action="swap-row-image"]') || [])];
+
+  thumbs.forEach((thumb) => {
+    thumb.addEventListener('dragstart', (event) => {
+      const rowId = thumb.dataset.rowId || '';
+      const assetId = thumb.dataset.assetId || imageRowsById.get(rowId)?.selectedAssetId || '';
+      if (!rowId || !assetId || !imageRowsById.has(rowId)) {
+        event.preventDefault?.();
+        return;
+      }
+      event.dataTransfer?.setData('application/x-video-row-image', JSON.stringify({ rowId, assetId }));
+      event.dataTransfer?.setData('text/plain', rowId);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+
+    thumb.addEventListener('dragover', (event) => {
+      if (!imageRowsById.has(thumb.dataset.rowId || '')) return;
+      event.preventDefault?.();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+      thumb.classList?.add('is-drop-target');
+    });
+
+    thumb.addEventListener('dragleave', () => {
+      thumb.classList?.remove('is-drop-target');
+    });
+
+    thumb.addEventListener('drop', async (event) => {
+      event.preventDefault?.();
+      thumb.classList?.remove('is-drop-target');
+      const targetRowId = thumb.dataset.rowId || '';
+      const targetAssetId = thumb.dataset.assetId || imageRowsById.get(targetRowId)?.selectedAssetId || '';
+      let source = null;
+      try {
+        source = JSON.parse(event.dataTransfer?.getData('application/x-video-row-image') || 'null');
+      } catch {
+        source = null;
+      }
+      const sourceRowId = source?.rowId || '';
+      const sourceAssetId = source?.assetId || '';
+      if (!sourceRowId || !targetRowId || sourceRowId === targetRowId) return;
+      if (!sourceAssetId || !targetAssetId) return;
+      if (!imageRowsById.has(sourceRowId) || !imageRowsById.has(targetRowId)) return;
+
+      if (typeof swapRowImages === 'function') {
+        await swapRowImages(sourceRowId, targetRowId);
+        return;
+      }
+      await updateRow?.(sourceRowId, { selectedAssetId: targetAssetId });
+      await updateRow?.(targetRowId, { selectedAssetId: sourceAssetId });
+    });
+  });
+
+  return thumbs.length;
 }
 
 function hydrateEditorTabs({ root, project, renderSelectedVideoProject }) {

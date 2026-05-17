@@ -26,6 +26,7 @@ export function renderSelectedVideoProjectView({
   updateBrandChannel,
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
+  swapRowImages,
   showToast,
 }) {
   if (!el.videoProjectDetail) return;
@@ -102,6 +103,7 @@ export function renderSelectedVideoProjectView({
     updateGlobalAudio,
     updateBrandChannel,
     updateRow,
+    swapRowImages,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast,

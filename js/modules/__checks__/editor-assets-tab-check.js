@@ -3,6 +3,6 @@ export { runEditorAssetsTabCheck } from '../features/video-projects/__checks__/e
 import { runEditorAssetsTabCheck } from '../features/video-projects/__checks__/editor-assets-tab-check.js';
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  runEditorAssetsTabCheck();
+  await runEditorAssetsTabCheck();
   console.log('editor-assets-tab-check: ok');
 }

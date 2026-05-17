@@ -122,6 +122,19 @@
   object-fit: cover;
 }
 
+.video-editor-row__thumb--swap {
+  cursor: grab;
+}
+
+.video-editor-row__thumb--swap:active {
+  cursor: grabbing;
+}
+
+.video-editor-row__thumb--swap.is-drop-target {
+  border-color: rgba(0, 232, 143, 0.72);
+  box-shadow: 0 0 0 2px rgba(0, 232, 143, 0.24);
+}
+
 .video-editor-row__video-card {
   position: relative;
   display: block;

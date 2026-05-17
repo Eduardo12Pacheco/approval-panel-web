@@ -180,7 +180,54 @@ export function createRowCommands({
     }, debounceMs));
   }
 
-  return { updateRow };
+  async function swapRowImages(sourceRowId, targetRowId) {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project || !sourceRowId || !targetRowId || sourceRowId === targetRowId) return;
+
+    const rows = Array.isArray(project._editorRows) ? project._editorRows : [];
+    const sourceRow = rows.find((row) => row.id === sourceRowId);
+    const targetRow = rows.find((row) => row.id === targetRowId);
+    if (!sourceRow || !targetRow) return;
+    if (sourceRow.media?.kind === 'video-segment' || targetRow.media?.kind === 'video-segment') return;
+
+    const sourceAssetId = sourceRow.selectedAssetId || '';
+    const targetAssetId = targetRow.selectedAssetId || '';
+    if (!sourceAssetId || !targetAssetId || sourceAssetId === targetAssetId) return;
+
+    if (isApprovalServiceMode(project)) {
+      const operations = [
+        { type: 'setRowImage', rowId: sourceRowId, asset: { assetId: targetAssetId, previewUrl: targetAssetId, renderPath: targetAssetId } },
+        { type: 'setRowImage', rowId: targetRowId, asset: { assetId: sourceAssetId, previewUrl: sourceAssetId, renderPath: sourceAssetId } },
+      ];
+      try {
+        await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+      } catch (err) {
+        console.error(err);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: `Intercambio de imágenes: ${err?.message || 'No se pudo actualizar snapshot'}` });
+        ui.toast('Error intercambiando imágenes');
+        throw err;
+      } finally {
+        renderSelectedVideoProject();
+      }
+      return;
+    }
+
+    project._editorRows = patchLocalEditorRows(patchLocalEditorRows(rows, sourceRowId, { selectedAssetId: targetAssetId }), targetRowId, { selectedAssetId: sourceAssetId });
+    const compositionHash = computeCompositionHash(project);
+    const lastRenderedHash = project.editor_state?.last_rendered_hash || project.editor_state?.last_preview_hash || project.editor_state?.composition_hash || '';
+    const isDirty = compositionHash !== lastRenderedHash;
+    project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
+    updateSelectedVideoProjectCompositionPreview({ project });
+    renderSelectedVideoProject();
+
+    clearTimeout(getSaveTimer());
+    setSaveTimer(setTimeout(() => {
+      void persistEditorState(project, { timed_rows: project._editorRows, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
+    }, debounceMs));
+  }
+
+  return { updateRow, swapRowImages };
 }
 
 export function normalizeRowsForPreview(project) {
