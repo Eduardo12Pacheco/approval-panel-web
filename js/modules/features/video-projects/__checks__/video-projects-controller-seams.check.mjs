@@ -18,6 +18,7 @@ import { hydrateProjectListCards } from '../events/project-list-events.js';
 const EXPECTED_FEATURE_API = [
   'refreshVideoProjects',
   'openVideoProject',
+  'createManualVideoProject',
   'prefetchProjectDetail',
   'toggleImageSelection',
   'goToAudioStep',

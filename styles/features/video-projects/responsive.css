@@ -35,8 +35,13 @@
     display: grid;
   }
 
+  .video-projects-hero__actions,
   .video-projects-hero .button-icon {
     justify-self: start;
+  }
+
+  .video-projects-hero__actions {
+    justify-items: start;
   }
 
   .video-project-card {

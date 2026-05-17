@@ -65,6 +65,54 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     ...detailCache,
   });
 
+  function parseManualGuionSegments(rawGuion = '') {
+    return rawGuion.toString().split('|').map((part) => part.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  }
+
+  async function createManualVideoProject(payload = {}) {
+    const state = store.getState();
+    const title = (payload.title || '').toString().trim();
+    const jugador = (payload.jugador || '').toString().trim();
+    const seleccion = (payload.seleccion || '').toString().trim();
+    const guionPiped = (payload.guion_piped || '').toString().trim();
+
+    if (!title) throw new Error('Poné un título para el proyecto.');
+    if (!jugador) throw new Error('Poné el jugador para buscar imágenes.');
+    if (!seleccion) throw new Error('Poné la selección o país.');
+    if (!guionPiped) throw new Error('Pegá el guion pipeado.');
+
+    const segments = parseManualGuionSegments(guionPiped);
+    if (!segments.length) throw new Error('El guion necesita al menos un segmento.');
+
+    const created = await api.createManualVideoProject({
+      settings: state.settings,
+      payload: {
+        title,
+        jugador,
+        seleccion,
+        guion_piped: guionPiped,
+        source: 'manual',
+      },
+    });
+
+    ui.toast('Proyecto creado. Buscando imágenes…');
+    await projectLoading.refreshVideoProjects({ silent: true });
+
+    const projectId = created?.project_id || created?.draft_id;
+    if (projectId) {
+      void (async () => {
+        for (let attempt = 0; attempt < 18; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 2500 : 5000));
+          await projectLoading.refreshVideoProjects({ silent: true });
+          const current = store.getState().videoProjects.find((item) => resolveVideoProjectKey(item) === projectId);
+          if (current && current.status !== 'pending') break;
+        }
+        await projectLoading.openVideoProject(projectId);
+      })().catch((err) => console.error(err));
+    }
+    return created;
+  }
+
   const audioSetup = createAudioSetupCommands({
     api,
     ui,
@@ -161,6 +209,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
   return {
     refreshVideoProjects: projectLoading.refreshVideoProjects,
     openVideoProject: projectLoading.openVideoProject,
+    createManualVideoProject,
     prefetchProjectDetail: detailCache.prefetchProjectDetail,
     toggleImageSelection: selection.toggleImageSelection,
     goToAudioStep: selection.goToAudioStep,

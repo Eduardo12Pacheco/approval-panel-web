@@ -471,6 +471,42 @@
       </article>
     </dialog>
 
+    <dialog id="manualVideoProjectDialog">
+      <article>
+        <header class="dialog-header">
+          <h2>Nuevo proyecto de edición</h2>
+          <button id="manualVideoProjectCancelBtn" class="secondary" type="button">Cerrar</button>
+        </header>
+        <p class="meta">Pegá un guion ya separado con pipes. Se creará el proyecto y se buscarán imágenes por jugador.</p>
+
+        <label class="editor-label">
+          <span>Título / tema principal</span>
+          <input id="manualVideoProjectTitleInput" type="text" placeholder="Valor de mercado y coleccionismo de la lámina..." />
+        </label>
+
+        <label class="editor-label">
+          <span>Jugador</span>
+          <input id="manualVideoProjectPlayerInput" type="text" placeholder="Luis Díaz" />
+        </label>
+
+        <label class="editor-label">
+          <span>Selección / país</span>
+          <input id="manualVideoProjectCountryInput" type="text" placeholder="Colombia" />
+        </label>
+
+        <label class="editor-label">
+          <span>Guion pipeado</span>
+          <textarea id="manualVideoProjectScriptInput" class="script-area" placeholder="Frase uno | Frase dos | Frase tres"></textarea>
+        </label>
+
+        <p id="manualVideoProjectValidation" class="meta" aria-live="polite"></p>
+
+        <div class="queue-actions">
+          <button id="manualVideoProjectSubmitBtn" class="approve" type="button">Crear proyecto</button>
+        </div>
+      </article>
+    </dialog>
+
     <dialog id="voicePresetDialog">
       <article>
         <header class="dialog-header">

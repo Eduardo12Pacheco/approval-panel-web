@@ -11,7 +11,28 @@ export function bindScriptEvents({
   confirmVoiceAiPresetSelection,
   downloadSelectedScriptDocx,
   refreshVideoProjects,
+  createManualVideoProject,
 }) {
+  function countManualSegments() {
+    const raw = (el.manualVideoProjectScriptInput?.value || '').trim();
+    if (!raw) return 0;
+    return raw.split('|').map((part) => part.trim()).filter(Boolean).length;
+  }
+
+  function updateManualValidation() {
+    if (!el.manualVideoProjectValidation) return;
+    const count = countManualSegments();
+    el.manualVideoProjectValidation.textContent = count ? `${count} segmento${count === 1 ? '' : 's'} detectado${count === 1 ? '' : 's'}` : 'Pegá un guion separado por pipes.';
+  }
+
+  function resetManualVideoProjectForm() {
+    if (el.manualVideoProjectTitleInput) el.manualVideoProjectTitleInput.value = '';
+    if (el.manualVideoProjectPlayerInput) el.manualVideoProjectPlayerInput.value = '';
+    if (el.manualVideoProjectCountryInput) el.manualVideoProjectCountryInput.value = '';
+    if (el.manualVideoProjectScriptInput) el.manualVideoProjectScriptInput.value = '';
+    updateManualValidation();
+  }
+
   el.closeScriptEditor.addEventListener('click', () => {
     state.selectedScript = null;
     state.scriptEditorDirty = false;
@@ -55,5 +76,36 @@ export function bindScriptEvents({
 
   el.videoProjectsRefreshBtn?.addEventListener('click', () => {
     void refreshVideoProjects();
+  });
+
+  el.videoProjectsNewBtn?.addEventListener('click', () => {
+    resetManualVideoProjectForm();
+    el.manualVideoProjectDialog?.showModal();
+  });
+
+  el.manualVideoProjectCancelBtn?.addEventListener('click', () => {
+    el.manualVideoProjectDialog?.close();
+  });
+
+  el.manualVideoProjectScriptInput?.addEventListener('input', updateManualValidation);
+
+  el.manualVideoProjectSubmitBtn?.addEventListener('click', async () => {
+    if (typeof createManualVideoProject !== 'function') return;
+    const button = el.manualVideoProjectSubmitBtn;
+    button.disabled = true;
+    try {
+      await createManualVideoProject({
+        title: el.manualVideoProjectTitleInput?.value || '',
+        jugador: el.manualVideoProjectPlayerInput?.value || '',
+        seleccion: el.manualVideoProjectCountryInput?.value || '',
+        guion_piped: el.manualVideoProjectScriptInput?.value || '',
+      });
+      el.manualVideoProjectDialog?.close();
+    } catch (err) {
+      console.error(err);
+      if (el.manualVideoProjectValidation) el.manualVideoProjectValidation.textContent = err?.message || 'No se pudo crear el proyecto.';
+    } finally {
+      button.disabled = false;
+    }
   });
 }

@@ -50,6 +50,12 @@
   font-size: 0.95rem;
 }
 
+.video-projects-hero__actions {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
 .video-projects-eyebrow,
 .video-project-card__eyebrow,
 .video-project-detail__meta-grid span {

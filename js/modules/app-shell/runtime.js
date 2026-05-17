@@ -281,6 +281,7 @@ function bindEvents() {
       confirmVoiceAiPresetSelection: voiceController.confirmVoiceAiPresetSelection,
       downloadSelectedScriptDocx,
       refreshVideoProjects,
+      createManualVideoProject: videoProjectsFeature.createManualVideoProject,
     }),
     bindAudio: () => bindAudioEvents({ el, audioFeature, updateWordCounter }),
     bindSubtitles: () => bindSubtitlesEvents({ state, el, subtitlesController, renderSubtitle2PreviewPlaybackState }),
@@ -310,6 +311,7 @@ function bindViewEvents(viewName) {
       confirmVoiceAiPresetSelection: voiceController.confirmVoiceAiPresetSelection,
       downloadSelectedScriptDocx,
       refreshVideoProjects,
+      createManualVideoProject: videoProjectsFeature.createManualVideoProject,
     });
     return;
   }

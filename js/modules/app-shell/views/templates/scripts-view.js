@@ -8,10 +8,16 @@ export const scriptsViewHTML = `\
               <h1>Proyectos de edici\u00f3n</h1>
               <p>Despu\u00e9s de procesar un guion, ac\u00e1 aparecen los proyectos de edici\u00f3n. Entr\u00e1, eleg\u00ed las im\u00e1genes y prepar\u00e1 el video.</p>
             </div>
-            <button id="videoProjectsRefreshBtn" class="approve button-icon" type="button">
-              <span class="button-icon__glyph" aria-hidden="true">\u21bb</span>
-              <span>Refrescar</span>
-            </button>
+            <div class="video-projects-hero__actions">
+              <button id="videoProjectsRefreshBtn" class="approve button-icon" type="button">
+                <span class="button-icon__glyph" aria-hidden="true">\u21bb</span>
+                <span>Refrescar</span>
+              </button>
+              <button id="videoProjectsNewBtn" class="secondary button-icon" type="button">
+                <span class="button-icon__glyph" aria-hidden="true">＋</span>
+                <span>Nuevo</span>
+              </button>
+            </div>
           </header>
 
           <section class="video-projects-layout">

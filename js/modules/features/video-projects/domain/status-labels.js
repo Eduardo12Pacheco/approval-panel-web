@@ -3,7 +3,7 @@ export function getStatusLabel(status = '') {
   if (normalized === 'ready') return 'Listo';
   if (normalized === 'image_search_error') return 'Error Serper';
   if (normalized === 'no_candidates') return 'Sin imágenes';
-  if (normalized === 'pending') return 'Procesando';
+  if (normalized === 'pending') return 'Buscando imágenes…';
   return status || 'Sin estado';
 }
 
