@@ -186,6 +186,8 @@ function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = f
           assets: {
             'brand-logo-ecuador': { assetId: 'brand-logo-ecuador', previewUrl: './assets/logo-alpha.webm', renderPath: 'overlays/logo-alpha.webm' },
             'brand-logo-colombia': { assetId: 'brand-logo-colombia', previewUrl: './assets/logo-colombia.webm', renderPath: 'overlays/logo-colombia.mp4' },
+            'asset-a': { assetId: 'asset-a', previewUrl: 'https://cdn.example.com/a.jpg', renderPath: 'https://cdn.example.com/a.jpg' },
+            'asset-b': { assetId: 'asset-b', previewUrl: 'https://cdn.example.com/b.jpg', renderPath: 'https://cdn.example.com/b.jpg' },
           },
           globalLayers: {
             logoAssetId: 'brand-logo-ecuador',
@@ -196,7 +198,8 @@ function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = f
         phase: 'preview_ready',
       },
       _editorRows: [
-        { id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 10, fromScale: 1, toScale: 1.1 }, dust: { enabled: false, type: 'dust-1' }, logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' } },
+        { id: 'row-1', motionPresetId: 'custom', motion: { fromX: 0, toX: 10, fromScale: 1, toScale: 1.1 }, selectedAssetId: 'asset-a', dust: { enabled: false, type: 'dust-1' }, logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' } },
+        { id: 'row-2', motionPresetId: 'custom', motion: { fromX: 0, toX: 0, fromScale: 1, toScale: 1.1 }, selectedAssetId: 'asset-b', dust: { enabled: false, type: 'dust-1' }, logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' } },
       ],
     },
   };
@@ -238,6 +241,23 @@ function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = f
   });
 
   return { feature, state, updateSnapshotCalls, savedEditorStates, renderEvents, previewUpdateEvents, toasts };
+}
+
+async function runApprovalRowImageSwapPreservesAssetUrlsCheck() {
+  const { feature, updateSnapshotCalls } = createApprovalMotionHarness();
+
+  await feature.swapRowImages('row-1', 'row-2');
+
+  assertEqual(updateSnapshotCalls.length, 1, 'Expected image swap to persist one atomic snapshot update');
+  assertEqual(updateSnapshotCalls[0].payload.operations.length, 2, 'Expected image swap to include both row image operations');
+  assertDeepEqual(
+    updateSnapshotCalls[0].payload.operations,
+    [
+      { type: 'setRowImage', rowId: 'row-1', asset: { assetId: 'asset-b', previewUrl: 'https://cdn.example.com/b.jpg', renderPath: 'https://cdn.example.com/b.jpg', id: 'asset-b' } },
+      { type: 'setRowImage', rowId: 'row-2', asset: { assetId: 'asset-a', previewUrl: 'https://cdn.example.com/a.jpg', renderPath: 'https://cdn.example.com/a.jpg', id: 'asset-a' } },
+    ],
+    'Expected image swap to send existing canonical asset URLs, not bare asset ids as URLs',
+  );
 }
 
 function createLocalMotionHarness() {
@@ -711,6 +731,7 @@ export async function runApprovalMotionDraftCheck() {
   await runApprovalPresetMotionUsesOptimisticDraftCheck();
   await runApprovalGlobalRowLayerUsesOptimisticDraftCheck();
   await runApprovalBrandChannelUsesOptimisticDraftCheck();
+  await runApprovalRowImageSwapPreservesAssetUrlsCheck();
   await runApprovalGlobalDraftsPersistAfterDebounceCheck();
   await runApprovalMotionDebounceCoalescingCheck();
   await runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck();

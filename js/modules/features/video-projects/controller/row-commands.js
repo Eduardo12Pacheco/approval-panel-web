@@ -40,6 +40,14 @@ export function applyPendingMotionDrafts(rows = [], drafts = new Map()) {
   });
 }
 
+function resolveApprovalRowImageAsset(project, assetId) {
+  const cleanAssetId = (assetId || '').toString().trim();
+  if (!cleanAssetId) return null;
+  const existingAsset = project?.editor_state?.approval_contract_snapshot?.assets?.[cleanAssetId];
+  if (existingAsset) return { ...existingAsset, assetId: existingAsset.assetId || cleanAssetId, id: existingAsset.id || existingAsset.assetId || cleanAssetId };
+  return { assetId: cleanAssetId, previewUrl: cleanAssetId, renderPath: cleanAssetId };
+}
+
 export function shouldFallbackApprovalSnapshotOperationError(error, operationType = '') {
   const message = (error?.message || error?.error?.message || '').toString();
   if (error?.code === 'unsupported_operation') return !operationType || message.includes(operationType);
@@ -105,7 +113,7 @@ export function createRowCommands({
     if (isApprovalServiceMode(project)) {
       const operations = [];
       const shouldDraftMotion = isMotionRowPatch(patch);
-      if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: { assetId: patch.selectedAssetId || null, previewUrl: patch.selectedAssetId || '', renderPath: patch.selectedAssetId || '' } });
+      if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId) });
       if (patch.media?.kind === 'video-segment') {
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
       }
@@ -197,8 +205,8 @@ export function createRowCommands({
 
     if (isApprovalServiceMode(project)) {
       const operations = [
-        { type: 'setRowImage', rowId: sourceRowId, asset: { assetId: targetAssetId, previewUrl: targetAssetId, renderPath: targetAssetId } },
-        { type: 'setRowImage', rowId: targetRowId, asset: { assetId: sourceAssetId, previewUrl: sourceAssetId, renderPath: sourceAssetId } },
+        { type: 'setRowImage', rowId: sourceRowId, asset: resolveApprovalRowImageAsset(project, targetAssetId) },
+        { type: 'setRowImage', rowId: targetRowId, asset: resolveApprovalRowImageAsset(project, sourceAssetId) },
       ];
       try {
         await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });

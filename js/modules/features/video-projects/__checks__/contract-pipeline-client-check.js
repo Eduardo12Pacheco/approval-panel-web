@@ -164,6 +164,63 @@ async function assertServiceEditErrorKeepsStablePreview({ action, expectedContex
   }
 }
 
+async function assertApprovalRowImageSwapPreservesCanonicalAssetUrls() {
+  const project = makeApprovalEditorProject();
+  const state = { selectedVideoProject: project, settings: { approvalPipelineBaseUrl: 'https://approval.local' } };
+  const updateSnapshotCalls = [];
+  const api = {
+    createApprovalPipelineClient() {
+      return {
+        async updateSnapshot(projectId, payload) {
+          updateSnapshotCalls.push({ projectId, payload });
+          const next = JSON.parse(JSON.stringify(project.editor_state.approval_contract_snapshot));
+          for (const operation of payload.operations || []) {
+            if (operation?.type !== 'setRowImage') continue;
+            const asset = operation.asset || {};
+            next.assets[asset.assetId] = asset;
+            const row = next.rows.find((candidate) => candidate.rowId === operation.rowId || candidate.id === operation.rowId);
+            if (row) row.selectedAssetId = asset.assetId;
+          }
+          next.snapshotId = 'snapshot-swapped';
+          next.snapshotHash = 'hash-swapped';
+          return { snapshot: next };
+        },
+      };
+    },
+    async saveVideoProjectEditorState() {},
+  };
+  const feature = createVideoProjectsFeature({
+    api,
+    store: { getState: () => state },
+    ui: { toast() {} },
+    callbacks: {
+      renderSelectedVideoProject() {},
+      renderVideoProjects() {},
+    },
+  });
+
+  await feature.swapRowImages('row-1', 'row-2');
+
+  if (updateSnapshotCalls.length !== 1) {
+    throw new Error(`Expected one atomic row-image swap update, got ${updateSnapshotCalls.length}`);
+  }
+  const operations = updateSnapshotCalls[0].payload.operations;
+  const sourceOperation = operations.find((operation) => operation.rowId === 'row-1');
+  const targetOperation = operations.find((operation) => operation.rowId === 'row-2');
+  if (sourceOperation?.asset?.previewUrl !== 'https://cdn.example.com/stable-2.jpg') {
+    throw new Error(`Expected row-1 swap asset to preserve asset-2 previewUrl, got ${sourceOperation?.asset?.previewUrl}`);
+  }
+  if (sourceOperation?.asset?.renderPath !== 'https://cdn.example.com/stable-2.jpg') {
+    throw new Error(`Expected row-1 swap asset to preserve asset-2 renderPath, got ${sourceOperation?.asset?.renderPath}`);
+  }
+  if (targetOperation?.asset?.previewUrl !== 'https://cdn.example.com/stable-1.jpg') {
+    throw new Error(`Expected row-2 swap asset to preserve asset-1 previewUrl, got ${targetOperation?.asset?.previewUrl}`);
+  }
+  if (sourceOperation?.asset?.previewUrl === sourceOperation?.asset?.assetId || targetOperation?.asset?.previewUrl === targetOperation?.asset?.assetId) {
+    throw new Error('Expected row-image swap operations not to use bare asset IDs as image URLs');
+  }
+}
+
 function makeApprovalFetchFixture() {
   const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Zz5QAAAAASUVORK5CYII=', 'base64');
   const voice = Buffer.from('voice-bytes');
@@ -508,6 +565,8 @@ export async function runContractPipelineClientCheck() {
   if (preparedSanitizedHealth.providerMetadata?.health?.ok !== true) {
     throw new Error('Expected provider metadata health to preserve the ok flag');
   }
+
+  await assertApprovalRowImageSwapPreservesCanonicalAssetUrls();
 
   await assertServiceEditErrorKeepsStablePreview({
     action: (feature) => feature.updateRow('row-2', { selectedAssetId: 'blocked-asset' }),
