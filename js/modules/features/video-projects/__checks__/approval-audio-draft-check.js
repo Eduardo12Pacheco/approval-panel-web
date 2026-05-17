@@ -3,6 +3,7 @@ import { createGlobalAudioCommands } from '../controller/audio-commands.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
+import { buildSelectedVideoProjectViewModel } from '../render/view-model.js';
 
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
@@ -100,6 +101,19 @@ function assertDefaultMusicVolumeIsSixtyFivePercent() {
   assertEqual(detail.musicVolumePercent, 65, 'Expected editor UI default music label to be 65%');
 }
 
+function assertSetupUsesPelotazoMusicByDefault() {
+  const detail = buildSelectedVideoProjectViewModel({
+    draft_id: 'draft-default-music',
+    selected_images: ['image-1'],
+    segments: [{ order: 1, text: 'Segmento' }],
+    voice_audio: { public_url: 'https://cdn.example.com/voice.wav' },
+  });
+
+  assertEqual(detail.backgroundAudio.default_track_id, 'musica-pelotazo', 'Expected setup audio step to select Pelotazo music by default');
+  assertEqual(detail.backgroundAudio.name, 'Musica Pelotazo', 'Expected setup audio step to show Pelotazo music by default');
+  assertEqual(detail.canPreparePreview, true, 'Expected default Pelotazo music to satisfy background audio requirement');
+}
+
 function assertExplicitMusicVolumeIsPreserved() {
   const normalized = normalizeGlobalAudioState({ music: { volume: 0.16, muted: false } });
 
@@ -134,6 +148,7 @@ function assertCanonicalApplyKeepsPendingAudioDraft() {
 export async function runApprovalAudioDraftCheck() {
   await assertApprovalAudioUsesOptimisticDrafts();
   assertDefaultMusicVolumeIsSixtyFivePercent();
+  assertSetupUsesPelotazoMusicByDefault();
   assertExplicitMusicVolumeIsPreserved();
   assertZeroVolumeDoesNotSnapToDefault();
   assertCanonicalApplyKeepsPendingAudioDraft();

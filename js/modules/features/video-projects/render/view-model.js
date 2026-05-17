@@ -5,6 +5,7 @@ import {
 import { getStatusLabel } from '../domain/status-labels.js';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
+import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';
 
 const EDITOR_PHASES = ['preparing', 'preview_rendering', 'preview_ready', 'editing_dirty', 'final_rendering', 'final_ready', 'error'];
 const EDITOR_SHELL_PHASES = ['preview_ready', 'editing_dirty', 'final_ready', 'error'];
@@ -26,7 +27,8 @@ export function buildSelectedVideoProjectViewModel(project = {}, state = {}) {
   const currentStep = project._videoProjectStep === 'audio' ? 'audio' : 'images';
 
   const voiceAudio = project.voice_audio && typeof project.voice_audio === 'object' ? project.voice_audio : {};
-  const backgroundAudio = project.background_audio && typeof project.background_audio === 'object' ? project.background_audio : {};
+  const storedBackgroundAudio = project.background_audio && typeof project.background_audio === 'object' ? project.background_audio : {};
+  const backgroundAudio = storedBackgroundAudio.public_url ? storedBackgroundAudio : createDefaultBackgroundMusicAudio();
   const voiceUploading = Boolean(project._voiceAudioUploading);
   const backgroundUploading = Boolean(project._backgroundAudioUploading);
   const canPreparePreview = Boolean(hasEnoughSelectedImages && voiceAudio.public_url && backgroundAudio.public_url);

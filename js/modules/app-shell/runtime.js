@@ -863,7 +863,7 @@ async function renderVideoProjects() {
 }
 
 async function renderSelectedVideoProject() {
-  if (!state.selectedVideoProject) return;
+  if (!state.selectedVideoProject && !el.videoProjectDetail) return;
   await _ensureVideoProjectsRender();
   renderSelectedVideoProjectView({
     state,

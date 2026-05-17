@@ -1,4 +1,4 @@
-import { findDefaultBackgroundMusicTrack } from './default-background-music.js';
+import { createBackgroundMusicAudioFromTrack, findDefaultBackgroundMusicTrack } from './default-background-music.js';
 
 const AUDIO_KINDS = new Set(['voice', 'background']);
 
@@ -60,19 +60,7 @@ export function createAudioSetupCommands({ api, ui, getProject, resolveProjectKe
     renderSelectedVideoProject();
 
     try {
-      project.background_audio = {
-        kind: 'background',
-        bucket: 'video-project-audio',
-        storage_path: track.path,
-        public_url: track.public_url,
-        name: track.label,
-        file_name: track.fileName,
-        size: 0,
-        mime_type: track.mime_type,
-        source: 'default-background-music',
-        default_track_id: track.id,
-        selected_at: new Date().toISOString(),
-      };
+      project.background_audio = createBackgroundMusicAudioFromTrack(track, { selectedAt: new Date().toISOString() });
 
       const result = await api.saveVideoProjectAudio({
         draftId,

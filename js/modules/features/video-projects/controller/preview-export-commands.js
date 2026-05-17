@@ -1,6 +1,7 @@
 import { buildCompositionPayload, computeCompositionHash } from '../composition/composition-payload.js';
 import { prepareVideoCompositionContract, normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState, sanitizePipelineHealthMetadata } from '../domain/editor-state.js';
+import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';
 
 function pickDownloadableRenderPath(renderResult) {
   const render = renderResult?.render || {};
@@ -31,6 +32,10 @@ export function createPreviewExportCommands({
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project) return;
+
+    if (!project.background_audio?.public_url) {
+      project.background_audio = createDefaultBackgroundMusicAudio({ selectedAt: new Date().toISOString() });
+    }
 
     try {
       await persistEditorState(project, { phase: 'preparing', dirty: false, error: '', remotion_api_url: state.settings?.remotionApiUrl || '', pipeline_base_url: (state.settings?.approvalPipelineBaseUrl || '').toString().trim() });
