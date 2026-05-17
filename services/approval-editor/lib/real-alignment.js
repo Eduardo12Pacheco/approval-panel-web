@@ -113,10 +113,22 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
+function inferLocalAppDataFromWorkspacePath(value = '') {
+  const normalized = String(value || '');
+  const match = normalized.match(/^([a-z]:\\Users\\[^\\]+)\\/i);
+  return match?.[1] ? path.win32.join(match[1], 'AppData', 'Local') : '';
+}
+
 function resolveWindowsPythonCandidates(env = process.env) {
-  const roots = [env.LOCALAPPDATA, env.USERPROFILE ? path.win32.join(env.USERPROFILE, 'AppData', 'Local') : ''].filter(Boolean);
+  const roots = [
+    env.LOCALAPPDATA,
+    env.USERPROFILE ? path.win32.join(env.USERPROFILE, 'AppData', 'Local') : '',
+    inferLocalAppDataFromWorkspacePath(env.APPROVAL_EDITOR_VIDEO_ENGINE_ROOT),
+    inferLocalAppDataFromWorkspacePath(env.REMOTION_EDITOR_PROJECTS_ROOT),
+    inferLocalAppDataFromWorkspacePath(process.cwd()),
+  ].filter(Boolean);
   const versions = ['Python311', 'Python312', 'Python310'];
-  return roots.flatMap((root) => versions.map((version) => path.win32.join(root, 'Programs', 'Python', version, 'python.exe')));
+  return [...new Set(roots)].flatMap((root) => versions.map((version) => path.win32.join(root, 'Programs', 'Python', version, 'python.exe')));
 }
 
 function resolvePythonBin(env = process.env, { platform = process.platform, existsSync = fs.existsSync } = {}) {

@@ -160,6 +160,22 @@ function testWindowsPythonBinUsesKnownLocalPythonBeforePyLauncher() {
   assert.notEqual(pythonBin, 'py');
 }
 
+function testWindowsPythonBinCanInferUserPythonFromWorkspacePath() {
+  const videoEngineRoot = 'C:\\Users\\demo\\Desktop\\n8n\\02-Video-Engine';
+  const expected = path.win32.join('C:\\Users\\demo\\AppData\\Local', 'Programs', 'Python', 'Python311', 'python.exe');
+
+  const pythonBin = resolvePythonBin(
+    { APPROVAL_EDITOR_VIDEO_ENGINE_ROOT: videoEngineRoot },
+    {
+      platform: 'win32',
+      existsSync: (candidate) => candidate === expected,
+    },
+  );
+
+  assert.equal(pythonBin, expected);
+  assert.notEqual(pythonBin, 'py');
+}
+
 async function testServiceUsesInjectedRealAlignmentTimings() {
   const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-service-timings-'));
   const server = createApprovalEditorService({
@@ -283,6 +299,7 @@ async function main() {
   testEstimatedFallbackRequiresExplicitOptIn();
   testPythonBinEnvPrecedence();
   testWindowsPythonBinUsesKnownLocalPythonBeforePyLauncher();
+  testWindowsPythonBinCanInferUserPythonFromWorkspacePath();
   await testServiceUsesInjectedRealAlignmentTimings();
   await testServiceDoesNotMarkFailedAlignmentReadyByDefault();
   await testServiceUsesPreviewAudioDerivativesButKeepsRenderOriginals();

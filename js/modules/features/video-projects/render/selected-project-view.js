@@ -70,7 +70,7 @@ export function renderSelectedVideoProjectView({
       <span class="video-project-detail__phase-label">${phaseText}</span>
     </header>
     ${detailPending ? '<p class="video-projects-empty">Cargando imágenes del proyecto…</p>' : ''}
-    <section class="video-project-detail__workspace ${editorShellMode ? 'video-project-detail__workspace--editor-shell' : ''}">
+    <section class="video-project-detail__workspace ${editorShellMode ? 'video-project-detail__workspace--editor-shell' : ''} ${shouldRenderSide ? '' : 'video-project-detail__workspace--single-column'}">
       <div class="video-project-detail__main">${mainContent}</div>
       ${shouldRenderSide ? `<aside class="video-project-detail__side">${sideContent}</aside>` : ''}
     </section>`;

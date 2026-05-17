@@ -331,6 +331,10 @@
   gap: 18px;
 }
 
+.video-project-detail__workspace--single-column {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .video-project-detail__main,
 .video-project-detail__side {
   min-width: 0;
