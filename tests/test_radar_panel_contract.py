@@ -10,6 +10,7 @@ BOOTSTRAP_PATH = ROOT / "js" / "modules" / "core" / "bootstrap.js"
 SELECTORS_PATH = ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js"
 APP_STORE_PATH = ROOT / "js" / "modules" / "core" / "state" / "app-store.js"
 RADAR_CHECK_PATH = ROOT / "js" / "modules" / "features" / "radar" / "__checks__" / "radar-panel-check.js"
+RADAR_CSS_PATH = ROOT / "styles" / "features" / "radar.css"
 
 
 def _run_node_file(path: Path):
@@ -80,3 +81,14 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
 def test_radar_runtime_contract_uses_injected_fetch_clipboard_and_thin_client_modules():
     result = _run_node_file(RADAR_CHECK_PATH)
     assert result.returncode == 0, result.stderr
+
+
+def test_radar_new_job_dialog_uses_compact_single_panel_layout():
+    source = RADAR_CSS_PATH.read_text(encoding="utf-8")
+
+    assert "#viewRadar #radarNewJobDialog {" in source
+    assert "width: min(760px, calc(100vw - 48px));" in source
+    assert "#viewRadar #radarNewJobDialog article" in source
+    assert "width: auto;" in source
+    assert "box-sizing: border-box;" in source
+    assert "#viewRadar dialog article {" not in source

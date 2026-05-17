@@ -169,10 +169,32 @@
   color: #00E88F;
 }
 
-#viewRadar dialog article {
+#viewRadar #radarNewJobDialog {
+  width: min(760px, calc(100vw - 48px));
+}
+
+#viewRadar #radarNewJobDialog article {
+  width: auto;
+  box-sizing: border-box;
+}
+
+#viewRadar #radarSummaryDialog article,
+#viewRadar #radarConfirmDialog article {
   width: min(760px, calc(100vw - 48px));
   border: 1px solid #2A2A2A;
   background: #0A0A0A;
+}
+
+#viewRadar #radarNewJobDialog .dialog-header {
+  margin-bottom: 18px;
+}
+
+#viewRadar #radarNewJobDialog .audio-field {
+  margin-bottom: 14px;
+}
+
+#viewRadar #radarNewJobDialog .script-area {
+  min-height: 142px;
 }
 
 #viewRadar .settings-section {
