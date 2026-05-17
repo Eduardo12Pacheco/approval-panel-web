@@ -188,7 +188,7 @@ function buildRowSeeds(segments = []) {
     phrase: segment.phrase,
     caption: segment.phrase,
     motion: "slow-zoom-in",
-    dust: { enabled: false, type: "dust-1" },
+    dust: { enabled: true, type: "dust-1", assetId: "dust-1", opacity: 0.36, blendMode: "screen" },
     logo: { enabled: true, source: "logo-alpha.webm" },
     filter: { enabled: true, mode: "cover" },
     transition: "none",

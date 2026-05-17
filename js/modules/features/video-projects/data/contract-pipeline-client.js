@@ -12,22 +12,46 @@ function resolveVideoProjectTitle(row = {}, fallback = 'Proyecto sin título') {
 
 export function normalizePreparedContractRows(rows = []) {
   if (!Array.isArray(rows)) return [];
-  return rows.map((row, index) => ({
-    id: (row?.id || row?.rowId || `row-${index + 1}`).toString(),
-    rowId: (row?.rowId || row?.id || `row-${index + 1}`).toString(),
-    index: Number(row?.index ?? index),
-    phrase: (row?.phrase || row?.caption || '').toString(),
-    startTime: Number(row?.startTime ?? 0),
-    endTime: Number(row?.endTime ?? 0),
-    selectedAssetId: row?.media?.kind === 'video-segment' ? null : (row?.selectedAssetId || null),
-    ...(row?.media?.kind === 'video-segment' ? { media: { ...row.media } } : {}),
-    motionPresetId: row?.motionPresetId || (typeof row?.motion === 'string' ? row.motion : 'Zoom 110'),
-    motion: row?.motion || 'Zoom 110',
-    dust: { enabled: Boolean(row?.dust?.enabled), type: row?.dust?.type || 'dust-1', assetId: row?.dust?.assetId || row?.dust?.type || null, opacity: row?.dust?.opacity ?? 0.36, blendMode: row?.dust?.blendMode || 'screen' },
-    logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
-    filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
-    transition: row?.transition || 'none',
-  })).filter((row) => row.id);
+  return rows.map((row, index) => {
+    const isVideoSegment = row?.media?.kind === 'video-segment';
+    const dustType = row?.dust?.type || 'dust-1';
+    const dustEnabled = isVideoSegment ? false : (row?.dust?.enabled !== undefined ? Boolean(row.dust.enabled) : true);
+
+    return {
+      id: (row?.id || row?.rowId || `row-${index + 1}`).toString(),
+      rowId: (row?.rowId || row?.id || `row-${index + 1}`).toString(),
+      index: Number(row?.index ?? index),
+      phrase: (row?.phrase || row?.caption || '').toString(),
+      startTime: Number(row?.startTime ?? 0),
+      endTime: Number(row?.endTime ?? 0),
+      selectedAssetId: isVideoSegment ? null : (row?.selectedAssetId || null),
+      ...(isVideoSegment ? { media: { ...row.media } } : {}),
+      motionPresetId: row?.motionPresetId || (typeof row?.motion === 'string' ? row.motion : 'Zoom 110'),
+      motion: row?.motion || 'Zoom 110',
+      dust: { enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: row?.dust?.opacity ?? 0.36, blendMode: row?.dust?.blendMode || 'screen' },
+      logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
+      filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
+      transition: row?.transition || 'none',
+    };
+  }).filter((row) => row.id);
+}
+
+function applyPreparedEditorDustDefaults(rows = []) {
+  return rows.map((row) => {
+    if (row?.media?.kind === 'video-segment') return { ...row, dust: { ...(row.dust || {}), enabled: false, type: row.dust?.type || 'dust-1', assetId: null } };
+    const dustType = row?.dust?.type || 'dust-1';
+    return {
+      ...row,
+      dust: {
+        ...(row.dust || {}),
+        enabled: true,
+        type: dustType,
+        assetId: row?.dust?.assetId || dustType,
+        opacity: row?.dust?.opacity ?? 0.36,
+        blendMode: row?.dust?.blendMode || 'screen',
+      },
+    };
+  });
 }
 
 function buildApprovalSeedPayload(project = {}, settings = {}) {
@@ -138,7 +162,7 @@ export async function prepareVideoCompositionContract({ project, settings, api }
     const status = await client.status(compositionProjectId);
     const statusSnapshot = status?.snapshot?.contractVersion === 'approval-editor-service-v1' ? status.snapshot : null;
     const statusRows = normalizePreparedContractRows(statusSnapshot?.rows || status?.project?.rows);
-    const timedRows = createdRows.length ? createdRows : statusRows;
+    const timedRows = applyPreparedEditorDustDefaults(createdRows.length ? createdRows : statusRows);
     if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');
 
     return {

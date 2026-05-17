@@ -6,7 +6,7 @@ import { buildEditorVideoPicker } from './editor-video-picker.js';
 export const EDITOR_EFFECT_TABS = [
   { id: 'motion', label: 'Movimiento' },
   { id: 'audio', label: 'Audio' },
-  { id: 'global', label: 'Global' },
+  { id: 'global', label: 'Capas' },
   { id: 'assets', label: 'Imágenes' },
   { id: 'videos', label: 'Videos' },
 ];
@@ -148,27 +148,39 @@ function buildGlobalPanel({ row, detail }) {
   }
 
   return `
-    <div class="video-editor-control video-editor-control--effect-panel">
-      <label>Proyecto</label>
-      <select data-action="update-brand-channel">
-        <option value="pelotazo-ecuador" ${detail.brandChannel === 'pelotazo-ecuador' ? 'selected' : ''}>Pelotazo Ecuador</option>
-        <option value="pelotazo-colombia" ${detail.brandChannel === 'pelotazo-colombia' ? 'selected' : ''}>Pelotazo Colombia</option>
-      </select>
+    <div class="video-editor-layer-panel video-editor-layer-panel--project">
+      <div class="video-editor-layer-panel__heading">
+        <span>Proyecto completo</span>
+        <small>Aplica a todo el video.</small>
+      </div>
+      <div class="video-editor-control video-editor-control--effect-panel">
+        <label>Proyecto</label>
+        <select data-action="update-brand-channel">
+          <option value="pelotazo-ecuador" ${detail.brandChannel === 'pelotazo-ecuador' ? 'selected' : ''}>Pelotazo Ecuador</option>
+          <option value="pelotazo-colombia" ${detail.brandChannel === 'pelotazo-colombia' ? 'selected' : ''}>Pelotazo Colombia</option>
+        </select>
+      </div>
     </div>
-    <div class="video-editor-control">
-      <label>Polvo</label>
-      <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
-        <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
-        <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
-        <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
-      </select>
-    </div>
-    <div class="video-editor-control">
-      <label>Logo</label>
-      <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
-        <option value="true" ${detail.logoEnabled ? 'selected' : ''}>Activado</option>
-        <option value="false" ${!detail.logoEnabled ? 'selected' : ''}>Desactivado</option>
-      </select>
+    <div class="video-editor-layer-panel video-editor-layer-panel--row">
+      <div class="video-editor-layer-panel__heading">
+        <span>Foto seleccionada</span>
+        <small>Aplica solo a esta fila.</small>
+      </div>
+      <div class="video-editor-control">
+        <label>Polvo</label>
+        <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
+          <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
+          <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
+          <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
+        </select>
+      </div>
+      <div class="video-editor-control">
+        <label>Logo</label>
+        <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
+          <option value="true" ${detail.logoEnabled ? 'selected' : ''}>Activado</option>
+          <option value="false" ${!detail.logoEnabled ? 'selected' : ''}>Desactivado</option>
+        </select>
+      </div>
     </div>
   `;
 }

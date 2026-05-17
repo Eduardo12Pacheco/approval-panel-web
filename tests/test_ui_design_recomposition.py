@@ -36,6 +36,34 @@ def _run_node(script: str):
     )
 
 
+def test_video_editor_layers_tab_label_and_scope_separator():
+    effect_tabs_source = _read(ROOT / "js" / "modules" / "features" / "video-projects" / "render" / "editor-effect-tabs.js")
+    editor_shell_source = _read(ROOT / "styles" / "features" / "video-projects" / "editor-shell.css")
+
+    assert "{ id: 'global', label: 'Capas' }" in effect_tabs_source
+    assert "{ id: 'global', label: 'Global' }" not in effect_tabs_source
+
+    for expected_fragment in [
+        'class="video-editor-layer-panel video-editor-layer-panel--project"',
+        'Aplica a todo el video.',
+        'class="video-editor-layer-panel video-editor-layer-panel--row"',
+        'Aplica solo a esta fila.',
+        'data-action="update-brand-channel"',
+        'data-action="update-row-dust"',
+        'data-action="update-row-logo"',
+    ]:
+        assert expected_fragment in effect_tabs_source
+
+    for expected_rule in [
+        '.video-editor-layer-panel + .video-editor-layer-panel',
+        'border-top: 1px solid rgba(0, 232, 143, 0.45);',
+        '.video-editor-layer-panel__heading',
+        'letter-spacing: 0.16em;',
+        '.video-editor-layer-panel__heading small',
+    ]:
+        assert expected_rule in editor_shell_source
+
+
 def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspace():
     source = _read(INDEX_PATH)
 

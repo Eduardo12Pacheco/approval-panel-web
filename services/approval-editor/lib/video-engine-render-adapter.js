@@ -211,24 +211,30 @@ function upsertProjectIndex(projectsRoot, { projectId, title }) {
 }
 
 function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
-  const rows = (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row, index) => ({
-    id: String(row?.id || `row-${index + 1}`),
-    index,
-    phrase: String(row?.phrase || row?.caption || row?.text || "").trim(),
-    startTime: Number(row?.startTime ?? row?.start_time ?? row?.start ?? index * 3),
-    endTime: Number(row?.endTime ?? row?.end_time ?? row?.end ?? (index + 1) * 3),
-    selectedAssetId: row?.selectedAssetId || null,
-    candidates: [],
-    motion: row?.motion || "slow-zoom-in",
-    dust: row?.dust || { enabled: false },
-    filter: row?.filter || { enabled: true, mode: "cover" },
-    transition: row?.transition || "none",
-    sfx: row?.sfx || null,
-    caption: String(row?.caption || row?.phrase || row?.text || "").trim(),
-    lockedPhrase: true,
-    warnings: [],
-    status: "ready",
-  }));
+  const rows = (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row, index) => {
+    const isVideoSegment = row?.media?.kind === "video-segment";
+    const dustType = row?.dust?.type || "dust-1";
+    const dustEnabled = isVideoSegment ? false : (row?.dust?.enabled !== undefined ? Boolean(row.dust.enabled) : true);
+
+    return {
+      id: String(row?.id || `row-${index + 1}`),
+      index,
+      phrase: String(row?.phrase || row?.caption || row?.text || "").trim(),
+      startTime: Number(row?.startTime ?? row?.start_time ?? row?.start ?? index * 3),
+      endTime: Number(row?.endTime ?? row?.end_time ?? row?.end ?? (index + 1) * 3),
+      selectedAssetId: row?.selectedAssetId || null,
+      candidates: [],
+      motion: row?.motion || "slow-zoom-in",
+      dust: { ...(row?.dust || {}), enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: Number(row?.dust?.opacity ?? 0.36), blendMode: row?.dust?.blendMode || "screen" },
+      filter: row?.filter || { enabled: true, mode: "cover" },
+      transition: row?.transition || "none",
+      sfx: row?.sfx || null,
+      caption: String(row?.caption || row?.phrase || row?.text || "").trim(),
+      lockedPhrase: true,
+      warnings: [],
+      status: "ready",
+    };
+  });
 
   return {
     schemaVersion: 1,
@@ -241,7 +247,7 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
       logoAssetId: snapshot?.globalLayers?.logoAssetId || snapshot?.globalLayers?.logo?.assetId || null,
       outroAssetId: snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || null,
       logo: { enabled: snapshot?.globalLayers?.logo?.enabled !== false, position: "top-left" },
-      dustDefault: false,
+      dustDefault: snapshot?.globalLayers?.dustDefault !== false,
       filterDefault: true,
     },
     audio: {

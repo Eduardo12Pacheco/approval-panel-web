@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
 import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
-import { resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
+import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 
@@ -116,6 +116,24 @@ function runChangeImageNavigationCheck() {
   assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
 }
 
+function runLayersTabLabelAndSeparationCheck() {
+  const globalTab = EDITOR_EFFECT_TABS.find((tab) => tab.id === 'global');
+  assertEqual(globalTab?.label, 'Capas', 'Expected Global tab to be renamed to Capas');
+
+  const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba', selectedAssetId: 'https://cdn.example.com/custom-1.webp', dust: { enabled: true, type: 'dust-1' } };
+  const project = { ...makeProject(), _editorEffectTab: 'global' };
+  const detailMarkup = buildEditorDetailRail({ row, project });
+  const styles = readVideoProjectsStyles();
+
+  assert(detailMarkup.includes('Proyecto completo'), 'Expected Capas tab to label project-wide controls clearly');
+  assert(detailMarkup.includes('Foto seleccionada'), 'Expected Capas tab to label selected-row controls clearly');
+  assert(detailMarkup.indexOf('Proyecto completo') < detailMarkup.indexOf('Foto seleccionada'), 'Expected project controls to render before row controls');
+  assert(detailMarkup.includes('Aplica a todo el video.'), 'Expected project controls helper copy');
+  assert(detailMarkup.includes('Aplica solo a esta fila.'), 'Expected row controls helper copy');
+  assert(styles.includes('.video-editor-layer-panel + .video-editor-layer-panel'), 'Expected layer sections to have divider styling');
+  assert(styles.includes('border-top: 1px solid rgba(0, 232, 143, 0.45)'), 'Expected layer divider to use the green editorial line');
+}
+
 function createSwapThumb(rowId, assetId) {
   const listeners = new Map();
   return {
@@ -172,6 +190,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
+  runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();
 }
 

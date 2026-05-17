@@ -291,6 +291,9 @@ export async function runContractPipelineClientCheck() {
     if (!Array.isArray(prepared.timedRows) || prepared.timedRows.length !== 2) {
       throw new Error('Expected approval service to provide timed rows');
     }
+    if (!prepared.timedRows.every((row) => row.dust?.enabled === true && row.dust?.type === 'dust-1')) {
+      throw new Error('Expected newly prepared approval rows to default to Polvo 1 enabled');
+    }
     if (remotionCalls.some((entry) => entry.type === 'remotion-adapter' && entry.baseUrl !== 'https://remotion.local')) {
       throw new Error('Expected remotion adapter base URL to remain unchanged');
     }
