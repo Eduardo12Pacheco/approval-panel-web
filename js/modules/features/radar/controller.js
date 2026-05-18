@@ -101,6 +101,12 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       state.currentJob = job;
       if (job.status === 'succeeded') {
         await refreshHistory();
+        renderAll();
+        return;
+      }
+      if (job.status === 'cancelled' || job.status === 'failed') {
+        await refreshHistory();
+        renderAll();
         return;
       }
       if (!TERMINAL_STATUSES.has(job.status)) {
@@ -161,10 +167,17 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       ? '¿Querés cancelar este job? El backend limpiará los artefactos propios en el próximo checkpoint seguro.'
       : '¿Querés eliminar este job y sus artefactos?';
     if (el.radarConfirmAcceptBtn) el.radarConfirmAcceptBtn.onclick = async () => {
-      if (action === 'cancel') await api.cancelJob(jobId);
-      else await api.deleteJob(jobId);
+      if (action === 'cancel') {
+        await api.cancelJob(jobId);
+        stopPolling();
+        state.activeJobId = null;
+        state.currentJob = null;
+      } else {
+        await api.deleteJob(jobId);
+      }
       el.radarConfirmDialog?.close?.();
       await refreshHistory();
+      renderAll();
     };
     el.radarConfirmDialog?.showModal?.();
   }
