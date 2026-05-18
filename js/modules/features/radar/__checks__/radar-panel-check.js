@@ -116,6 +116,21 @@ async function runApiClientCheck() {
   if (!unavailableMessage.includes('Transcript Service no disponible')) {
     throw new Error(`expected actionable service unavailable error, got ${unavailableMessage}`);
   }
+
+  const blockedCalls = [];
+  const blockedApi = createRadarApiClient({
+    getSettings: () => ({ transcriptServiceBaseUrl: 'http://127.0.0.1:8765' }),
+    locationLike: { hostname: 'approval-panel-web.pages.dev' },
+    fetchImpl: async (url) => { blockedCalls.push(url); return new Response('{}'); },
+  });
+  let blockedMessage = '';
+  try {
+    await blockedApi.health();
+  } catch (error) {
+    blockedMessage = error?.message || '';
+  }
+  if (!blockedMessage.includes('Configurá Transcript Service URL')) throw new Error(`expected local-in-remote guard message, got ${blockedMessage}`);
+  assertEqual(blockedCalls.length, 0, 'local-in-remote Radar guard must not call fetch');
 }
 
 function runStateAndRenderCheck() {
@@ -225,8 +240,9 @@ async function runControllerCheck() {
   await controller.submitCurrentJob();
   await controller.showSummary('job-1');
   await controller.downloadJob('job-1');
+  await controller.confirmJobAction('job-1', 'delete');
   await controller.confirmJobAction('job-1', 'cancel');
-  await el.radarConfirmAcceptBtn.listeners.get('click')();
+  await el.radarConfirmAcceptBtn.onclick();
 
   assertEqual(calls[0], 'health', 'health call drift');
   assertEqual(calls[1].type, 'create', 'submit should create a service job');
@@ -241,13 +257,43 @@ async function runControllerCheck() {
     throw new Error(`controller should revoke TXT download URL: ${JSON.stringify(downloads)}`);
   }
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
+  if (calls.some((entry) => entry.type === 'delete')) throw new Error('confirm accept handler should replace stale actions');
   if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
+}
+
+function runControllerRemoteGuardCheck() {
+  const calls = [];
+  const state = createRadarState();
+  const el = {
+    radarHealthStatus: makeElement(),
+    radarProgressStatus: makeElement(),
+    radarQueueList: makeElement(),
+    radarHistoryList: makeElement(),
+  };
+  const controller = createRadarController({
+    state,
+    el,
+    api: {
+      isBlockedByRemoteContext: () => true,
+      getRemoteLocalServiceMessage: () => 'Configurá Transcript Service URL en settings',
+      async health() { calls.push('health'); },
+      async history() { calls.push('history'); },
+    },
+  });
+
+  const canRefresh = controller.activate();
+  assertEqual(canRefresh, false, 'remote local Radar activation should block automatic refreshes');
+  assertEqual(calls.length, 0, 'remote local Radar activation should not call API methods');
+  if (!el.radarProgressStatus.textContent.includes('Configurá Transcript Service URL')) {
+    throw new Error(`expected actionable remote guard status, got ${el.radarProgressStatus.textContent}`);
+  }
 }
 
 export async function runRadarPanelCheck() {
   await runApiClientCheck();
   runStateAndRenderCheck();
   await runControllerCheck();
+  runControllerRemoteGuardCheck();
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

@@ -5,6 +5,7 @@ import { getPhaseLabel } from '../domain/status-labels.js';
 import {
   getCandidateQualityScore,
   getImageNaturalQualityScore,
+  resolveCandidateDimensionInfo,
   resolveCandidateDimensions,
   resolveCandidateFallbackUrl,
   resolveCandidateImageUrl,
@@ -36,11 +37,13 @@ function buildCandidateCard(candidate = {}, index = 0, selectedImageUrls = []) {
   const candidateId = escapeHtmlCore(imageUrl || '');
   const isSelected = candidateId && Array.isArray(selectedImageUrls) && selectedImageUrls.includes(imageUrl);
   const provider = escapeHtmlCore((candidate.provider || candidate.source || 'unknown').toString());
+  const dimensions = resolveCandidateDimensionInfo(candidate);
+  const imageSizeAttrs = dimensions ? ` width="${Math.round(dimensions.width)}" height="${Math.round(dimensions.height)}"` : '';
   return `
     <article class="video-image-card" data-quality-score="${qualityScore}" data-original-index="${index}" data-candidate-id="${candidateId}" data-candidate-provider="${provider}" data-selected="${isSelected}" role="button" tabindex="0" aria-pressed="${isSelected}" aria-label="${isSelected ? 'Deseleccionar' : 'Seleccionar'} imagen ${order || ''}: ${title}">
       <span class="video-image-card__checkbox" aria-hidden="true"></span>
       <div class="video-image-card__media" aria-hidden="true">
-        ${imageUrl ? `<img src="${escapeHtmlCore(imageUrl)}" ${fallbackUrl ? `data-fallback-src="${escapeHtmlCore(fallbackUrl)}"` : ''} alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />` : '<span>Sin preview</span>'}
+        ${imageUrl ? `<img src="${escapeHtmlCore(imageUrl)}"${imageSizeAttrs} ${fallbackUrl ? `data-fallback-src="${escapeHtmlCore(fallbackUrl)}"` : ''} alt="${title}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />` : '<span>Sin preview</span>'}
         <span class="video-image-card__size" data-image-size>${sizeLabel}</span>
       </div>
     </article>

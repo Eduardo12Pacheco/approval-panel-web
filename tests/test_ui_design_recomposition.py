@@ -21,6 +21,9 @@ APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 QUEUE_MONITOR_PATH = ROOT / "js" / "modules" / "features" / "approval" / "queue-monitor.js"
 SCRIPTS_FEATURE_PATH = ROOT / "js" / "modules" / "features" / "scripts" / "index.js"
 SCRIPTS_RENDER_PATH = ROOT / "js" / "modules" / "features" / "scripts" / "render.js"
+PROJECT_LIST_MARKUP_PATH = ROOT / "js" / "modules" / "features" / "video-projects" / "render" / "project-list-markup.js"
+PROJECT_LIST_CSS_PATH = ROOT / "styles" / "features" / "video-projects" / "project-list.css"
+SETUP_VIEW_PATH = ROOT / "js" / "modules" / "features" / "video-projects" / "render" / "setup-view.js"
 
 
 def _read(path: Path) -> str:
@@ -62,6 +65,30 @@ def test_video_editor_layers_tab_label_and_scope_separator():
         '.video-editor-layer-panel__heading small',
     ]:
         assert expected_rule in editor_shell_source
+
+
+def test_video_project_thumbnails_reserve_space_and_decode_async():
+    project_list_source = _read(PROJECT_LIST_MARKUP_PATH)
+    project_list_css = _read(PROJECT_LIST_CSS_PATH)
+    setup_view_source = _read(SETUP_VIEW_PATH)
+
+    for expected_fragment in [
+        'width="86" height="68"',
+        'decoding="async"',
+        'referrerpolicy="no-referrer"',
+    ]:
+        assert expected_fragment in project_list_source
+
+    for expected_rule in [
+        '.video-project-card__thumb img',
+        'width: 100%;',
+        'height: 100%;',
+        'object-fit: cover;',
+    ]:
+        assert expected_rule in project_list_css
+
+    assert 'resolveCandidateDimensionInfo' in setup_view_source
+    assert 'imageSizeAttrs' in setup_view_source
 
 
 def test_approval_screen_recomposes_search_queue_and_editor_into_single_workspace():

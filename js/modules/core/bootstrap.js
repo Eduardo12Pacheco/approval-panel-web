@@ -27,7 +27,7 @@ export function bindCoreEvents({
       el.authPass.value = '';
       setView('approval');
       toast('Sesión iniciada');
-      refreshAll();
+      refreshAll({ silent: true, source: 'login' });
       return;
     }
 
@@ -76,7 +76,7 @@ export function bindCoreEvents({
       });
     el.settingsDialog.close();
     toast('Configuración guardada');
-    refreshAll();
+    refreshAll({ silent: true, source: 'settings' });
   });
 
   let searchDebounceTimer = 0;

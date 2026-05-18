@@ -292,5 +292,24 @@ def test_navigation_setview_has_error_boundary():
         'setView() should have try/catch or .catch() for lazy load failures'
 
 
+def test_login_refresh_all_is_silent_for_remote_local_guard():
+    """Login refresh must be identifiable as automatic so production can skip local defaults."""
+    source = _read_file('js/modules/core/bootstrap.js')
+
+    assert "refreshAll({ silent: true, source: 'login' });" in source
+
+
+def test_refresh_all_skips_silent_local_defaults_in_remote_context():
+    """Silent refreshAll must reuse the remote/local service guard before calling local n8n defaults."""
+    source = _read_file('js/modules/app-shell/runtime.js')
+    refresh_all_start = source.find('async function refreshAll')
+    assert refresh_all_start != -1, 'runtime.js must have refreshAll'
+    body = source[refresh_all_start:source.find('\nasync function refreshPending', refresh_all_start)]
+
+    assert 'options?.silent === true' in body
+    assert 'shouldSkipApprovalBackgroundRefresh' in body
+    assert 'return;' in body.split('shouldSkipApprovalInitialBootRefresh')[0]
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

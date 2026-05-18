@@ -250,9 +250,11 @@ export function createShellNavigationController({
     }
 
     if (isRadar) {
-      radarController.render();
-      void radarController.refreshHealth();
-      void radarController.refreshHistory();
+      if (radarController.activate?.() !== false) {
+        radarController.render();
+        void radarController.refreshHealth();
+        void radarController.refreshHistory();
+      }
     } else {
       radarController.stopPolling();
     }

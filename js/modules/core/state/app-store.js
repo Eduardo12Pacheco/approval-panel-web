@@ -10,13 +10,13 @@ const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://localhost:3037/',
 ]);
 
-function isRemoteBrowserContext(locationLike = globalThis?.location) {
+export function isRemoteBrowserContext(locationLike = globalThis?.location) {
   const hostname = (locationLike?.hostname || '').toLowerCase();
   if (!hostname) return false;
   return !new Set(['localhost', '127.0.0.1', '::1']).has(hostname);
 }
 
-function isLocalServiceUrl(rawValue) {
+export function isLocalServiceUrl(rawValue) {
   const value = (rawValue || '').toString().trim();
   if (!value) return false;
   try {

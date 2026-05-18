@@ -40,7 +40,7 @@ export function renderRadarStatus({ el, state }) {
     el.radarHealthStatus.textContent = isReachable ? 'Servicio activo' : 'Servicio inactivo';
     el.radarHealthStatus.title = status === 'degraded'
       ? 'El servicio responde, pero hay dependencias runtime pendientes de validar.'
-      : '';
+      : (state.health?.message || '');
     el.radarHealthStatus.classList?.toggle?.('is-online', isReachable);
     el.radarHealthStatus.classList?.toggle?.('is-offline', !isReachable);
   }
@@ -50,6 +50,8 @@ export function renderRadarStatus({ el, state }) {
     const errorMessage = state.currentJob?.error?.message;
     el.radarProgressStatus.textContent = state.currentJob
       ? `${humanJobStatus(state.currentJob.status)}${suffix}${errorMessage ? ` · ${errorMessage}` : ''}`
+      : state.health?.status === 'error' && state.health?.message
+        ? state.health.message
       : 'Listo para investigar.';
   }
   if (el.radarSubmitBtn) el.radarSubmitBtn.disabled = ['queued', 'running'].includes(state.currentJob?.status);

@@ -28,6 +28,17 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     renderRadarHistory({ el, history: state.history });
   }
 
+  function activate() {
+    if (!api.isBlockedByRemoteContext?.()) return true;
+    state.health = {
+      status: 'error',
+      message: api.getRemoteLocalServiceMessage?.() || 'Configurá Transcript Service URL en settings para usar Radar desde este dominio.',
+    };
+    state.history = [];
+    renderAll();
+    return false;
+  }
+
   async function refreshHealth() {
     try {
       state.health = await api.health();
@@ -149,13 +160,12 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     if (el.radarConfirmMessage) el.radarConfirmMessage.textContent = action === 'cancel'
       ? '¿Querés cancelar este job? El backend limpiará los artefactos propios en el próximo checkpoint seguro.'
       : '¿Querés eliminar este job y sus artefactos?';
-    el.radarConfirmAcceptBtn?.listeners?.delete?.('click');
-    el.radarConfirmAcceptBtn?.addEventListener?.('click', async () => {
+    if (el.radarConfirmAcceptBtn) el.radarConfirmAcceptBtn.onclick = async () => {
       if (action === 'cancel') await api.cancelJob(jobId);
       else await api.deleteJob(jobId);
       el.radarConfirmDialog?.close?.();
       await refreshHistory();
-    });
+    };
     el.radarConfirmDialog?.showModal?.();
   }
 
@@ -208,6 +218,6 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     confirmJobAction,
     render: renderAll,
     stopPolling,
-    activate: () => {},  // no-op: radar init handled by setView logic
+    activate,
   };
 }

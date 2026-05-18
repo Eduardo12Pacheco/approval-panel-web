@@ -1,6 +1,10 @@
+import { isLocalServiceUrl, isRemoteBrowserContext } from '../../core/state/app-store.js';
+
 function trimTrailingSlash(value) {
   return (value || '').toString().trim().replace(/\/+$/, '');
 }
+
+const REMOTE_LOCAL_SERVICE_MESSAGE = 'Transcript Service local no está disponible desde este dominio. Configurá Transcript Service URL en settings con una URL pública o usá el panel desde localhost.';
 
 function sanitizeServiceMessage(message, apiKey) {
   const raw = (message || '').toString().trim();
@@ -25,12 +29,20 @@ async function parseJsonResponse(response) {
   }
 }
 
-export function createRadarApiClient({ getSettings, fetchImpl = fetch } = {}) {
+export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationLike = globalThis?.location } = {}) {
   const resolveSettings = () => getSettings?.() || {};
   const resolveBaseUrl = () => trimTrailingSlash(resolveSettings().transcriptServiceBaseUrl || 'http://127.0.0.1:8765');
   const resolveApiKey = () => (resolveSettings().transcriptServiceApiKey || '').toString().trim();
 
+  function isBlockedByRemoteContext() {
+    return isRemoteBrowserContext(locationLike) && isLocalServiceUrl(resolveBaseUrl());
+  }
+
   async function request(path, { method = 'GET', body, responseType = 'json' } = {}) {
+    if (isBlockedByRemoteContext()) {
+      throw new Error(REMOTE_LOCAL_SERVICE_MESSAGE);
+    }
+
     const apiKey = resolveApiKey();
     const headers = { Accept: 'application/json' };
     if (apiKey) headers['x-api-key'] = apiKey;
@@ -62,6 +74,8 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch } = {}) {
   }
 
   return {
+    isBlockedByRemoteContext,
+    getRemoteLocalServiceMessage: () => REMOTE_LOCAL_SERVICE_MESSAGE,
     health: () => request('/api/radar/health'),
     createJob: (payload) => request('/api/radar/jobs', { method: 'POST', body: payload }),
     history: () => request('/api/radar/jobs'),

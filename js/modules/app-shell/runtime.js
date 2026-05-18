@@ -568,9 +568,11 @@ function legacySetView(view) {
   }
 
   if (isRadar) {
-    radarController.render();
-    void radarController.refreshHealth();
-    void radarController.refreshHistory();
+    if (radarController.activate?.() !== false) {
+      radarController.render();
+      void radarController.refreshHealth();
+      void radarController.refreshHistory();
+    }
   } else {
     radarController.stopPolling();
   }
@@ -585,6 +587,10 @@ const MIN_REFRESH_INTERVAL_MS = 5000;
 let lastRefreshAllTime = 0;
 
 async function refreshAll(options = {}) {
+  if (options?.silent === true && shouldSkipApprovalBackgroundRefresh({ baseUrl: state.settings?.baseUrl, locationLike: globalThis.location })) {
+    return;
+  }
+
   if (shouldSkipApprovalInitialBootRefresh({
     baseUrl: state.settings?.baseUrl,
     locationLike: globalThis.location,

@@ -42,7 +42,7 @@ export function buildProjectCard(project = {}) {
       <div class="video-project-card__body">
         <div class="video-project-card__thumb">
           ${imageUrl
-            ? `<img src="${escapeHtmlCore(imageUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
+            ? `<img src="${escapeHtmlCore(imageUrl)}" alt="" width="86" height="68" loading="lazy" decoding="async" referrerpolicy="no-referrer" />`
             : '<span aria-hidden="true">VP</span>'}
         </div>
         <div class="video-project-card__copy">
