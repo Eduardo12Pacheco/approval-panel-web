@@ -2,7 +2,7 @@ import { resolveScriptIdentity } from './domain.js';
 import { getScriptPublishStageMeta } from './publish-status.js';
 import { fetchScriptPublishStatus } from './client.js';
 
-export const SCRIPT_PUBLISH_POLL_INTERVAL_MS = 3000;
+export const SCRIPT_PUBLISH_POLL_INTERVAL_MS = 8000;
 
 export function createScriptPublishPolling({ api, store, ui, callbacks }) {
   const {
