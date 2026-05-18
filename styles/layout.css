@@ -192,6 +192,8 @@
   width: calc(100vw - var(--sidebar-collapsed));
   margin-left: var(--sidebar-collapsed);
   padding: 28px 32px 32px;
+  min-height: 600px;
+  contain: layout style;
 }
 
 .content {
