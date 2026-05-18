@@ -16,7 +16,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   const clipboard = browser.clipboard || globalThis.navigator?.clipboard;
   const documentImpl = browser.document || globalThis.document;
   const urlImpl = browser.URL || globalThis.URL;
-  const pollDelayMs = Number(browser.pollDelayMs || 2000);
+  const pollDelayMs = Number(browser.pollDelayMs || 8000);
 
   function toast(message) {
     ui.toast?.(message);
