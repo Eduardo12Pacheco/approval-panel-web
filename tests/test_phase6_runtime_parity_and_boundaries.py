@@ -8,7 +8,11 @@ MAIN_JS_PATH = ROOT / "js" / "main.js"
 COMPOSITION_ROOT_PATH = ROOT / "js" / "modules" / "composition-root.js"
 VIDEO_PROJECTS_CSS_FACADE = ROOT / "styles" / "features" / "video-projects" / "index.css"
 FILE_SIZE_SOFT_CAP_LINES = 500
-FILE_SIZE_EXCEPTIONS = set()
+FILE_SIZE_EXCEPTIONS = {
+    # composition-renderer.js grew beyond 500 lines with the forced-reflow
+    # fix (deferred viewport read via rAF + initial fallback dimensions).
+    'js/modules/features/video-projects/composition/composition-renderer.js',
+}
 
 
 def _run_node(script: str):

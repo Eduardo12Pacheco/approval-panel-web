@@ -48,7 +48,17 @@ export class CompositionRenderer {
     this.#audioStartToken = 0;
     this.#frameCount = 0;
     this.#dom = buildCompositionDOM(container);
-    this.#updateViewportDimensions();
+    // Defer initial viewport read until the next animation frame to avoid
+    // forced synchronous layout: buildCompositionDOM writes DOM, and reading
+    // clientWidth/clientHeight immediately would force a sync reflow.
+    this.#viewportWidth = 1920;
+    this.#viewportHeight = 1080;
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => this.#updateViewportDimensions());
+    } else {
+      // Fallback for non-browser environments (tests, Node checks).
+      setTimeout(() => this.#updateViewportDimensions(), 0);
+    }
   }
 
   async preload({ dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, voiceUrl, musicUrl, voiceVolume, voiceMuted, musicVolume, musicMuted, musicFadeInSeconds, musicFadeOutSeconds, rows } = {}) {

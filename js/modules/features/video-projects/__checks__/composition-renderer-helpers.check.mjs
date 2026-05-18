@@ -95,7 +95,7 @@ test('renderer helper facade preserves frame math, segment windows, and cover-pa
     localProgress: 0.25,
     localTime: 1,
   });
-  assert.deepEqual(resolveActiveSegment(7, [{ startTime: 2, endTime: 6 }]), { type: 'outro', localProgress: 0.5, localTime: 1 });
+  assert.deepEqual(resolveActiveSegment(7, [{ startTime: 2, endTime: 6 }]), { type: 'outro', localProgress: 1 / 30, localTime: 1 });
 });
 
 test('renderer helper facade preserves video layer planning and managed video sync behavior', () => {

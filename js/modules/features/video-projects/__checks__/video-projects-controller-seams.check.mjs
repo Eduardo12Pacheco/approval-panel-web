@@ -30,6 +30,7 @@ const EXPECTED_FEATURE_API = [
   'refreshPreview',
   'exportFinal',
   'updateRow',
+  'swapRowImages',
   'assignExistingImageToRow',
   'uploadAndAssignImage',
   'uploadVideoToLibrary',
