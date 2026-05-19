@@ -12,9 +12,13 @@ def test_cloudflare_pages_headers_cache_static_webm_preview_assets_without_chang
     assert "/assets/*.webm\n  Cache-Control: public, max-age=31536000, immutable" in source
 
 
-def test_cloudflare_pages_headers_do_not_add_global_cache_policy_to_html_shell():
+def test_cloudflare_pages_headers_revalidate_html_and_app_code_without_global_cache_policy():
     source = HEADERS_PATH.read_text(encoding="utf-8")
     global_block = source.split("/assets/*.webm", 1)[0]
 
-    assert "Cache-Control" not in global_block
+    assert "/*\n  X-Frame-Options: DENY" in global_block
     assert "Permissions-Policy: geolocation=(), microphone=(), camera=()" in global_block
+    assert "/\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
+    assert "/js/main.js\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
+    assert "/js/modules/**/*.js\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
+    assert "max-age=604800" not in source
