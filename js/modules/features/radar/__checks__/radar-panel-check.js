@@ -240,6 +240,7 @@ async function runControllerCheck() {
   await controller.submitCurrentJob();
   await controller.showSummary('job-1');
   await controller.downloadJob('job-1');
+  if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift before cancel: ${el.radarProgressStatus.textContent}`);
   await controller.confirmJobAction('job-1', 'delete');
   await controller.confirmJobAction('job-1', 'cancel');
   await el.radarConfirmAcceptBtn.onclick();
@@ -258,7 +259,7 @@ async function runControllerCheck() {
   }
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (calls.some((entry) => entry.type === 'delete')) throw new Error('confirm accept handler should replace stale actions');
-  if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift: ${el.radarProgressStatus.textContent}`);
+  if (!el.radarProgressStatus.textContent.includes('Listo para investigar')) throw new Error(`progress status drift after cancel: ${el.radarProgressStatus.textContent}`);
 }
 
 function runControllerRemoteGuardCheck() {
