@@ -355,3 +355,36 @@ if (approvalPipeline.baseUrl !== 'http://127.0.0.1:3042') {
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_simple_settings_save_flips_safe_services_to_gateway_and_keeps_approval_pipeline_local_only():
+    script = r"""
+import { mergeSettingsForSave, resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const saved = mergeSettingsForSave({
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.automatizacionedun8n.me',
+  serviceOverrides: { n8n: true, tts: true, subtitles: true, radar: true, remotion: true, approvalPipeline: true },
+  baseUrl: 'http://localhost:5678',
+  ttsBaseUrl: 'http://localhost:8088',
+  subtitlesBaseUrl: 'http://127.0.0.1:8092',
+  transcriptServiceBaseUrl: 'http://127.0.0.1:8765',
+  remotionApiUrl: 'https://remotion-api.automatizacionedun8n.me',
+  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+}, {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.automatizacionedun8n.me',
+  serviceOverrides: { n8n: false, tts: false, subtitles: false, radar: false, remotion: false, approvalPipeline: true },
+});
+
+for (const service of ['n8n', 'tts', 'subtitles', 'radar', 'remotion']) {
+  if (saved.serviceOverrides[service] !== false) throw new Error(`${service} should use gateway after simple save`);
+  if (!resolveServiceConfig(saved, service).baseUrl.startsWith('https://api.automatizacionedun8n.me/')) {
+    throw new Error(`${service} did not resolve through gateway`);
+  }
+}
+if (saved.serviceOverrides.approvalPipeline !== true) throw new Error('approvalPipeline must remain local-only override');
+if (resolveServiceConfig(saved, 'approvalPipeline').baseUrl !== 'http://127.0.0.1:3042') throw new Error('approvalPipeline local base drift');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
