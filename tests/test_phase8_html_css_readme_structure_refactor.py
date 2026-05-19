@@ -208,6 +208,57 @@ def test_approval_pipeline_settings_placeholder_and_help_match_local_service_con
     assert "Si lo dejás vacío, sigue el fallback a Remotion" in source
 
 
+def test_settings_simple_unified_controls_exist_and_advanced_legacy_ids_remain_addressable():
+    source = _read(INDEX_PATH)
+    for selector_id in [
+        "apiProfileModeSelect",
+        "apiOriginInput",
+        "sharedApiKeyInput",
+        "sharedBasicUserInput",
+        "sharedBasicPassInput",
+        "advancedSettingsSection",
+    ]:
+        assert f'id="{selector_id}"' in source
+
+    assert "Unified API" in source
+    assert "Modo avanzado" in source
+    assert "Futuro gateway" in source
+    assert "local-only" in source
+
+    for legacy_id in [
+        "baseUrlInput",
+        "secretInput",
+        "ttsBaseUrlInput",
+        "ttsApiKeyInput",
+        "ttsBasicUserInput",
+        "ttsBasicPassInput",
+        "subtitlesBaseUrlInput",
+        "subtitlesApiKeyInput",
+        "subtitlesBasicUserInput",
+        "subtitlesBasicPassInput",
+        "transcriptServiceBaseUrlInput",
+        "transcriptServiceApiKeyInput",
+        "remotionApiUrlInput",
+        "approvalPipelineBaseUrlInput",
+    ]:
+        assert f'id="{legacy_id}"' in source
+
+    script = r"""
+import { getDomSelectors } from './js/modules/shared/dom/selectors.js';
+
+const requested = [];
+const selectors = getDomSelectors({ getElementById(id) { requested.push(id); return { id }; } });
+for (const name of ['apiProfileModeSelect', 'apiOriginInput', 'sharedApiKeyInput', 'sharedBasicUserInput', 'sharedBasicPassInput', 'advancedSettingsSection']) {
+  if (selectors[name]?.id !== name) throw new Error(`missing selector ${name}`);
+}
+for (const legacy of ['baseUrlInput', 'ttsBaseUrlInput', 'subtitlesBaseUrlInput', 'approvalPipelineBaseUrlInput']) {
+  if (!requested.includes(legacy)) throw new Error(`legacy selector no longer requested: ${legacy}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_pipeline_unhealthy_service_still_falls_back_to_remotion():
     script = r"""
 import { prepareVideoCompositionContract } from './js/modules/features/video-projects/contract-pipeline-client.js';

@@ -57,23 +57,28 @@ export function bindCoreEvents({
 
   el.saveSettingsBtn.addEventListener('click', () => {
     const defaults = defaultSettings();
-      saveSettings({
-        baseUrl: el.baseUrlInput.value.trim() || defaults.baseUrl,
-        secret: el.secretInput.value.trim(),
-        ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaults.ttsBaseUrl,
-        ttsApiKey: el.ttsApiKeyInput.value.trim(),
-        ttsBasicUser: el.ttsBasicUserInput.value.trim(),
-        ttsBasicPass: el.ttsBasicPassInput.value,
-        subtitlesBaseUrl: el.subtitlesBaseUrlInput?.value?.trim() || defaults.subtitlesBaseUrl,
-        subtitlesApiKey: el.subtitlesApiKeyInput?.value?.trim() || '',
-        subtitlesBasicUser: el.subtitlesBasicUserInput?.value?.trim() || '',
-        subtitlesBasicPass: el.subtitlesBasicPassInput?.value || '',
-        remotionApiUrl: el.remotionApiUrlInput?.value?.trim() || defaults.remotionApiUrl,
-        approvalPipelineBaseUrl: el.approvalPipelineBaseUrlInput?.value?.trim() || '',
-        brandChannel: el.brandChannelSelect?.value || defaults.brandChannel,
-        transcriptServiceBaseUrl: el.transcriptServiceBaseUrlInput?.value?.trim() || defaults.transcriptServiceBaseUrl,
-        transcriptServiceApiKey: el.transcriptServiceApiKeyInput.value.trim(),
-      });
+    saveSettings({
+      apiProfileMode: el.apiProfileModeSelect?.value || defaults.apiProfileMode,
+      apiOrigin: el.apiOriginInput?.value?.trim() || defaults.apiOrigin,
+      sharedApiKey: el.sharedApiKeyInput?.value?.trim() || '',
+      sharedBasicUser: el.sharedBasicUserInput?.value?.trim() || '',
+      sharedBasicPass: el.sharedBasicPassInput?.value || '',
+      baseUrl: el.baseUrlInput.value.trim() || defaults.baseUrl,
+      secret: el.secretInput.value.trim(),
+      ttsBaseUrl: el.ttsBaseUrlInput.value.trim() || defaults.ttsBaseUrl,
+      ttsApiKey: el.ttsApiKeyInput.value.trim(),
+      ttsBasicUser: el.ttsBasicUserInput.value.trim(),
+      ttsBasicPass: el.ttsBasicPassInput.value,
+      subtitlesBaseUrl: el.subtitlesBaseUrlInput?.value?.trim() || defaults.subtitlesBaseUrl,
+      subtitlesApiKey: el.subtitlesApiKeyInput?.value?.trim() || '',
+      subtitlesBasicUser: el.subtitlesBasicUserInput?.value?.trim() || '',
+      subtitlesBasicPass: el.subtitlesBasicPassInput?.value || '',
+      remotionApiUrl: el.remotionApiUrlInput?.value?.trim() || defaults.remotionApiUrl,
+      approvalPipelineBaseUrl: el.approvalPipelineBaseUrlInput?.value?.trim() || '',
+      brandChannel: el.brandChannelSelect?.value || defaults.brandChannel,
+      transcriptServiceBaseUrl: el.transcriptServiceBaseUrlInput?.value?.trim() || defaults.transcriptServiceBaseUrl,
+      transcriptServiceApiKey: el.transcriptServiceApiKeyInput.value.trim(),
+    });
     el.settingsDialog.close();
     toast('Configuración guardada');
     refreshAll({ silent: true, source: 'settings' });

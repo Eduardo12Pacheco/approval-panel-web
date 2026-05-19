@@ -1,4 +1,5 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
+import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 function resolveVideoProjectKey(row = {}) {
   return (row.project_id || row.draft_id || row.id_noticia || row.cluster_id || '').toString();
@@ -94,17 +95,19 @@ function validateContractPreparationInputs(project = {}) {
 }
 
 function resolveEditorPipelineClient({ api, settings }) {
+  const remotionConfig = resolveServiceConfig(settings, 'remotion');
+  const approvalConfig = resolveServiceConfig(settings, 'approvalPipeline');
   const remotionClient = api.createRemotionClient({
-    resolveBaseUrl: () => settings?.remotionApiUrl || '',
+    resolveBaseUrl: () => remotionConfig.baseUrl || '',
   });
-  const approvalBaseUrl = (settings?.approvalPipelineBaseUrl || '').toString().trim();
+  const approvalBaseUrl = (approvalConfig.baseUrl || '').toString().trim();
 
   const remotionProvider = {
     client: remotionClient,
     providerId: 'remotion',
     providerMetadata: {
       id: 'remotion',
-      baseUrl: (settings?.remotionApiUrl || '').toString().trim(),
+      baseUrl: (remotionConfig.baseUrl || '').toString().trim(),
       fallbackFrom: '',
       health: null,
     },

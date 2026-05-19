@@ -1,4 +1,4 @@
-import { isLocalServiceUrl, isRemoteBrowserContext } from '../../core/state/app-store.js';
+import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js';
 
 function trimTrailingSlash(value) {
   return (value || '').toString().trim().replace(/\/+$/, '');
@@ -31,8 +31,9 @@ async function parseJsonResponse(response) {
 
 export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationLike = globalThis?.location } = {}) {
   const resolveSettings = () => getSettings?.() || {};
-  const resolveBaseUrl = () => trimTrailingSlash(resolveSettings().transcriptServiceBaseUrl || 'http://127.0.0.1:8765');
-  const resolveApiKey = () => (resolveSettings().transcriptServiceApiKey || '').toString().trim();
+  const resolveConfig = () => resolveServiceConfig(resolveSettings(), 'radar');
+  const resolveBaseUrl = () => trimTrailingSlash(resolveConfig().baseUrl || 'http://127.0.0.1:8765');
+  const resolveApiKey = () => (resolveConfig().apiKey || '').toString().trim();
 
   function isBlockedByRemoteContext() {
     return isRemoteBrowserContext(locationLike) && isLocalServiceUrl(resolveBaseUrl());

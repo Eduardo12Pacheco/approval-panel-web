@@ -2,7 +2,23 @@ const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
 const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
 const DEFAULT_TRANSCRIPT_SERVICE_URL = 'http://127.0.0.1:8765';
 const DEFAULT_SUBTITLES_SERVICE_URL = 'http://127.0.0.1:8092';
+const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
+const DEFAULT_SERVICE_OVERRIDES = Object.freeze({
+  n8n: true,
+  tts: true,
+  subtitles: true,
+  radar: true,
+  remotion: true,
+  approvalPipeline: true,
+});
+const UNIFIED_SERVICE_PREFIX = Object.freeze({
+  n8n: 'n8n',
+  tts: 'tts',
+  subtitles: 'subtitles',
+  radar: 'radar',
+  remotion: 'remotion',
+});
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
   'http://127.0.0.1:3037/',
@@ -50,6 +66,21 @@ function normalizeApprovalPipelineBaseUrl(rawValue) {
   return (rawValue || '').toString().trim();
 }
 
+function trimTrailingSlash(rawValue) {
+  return (rawValue || '').toString().trim().replace(/\/+$/, '');
+}
+
+function normalizeApiProfileMode(rawValue) {
+  return rawValue === 'unified' ? 'unified' : 'legacy';
+}
+
+function normalizeServiceOverrides(rawValue = {}) {
+  return {
+    ...DEFAULT_SERVICE_OVERRIDES,
+    ...(rawValue && typeof rawValue === 'object' ? rawValue : {}),
+  };
+}
+
 function normalizeBrandChannel(rawValue) {
   const value = (rawValue || '').toString().trim().toLowerCase();
   return value === 'pelotazo-colombia' ? 'pelotazo-colombia' : DEFAULT_BRAND_CHANNEL;
@@ -57,6 +88,12 @@ function normalizeBrandChannel(rawValue) {
 
 export function defaultSettingsFactory() {
   return {
+    apiProfileMode: 'legacy',
+    apiOrigin: DEFAULT_API_ORIGIN,
+    sharedApiKey: '',
+    sharedBasicUser: '',
+    sharedBasicPass: '',
+    serviceOverrides: { ...DEFAULT_SERVICE_OVERRIDES },
     baseUrl: 'http://localhost:5678',
     secret: '',
     ttsBaseUrl: 'http://localhost:8088',
@@ -75,6 +112,25 @@ export function defaultSettingsFactory() {
   };
 }
 
+export function normalizeSettings(settings = {}, { defaultsFactory = defaultSettingsFactory } = {}) {
+  const defaults = defaultsFactory();
+  const merged = { ...defaults, ...(settings || {}) };
+  merged.apiProfileMode = normalizeApiProfileMode(merged.apiProfileMode);
+  merged.apiOrigin = trimTrailingSlash(merged.apiOrigin) || defaults.apiOrigin;
+  merged.sharedApiKey = (merged.sharedApiKey || '').toString().trim();
+  merged.sharedBasicUser = (merged.sharedBasicUser || '').toString().trim();
+  merged.sharedBasicPass = (merged.sharedBasicPass || '').toString();
+  merged.serviceOverrides = normalizeServiceOverrides(merged.serviceOverrides);
+  merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
+  merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
+  merged.brandChannel = normalizeBrandChannel(merged.brandChannel);
+  return merged;
+}
+
+export function mergeSettingsForSave(currentSettings = {}, nextSettings = {}) {
+  return normalizeSettings({ ...(currentSettings || {}), ...(nextSettings || {}) });
+}
+
 export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory = defaultSettingsFactory }) {
   const defaults = defaultsFactory();
   let raw = null;
@@ -85,55 +141,129 @@ export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory =
   }
   if (!raw) return defaults;
   try {
-    const merged = { ...defaults, ...JSON.parse(raw) };
-    merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
-    merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
-    merged.brandChannel = normalizeBrandChannel(merged.brandChannel);
-    return merged;
+    return normalizeSettings({ ...defaults, ...JSON.parse(raw) }, { defaultsFactory });
   } catch {
     return defaults;
   }
 }
 
 export function saveSettingsToStorage({ storage, storageKey, nextSettings }) {
+  const normalized = normalizeSettings(nextSettings);
   try {
-    storage.setItem(storageKey, JSON.stringify(nextSettings));
-  } catch {}
-  return nextSettings;
+    storage.setItem(storageKey, JSON.stringify(normalized));
+  } catch {
+    return nextSettings;
+  }
+  return normalized;
+}
+
+function shouldUseUnifiedService(settings, service) {
+  return settings.apiProfileMode === 'unified'
+    && service !== 'approvalPipeline'
+    && settings.serviceOverrides?.[service] === false;
+}
+
+function deriveUnifiedBaseUrl(settings, service) {
+  const origin = trimTrailingSlash(settings.apiOrigin);
+  const prefix = UNIFIED_SERVICE_PREFIX[service];
+  return origin && prefix ? `${origin}/${prefix}` : '';
+}
+
+function fallbackCredential(primary, shared) {
+  const value = (primary || '').toString();
+  return value.trim() ? value : (shared || '').toString();
+}
+
+export function resolveServiceConfig(rawSettings = {}, service) {
+  const settings = normalizeSettings(rawSettings);
+  const unifiedBaseUrl = shouldUseUnifiedService(settings, service) ? deriveUnifiedBaseUrl(settings, service) : '';
+
+  if (service === 'n8n') {
+    return { baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.baseUrl), secret: settings.secret || '' };
+  }
+  if (service === 'tts') {
+    return {
+      baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.ttsBaseUrl),
+      apiKey: fallbackCredential(settings.ttsApiKey, settings.sharedApiKey).trim(),
+      basicUser: fallbackCredential(settings.ttsBasicUser, settings.sharedBasicUser).trim(),
+      basicPass: fallbackCredential(settings.ttsBasicPass, settings.sharedBasicPass),
+    };
+  }
+  if (service === 'subtitles') {
+    return {
+      baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.subtitlesBaseUrl || settings.ttsBaseUrl),
+      apiKey: fallbackCredential(settings.subtitlesApiKey || settings.ttsApiKey, settings.sharedApiKey).trim(),
+      basicUser: fallbackCredential(settings.subtitlesBasicUser || settings.ttsBasicUser, settings.sharedBasicUser).trim(),
+      basicPass: fallbackCredential(settings.subtitlesBasicPass || settings.ttsBasicPass, settings.sharedBasicPass),
+    };
+  }
+  if (service === 'radar') {
+    return {
+      baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.transcriptServiceBaseUrl),
+      apiKey: fallbackCredential(settings.transcriptServiceApiKey, settings.sharedApiKey).trim(),
+    };
+  }
+  if (service === 'remotion') {
+    return { baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.remotionApiUrl) };
+  }
+  if (service === 'approvalPipeline') {
+    const hasExplicitApprovalPipeline = Object.prototype.hasOwnProperty.call(rawSettings || {}, 'approvalPipelineBaseUrl');
+    return { baseUrl: hasExplicitApprovalPipeline ? trimTrailingSlash(rawSettings.approvalPipelineBaseUrl) : '' };
+  }
+  return { baseUrl: '' };
 }
 
 export function hydrateSettingsFormValues({ el, settings }) {
-  el.baseUrlInput.value = settings.baseUrl;
-  el.secretInput.value = settings.secret;
-  el.ttsBaseUrlInput.value = settings.ttsBaseUrl;
-  el.ttsApiKeyInput.value = settings.ttsApiKey;
-  el.ttsBasicUserInput.value = settings.ttsBasicUser;
-  el.ttsBasicPassInput.value = settings.ttsBasicPass;
+  const normalized = normalizeSettings(settings);
+  if (el.apiProfileModeSelect) {
+    el.apiProfileModeSelect.value = normalized.apiProfileMode;
+  }
+  if (el.apiOriginInput) {
+    el.apiOriginInput.value = normalized.apiOrigin;
+  }
+  if (el.sharedApiKeyInput) {
+    el.sharedApiKeyInput.value = normalized.sharedApiKey;
+  }
+  if (el.sharedBasicUserInput) {
+    el.sharedBasicUserInput.value = normalized.sharedBasicUser;
+  }
+  if (el.sharedBasicPassInput) {
+    el.sharedBasicPassInput.value = normalized.sharedBasicPass;
+  }
+  if (el.advancedSettingsSection) {
+    el.advancedSettingsSection.open = normalized.apiProfileMode === 'legacy';
+  }
+  el.baseUrlInput.value = normalized.baseUrl;
+  el.secretInput.value = normalized.secret;
+  el.ttsBaseUrlInput.value = normalized.ttsBaseUrl;
+  el.ttsApiKeyInput.value = normalized.ttsApiKey;
+  el.ttsBasicUserInput.value = normalized.ttsBasicUser;
+  el.ttsBasicPassInput.value = normalized.ttsBasicPass;
   if (el.subtitlesBaseUrlInput) {
-    el.subtitlesBaseUrlInput.value = settings.subtitlesBaseUrl || DEFAULT_SUBTITLES_SERVICE_URL;
+    el.subtitlesBaseUrlInput.value = normalized.subtitlesBaseUrl || DEFAULT_SUBTITLES_SERVICE_URL;
   }
   if (el.subtitlesApiKeyInput) {
-    el.subtitlesApiKeyInput.value = settings.subtitlesApiKey || '';
+    el.subtitlesApiKeyInput.value = normalized.subtitlesApiKey || '';
   }
   if (el.subtitlesBasicUserInput) {
-    el.subtitlesBasicUserInput.value = settings.subtitlesBasicUser || '';
+    el.subtitlesBasicUserInput.value = normalized.subtitlesBasicUser || '';
   }
   if (el.subtitlesBasicPassInput) {
-    el.subtitlesBasicPassInput.value = settings.subtitlesBasicPass || '';
+    el.subtitlesBasicPassInput.value = normalized.subtitlesBasicPass || '';
   }
   if (el.remotionApiUrlInput) {
-    el.remotionApiUrlInput.value = normalizeRemotionApiUrl(settings.remotionApiUrl, { fallback: DEFAULT_REMOTION_API_URL });
+    el.remotionApiUrlInput.value = normalizeRemotionApiUrl(normalized.remotionApiUrl, { fallback: DEFAULT_REMOTION_API_URL });
   }
   if (el.approvalPipelineBaseUrlInput) {
-    el.approvalPipelineBaseUrlInput.value = normalizeApprovalPipelineBaseUrl(settings.approvalPipelineBaseUrl);
+    el.approvalPipelineBaseUrlInput.value = normalizeApprovalPipelineBaseUrl(normalized.approvalPipelineBaseUrl);
   }
   if (el.brandChannelSelect) {
-    el.brandChannelSelect.value = normalizeBrandChannel(settings.brandChannel);
+    el.brandChannelSelect.value = normalizeBrandChannel(normalized.brandChannel);
   }
   if (el.transcriptServiceBaseUrlInput) {
-    el.transcriptServiceBaseUrlInput.value = settings.transcriptServiceBaseUrl || DEFAULT_TRANSCRIPT_SERVICE_URL;
+    el.transcriptServiceBaseUrlInput.value = normalized.transcriptServiceBaseUrl || DEFAULT_TRANSCRIPT_SERVICE_URL;
   }
   if (el.transcriptServiceApiKeyInput) {
-    el.transcriptServiceApiKeyInput.value = settings.transcriptServiceApiKey || '';
+    el.transcriptServiceApiKeyInput.value = normalized.transcriptServiceApiKey || '';
   }
 }

@@ -1,6 +1,7 @@
 import {
   defaultSettingsFactory,
   hydrateSettingsFormValues,
+  mergeSettingsForSave,
   saveSettingsToStorage,
 } from '../core/state/app-store.js';
 
@@ -17,7 +18,11 @@ export function createSettingsController({
   }
 
   function saveSettings(next) {
-    state.settings = saveSettingsToStorage({ storage, storageKey, nextSettings: next });
+    state.settings = saveSettingsToStorage({
+      storage,
+      storageKey,
+      nextSettings: mergeSettingsForSave(state.settings, next),
+    });
     return state.settings;
   }
 

@@ -187,6 +187,70 @@ if (!missingCredsCaught) throw new Error('missing creds path not enforced');
     assert result.returncode == 0, result.stderr
 
 
+def test_unified_service_config_keeps_api_client_endpoint_paths_headers_and_direct_calls():
+    script = r"""
+import { createApprovalApiClient } from './js/modules/core/http/approval-api.js';
+import { createTtsApiClient } from './js/modules/core/http/tts-api.js';
+import { createRadarApiClient } from './js/modules/features/radar/api-client.js';
+import { createVideoProjectsApiClient } from './js/modules/features/video-projects/data/api.js';
+
+const settings = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test',
+  sharedApiKey: 'shared-key',
+  sharedBasicUser: 'shared-user',
+  sharedBasicPass: 'shared-pass',
+  serviceOverrides: { n8n: false, tts: false, subtitles: false, radar: false, remotion: false, approvalPipeline: false },
+  baseUrl: 'https://direct-n8n.example.test',
+  secret: 'approval-secret',
+  ttsBaseUrl: 'https://direct-tts.example.test',
+  ttsApiKey: '',
+  ttsBasicUser: '',
+  ttsBasicPass: '',
+  subtitlesBaseUrl: 'https://direct-subtitles.example.test',
+  subtitlesApiKey: '',
+  subtitlesBasicUser: '',
+  subtitlesBasicPass: '',
+  transcriptServiceBaseUrl: 'https://direct-radar.example.test',
+  transcriptServiceApiKey: '',
+  remotionApiUrl: 'https://direct-remotion.example.test',
+  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+};
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+};
+
+const approval = createApprovalApiClient({ getSettings: () => settings, fetchImpl });
+await approval.post('/webhook/approval/decision/supabase/v2', { cluster_id: 'c-1' });
+if (calls[0].url !== 'https://api.example.test/n8n/webhook/approval/decision/supabase/v2') throw new Error(`approval URL drift: ${calls[0].url}`);
+if (calls[0].options.headers['x-approval-secret'] !== 'approval-secret') throw new Error('approval secret header drift');
+
+const tts = createTtsApiClient({ getSettings: () => settings, fetchImpl, btoaImpl: (value) => Buffer.from(value).toString('base64') });
+await tts.post('/api/tts/jobs', { text: 'hola' });
+if (calls[1].url !== 'https://api.example.test/tts/api/tts/jobs') throw new Error(`tts URL drift: ${calls[1].url}`);
+if (calls[1].options.headers['x-api-key'] !== 'shared-key') throw new Error('tts shared api key drift');
+if (!String(calls[1].options.headers.Authorization || '').startsWith('Basic ')) throw new Error('tts shared basic auth drift');
+
+await tts.deleteSubtitleSession('session-1');
+if (calls[2].url !== 'https://api.example.test/subtitles/api/subtitles/sessions/session-1') throw new Error(`subtitles URL drift: ${calls[2].url}`);
+if (calls[2].options.headers['x-api-key'] !== 'shared-key') throw new Error('subtitles shared api key drift');
+
+const radar = createRadarApiClient({ getSettings: () => settings, fetchImpl, locationLike: { hostname: 'approval-panel-web.pages.dev' } });
+await radar.health();
+if (calls[3].url !== 'https://api.example.test/radar/api/radar/health') throw new Error(`radar URL drift: ${calls[3].url}`);
+if (calls[3].options.headers['x-api-key'] !== 'shared-key') throw new Error('radar shared api key drift');
+
+const videoApi = createVideoProjectsApiClient({ fetchImpl });
+await videoApi.createManualVideoProject({ settings, payload: { title: 'T' } });
+if (calls[4].url !== 'https://api.example.test/n8n/webhook/video-projects/manual-create/v1') throw new Error(`manual video project URL drift: ${calls[4].url}`);
+if (calls[4].options.headers['x-approval-secret'] !== 'approval-secret') throw new Error('manual video project secret drift');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_audio_controller_can_create_named_job_from_canonical_script_text():
     script = r"""
 import { createAudioController } from './js/modules/features/audio/controller.js';

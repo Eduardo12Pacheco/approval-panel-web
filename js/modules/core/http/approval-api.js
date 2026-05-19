@@ -1,3 +1,5 @@
+import { resolveServiceConfig } from '../state/app-store.js';
+
 export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/approval/pending/supabase/v2',
   '/webhook/approval/queue/supabase/v2',
@@ -23,10 +25,11 @@ function parseFilenameFromContentDisposition(header = '') {
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
   async function get(path) {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'n8n');
     const headers = {};
-    if (settings.secret) headers['x-approval-secret'] = settings.secret;
+    if (config.secret) headers['x-approval-secret'] = config.secret;
 
-    const res = await fetchImpl(`${settings.baseUrl}${path}`, {
+    const res = await fetchImpl(`${config.baseUrl}${path}`, {
       headers,
     });
     if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
@@ -41,12 +44,13 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
 
   async function post(path, payload) {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'n8n');
     const headers = {
       'Content-Type': 'application/json',
     };
-    if (settings.secret) headers['x-approval-secret'] = settings.secret;
+    if (config.secret) headers['x-approval-secret'] = config.secret;
 
-    const res = await fetchImpl(`${settings.baseUrl}${path}`, {
+    const res = await fetchImpl(`${config.baseUrl}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
@@ -74,12 +78,13 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
 
   async function postBlob(path, payload) {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'n8n');
     const headers = {
       'Content-Type': 'application/json',
     };
-    if (settings.secret) headers['x-approval-secret'] = settings.secret;
+    if (config.secret) headers['x-approval-secret'] = config.secret;
 
-    const res = await fetchImpl(`${settings.baseUrl}${path}`, {
+    const res = await fetchImpl(`${config.baseUrl}${path}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),

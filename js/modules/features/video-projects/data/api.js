@@ -1,6 +1,7 @@
 import { createApprovalPipelineClient as createApprovalPipelineClientBase } from './approval-pipeline-client.js';
 import { createRemotionClient as createRemotionClientBase } from './remotion-client.js';
 import { createSupabaseVideoProjectsClient } from './supabase-client.js';
+import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 const MANUAL_VIDEO_PROJECT_ENDPOINT = '/webhook/video-projects/manual-create/v1';
 
@@ -15,11 +16,12 @@ async function parseResponseBody(response) {
 }
 
 async function createManualVideoProject({ settings = {}, payload = {}, fetchImpl = fetch } = {}) {
-  const baseUrl = (settings.baseUrl || '').toString().trim();
+  const config = resolveServiceConfig(settings, 'n8n');
+  const baseUrl = (config.baseUrl || '').toString().trim();
   if (!baseUrl) throw new Error('Falta configurar la URL base de n8n.');
 
   const headers = { 'Content-Type': 'application/json' };
-  if (settings.secret) headers['x-approval-secret'] = settings.secret;
+  if (config.secret) headers['x-approval-secret'] = config.secret;
 
   const response = await fetchImpl(`${baseUrl}${MANUAL_VIDEO_PROJECT_ENDPOINT}`, {
     method: 'POST',

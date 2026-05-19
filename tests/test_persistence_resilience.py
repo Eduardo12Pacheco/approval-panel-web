@@ -204,3 +204,127 @@ if (names.indexOf('readSessionStatus') > names.indexOf('bindEvents')) {
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_settings_migrates_legacy_storage_with_additive_unified_defaults():
+    script = r"""
+import { loadSettingsFromStorage } from './js/modules/core/state/app-store.js';
+
+const legacySettings = {
+  baseUrl: 'https://legacy-n8n.example.test',
+  secret: 'legacy-secret',
+  ttsBaseUrl: 'https://legacy-tts.example.test',
+  ttsApiKey: 'tts-key',
+  ttsBasicUser: 'tts-user',
+  ttsBasicPass: 'tts-pass',
+  subtitlesBaseUrl: 'https://legacy-subtitles.example.test',
+  subtitlesApiKey: 'subs-key',
+  transcriptServiceBaseUrl: 'https://legacy-radar.example.test',
+  transcriptServiceApiKey: 'radar-key',
+};
+
+const loaded = loadSettingsFromStorage({
+  storage: { getItem() { return JSON.stringify(legacySettings); } },
+  storageKey: 'approval-panel-settings-v1',
+});
+
+if (loaded.apiProfileMode !== 'legacy') throw new Error(`expected legacy mode, got ${loaded.apiProfileMode}`);
+if (loaded.apiOrigin !== 'https://api.automatizacionedun8n.me') throw new Error(`unexpected api origin ${loaded.apiOrigin}`);
+if (loaded.sharedApiKey !== '' || loaded.sharedBasicUser !== '' || loaded.sharedBasicPass !== '') {
+  throw new Error('shared credentials must default empty during legacy migration');
+}
+for (const [service, expected] of Object.entries({ n8n: true, tts: true, subtitles: true, radar: true, remotion: true, approvalPipeline: true })) {
+  if (loaded.serviceOverrides?.[service] !== expected) {
+    throw new Error(`expected ${service} override ${expected}, got ${loaded.serviceOverrides?.[service]}`);
+  }
+}
+for (const [key, expected] of Object.entries(legacySettings)) {
+  if (loaded[key] !== expected) throw new Error(`legacy ${key} drift: ${loaded[key]} !== ${expected}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_resolve_service_config_derives_unified_origin_and_preserves_override_precedence():
+    script = r"""
+import { resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const settings = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test///',
+  sharedApiKey: 'shared-key',
+  sharedBasicUser: 'shared-user',
+  sharedBasicPass: 'shared-pass',
+  serviceOverrides: { n8n: false, tts: false, subtitles: true, radar: false, remotion: false, approvalPipeline: false },
+  baseUrl: 'https://legacy-n8n.example.test',
+  secret: 'approval-secret',
+  ttsBaseUrl: 'https://legacy-tts.example.test',
+  ttsApiKey: '',
+  ttsBasicUser: '',
+  ttsBasicPass: '',
+  subtitlesBaseUrl: 'https://override-subtitles.example.test',
+  subtitlesApiKey: 'subs-key',
+  subtitlesBasicUser: 'subs-user',
+  subtitlesBasicPass: 'subs-pass',
+  transcriptServiceBaseUrl: 'https://legacy-radar.example.test',
+  transcriptServiceApiKey: '',
+  remotionApiUrl: 'https://legacy-remotion.example.test',
+  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+};
+
+const n8n = resolveServiceConfig(settings, 'n8n');
+if (n8n.baseUrl !== 'https://api.example.test/n8n') throw new Error(`n8n derivation drift: ${n8n.baseUrl}`);
+if (n8n.secret !== 'approval-secret') throw new Error('n8n approval secret must remain service-specific');
+
+const tts = resolveServiceConfig(settings, 'tts');
+if (tts.baseUrl !== 'https://api.example.test/tts') throw new Error(`tts derivation drift: ${tts.baseUrl}`);
+if (tts.apiKey !== 'shared-key' || tts.basicUser !== 'shared-user' || tts.basicPass !== 'shared-pass') {
+  throw new Error(`tts shared credential fallback drift: ${JSON.stringify(tts)}`);
+}
+
+const subtitles = resolveServiceConfig(settings, 'subtitles');
+if (subtitles.baseUrl !== 'https://override-subtitles.example.test') throw new Error(`subtitles override drift: ${subtitles.baseUrl}`);
+if (subtitles.apiKey !== 'subs-key' || subtitles.basicUser !== 'subs-user' || subtitles.basicPass !== 'subs-pass') {
+  throw new Error(`subtitles override credential drift: ${JSON.stringify(subtitles)}`);
+}
+
+const approvalPipeline = resolveServiceConfig(settings, 'approvalPipeline');
+if (approvalPipeline.baseUrl !== 'http://127.0.0.1:3042') {
+  throw new Error(`approval pipeline must remain advanced/local-only, got ${approvalPipeline.baseUrl}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_saving_simple_profile_preserves_existing_service_overrides():
+    script = r"""
+import { defaultSettingsFactory, mergeSettingsForSave } from './js/modules/core/state/app-store.js';
+
+const current = {
+  ...defaultSettingsFactory(),
+  apiProfileMode: 'legacy',
+  ttsBaseUrl: 'https://custom-tts.example.test',
+  ttsApiKey: 'service-key',
+  ttsBasicUser: 'service-user',
+  ttsBasicPass: 'service-pass',
+  serviceOverrides: { n8n: true, tts: true, subtitles: true, radar: true, remotion: true, approvalPipeline: true },
+};
+const saved = mergeSettingsForSave(current, {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test/',
+  sharedApiKey: 'shared-key',
+  sharedBasicUser: 'shared-user',
+  sharedBasicPass: 'shared-pass',
+});
+
+if (saved.apiOrigin !== 'https://api.example.test') throw new Error(`api origin should be trimmed, got ${saved.apiOrigin}`);
+if (saved.ttsBaseUrl !== 'https://custom-tts.example.test') throw new Error('simple save must preserve ttsBaseUrl override');
+if (saved.ttsApiKey !== 'service-key' || saved.ttsBasicUser !== 'service-user' || saved.ttsBasicPass !== 'service-pass') {
+  throw new Error('simple save must preserve service-specific TTS credentials');
+}
+if (saved.serviceOverrides.tts !== true) throw new Error('simple save must preserve override flags');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

@@ -19,6 +19,13 @@ Baseline parity checkpoints for refactor slices. This matrix freezes user-visibl
 
 For each checkpoint replay, UI states and network contract columns MUST match this matrix. Any endpoint/method/header/payload-key drift blocks promotion.
 
+## Unified Service Config First Slice
+
+- The first unified settings slice is Control Panel config/UI only: no Cloudflare tunnel or gateway route migration is included.
+- Legacy flat localStorage keys (`baseUrl`, `secret`, `ttsBaseUrl`, subtitles, Radar, Remotion, Approval Pipeline fields) remain preserved for rollback and direct service calls.
+- `apiOrigin` is gateway-ready metadata for compatible services; Approval Pipeline remains local/advanced-only until auth, CORS, and runtime-data exposure are explicitly designed.
+- Shared credentials may fill compatible TTS/Subtitles/Radar blanks, but service-specific credentials continue to override shared values.
+
 ## Runtime Behavioral Parity Evidence
 
 | Protected Scenario | Runtime Evidence Type | Drift Detected By |

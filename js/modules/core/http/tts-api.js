@@ -1,3 +1,5 @@
+import { resolveServiceConfig } from '../state/app-store.js';
+
 export const TTS_PARITY_ENDPOINTS = [
   '/api/tts/jobs',
   '/api/tts/jobs/${encodeURIComponent(jobId)}',
@@ -24,18 +26,20 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
 
   function getTtsBasicAuthHeader() {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'tts');
     return getBasicAuthHeader({
-      user: settings.ttsBasicUser,
-      pass: settings.ttsBasicPass,
+      user: config.basicUser,
+      pass: config.basicPass,
       label: 'Audio API',
     });
   }
 
   function getSubtitlesBasicAuthHeader() {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'subtitles');
     return getBasicAuthHeader({
-      user: settings.subtitlesBasicUser || settings.ttsBasicUser,
-      pass: settings.subtitlesBasicPass || settings.ttsBasicPass,
+      user: config.basicUser,
+      pass: config.basicPass,
       label: 'Subtítulos',
     });
   }
@@ -60,8 +64,9 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
 
   function buildTtsHeaders(contentType = null) {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'tts');
     return buildAuthHeaders({
-      apiKey: settings.ttsApiKey,
+      apiKey: config.apiKey,
       basicAuthHeader: getTtsBasicAuthHeader(),
       label: 'Audio API',
       contentType,
@@ -70,8 +75,9 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
 
   function buildSubtitlesHeaders(contentType = null) {
     const settings = getSettings();
+    const config = resolveServiceConfig(settings, 'subtitles');
     return buildAuthHeaders({
-      apiKey: settings.subtitlesApiKey || settings.ttsApiKey,
+      apiKey: config.apiKey,
       basicAuthHeader: getSubtitlesBasicAuthHeader(),
       label: 'Subtítulos',
       contentType,
@@ -80,7 +86,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
 
   function resolveBaseUrl() {
     const settings = getSettings();
-    const baseUrl = (settings.ttsBaseUrl || '').trim();
+    const baseUrl = resolveServiceConfig(settings, 'tts').baseUrl;
     if (!baseUrl) {
       throw new Error('Configuración de Audio API incompleta');
     }
@@ -89,7 +95,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
 
   function resolveSubtitlesBaseUrl() {
     const settings = getSettings();
-    const baseUrl = (settings.subtitlesBaseUrl || settings.ttsBaseUrl || '').trim();
+    const baseUrl = resolveServiceConfig(settings, 'subtitles').baseUrl;
     if (!baseUrl) {
       throw new Error('Configuración de Subtítulos incompleta');
     }
