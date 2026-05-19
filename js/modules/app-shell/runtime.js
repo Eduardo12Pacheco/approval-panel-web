@@ -3,6 +3,7 @@ import { escapeHtmlCore } from '../core/ui/escape-html.js';
 import { updateWordCounterCore } from '../core/ui/word-count.js';
 import {
   defaultSettingsFactory,
+  resolveServiceConfig,
   shouldSkipApprovalBackgroundRefresh,
   shouldSkipApprovalInitialBootRefresh,
 } from '../core/state/app-store.js';
@@ -587,12 +588,13 @@ const MIN_REFRESH_INTERVAL_MS = 5000;
 let lastRefreshAllTime = 0;
 
 async function refreshAll(options = {}) {
-  if (options?.silent === true && shouldSkipApprovalBackgroundRefresh({ baseUrl: state.settings?.baseUrl, locationLike: globalThis.location })) {
+  const approvalBaseUrl = resolveServiceConfig(state.settings, 'n8n').baseUrl || state.settings?.baseUrl;
+  if (options?.silent === true && shouldSkipApprovalBackgroundRefresh({ baseUrl: approvalBaseUrl, locationLike: globalThis.location })) {
     return;
   }
 
   if (shouldSkipApprovalInitialBootRefresh({
-    baseUrl: state.settings?.baseUrl,
+    baseUrl: approvalBaseUrl,
     locationLike: globalThis.location,
     refreshOptions: options,
   })) {
@@ -651,7 +653,8 @@ function ensureApprovalAutoRefresh(start = true) {
 let lastMonitorRefreshTime = 0;
 
 async function refreshApprovalMonitorData() {
-  if (shouldSkipApprovalBackgroundRefresh({ baseUrl: state.settings?.baseUrl, locationLike: globalThis.location })) {
+  const approvalBaseUrl = resolveServiceConfig(state.settings, 'n8n').baseUrl || state.settings?.baseUrl;
+  if (shouldSkipApprovalBackgroundRefresh({ baseUrl: approvalBaseUrl, locationLike: globalThis.location })) {
     return;
   }
   const now = Date.now();
