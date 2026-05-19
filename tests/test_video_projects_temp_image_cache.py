@@ -185,3 +185,33 @@ def test_video_project_delete_flow_is_soft_disable_with_confirmation_guards():
     assert "await api.disableVideoProject({ draftId: id });" in loading_source
     assert "confirmDelete('¿Seguro que querés eliminar este proyecto de edición?" in events_source
     assert "ev.stopPropagation();" in events_source
+
+
+def test_manual_video_project_form_uses_n8n_country_player_catalog_and_preserves_title_script_fields():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    catalog = (ROOT / "js/modules/features/video-projects/domain/player-catalog.js").read_text(encoding="utf-8")
+    events = (ROOT / "js/modules/app-shell/events/scripts.js").read_text(encoding="utf-8")
+
+    assert 'id="manualVideoProjectTitleInput" type="text"' in html
+    assert 'id="manualVideoProjectScriptInput" class="script-area"' in html
+    assert '<select id="manualVideoProjectCountryInput">' in html
+    assert '<select id="manualVideoProjectPlayerInput" disabled>' in html
+    assert 'type="text" placeholder="Luis Díaz"' not in html
+    assert 'type="text" placeholder="Colombia"' not in html
+
+    expected_pairs = {
+        "Colombia": ["Luis Díaz", "James Rodríguez", "Luis Javier Suárez", "Jhon Arias", "Richard Ríos"],
+        "Ecuador": ["Moisés Caicedo", "Willian Pacho", "Piero Hincapié", "Kendry Páez", "Enner Valencia"],
+        "Argentina": ["Lionel Messi", "Julián Álvarez", "Alexis Mac Allister", "Rodrigo De Paul", "Lautaro Martínez"],
+        "Brasil": ["Neymar", "Vinícius Júnior", "Rodrygo", "Raphinha", "Casemiro"],
+        "Uruguay": ["Federico Valverde", "Darwin Núñez", "Ronald Araújo", "Manuel Ugarte", "Rodrigo Bentancur"],
+        "Paraguay": ["Miguel Almirón", "Julio Enciso", "Ramón Sosa", "Gustavo Gómez", "Diego Gómez"],
+    }
+    for country, players in expected_pairs.items():
+        assert country in catalog
+        for player in players:
+            assert player in catalog
+
+    assert "listVideoProjectCountries" in events
+    assert "listVideoProjectPlayers" in events
+    assert "populateManualPlayerOptions(el.manualVideoProjectCountryInput.value)" in events

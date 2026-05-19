@@ -1,4 +1,5 @@
 import { resolveScriptTitle } from '../../features/scripts/index.js';
+import { listVideoProjectCountries, listVideoProjectPlayers } from '../../features/video-projects/domain/player-catalog.js';
 
 export function bindScriptEvents({
   state,
@@ -25,10 +26,32 @@ export function bindScriptEvents({
     el.manualVideoProjectValidation.textContent = count ? `${count} segmento${count === 1 ? '' : 's'} detectado${count === 1 ? '' : 's'}` : 'Pegá un guion separado por pipes.';
   }
 
+  function populateManualCountryOptions() {
+    if (!el.manualVideoProjectCountryInput) return;
+    const current = el.manualVideoProjectCountryInput.value;
+    const countries = listVideoProjectCountries();
+    el.manualVideoProjectCountryInput.innerHTML = [
+      '<option value="">Elegí una selección</option>',
+      ...countries.map((country) => `<option value="${country}">${country}</option>`),
+    ].join('');
+    if (countries.includes(current)) el.manualVideoProjectCountryInput.value = current;
+  }
+
+  function populateManualPlayerOptions(country) {
+    if (!el.manualVideoProjectPlayerInput) return;
+    const players = listVideoProjectPlayers(country);
+    el.manualVideoProjectPlayerInput.disabled = !players.length;
+    el.manualVideoProjectPlayerInput.innerHTML = players.length
+      ? ['<option value="">Elegí un jugador</option>', ...players.map((player) => `<option value="${player}">${player}</option>`)].join('')
+      : '<option value="">Primero elegí una selección</option>';
+  }
+
   function resetManualVideoProjectForm() {
     if (el.manualVideoProjectTitleInput) el.manualVideoProjectTitleInput.value = '';
-    if (el.manualVideoProjectPlayerInput) el.manualVideoProjectPlayerInput.value = '';
+    populateManualCountryOptions();
     if (el.manualVideoProjectCountryInput) el.manualVideoProjectCountryInput.value = '';
+    populateManualPlayerOptions('');
+    if (el.manualVideoProjectPlayerInput) el.manualVideoProjectPlayerInput.value = '';
     if (el.manualVideoProjectScriptInput) el.manualVideoProjectScriptInput.value = '';
     updateManualValidation();
   }
@@ -88,6 +111,9 @@ export function bindScriptEvents({
   });
 
   el.manualVideoProjectScriptInput?.addEventListener('input', updateManualValidation);
+  el.manualVideoProjectCountryInput?.addEventListener('change', () => {
+    populateManualPlayerOptions(el.manualVideoProjectCountryInput.value);
+  });
 
   el.manualVideoProjectSubmitBtn?.addEventListener('click', async () => {
     if (typeof createManualVideoProject !== 'function') return;
