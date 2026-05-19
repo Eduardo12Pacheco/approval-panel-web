@@ -1,6 +1,17 @@
 import { resolveScriptTitle } from '../../features/scripts/index.js';
 import { listVideoProjectCountries, listVideoProjectPlayers } from '../../features/video-projects/domain/player-catalog.js';
 
+const boundScriptEventKeys = new WeakMap();
+
+function bindOnce(element, key, eventName, handler) {
+  if (!element) return;
+  const keys = boundScriptEventKeys.get(element) || new Set();
+  if (keys.has(key)) return;
+  element.addEventListener(eventName, handler);
+  keys.add(key);
+  boundScriptEventKeys.set(element, keys);
+}
+
 export function bindScriptEvents({
   state,
   el,
@@ -56,14 +67,14 @@ export function bindScriptEvents({
     updateManualValidation();
   }
 
-  el.closeScriptEditor.addEventListener('click', () => {
+  bindOnce(el.closeScriptEditor, 'close-script-editor', 'click', () => {
     state.selectedScript = null;
     state.scriptEditorDirty = false;
     renderScriptCards();
     renderSelectedScriptEditor();
   });
 
-  el.scriptEditedArea.addEventListener('input', () => {
+  bindOnce(el.scriptEditedArea, 'script-edited-input', 'input', () => {
     if (state.selectedScript) {
       const baseline = (state.selectedScript.guion_editado || state.selectedScript.guion_draft || '').toString();
       state.scriptEditorDirty = el.scriptEditedArea.value !== baseline;
@@ -71,7 +82,7 @@ export function bindScriptEvents({
     updateWordCounter(el.scriptEditedArea.value, el.scriptEditedWordCount);
   });
 
-  el.viewOriginalBtn.addEventListener('click', () => {
+  bindOnce(el.viewOriginalBtn, 'view-original', 'click', () => {
     if (!state.selectedScript) return;
     el.scriptOriginalTitle.textContent = `${state.selectedScript.jugador || 'Sin jugador'} · ${resolveScriptTitle(state.selectedScript)} (original)`;
     el.scriptOriginalMeta.textContent = '';
@@ -80,42 +91,42 @@ export function bindScriptEvents({
     el.scriptOriginalDialog.showModal();
   });
 
-  el.closeOriginalDialog.addEventListener('click', () => el.scriptOriginalDialog.close());
+  bindOnce(el.closeOriginalDialog, 'close-original-dialog', 'click', () => el.scriptOriginalDialog.close());
 
-  el.cancelPublishBtn.addEventListener('click', () => el.publishConfirmDialog.close());
-  el.confirmPublishBtn.addEventListener('click', publishSelectedScript);
-  el.voiceAiBtn.addEventListener('click', () => {
+  bindOnce(el.cancelPublishBtn, 'cancel-publish', 'click', () => el.publishConfirmDialog.close());
+  bindOnce(el.confirmPublishBtn, 'confirm-publish', 'click', publishSelectedScript);
+  bindOnce(el.voiceAiBtn, 'voice-ai', 'click', () => {
     openVoiceAiPresetDialog();
   });
-  el.cancelVoicePresetBtn.addEventListener('click', () => el.voicePresetDialog.close());
-  el.confirmVoicePresetBtn.addEventListener('click', () => {
+  bindOnce(el.cancelVoicePresetBtn, 'cancel-voice-preset', 'click', () => el.voicePresetDialog.close());
+  bindOnce(el.confirmVoicePresetBtn, 'confirm-voice-preset', 'click', () => {
     void confirmVoiceAiPresetSelection();
   });
-  el.downloadDraftBtn.addEventListener('click', downloadSelectedScriptDocx);
-  el.publishDraftBtn.addEventListener('click', () => {
+  bindOnce(el.downloadDraftBtn, 'download-draft', 'click', downloadSelectedScriptDocx);
+  bindOnce(el.publishDraftBtn, 'publish-draft', 'click', () => {
     if (!state.selectedScript) return;
     el.publishConfirmDialog.showModal();
   });
 
-  el.videoProjectsRefreshBtn?.addEventListener('click', () => {
+  bindOnce(el.videoProjectsRefreshBtn, 'video-projects-refresh', 'click', () => {
     void refreshVideoProjects();
   });
 
-  el.videoProjectsNewBtn?.addEventListener('click', () => {
+  bindOnce(el.videoProjectsNewBtn, 'manual-video-project-open', 'click', () => {
     resetManualVideoProjectForm();
     el.manualVideoProjectDialog?.showModal();
   });
 
-  el.manualVideoProjectCancelBtn?.addEventListener('click', () => {
+  bindOnce(el.manualVideoProjectCancelBtn, 'manual-video-project-cancel', 'click', () => {
     el.manualVideoProjectDialog?.close();
   });
 
-  el.manualVideoProjectScriptInput?.addEventListener('input', updateManualValidation);
-  el.manualVideoProjectCountryInput?.addEventListener('change', () => {
+  bindOnce(el.manualVideoProjectScriptInput, 'manual-video-project-script-input', 'input', updateManualValidation);
+  bindOnce(el.manualVideoProjectCountryInput, 'manual-video-project-country-change', 'change', () => {
     populateManualPlayerOptions(el.manualVideoProjectCountryInput.value);
   });
 
-  el.manualVideoProjectSubmitBtn?.addEventListener('click', async () => {
+  bindOnce(el.manualVideoProjectSubmitBtn, 'manual-video-project-submit', 'click', async () => {
     if (typeof createManualVideoProject !== 'function') return;
     const button = el.manualVideoProjectSubmitBtn;
     button.disabled = true;

@@ -45,7 +45,7 @@ export function injectFeatureCSS(featureName) {
 
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = `./styles/${cssPath}`;
+  link.href = `./styles/${cssPath}?v=20260519-project-actions`;
   link.setAttribute("data-feature-css", featureName);
 
   document.head.appendChild(link);

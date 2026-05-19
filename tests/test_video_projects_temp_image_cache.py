@@ -215,3 +215,13 @@ def test_manual_video_project_form_uses_n8n_country_player_catalog_and_preserves
     assert "listVideoProjectCountries" in events
     assert "listVideoProjectPlayers" in events
     assert "populateManualPlayerOptions(el.manualVideoProjectCountryInput.value)" in events
+
+
+def test_script_event_binding_is_idempotent_for_lazy_loaded_manual_project_form():
+    events = (ROOT / "js/modules/app-shell/events/scripts.js").read_text(encoding="utf-8")
+
+    assert "const boundScriptEventKeys = new WeakMap();" in events
+    assert "function bindOnce(element, key, eventName, handler)" in events
+    assert "bindOnce(el.manualVideoProjectSubmitBtn, 'manual-video-project-submit'" in events
+    assert "el.manualVideoProjectSubmitBtn?.addEventListener('click'" not in events
+    assert "bindOnce(el.videoProjectsNewBtn, 'manual-video-project-open'" in events
