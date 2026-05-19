@@ -5,11 +5,11 @@ const DEFAULT_SUBTITLES_SERVICE_URL = 'http://127.0.0.1:8092';
 const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
 const DEFAULT_SERVICE_OVERRIDES = Object.freeze({
-  n8n: true,
-  tts: true,
-  subtitles: true,
-  radar: true,
-  remotion: true,
+  n8n: false,
+  tts: false,
+  subtitles: false,
+  radar: false,
+  remotion: false,
   approvalPipeline: true,
 });
 const UNIFIED_SERVICE_PREFIX = Object.freeze({
@@ -81,6 +81,13 @@ function normalizeServiceOverrides(rawValue = {}) {
   };
 }
 
+function isLegacyStoredSettings(rawValue = {}) {
+  return rawValue
+    && typeof rawValue === 'object'
+    && !Object.prototype.hasOwnProperty.call(rawValue, 'apiProfileMode')
+    && !Object.prototype.hasOwnProperty.call(rawValue, 'serviceOverrides');
+}
+
 function normalizeBrandChannel(rawValue) {
   const value = (rawValue || '').toString().trim().toLowerCase();
   return value === 'pelotazo-colombia' ? 'pelotazo-colombia' : DEFAULT_BRAND_CHANNEL;
@@ -141,7 +148,14 @@ export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory =
   }
   if (!raw) return defaults;
   try {
-    return normalizeSettings({ ...defaults, ...JSON.parse(raw) }, { defaultsFactory });
+    const parsed = JSON.parse(raw);
+    return normalizeSettings({
+      ...defaults,
+      ...parsed,
+      ...(isLegacyStoredSettings(parsed) ? { serviceOverrides: Object.fromEntries(
+        Object.keys(DEFAULT_SERVICE_OVERRIDES).map((service) => [service, true]),
+      ) } : {}),
+    }, { defaultsFactory });
   } catch {
     return defaults;
   }

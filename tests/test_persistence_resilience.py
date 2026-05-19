@@ -330,7 +330,7 @@ if (saved.serviceOverrides.tts !== true) throw new Error('simple save must prese
     assert result.returncode == 0, result.stderr
 
 
-def test_default_settings_keep_direct_service_urls_until_gateway_routes_are_enabled():
+def test_default_settings_use_gateway_routes_after_smoke_gate_passes():
     script = r"""
 import { defaultSettingsFactory, resolveServiceConfig } from './js/modules/core/state/app-store.js';
 
@@ -338,11 +338,11 @@ const defaults = defaultSettingsFactory();
 if (defaults.apiProfileMode !== 'unified') throw new Error(`default profile must be unified, got ${defaults.apiProfileMode}`);
 
 const expectedBaseUrls = {
-  n8n: 'http://localhost:5678',
-  tts: 'http://localhost:8088',
-  subtitles: 'http://127.0.0.1:8092',
-  radar: 'http://127.0.0.1:8765',
-  remotion: 'https://remotion-api.automatizacionedun8n.me',
+  n8n: 'https://api.automatizacionedun8n.me/n8n',
+  tts: 'https://api.automatizacionedun8n.me/tts',
+  subtitles: 'https://api.automatizacionedun8n.me/subtitles',
+  radar: 'https://api.automatizacionedun8n.me/radar',
+  remotion: 'https://api.automatizacionedun8n.me/remotion',
 };
 for (const [service, expected] of Object.entries(expectedBaseUrls)) {
   const resolved = resolveServiceConfig(defaults, service);
