@@ -58,7 +58,7 @@ export function bindCoreEvents({
   el.saveSettingsBtn.addEventListener('click', () => {
     const defaults = defaultSettings();
     saveSettings({
-      apiProfileMode: el.apiProfileModeSelect?.value || defaults.apiProfileMode,
+      apiProfileMode: 'unified',
       apiOrigin: el.apiOriginInput?.value?.trim() || defaults.apiOrigin,
       sharedApiKey: el.sharedApiKeyInput?.value?.trim() || '',
       sharedBasicUser: el.sharedBasicUserInput?.value?.trim() || '',

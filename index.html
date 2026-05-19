@@ -333,21 +333,17 @@
 
         <div class="settings-form">
           <section class="settings-section">
-            <h3>Unified API</h3>
-            <p class="meta settings-help">Futuro gateway público para servicios compatibles. No mueve Cloudflare ni expone servicios local-only en este slice.</p>
+            <h3>Configuración del proyecto</h3>
+            <p class="meta settings-help">Una sola configuración compartida para los servicios compatibles del panel.</p>
+
+            <select id="apiProfileModeSelect" class="hidden" hidden aria-hidden="true" tabindex="-1">
+              <option value="unified" selected>Unified</option>
+            </select>
 
             <label class="settings-field">
-              Modo de perfil
-              <select id="apiProfileModeSelect">
-                <option value="legacy">Modo avanzado / legacy</option>
-                <option value="unified">Unified API</option>
-              </select>
-            </label>
-
-            <label class="settings-field">
-              API Origin público
+              API Origin / Endpoint del proyecto
               <input id="apiOriginInput" placeholder="https://api.automatizacionedun8n.me" />
-              <span class="meta">Public-default: se deriva como /n8n, /tts, /subtitles, /radar y /remotion cuando el override avanzado está desactivado.</span>
+              <span class="meta">Se usa como origen compartido para n8n, Audio, Subtítulos, Radar y Remotion.</span>
             </label>
 
             <label class="settings-field">
@@ -366,11 +362,9 @@
             </label>
           </section>
 
-          <details id="advancedSettingsSection" class="settings-section" open>
-            <summary>Modo avanzado</summary>
-            <p class="meta settings-help">Local-default y local-only siguen disponibles acá. Los IDs legacy se preservan para migración, rollback y llamadas directas.</p>
+          <div id="advancedSettingsSection" class="settings-compatibility hidden" hidden aria-hidden="true">
 
-          <section class="settings-section">
+          <section class="settings-legacy-group">
             <h3>Panel editorial (n8n)</h3>
             <p class="meta settings-help">Estos datos se usan para aprobar temas, editar y publicar guiones.</p>
 
@@ -397,7 +391,7 @@
 
           </section>
 
-          <section class="settings-section">
+          <section class="settings-legacy-group">
             <h3>Creación de audios (TTS)</h3>
             <p class="meta settings-help">Estos datos protegen la API de audio que ejecuta la RTX local.</p>
 
@@ -423,7 +417,7 @@
 
           </section>
 
-          <section class="settings-section">
+          <section class="settings-legacy-group">
             <h3>Subtítulos</h3>
             <p class="meta settings-help">Servicio remoto/local de Subtítulos 2. Es independiente de la API de voz.</p>
 
@@ -449,7 +443,7 @@
 
           </section>
 
-          <section class="settings-section">
+          <section class="settings-legacy-group">
             <h3>Radar / Investigación</h3>
             <p class="meta settings-help">Servicio local de transcripción y menciones. local-only por defecto si apunta a localhost; la API key no se muestra en errores ni historial.</p>
 
@@ -463,7 +457,7 @@
               <input id="transcriptServiceApiKeyInput" type="password" placeholder="Requerido para /api/radar" />
             </label>
           </section>
-          </details>
+          </div>
         </div>
 
         <div class="settings-actions">

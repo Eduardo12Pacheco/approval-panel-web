@@ -71,7 +71,7 @@ function trimTrailingSlash(rawValue) {
 }
 
 function normalizeApiProfileMode(rawValue) {
-  return rawValue === 'unified' ? 'unified' : 'legacy';
+  return rawValue === 'legacy' ? 'legacy' : 'unified';
 }
 
 function normalizeServiceOverrides(rawValue = {}) {
@@ -88,7 +88,7 @@ function normalizeBrandChannel(rawValue) {
 
 export function defaultSettingsFactory() {
   return {
-    apiProfileMode: 'legacy',
+    apiProfileMode: 'unified',
     apiOrigin: DEFAULT_API_ORIGIN,
     sharedApiKey: '',
     sharedBasicUser: '',
@@ -157,9 +157,27 @@ export function saveSettingsToStorage({ storage, storageKey, nextSettings }) {
   return normalized;
 }
 
-function shouldUseUnifiedService(settings, service) {
+const SERVICE_BASE_FIELD = Object.freeze({
+  n8n: 'baseUrl',
+  tts: 'ttsBaseUrl',
+  subtitles: 'subtitlesBaseUrl',
+  radar: 'transcriptServiceBaseUrl',
+  remotion: 'remotionApiUrl',
+});
+
+function hasPartialLegacyBaseOverride(rawSettings, service) {
+  const field = SERVICE_BASE_FIELD[service];
+  if (!field || !rawSettings || typeof rawSettings !== 'object') return false;
+  return !Object.prototype.hasOwnProperty.call(rawSettings, 'apiProfileMode')
+    && !Object.prototype.hasOwnProperty.call(rawSettings, 'serviceOverrides')
+    && Object.prototype.hasOwnProperty.call(rawSettings, field)
+    && Boolean((rawSettings[field] || '').toString().trim());
+}
+
+function shouldUseUnifiedService(settings, service, rawSettings = {}) {
   return settings.apiProfileMode === 'unified'
     && service !== 'approvalPipeline'
+    && !hasPartialLegacyBaseOverride(rawSettings, service)
     && settings.serviceOverrides?.[service] === false;
 }
 
@@ -176,7 +194,7 @@ function fallbackCredential(primary, shared) {
 
 export function resolveServiceConfig(rawSettings = {}, service) {
   const settings = normalizeSettings(rawSettings);
-  const unifiedBaseUrl = shouldUseUnifiedService(settings, service) ? deriveUnifiedBaseUrl(settings, service) : '';
+  const unifiedBaseUrl = shouldUseUnifiedService(settings, service, rawSettings) ? deriveUnifiedBaseUrl(settings, service) : '';
 
   if (service === 'n8n') {
     return { baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.baseUrl), secret: settings.secret || '' };
@@ -231,7 +249,8 @@ export function hydrateSettingsFormValues({ el, settings }) {
     el.sharedBasicPassInput.value = normalized.sharedBasicPass;
   }
   if (el.advancedSettingsSection) {
-    el.advancedSettingsSection.open = normalized.apiProfileMode === 'legacy';
+    el.advancedSettingsSection.hidden = true;
+    el.advancedSettingsSection.setAttribute?.('aria-hidden', 'true');
   }
   el.baseUrlInput.value = normalized.baseUrl;
   el.secretInput.value = normalized.secret;

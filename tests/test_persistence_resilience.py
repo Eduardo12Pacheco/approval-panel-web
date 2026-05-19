@@ -228,7 +228,7 @@ const loaded = loadSettingsFromStorage({
   storageKey: 'approval-panel-settings-v1',
 });
 
-if (loaded.apiProfileMode !== 'legacy') throw new Error(`expected legacy mode, got ${loaded.apiProfileMode}`);
+if (loaded.apiProfileMode !== 'unified') throw new Error(`expected unified mode, got ${loaded.apiProfileMode}`);
 if (loaded.apiOrigin !== 'https://api.automatizacionedun8n.me') throw new Error(`unexpected api origin ${loaded.apiOrigin}`);
 if (loaded.sharedApiKey !== '' || loaded.sharedBasicUser !== '' || loaded.sharedBasicPass !== '') {
   throw new Error('shared credentials must default empty during legacy migration');
@@ -304,7 +304,7 @@ import { defaultSettingsFactory, mergeSettingsForSave } from './js/modules/core/
 
 const current = {
   ...defaultSettingsFactory(),
-  apiProfileMode: 'legacy',
+  apiProfileMode: 'unified',
   ttsBaseUrl: 'https://custom-tts.example.test',
   ttsApiKey: 'service-key',
   ttsBasicUser: 'service-user',
@@ -324,7 +324,34 @@ if (saved.ttsBaseUrl !== 'https://custom-tts.example.test') throw new Error('sim
 if (saved.ttsApiKey !== 'service-key' || saved.ttsBasicUser !== 'service-user' || saved.ttsBasicPass !== 'service-pass') {
   throw new Error('simple save must preserve service-specific TTS credentials');
 }
-if (saved.serviceOverrides.tts !== true) throw new Error('simple save must preserve override flags');
+if (saved.serviceOverrides.tts !== true) throw new Error('simple save must preserve explicit override flags');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_default_settings_keep_direct_service_urls_until_gateway_routes_are_enabled():
+    script = r"""
+import { defaultSettingsFactory, resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const defaults = defaultSettingsFactory();
+if (defaults.apiProfileMode !== 'unified') throw new Error(`default profile must be unified, got ${defaults.apiProfileMode}`);
+
+const expectedBaseUrls = {
+  n8n: 'http://localhost:5678',
+  tts: 'http://localhost:8088',
+  subtitles: 'http://127.0.0.1:8092',
+  radar: 'http://127.0.0.1:8765',
+  remotion: 'https://remotion-api.automatizacionedun8n.me',
+};
+for (const [service, expected] of Object.entries(expectedBaseUrls)) {
+  const resolved = resolveServiceConfig(defaults, service);
+  if (resolved.baseUrl !== expected) throw new Error(`${service} default derivation drift: ${resolved.baseUrl}`);
+}
+const approvalPipeline = resolveServiceConfig(defaults, 'approvalPipeline');
+if (approvalPipeline.baseUrl !== 'http://127.0.0.1:3042') {
+  throw new Error(`approval pipeline default must remain local-only, got ${approvalPipeline.baseUrl}`);
+}
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

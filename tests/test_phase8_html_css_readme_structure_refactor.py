@@ -208,7 +208,7 @@ def test_approval_pipeline_settings_placeholder_and_help_match_local_service_con
     assert "Si lo dejás vacío, sigue el fallback a Remotion" in source
 
 
-def test_settings_simple_unified_controls_exist_and_advanced_legacy_ids_remain_addressable():
+def test_settings_presents_single_unified_config_and_hides_legacy_compatibility_fields():
     source = _read(INDEX_PATH)
     for selector_id in [
         "apiProfileModeSelect",
@@ -220,10 +220,17 @@ def test_settings_simple_unified_controls_exist_and_advanced_legacy_ids_remain_a
     ]:
         assert f'id="{selector_id}"' in source
 
-    assert "Unified API" in source
-    assert "Modo avanzado" in source
-    assert "Futuro gateway" in source
-    assert "local-only" in source
+    visible_settings = source.split('<div class="settings-form">', 1)[1].split('<div class="settings-actions">', 1)[0]
+    compatibility_markup = visible_settings.split('id="advancedSettingsSection"', 1)[1]
+    assert "Endpoint del proyecto" in visible_settings
+    assert "Configuración avanzada" not in visible_settings
+    assert "Modo avanzado" not in visible_settings
+    assert "Futuro gateway" not in visible_settings
+    assert '<section class="settings-section"' in visible_settings
+    assert visible_settings.count('<section class="settings-section"') == 1
+    assert 'id="advancedSettingsSection"' in visible_settings
+    assert 'hidden' in compatibility_markup.split('>', 1)[0]
+    assert 'aria-hidden="true"' in compatibility_markup.split('>', 1)[0]
 
     for legacy_id in [
         "baseUrlInput",
