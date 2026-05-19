@@ -168,6 +168,34 @@ if (!html.includes('data-project-id="draft%201"')) {
 if (!html.includes('aria-label="Eliminar proyecto Proyecto peligroso"')) {
   throw new Error('delete action must be accessible by project title');
 }
+if (html.includes('Listo')) {
+  throw new Error('ready projects should show workflow phase language, not final-sounding Listo');
+}
+if (!html.includes('video-project-card__phase') || !html.includes('>Imágenes<')) {
+  throw new Error('project phase should render under the metadata as Imágenes');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_video_project_phase_labels_cover_workflow_phases():
+    script = r"""
+import { getProjectPhaseLabel } from './js/modules/features/video-projects/domain/status-labels.js';
+
+const cases = [
+  [{ status: 'ready' }, 'Imágenes'],
+  [{ status: 'image_search_error' }, 'Imágenes · error'],
+  [{ status: 'ready', voice_audio: { public_url: 'https://audio.test/voice.mp3' } }, 'Audio'],
+  [{ status: 'ready', editor_state: { phase: 'preview_ready' } }, 'Edición'],
+  [{ status: 'ready', editor_state: { phase: 'final_rendering' } }, 'Renderizado'],
+  [{ status: 'ready', editor_state: { phase: 'final_ready' } }, 'Renderizado'],
+];
+
+for (const [project, expected] of cases) {
+  const actual = getProjectPhaseLabel(project);
+  if (actual !== expected) throw new Error(`expected ${expected}, got ${actual}`);
+}
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

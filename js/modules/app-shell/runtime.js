@@ -29,7 +29,7 @@ let _renderSelectedVideoProjectView = null;
 let _updateSelectedVideoProjectCompositionPreviewView = null;
 async function _ensureVideoProjectsRender() {
   if (_renderVideoProjectsListView) return;
-    const mod = await import('../features/video-projects/render.js?v=20260519-project-actions');
+    const mod = await import('../features/video-projects/render.js?v=20260519-project-card-polish');
   _renderVideoProjectsListView = mod.renderVideoProjectsListView;
   _renderSelectedVideoProjectView = mod.renderSelectedVideoProjectView;
   _updateSelectedVideoProjectCompositionPreviewView = mod.updateSelectedVideoProjectCompositionPreview;
@@ -53,7 +53,7 @@ import { createSettingsController } from './settings.js';
 import { createAppShellComposition } from './composition.js';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
-import { bindScriptEvents } from './events/scripts.js?v=20260519-project-actions';
+import { bindScriptEvents } from './events/scripts.js?v=20260519-project-card-polish';
 import { bindAudioEvents } from './events/audio.js';
 import { bindSubtitlesEvents } from './events/subtitles.js';
 import { bindApprovalDialogEvents } from './events/approval-dialog.js';

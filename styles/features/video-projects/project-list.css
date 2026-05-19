@@ -81,14 +81,16 @@
 
 .video-project-card__delete {
   display: inline-grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
-  border: 1px solid rgba(255, 92, 92, 0.36);
-  background: rgba(255, 92, 92, 0.08);
+  flex: 0 0 32px;
+  border: 1px solid rgba(255, 92, 92, 0.55);
+  border-radius: 0;
+  background: rgba(88, 18, 18, 0.72);
   color: #ffb3b3;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -97,7 +99,7 @@
 .video-project-card__delete:hover,
 .video-project-card__delete:focus {
   border-color: rgba(255, 92, 92, 0.72);
-  background: rgba(255, 92, 92, 0.16);
+  background: rgba(128, 26, 26, 0.9);
   color: #ffd6d6;
   outline: 1px solid rgba(255, 92, 92, 0.55);
   outline-offset: 2px;
@@ -155,6 +157,12 @@
 .video-project-card__meta strong {
   color: var(--text);
   font-weight: 700;
+}
+
+.video-project-card__phase {
+  flex-basis: 100%;
+  width: fit-content;
+  margin-top: -2px;
 }
 
 .video-project-card__open {

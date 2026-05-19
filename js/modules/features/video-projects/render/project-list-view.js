@@ -1,5 +1,5 @@
-import { buildFutureProjectCard, buildProjectCard } from './project-list-markup.js?v=20260519-project-actions';
-import { hydrateProjectListCards } from '../events/project-list-events.js?v=20260519-project-actions';
+import { buildFutureProjectCard, buildProjectCard } from './project-list-markup.js?v=20260519-project-card-polish';
+import { hydrateProjectListCards } from '../events/project-list-events.js?v=20260519-project-card-polish';
 
 export function renderVideoProjectsListView({ state, el, openVideoProject, prefetchProjectDetail, disableVideoProject, confirmDelete }) {
   if (!el.videoProjectsList) return;

@@ -5,7 +5,7 @@ import {
   resolveStoragePublicUrl,
 } from '../domain/image-candidates.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from '../domain/project-identity.js';
-import { getStatusLabel } from '../domain/status-labels.js';
+import { getProjectPhaseLabel } from '../domain/status-labels.js';
 
 function resolveProjectThumbnailUrl(project = {}) {
   const firstImageUrl = (project.first_image_url || '').toString().trim();
@@ -26,7 +26,7 @@ export function buildProjectCard(project = {}) {
   const player = escapeHtmlCore((project.jugador || 'Sin jugador').toString());
   const country = escapeHtmlCore((project.seleccion || 'Sin selección').toString());
   const imageUrl = resolveProjectThumbnailUrl(project);
-  const status = escapeHtmlCore(getStatusLabel(project.status));
+  const phase = escapeHtmlCore(getProjectPhaseLabel(project));
   const statusName = escapeHtmlCore((project.status || 'unknown').toString());
   const createdAt = project.published_at || project.created_at || project.updated_at;
 
@@ -37,7 +37,6 @@ export function buildProjectCard(project = {}) {
           <h3>${title}</h3>
         </div>
         <div class="video-project-card__actions">
-          <span class="video-project-status" data-status="${statusName}">${status}</span>
           <button class="video-project-card__delete" type="button" data-action="delete-video-project" data-project-id="${encodedId}" aria-label="Eliminar proyecto ${title}">×</button>
         </div>
       </header>
@@ -53,6 +52,7 @@ export function buildProjectCard(project = {}) {
             <span>Jugador: <strong>${player}</strong></span>
             <span>País: <strong>${country}</strong></span>
             <span>${formatCount(project.image_count, 'imagen', 'imágenes')}</span>
+            <span class="video-project-status video-project-card__phase" data-status="${statusName}">${phase}</span>
             <span>${formatDateLabel(createdAt)}</span>
           </div>
         </div>
