@@ -93,5 +93,37 @@ export function createProjectLoadingCommands({
     }
   }
 
-  return { refreshVideoProjects, openVideoProject };
+  async function disableVideoProject(projectId) {
+    const state = store.getState();
+    const id = (projectId || '').toString().trim();
+    if (!id) return;
+
+    const previousProjects = Array.isArray(state.videoProjects) ? [...state.videoProjects] : [];
+    const previousSelected = state.selectedVideoProject || null;
+    const selectedKey = previousSelected ? resolveProjectKey(previousSelected) : '';
+
+    state.videoProjects = previousProjects.filter((item) => resolveProjectKey(item) !== id);
+    if (selectedKey === id) {
+      state.selectedVideoProject = null;
+      state.videoProjectDetailLoading = false;
+      state.videoProjectDetailImagesPreparing = false;
+    }
+    renderVideoProjects();
+    renderSelectedVideoProject();
+
+    try {
+      await api.disableVideoProject({ draftId: id });
+      ui.toast('Proyecto eliminado');
+      await refreshVideoProjects({ silent: true });
+    } catch (err) {
+      console.error(err);
+      state.videoProjects = previousProjects;
+      state.selectedVideoProject = previousSelected;
+      renderVideoProjects();
+      renderSelectedVideoProject();
+      ui.toast('Error eliminando proyecto de edición');
+    }
+  }
+
+  return { refreshVideoProjects, openVideoProject, disableVideoProject };
 }

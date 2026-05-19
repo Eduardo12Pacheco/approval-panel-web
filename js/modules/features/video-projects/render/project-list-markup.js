@@ -36,7 +36,10 @@ export function buildProjectCard(project = {}) {
         <div>
           <h3>${title}</h3>
         </div>
-        <span class="video-project-status" data-status="${statusName}">${status}</span>
+        <div class="video-project-card__actions">
+          <span class="video-project-status" data-status="${statusName}">${status}</span>
+          <button class="video-project-card__delete" type="button" data-action="delete-video-project" data-project-id="${encodedId}" aria-label="Eliminar proyecto ${title}">×</button>
+        </div>
       </header>
 
       <div class="video-project-card__body">

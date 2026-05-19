@@ -209,6 +209,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
   return {
     refreshVideoProjects: projectLoading.refreshVideoProjects,
     openVideoProject: projectLoading.openVideoProject,
+    disableVideoProject: projectLoading.disableVideoProject,
     createManualVideoProject,
     prefetchProjectDetail: detailCache.prefetchProjectDetail,
     toggleImageSelection: selection.toggleImageSelection,

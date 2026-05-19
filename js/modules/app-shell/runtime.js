@@ -868,6 +868,8 @@ async function renderVideoProjects() {
     el,
     openVideoProject,
     prefetchProjectDetail: videoProjectsFeature.prefetchProjectDetail,
+    disableVideoProject: videoProjectsFeature.disableVideoProject,
+    confirmDelete: (message) => window.confirm(message),
   });
 }
 

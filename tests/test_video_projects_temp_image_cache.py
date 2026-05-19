@@ -148,3 +148,40 @@ if (!list.innerHTML.includes(`src="${expected}"`)) {
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_video_project_cards_expose_delete_action_without_replacing_open_action():
+    script = r"""
+import { buildProjectCard } from './js/modules/features/video-projects/render/project-list-markup.js';
+
+const html = buildProjectCard({ draft_id: 'draft 1', title: 'Proyecto peligroso', status: 'ready' });
+
+if (!html.includes('data-action="open-video-project"')) {
+  throw new Error('project card must preserve the explicit open action');
+}
+if (!html.includes('data-action="delete-video-project"')) {
+  throw new Error('project card must expose an explicit delete action');
+}
+if (!html.includes('data-project-id="draft%201"')) {
+  throw new Error('delete/open actions must use the encoded project id');
+}
+if (!html.includes('aria-label="Eliminar proyecto Proyecto peligroso"')) {
+  throw new Error('delete action must be accessible by project title');
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_video_project_delete_flow_is_soft_disable_with_confirmation_guards():
+    api_source = (ROOT / "js/modules/features/video-projects/data/supabase-client.js").read_text(encoding="utf-8")
+    loading_source = (ROOT / "js/modules/features/video-projects/controller/project-loading.js").read_text(encoding="utf-8")
+    events_source = (ROOT / "js/modules/features/video-projects/events/project-list-events.js").read_text(encoding="utf-8")
+
+    assert "/rest/v1/rpc/disable_video_edit_project" in api_source
+    assert "disableVideoProject({ draftId" in api_source
+    assert "state.videoProjects = previousProjects.filter" in loading_source
+    assert "state.selectedVideoProject = null" in loading_source
+    assert "await api.disableVideoProject({ draftId: id });" in loading_source
+    assert "confirmDelete('¿Seguro que querés eliminar este proyecto de edición?" in events_source
+    assert "ev.stopPropagation();" in events_source

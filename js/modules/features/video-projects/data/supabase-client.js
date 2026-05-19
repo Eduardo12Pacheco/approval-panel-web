@@ -19,6 +19,7 @@ const SAVE_AUDIO_RPC = '/rest/v1/rpc/save_video_project_audio';
 const ADD_CUSTOM_IMAGES_RPC = '/rest/v1/rpc/add_video_project_custom_images';
 const SAVE_EDITOR_STATE_RPC = '/rest/v1/rpc/save_video_project_editor_state';
 const SAVE_SELECTIONS_RPC = '/rest/v1/rpc/save_video_project_selections';
+const DISABLE_PROJECT_RPC = '/rest/v1/rpc/disable_video_edit_project';
 
 function normalizeRpcPayload(payload = {}) {
   return {
@@ -259,6 +260,26 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     return data;
   }
 
+  async function disableVideoProject({ draftId } = {}) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+
+    const response = await fetchImpl(`${SUPABASE_URL}${DISABLE_PROJECT_RPC}`, {
+      method: 'POST',
+      headers: rpcHeaders,
+      body: JSON.stringify({ p_draft_id: id }),
+    });
+
+    const data = await parseResponseBody(response);
+
+    if (!response.ok || data?.ok === false) {
+      const message = responseErrorMessage(data, `Disable project RPC ${response.status}`);
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
   return {
     listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: false }),
     getVideoProject: (draftId) => callVideoProjectsRpc({ draftId, limit: 1, includeDetail: true }),
@@ -269,5 +290,6 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     uploadCustomImageFile,
     uploadProjectVideoFile,
     addVideoProjectCustomImages,
+    disableVideoProject,
   };
 }

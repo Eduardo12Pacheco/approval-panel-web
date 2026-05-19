@@ -1,7 +1,7 @@
 import { buildFutureProjectCard, buildProjectCard } from './project-list-markup.js';
 import { hydrateProjectListCards } from '../events/project-list-events.js';
 
-export function renderVideoProjectsListView({ state, el, openVideoProject, prefetchProjectDetail }) {
+export function renderVideoProjectsListView({ state, el, openVideoProject, prefetchProjectDetail, disableVideoProject, confirmDelete }) {
   if (!el.videoProjectsList) return;
 
   const projects = Array.isArray(state.videoProjects) ? state.videoProjects : [];
@@ -27,5 +27,5 @@ export function renderVideoProjectsListView({ state, el, openVideoProject, prefe
   }
 
   el.videoProjectsList.innerHTML = [...projects.map((project) => buildProjectCard(project)), buildFutureProjectCard()].join('');
-  hydrateProjectListCards({ root: el.videoProjectsList, openVideoProject, prefetchProjectDetail });
+  hydrateProjectListCards({ root: el.videoProjectsList, openVideoProject, prefetchProjectDetail, disableVideoProject, confirmDelete });
 }
