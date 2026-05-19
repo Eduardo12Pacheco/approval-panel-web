@@ -270,7 +270,7 @@ const settings = {
   transcriptServiceBaseUrl: 'https://legacy-radar.example.test',
   transcriptServiceApiKey: '',
   remotionApiUrl: 'https://legacy-remotion.example.test',
-  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+  approvalPipelineBaseUrl: 'https://api.automatizacionedun8n.me/approval',
 };
 
 const n8n = resolveServiceConfig(settings, 'n8n');
@@ -290,8 +290,8 @@ if (subtitles.apiKey !== 'subs-key' || subtitles.basicUser !== 'subs-user' || su
 }
 
 const approvalPipeline = resolveServiceConfig(settings, 'approvalPipeline');
-if (approvalPipeline.baseUrl !== 'http://127.0.0.1:3042') {
-  throw new Error(`approval pipeline must remain advanced/local-only, got ${approvalPipeline.baseUrl}`);
+if (approvalPipeline.baseUrl !== 'https://api.automatizacionedun8n.me/approval') {
+  throw new Error(`approval pipeline must remain gateway-routed, got ${approvalPipeline.baseUrl}`);
 }
 """
     result = _run_node(script)
@@ -349,8 +349,8 @@ for (const [service, expected] of Object.entries(expectedBaseUrls)) {
   if (resolved.baseUrl !== expected) throw new Error(`${service} default derivation drift: ${resolved.baseUrl}`);
 }
 const approvalPipeline = resolveServiceConfig(defaults, 'approvalPipeline');
-if (approvalPipeline.baseUrl !== 'http://127.0.0.1:3042') {
-  throw new Error(`approval pipeline default must remain local-only, got ${approvalPipeline.baseUrl}`);
+if (approvalPipeline.baseUrl !== 'https://api.automatizacionedun8n.me/approval') {
+  throw new Error(`approval pipeline default must use gateway route, got ${approvalPipeline.baseUrl}`);
 }
 """
     result = _run_node(script)
@@ -370,7 +370,7 @@ const saved = mergeSettingsForSave({
   subtitlesBaseUrl: 'http://127.0.0.1:8092',
   transcriptServiceBaseUrl: 'http://127.0.0.1:8765',
   remotionApiUrl: 'https://remotion-api.automatizacionedun8n.me',
-  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+  approvalPipelineBaseUrl: 'https://api.automatizacionedun8n.me/approval',
 }, {
   apiProfileMode: 'unified',
   apiOrigin: 'https://api.automatizacionedun8n.me',
@@ -383,8 +383,8 @@ for (const service of ['n8n', 'tts', 'subtitles', 'radar', 'remotion']) {
     throw new Error(`${service} did not resolve through gateway`);
   }
 }
-if (saved.serviceOverrides.approvalPipeline !== true) throw new Error('approvalPipeline must remain local-only override');
-if (resolveServiceConfig(saved, 'approvalPipeline').baseUrl !== 'http://127.0.0.1:3042') throw new Error('approvalPipeline local base drift');
+if (saved.serviceOverrides.approvalPipeline !== true) throw new Error('approvalPipeline must remain explicit override');
+if (resolveServiceConfig(saved, 'approvalPipeline').baseUrl !== 'https://api.automatizacionedun8n.me/approval') throw new Error('approvalPipeline gateway base drift');
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

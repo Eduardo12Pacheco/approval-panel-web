@@ -1,5 +1,5 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
-const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'http://127.0.0.1:3042';
+const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'https://api.automatizacionedun8n.me/approval';
 const DEFAULT_TRANSCRIPT_SERVICE_URL = 'http://127.0.0.1:8765';
 const DEFAULT_SUBTITLES_SERVICE_URL = 'http://127.0.0.1:8092';
 const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
