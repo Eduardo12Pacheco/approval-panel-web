@@ -149,7 +149,7 @@ export function createRowCommands({
       }
       if (isBoundaryTransitionPatch(patch)) {
         const transition = patch.boundaryTransition === 'whip' ? 'whip' : 'none';
-        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, transition, direction: WHIP_TRANSITION_CONFIG.direction });
+        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, direction: WHIP_TRANSITION_CONFIG.direction });
       }
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
         const resolvedMotion = patch.motionPresetId

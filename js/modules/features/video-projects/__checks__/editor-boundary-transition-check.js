@@ -176,7 +176,7 @@ async function runApprovalBoundaryTransitionOperationCheck() {
   assertEqual(updateSnapshotCalls.length, 1, 'Expected boundary activation to persist immediately with one snapshot update');
   assertDeepEqual(
     updateSnapshotCalls[0].payload.operations,
-    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', transition: 'whip', direction: 'left-to-right' }],
+    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'whip', direction: 'left-to-right' }],
     'Expected boundary activation to use the scoped setBoundaryTransition operation only',
   );
   assertEqual(state.selectedVideoProject._editorRows[0].transition, 'whip', 'Expected canonical response to activate Whip locally');

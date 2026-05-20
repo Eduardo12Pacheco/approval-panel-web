@@ -69,11 +69,13 @@ function applyBoundaryTransition(next, op = {}) {
   const adjacentNextRowId = rowIdOf(next.rows[rowIndex + 1]);
   const transition = (op.transition || "none").toString().trim().toLowerCase();
 
-  if (row.paragraphBoundaryAfter !== true || !expectedNextRowId || row.nextRowId !== expectedNextRowId || adjacentNextRowId !== expectedNextRowId) {
+  const boundaryEligible = row.paragraphBoundaryAfter === true || op.paragraphBoundaryAfter === true;
+  const rowNextRowId = (row.nextRowId || expectedNextRowId).toString().trim();
+  if (!boundaryEligible || !expectedNextRowId || rowNextRowId !== expectedNextRowId || adjacentNextRowId !== expectedNextRowId) {
     throw createInvalidBoundaryTransitionError("boundary transition requires an eligible outgoing paragraph boundary", {
       rowId: rowIdOf(row),
       nextRowId: expectedNextRowId || null,
-      paragraphBoundaryAfter: row.paragraphBoundaryAfter === true,
+      paragraphBoundaryAfter: boundaryEligible,
     });
   }
   if (transition !== "none" && transition !== "whip") {
@@ -81,12 +83,16 @@ function applyBoundaryTransition(next, op = {}) {
   }
 
   if (transition === "none") {
+    row.paragraphBoundaryAfter = true;
+    row.nextRowId = expectedNextRowId;
     row.transition = "none";
     delete row.transitionConfig;
     row.sfx = null;
     return;
   }
 
+  row.paragraphBoundaryAfter = true;
+  row.nextRowId = expectedNextRowId;
   row.transition = "whip";
   row.transitionConfig = { ...WHIP_TRANSITION_CONFIG, direction: op.direction || WHIP_TRANSITION_CONFIG.direction };
   row.sfx = { ...WHIP_SFX };
