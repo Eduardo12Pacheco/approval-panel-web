@@ -44,6 +44,24 @@ export function captureCompositionPreviewSeekTime(project, renderer = compositio
   return true;
 }
 
+export function resolveCompositionPreviewAudioSettings(project = {}) {
+  const globalAudioData = project?._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } };
+  return {
+    voiceVolume: globalAudioData.voice?.volume ?? 1,
+    voiceMuted: globalAudioData.voice?.muted ?? false,
+    musicVolume: globalAudioData.music?.volume ?? DEFAULT_MUSIC_VOLUME,
+    musicMuted: globalAudioData.music?.muted ?? false,
+    musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
+    musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
+  };
+}
+
+export function configureCompositionPreviewAudio(renderer, project = {}) {
+  if (!renderer?.updateAudioSettings || !project) return false;
+  renderer.updateAudioSettings(resolveCompositionPreviewAudioSettings(project));
+  return true;
+}
+
 export function syncVideoSelectorPreviewLayers({ modal, sourceInSeconds = 0, playing = false } = {}) {
   if (!modal?.querySelectorAll) return false;
   const seekTime = Number(sourceInSeconds);
@@ -70,6 +88,7 @@ export function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
   const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
   if (!editorRows.length) return false;
   const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  configureCompositionPreviewAudio(compositionRenderer, project);
   compositionRenderer.update({ rows: compositionRows });
   const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
   if (imageUrls.length) void compositionRenderer.preloadImages(imageUrls);
@@ -86,18 +105,10 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
   }
   const renderer = ensureCompositionRenderer(compositionContainer);
   compositionRendererProject = project;
-  const globalAudioData = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } };
   const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
-  const audioSettings = {
-    voiceVolume: globalAudioData.voice?.volume ?? 1,
-    voiceMuted: globalAudioData.voice?.muted ?? false,
-    musicVolume: globalAudioData.music?.volume ?? DEFAULT_MUSIC_VOLUME,
-    musicMuted: globalAudioData.music?.muted ?? false,
-    musicFadeInSeconds: globalAudioData.music?.fadeInSeconds ?? 0,
-    musicFadeOutSeconds: globalAudioData.music?.fadeOutSeconds ?? 0,
-  };
+  const audioSettings = resolveCompositionPreviewAudioSettings(project);
   const applyRowsAndSeek = () => {
-    renderer?.updateAudioSettings?.(audioSettings);
+    configureCompositionPreviewAudio(renderer, project);
     renderer?.update({ rows: compositionRows });
     const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
     if (imageUrls.length) renderer?.preloadImages(imageUrls);

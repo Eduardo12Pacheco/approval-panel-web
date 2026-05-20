@@ -10,6 +10,36 @@ function resolveEditorRowId(row = {}) {
   return (row?.rowId || row?.id || '').toString().trim();
 }
 
+function hasParagraphBreakAroundDelimiter(currentBlock = '', nextBlock = '') {
+  return /(?:\r?\n[\t ]*){2,}$/.test(currentBlock) || /^(?:[\t ]*\r?\n){2,}/.test(nextBlock);
+}
+
+export function deriveParagraphBoundaryMetadataFromGuion(rawGuion = '', rows = []) {
+  if (!Array.isArray(rows) || rows.length < 2) return [];
+  const blocks = String(rawGuion || '').split('|');
+  if (blocks.length < 2) return [];
+  return rows.map((row, index) => {
+    if (index >= rows.length - 1) return null;
+    const block = blocks[index];
+    const nextBlock = blocks[index + 1];
+    if (nextBlock === undefined || !hasParagraphBreakAroundDelimiter(block, nextBlock)) return null;
+    const nextRowId = resolveEditorRowId(rows[index + 1]);
+    if (!nextRowId) return null;
+    return { paragraphBoundaryAfter: true, nextRowId };
+  });
+}
+
+export function mergeDerivedParagraphBoundaryMetadata(rows = [], rawGuion = '') {
+  if (!Array.isArray(rows) || rows.length < 2 || !String(rawGuion || '').trim()) return rows;
+  const derived = deriveParagraphBoundaryMetadataFromGuion(rawGuion, rows);
+  if (!derived.some(Boolean)) return rows;
+  return rows.map((row, index) => {
+    const metadata = derived[index];
+    if (!metadata || row?.paragraphBoundaryAfter === true || row?.nextRowId) return row;
+    return { ...row, paragraphBoundaryAfter: true, nextRowId: metadata.nextRowId };
+  });
+}
+
 export function mergeHydratedEditorRows(contractRows = [], timedRows = []) {
   const canonicalRows = Array.isArray(contractRows) ? contractRows : [];
   const persistedRows = Array.isArray(timedRows) ? timedRows : [];
@@ -39,6 +69,9 @@ export function hydrateSelectedProjectState(project) {
   const contractRows = normalizePreparedContractRows(editorState.approval_contract_snapshot?.rows);
   if (contractRows.length) project._editorRows = mergeHydratedEditorRows(contractRows, timedRows);
   else if (timedRows.length) project._editorRows = timedRows;
+  if (Array.isArray(project._editorRows) && project._editorRows.length) {
+    project._editorRows = mergeDerivedParagraphBoundaryMetadata(project._editorRows, project.guion_piped || editorState.guion_piped || '');
+  }
   project._previewAssets = editorState.preview_assets || null;
   if (Array.isArray(editorState.video_assets)) {
     project.video_assets = editorState.video_assets;

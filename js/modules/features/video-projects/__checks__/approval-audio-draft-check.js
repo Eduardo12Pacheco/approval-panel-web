@@ -4,6 +4,7 @@ import { createApprovalSnapshotOperations } from '../controller/approval-snapsho
 import { normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
 import { buildSelectedVideoProjectViewModel } from '../render/view-model.js';
+import { configureCompositionPreviewAudio } from '../render/preview-lifecycle.js';
 
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
@@ -145,6 +146,30 @@ function assertCanonicalApplyKeepsPendingAudioDraft() {
   assertEqual(project._globalAudio.voice.volume, 0.25, 'Expected local global audio to mirror pending snapshot draft');
 }
 
+function assertCompositionPreviewAudioSettingsArePropagated() {
+  const calls = [];
+  const renderer = {
+    updateAudioSettings(settings) { calls.push(settings); },
+  };
+  const project = {
+    _globalAudio: {
+      voice: { volume: 0.35, muted: true },
+      music: { volume: 0.25, muted: false, fadeInSeconds: 0.5, fadeOutSeconds: 1.25 },
+    },
+  };
+
+  const updated = configureCompositionPreviewAudio(renderer, project);
+
+  assertEqual(updated, true, 'Expected composition preview audio settings helper to report an update');
+  assertEqual(calls.length, 1, 'Expected current composition renderer to receive updated audio settings');
+  assertEqual(calls[0].voiceVolume, 0.35, 'Expected voice slider volume to be propagated to current preview audio');
+  assertEqual(calls[0].voiceMuted, true, 'Expected voice mute state to be propagated to current preview audio');
+  assertEqual(calls[0].musicVolume, 0.25, 'Expected music slider volume to be propagated to current preview audio');
+  assertEqual(calls[0].musicMuted, false, 'Expected music mute state to be propagated to current preview audio');
+  assertEqual(calls[0].musicFadeInSeconds, 0.5, 'Expected music fade-in to be propagated to current preview audio');
+  assertEqual(calls[0].musicFadeOutSeconds, 1.25, 'Expected music fade-out to be propagated to current preview audio');
+}
+
 export async function runApprovalAudioDraftCheck() {
   await assertApprovalAudioUsesOptimisticDrafts();
   assertDefaultMusicVolumeIsSixtyFivePercent();
@@ -152,6 +177,7 @@ export async function runApprovalAudioDraftCheck() {
   assertExplicitMusicVolumeIsPreserved();
   assertZeroVolumeDoesNotSnapToDefault();
   assertCanonicalApplyKeepsPendingAudioDraft();
+  assertCompositionPreviewAudioSettingsArePropagated();
   return { ok: true };
 }
 

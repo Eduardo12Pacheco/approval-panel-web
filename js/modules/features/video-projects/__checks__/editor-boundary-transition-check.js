@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions } from '../render/editor-hydration.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
+import { hydrateSelectedProjectState } from '../controller/editor-state-persistence.js';
 import { createVideoProjectsFeature } from '../index.js';
 
 function assert(condition, message) {
@@ -53,6 +54,27 @@ function runBoundaryConnectorMarkupCheck() {
   const activeMarkup = buildEditorRowsTable([{ ...rows[0], transition: 'whip' }, rows[1]], { selectedRowId: 'row-1', project: {} });
   assert(activeMarkup.includes('Desactivar Whip'), 'Expected active connector to offer Whip deactivation');
   assert(activeMarkup.includes('aria-pressed="true"'), 'Expected active connector to expose pressed state');
+}
+
+function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
+  const project = {
+    guion_piped: 'Intro con pausa\n\n|Cuerpo sin pausa|Cierre',
+    editor_state: {
+      timed_rows: [
+        { id: 'persisted-1', rowId: 'persisted-1', phrase: 'Intro con pausa', startTime: 0, endTime: 1, transition: 'none' },
+        { id: 'persisted-2', rowId: 'persisted-2', phrase: 'Cuerpo sin pausa', startTime: 1, endTime: 2, transition: 'none' },
+        { id: 'persisted-3', rowId: 'persisted-3', phrase: 'Cierre', startTime: 2, endTime: 3, transition: 'none' },
+      ],
+      global_audio: {},
+    },
+  };
+
+  hydrateSelectedProjectState(project);
+
+  assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected hydration to derive paragraph boundary eligibility from guion_piped');
+  assertEqual(project._editorRows[0].nextRowId, 'persisted-2', 'Expected derived boundary to target the next hydrated row id');
+  assertEqual(project._editorRows[0].transition, 'none', 'Expected derived eligibility not to auto-enable Whip');
+  assertEqual(project._editorRows[1].paragraphBoundaryAfter, undefined, 'Expected rows without paragraph break to stay ineligible');
 }
 
 async function runBoundaryConnectorHydrationCheck() {
@@ -166,6 +188,7 @@ async function runApprovalBoundaryTransitionOperationCheck() {
 export async function runEditorBoundaryTransitionCheck() {
   runPreparedRowsPreserveBoundaryTransitionMetadataCheck();
   runBoundaryConnectorMarkupCheck();
+  runHydratedRowsDeriveBoundaryMetadataFromGuionCheck();
   await runBoundaryConnectorHydrationCheck();
   await runApprovalBoundaryTransitionOperationCheck();
 }

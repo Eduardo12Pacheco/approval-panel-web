@@ -127,20 +127,38 @@ function distributeSegmentsByTextWeight(segments, totalDuration) {
   });
 }
 
+function mergeGuionParagraphMetadata(segments = [], rawGuion = "") {
+  if (!Array.isArray(segments) || !segments.length || !String(rawGuion || "").trim()) return segments;
+  let parsed = [];
+  try {
+    parsed = parseGuionSegments(rawGuion);
+  } catch {
+    return segments;
+  }
+  if (!parsed.length) return segments;
+  return segments.map((segment, index) => {
+    if (segment?.paragraphBoundaryAfter === true || parsed[index]?.paragraphBoundaryAfter !== true) return segment;
+    return { ...segment, paragraphBoundaryAfter: true };
+  });
+}
+
 function normalizeSegments(input = {}) {
   const segments = Array.isArray(input.segments)
     ? input.segments
     : parseGuionSegments(input.guion_piped || "").map((segment, index) => ({ ...segment, id: `row-${index + 1}`, phrase: segment.phrase }));
-  const normalized = segments.map((segment, index) => ({
+  const segmentsWithGuionMetadata = Array.isArray(input.segments)
+    ? mergeGuionParagraphMetadata(segments, input.guion_piped || "")
+    : segments;
+  const normalized = segmentsWithGuionMetadata.map((segment, index) => ({
     ...segment,
     id: String(segment.id || `row-${index + 1}`),
     phrase: String(segment.phrase || segment.text || segment.caption || `Segmento ${index + 1}`).trim(),
   }));
-  if (segments.length && segments.every(hasAlignedTimes)) {
+  if (segmentsWithGuionMetadata.length && segmentsWithGuionMetadata.every(hasAlignedTimes)) {
     return normalized.map((segment, index) => ({
       ...segment,
-      startTime: getSegmentStart(segments[index]),
-      endTime: getSegmentEnd(segments[index]),
+      startTime: getSegmentStart(segmentsWithGuionMetadata[index]),
+      endTime: getSegmentEnd(segmentsWithGuionMetadata[index]),
       timingSource: "aligned",
     }));
   }
