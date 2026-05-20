@@ -509,6 +509,9 @@ export class CompositionRenderer {
       layers.newspaperLabel.style.top = newspaperStyles.label.top;
       layers.newspaperLabel.style.transform = newspaperStyles.label.transform;
       layers.newspaperLabel.style.textAlign = newspaperStyles.label.textAlign;
+      layers.newspaperLabel.style.background = newspaperStyles.label.background;
+      layers.newspaperLabel.style.padding = newspaperStyles.label.padding;
+      layers.newspaperLabel.style.borderRadius = newspaperStyles.label.borderRadius;
     }
 
     const zoom = resolveZoomRange(segment.motion);

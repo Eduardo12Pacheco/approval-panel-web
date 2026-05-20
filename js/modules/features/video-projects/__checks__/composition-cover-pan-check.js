@@ -117,10 +117,16 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request the installed Versa Versa face first with honest fallbacks');
   assertEqual(newspaperStart.label.fontSize, '18px', 'Expected newspaper label to use the shared 18px preview/render contract size');
   assertEqual(newspaperStart.label.lineHeight, 1.12, 'Expected newspaper label leading to separate RECREACIÓN and ARTÍSTICA slightly');
+  assertEqual(newspaperStart.label.background, 'rgba(255,255,255,0.9)', 'Expected newspaper label to stay readable on dark images');
+  assertEqual(newspaperStart.label.padding, '6px 8px 5px', 'Expected newspaper label readability padding to be shared');
+  assertEqual(newspaperStart.label.borderRadius, '2px', 'Expected newspaper label readability backing to be subtle');
 
   const domSource = fs.readFileSync(path.join(controlPanelRoot, 'js/modules/features/video-projects/composition/renderer/dom.js'), 'utf8');
   if (!domSource.includes('font-size:18px')) {
     throw new Error('Expected newspaper preview DOM fallback style to use the shared 18px label size');
+  }
+  if (!domSource.includes('background:rgba(255,255,255,0.9)')) {
+    throw new Error('Expected newspaper preview DOM fallback style to keep the label readable on dark images');
   }
 
   const versaFontPath = path.join(controlPanelRoot, 'assets/fonts/versa/Versa-Versa.woff2');
