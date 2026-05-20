@@ -191,9 +191,14 @@ def test_video_project_list_rpc_includes_detail_for_card_thumbnails():
 
 
 def test_video_project_card_delete_and_hero_actions_keep_intended_visual_contract():
+    scripts_css = (ROOT / "styles" / "features" / "scripts.css").read_text(encoding="utf-8")
+    index_css = (ROOT / "styles" / "features" / "video-projects" / "index.css").read_text(encoding="utf-8")
     card_css = (ROOT / "styles" / "features" / "video-projects" / "project-list.css").read_text(encoding="utf-8")
     layout_css = (ROOT / "styles" / "features" / "video-projects" / "layout.css").read_text(encoding="utf-8")
 
+    assert "./video-projects/index.css?v=20260519-project-buttons" in scripts_css
+    assert "./layout.css?v=20260519-project-buttons" in index_css
+    assert "./project-list.css?v=20260519-project-buttons" in index_css
     assert ".video-project-card button.video-project-card__delete" in card_css
     assert "#2d2424 !important" in card_css
     assert "color: #ffb7b7 !important" in card_css
