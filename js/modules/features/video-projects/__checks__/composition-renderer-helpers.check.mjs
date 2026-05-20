@@ -130,7 +130,7 @@ test('renderer helper facade exposes newspaper image layout parity semantics', (
 
   assert.equal(firstFrame.background.objectFit, 'cover');
   assert.equal(firstFrame.background.objectPosition, 'center top');
-  assert.equal(firstFrame.background.filter, 'blur(30px)');
+  assert.equal(firstFrame.background.filter, 'blur(20px)');
   assert.equal(firstFrame.foreground.objectFit, 'contain');
   assert.equal(firstFrame.foreground.objectPosition, 'center top');
   assert.equal(firstFrame.foreground.height, '100%');

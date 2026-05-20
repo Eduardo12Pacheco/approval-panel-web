@@ -1,7 +1,7 @@
 import { findMotionPreset } from '../domain/motion-presets.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
-import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js?v=20260520-newspaper-effect';
+import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js?v=20260520-newspaper-polish';
 import { hydrateVideoSelectorControls } from './video-selector-hydration.js';
 
 export function hydrateEditorPhaseInteractions({

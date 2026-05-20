@@ -138,7 +138,7 @@ export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
     background: {
       objectFit: 'cover',
       objectPosition: 'center top',
-      filter: 'blur(30px)',
+      filter: 'blur(20px)',
       transform: 'scale(1.08)',
     },
     foreground: {

@@ -72,7 +72,7 @@ export function buildCompositionDOM(container) {
 
   const newspaperBackground = document.createElement('img');
   newspaperBackground.className = 'composition-layer composition-layer--newspaper-bg';
-  newspaperBackground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;object-position:center top;filter:blur(30px);transform:scale(1.08);pointer-events:none;visibility:hidden;';
+  newspaperBackground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;object-position:center top;filter:blur(20px);transform:scale(1.08);pointer-events:none;visibility:hidden;';
   newspaperBackground.draggable = false;
   stage.appendChild(newspaperBackground);
 
@@ -84,7 +84,7 @@ export function buildCompositionDOM(container) {
 
   const newspaperLabel = document.createElement('div');
   newspaperLabel.className = 'composition-layer composition-layer--newspaper-label';
-  newspaperLabel.style.cssText = 'position:absolute;right:48px;top:42px;z-index:6;color:#000;font-family:VERSA, Inter, Arial, sans-serif;font-size:46px;font-weight:900;line-height:0.92;text-align:right;letter-spacing:0.02em;pointer-events:none;visibility:hidden;';
+  newspaperLabel.style.cssText = 'position:absolute;right:42px;top:40px;z-index:8;color:#000;font-family:VERSA, Inter, Arial, sans-serif;font-size:34px;font-weight:900;line-height:0.92;text-align:right;letter-spacing:0.02em;pointer-events:none;visibility:hidden;';
   newspaperLabel.innerHTML = '<span>RECREACIÓN</span><br><span>ARTÍSTICA</span>';
   stage.appendChild(newspaperLabel);
 
@@ -109,13 +109,13 @@ export function buildCompositionDOM(container) {
 
   const logo = document.createElement('img');
   logo.className = 'composition-layer composition-layer--logo';
-  logo.style.cssText = `position:absolute;left:${LOGO_LEFT}px;top:${LOGO_TOP}px;width:${LOGO_WIDTH}px;height:${LOGO_HEIGHT}px;opacity:${LOGO_OPACITY};filter:${LOGO_DROP_SHADOW};object-fit:contain;pointer-events:none;visibility:hidden;`;
+  logo.style.cssText = `position:absolute;left:${LOGO_LEFT}px;top:${LOGO_TOP}px;z-index:7;width:${LOGO_WIDTH}px;height:${LOGO_HEIGHT}px;opacity:${LOGO_OPACITY};filter:${LOGO_DROP_SHADOW};object-fit:contain;pointer-events:none;visibility:hidden;`;
   logo.draggable = false;
   stage.appendChild(logo);
 
   const logoVideo = document.createElement('video');
   logoVideo.className = 'composition-layer composition-layer--logo-video';
-  logoVideo.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${LOGO_OPACITY};object-fit:cover;pointer-events:none;visibility:hidden;`;
+  logoVideo.style.cssText = `position:absolute;inset:0;z-index:7;width:100%;height:100%;opacity:${LOGO_OPACITY};object-fit:cover;pointer-events:none;visibility:hidden;`;
   logoVideo.muted = true;
   logoVideo.loop = true;
   logoVideo.playsInline = true;
@@ -123,7 +123,7 @@ export function buildCompositionDOM(container) {
 
   const logoCanvas = document.createElement('canvas');
   logoCanvas.className = 'composition-layer composition-layer--logo-canvas';
-  logoCanvas.style.cssText = `position:absolute;inset:0;width:100%;height:100%;opacity:${LOGO_OPACITY};pointer-events:none;visibility:hidden;`;
+  logoCanvas.style.cssText = `position:absolute;inset:0;z-index:7;width:100%;height:100%;opacity:${LOGO_OPACITY};pointer-events:none;visibility:hidden;`;
   stage.appendChild(logoCanvas);
 
   const outro = document.createElement('div');
