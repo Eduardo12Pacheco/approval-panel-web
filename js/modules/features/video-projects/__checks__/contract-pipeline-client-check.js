@@ -9,6 +9,7 @@ import { createVideoProjectsFeature } from '../index.js';
 import { renderSelectedVideoProjectView } from '../render.js';
 const cjsRequire = createRequire(import.meta.url);
 const approvalService = cjsRequire('../../../../../../02-Video-Engine/scripts/approval-pipeline-local-service.js');
+const { applyContractOperations } = cjsRequire('../../../../../services/approval-editor/lib/contract-updates.js');
 
 const { createApprovalPipelineLocalService } = approvalService;
 
@@ -218,6 +219,38 @@ async function assertApprovalRowImageSwapPreservesCanonicalAssetUrls() {
   }
   if (sourceOperation?.asset?.previewUrl === sourceOperation?.asset?.assetId || targetOperation?.asset?.previewUrl === targetOperation?.asset?.assetId) {
     throw new Error('Expected row-image swap operations not to use bare asset IDs as image URLs');
+  }
+}
+
+function assertApprovalServicePersistsNewspaperMediaMode() {
+  const snapshot = {
+    contractVersion: 'approval-editor-service-v1',
+    projectId: 'approval-project-1',
+    snapshotId: 'snapshot-1',
+    snapshotHash: 'hash-1',
+    rows: [
+      { rowId: 'row-1', id: 'row-1', index: 0, phrase: 'Luis diaz', startTime: 0, endTime: 1, selectedAssetId: 'asset-1', mediaMode: 'image', media: { kind: 'image' }, motionPresetId: 'Zoom 110' },
+    ],
+    assets: {
+      'asset-1': { assetId: 'asset-1', previewUrl: 'https://cdn.example.com/luis.jpg', renderPath: 'https://cdn.example.com/luis.jpg' },
+    },
+  };
+
+  const next = applyContractOperations(snapshot, [
+    { type: 'setRowMediaMode', rowId: 'row-1', mediaMode: 'newspaper', media: { kind: 'image' } },
+  ]);
+
+  if (next.rows[0].mediaMode !== 'newspaper') {
+    throw new Error(`Expected setRowMediaMode to persist newspaper mode, got ${next.rows[0].mediaMode}`);
+  }
+  if (next.rows[0].media?.kind !== 'image') {
+    throw new Error('Expected newspaper media mode to persist as image media');
+  }
+  if (next.rows[0].motionPresetId !== 'Zoom 125' || next.rows[0].motion?.toScale !== 1.25) {
+    throw new Error('Expected newspaper mode to persist Zoom 125 defaults');
+  }
+  if (next.snapshotHash === snapshot.snapshotHash) {
+    throw new Error('Expected persisted newspaper mode to produce a new snapshot hash');
   }
 }
 
@@ -570,6 +603,7 @@ export async function runContractPipelineClientCheck() {
   }
 
   await assertApprovalRowImageSwapPreservesCanonicalAssetUrls();
+  assertApprovalServicePersistsNewspaperMediaMode();
 
   await assertServiceEditErrorKeepsStablePreview({
     action: (feature) => feature.updateRow('row-2', { selectedAssetId: 'blocked-asset' }),

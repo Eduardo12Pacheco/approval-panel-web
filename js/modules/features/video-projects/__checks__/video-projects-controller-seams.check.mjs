@@ -9,15 +9,16 @@ import {
 } from '../index.js';
 import { createVideoProjectsController } from '../controller/create-video-projects-controller.js';
 import { createProjectLoadingCommands } from '../controller/project-loading.js';
-import { createEditorStatePersistence } from '../controller/editor-state-persistence.js';
+import { createEditorStatePersistence, hydrateSelectedProjectState } from '../controller/editor-state-persistence.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { createPreviewExportCommands } from '../controller/preview-export-commands.js';
-import { mergeLocalEditorRowPatch as mergeRowPatchFromSplitModule } from '../controller/row-commands.js';
+import { mergeLocalEditorRowPatch as mergeRowPatchFromSplitModule } from '../controller/row-commands.js?v=20260520-newspaper-effect';
 import { hydrateProjectListCards } from '../events/project-list-events.js';
 
 const EXPECTED_FEATURE_API = [
   'refreshVideoProjects',
   'openVideoProject',
+  'disableVideoProject',
   'createManualVideoProject',
   'prefetchProjectDetail',
   'toggleImageSelection',
@@ -180,4 +181,98 @@ test('controller split modules preserve state persistence, snapshot fallback, pr
   assert.equal(typeof previewExport.preparePreview, 'function');
   assert.equal(typeof previewExport.refreshPreview, 'function');
   assert.equal(typeof previewExport.exportFinal, 'function');
+});
+
+test('approval row media mode save refreshes cached project detail before reopening', async () => {
+  const originalSnapshot = {
+    contractVersion: 'approval-editor-service-v1',
+    projectId: 'approval-project-1',
+    snapshotId: 'snapshot-1',
+    snapshotHash: 'hash-1',
+    rows: [
+      { rowId: 'row-1', id: 'row-1', index: 0, phrase: 'Luis diaz', startTime: 0, endTime: 1, selectedAssetId: 'asset-1', mediaMode: 'image', media: { kind: 'image' } },
+    ],
+    assets: {
+      'asset-1': { assetId: 'asset-1', previewUrl: 'https://cdn.example.com/luis.jpg', renderPath: 'https://cdn.example.com/luis.jpg' },
+    },
+  };
+  const staleDetail = {
+    draft_id: 'draft-1',
+    title: 'Luis diaz',
+    editor_state: {
+      phase: 'preview_ready',
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'https://approval.local',
+      remotion_project_id: 'approval-project-1',
+      approval_contract_snapshot: originalSnapshot,
+      snapshot_id: originalSnapshot.snapshotId,
+      snapshot_hash: originalSnapshot.snapshotHash,
+      timed_rows: originalSnapshot.rows.map((row) => ({ ...row })),
+    },
+  };
+  let detailFetches = 0;
+  const savedEditorStates = [];
+  const dependencies = createMinimalDependencies({
+    listProjectsResult: [{ draft_id: 'draft-1', title: 'Luis diaz' }],
+    api: {
+      async getVideoProject() {
+        detailFetches += 1;
+        return { data: [JSON.parse(JSON.stringify(staleDetail))] };
+      },
+      async saveVideoProjectEditorState({ editorState }) {
+        savedEditorStates.push(editorState);
+        return { ok: true };
+      },
+      createApprovalPipelineClient() {
+        return {
+          async updateSnapshot(projectId, payload) {
+            assert.equal(projectId, 'approval-project-1');
+            assert.equal(payload.operations[0].type, 'setRowMediaMode');
+            const next = JSON.parse(JSON.stringify(originalSnapshot));
+            next.rows[0].mediaMode = 'newspaper';
+            next.rows[0].media = { kind: 'image' };
+            next.rows[0].motionPresetId = 'Zoom 125';
+            next.rows[0].motion = { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: 'linear' };
+            next.snapshotId = 'snapshot-2';
+            next.snapshotHash = 'hash-2';
+            return { snapshot: next };
+          },
+        };
+      },
+    },
+  });
+  dependencies.store.getState().settings = { approvalPipelineBaseUrl: 'https://approval.local' };
+  const feature = createVideoProjectsFeature(dependencies);
+
+  await feature.openVideoProject('draft-1');
+  await feature.updateRow('row-1', { mediaMode: 'newspaper', media: { kind: 'image' } });
+  dependencies.store.getState().selectedVideoProject = null;
+  await feature.openVideoProject('draft-1');
+
+  assert.equal(detailFetches, 1, 'Expected second open to use cached detail within TTL');
+  assert.equal(savedEditorStates.at(-1).timed_rows[0].mediaMode, 'newspaper');
+  assert.equal(dependencies.store.getState().selectedVideoProject._editorRows[0].mediaMode, 'newspaper');
+  assert.equal(dependencies.store.getState().selectedVideoProject.editor_state.approval_contract_snapshot.rows[0].mediaMode, 'newspaper');
+});
+
+test('editor hydration keeps persisted timed row media mode over stale snapshot rows', () => {
+  const project = {
+    draft_id: 'draft-1',
+    editor_state: {
+      timed_rows: [
+        { id: 'row-1', rowId: 'row-1', phrase: 'Luis diaz', startTime: 0, endTime: 1, selectedAssetId: 'asset-1', mediaMode: 'newspaper', media: { kind: 'image' } },
+      ],
+      approval_contract_snapshot: {
+        contractVersion: 'approval-editor-service-v1',
+        rows: [
+          { id: 'row-1', rowId: 'row-1', phrase: 'Luis diaz', startTime: 0, endTime: 1, selectedAssetId: 'asset-1', mediaMode: 'image', media: { kind: 'image' } },
+        ],
+      },
+    },
+  };
+
+  hydrateSelectedProjectState(project);
+
+  assert.equal(project._editorRows[0].mediaMode, 'newspaper');
+  assert.deepEqual(project._editorRows[0].media, { kind: 'image' });
 });
