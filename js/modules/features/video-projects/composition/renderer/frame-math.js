@@ -1,8 +1,7 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
 const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.1 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
-// Versa is requested first; no local Versa font asset is bundled, so the browser falls back honestly when unavailable.
-const NEWSPAPER_LABEL_FONT_FAMILY = 'Versa, VERSA, Inter, Arial, sans-serif';
+const NEWSPAPER_LABEL_FONT_FAMILY = '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif';
 const NEWSPAPER_LABEL_FONT_SIZE = 30;
 
 export const DEFAULT_FPS = 30;

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveNewspaperImageStyles } from '../composition/composition-renderer.js';
 import {
@@ -13,6 +15,10 @@ function assertEqual(actual, expected, message) {
     throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
 }
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const controlPanelRoot = path.resolve(__dirname, '../../../../..');
 
 function assertClose(actual, expected, message) {
   if (Math.abs(actual - expected) > 0.000001) {
@@ -106,10 +112,26 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.label.textAlign, 'center', 'Expected newspaper label text to be centered');
   assertEqual(newspaperStart.label.left, '50%', 'Expected newspaper label to use symmetric horizontal positioning');
   assertEqual(newspaperStart.label.transform, 'translateX(-50%)', 'Expected newspaper label to center itself from the middle');
-  assertEqual(newspaperStart.label.fontFamily, 'Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request real Versa first with honest fallbacks');
+  assertEqual(newspaperStart.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request the installed Versa Versa face first with honest fallbacks');
+
+  const versaFontPath = path.join(controlPanelRoot, 'assets/fonts/versa/Versa-Versa.woff2');
+  if (!fs.existsSync(versaFontPath)) {
+    throw new Error(`Expected local Versa Versa preview font at ${versaFontPath}`);
+  }
+
+  const fontsCss = fs.readFileSync(path.join(controlPanelRoot, 'styles/fonts.css'), 'utf8');
+  if (!fontsCss.includes("font-family: 'Versa Versa'")) {
+    throw new Error('Expected styles/fonts.css to declare a local Versa Versa @font-face');
+  }
+  if (!fontsCss.includes('../assets/fonts/versa/Versa-Versa.woff2')) {
+    throw new Error('Expected styles/fonts.css to load the local Versa Versa WOFF2 asset');
+  }
+  if (!/font-display:\s*block;/.test(fontsCss)) {
+    throw new Error('Expected Versa Versa preview @font-face to use font-display:block for preview fidelity');
+  }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (process.argv[1] && __filename === process.argv[1]) {
   runCompositionCoverPanCheck();
   console.log('composition-cover-pan-check: ok');
 }

@@ -84,7 +84,7 @@ export function buildCompositionDOM(container) {
 
   const newspaperLabel = document.createElement('div');
   newspaperLabel.className = 'composition-layer composition-layer--newspaper-label';
-  newspaperLabel.style.cssText = 'position:absolute;left:50%;right:auto;top:40px;z-index:8;color:#000;font-family:Versa, VERSA, Inter, Arial, sans-serif;font-size:30px;font-weight:900;line-height:0.92;text-align:center;letter-spacing:0.02em;transform:translateX(-50%);pointer-events:none;visibility:hidden;';
+  newspaperLabel.style.cssText = 'position:absolute;left:50%;right:auto;top:40px;z-index:8;color:#000;font-family:"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif;font-size:30px;font-weight:900;line-height:0.92;text-align:center;letter-spacing:0.02em;transform:translateX(-50%);pointer-events:none;visibility:hidden;';
   newspaperLabel.innerHTML = '<span>RECREACIÓN</span><br><span>ARTÍSTICA</span>';
   stage.appendChild(newspaperLabel);
 
