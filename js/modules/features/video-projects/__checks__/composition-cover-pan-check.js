@@ -110,8 +110,10 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.foreground.transform, 'scale(1)', 'Expected newspaper foreground to start at 100%');
   assertEqual(newspaperEnd.foreground.transform, 'scale(1.1)', 'Expected newspaper foreground to end at Zoom 110');
   assertEqual(newspaperStart.label.textAlign, 'center', 'Expected newspaper label text to be centered');
-  assertEqual(newspaperStart.label.left, '50%', 'Expected newspaper label to use symmetric horizontal positioning');
-  assertEqual(newspaperStart.label.transform, 'translateX(-50%)', 'Expected newspaper label to center itself from the middle');
+  assertEqual(newspaperStart.label.left, 'auto', 'Expected newspaper label to avoid global horizontal centering');
+  assertEqual(newspaperStart.label.right, '40px', 'Expected newspaper label block to sit in the upper-right area');
+  assertEqual(newspaperStart.label.top, '40px', 'Expected newspaper label block to stay top anchored');
+  assertEqual(newspaperStart.label.transform, 'none', 'Expected newspaper label to avoid translateX centering');
   assertEqual(newspaperStart.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request the installed Versa Versa face first with honest fallbacks');
 
   const versaFontPath = path.join(controlPanelRoot, 'assets/fonts/versa/Versa-Versa.woff2');
