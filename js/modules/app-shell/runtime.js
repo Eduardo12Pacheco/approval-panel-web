@@ -29,7 +29,7 @@ let _renderSelectedVideoProjectView = null;
 let _updateSelectedVideoProjectCompositionPreviewView = null;
 async function _ensureVideoProjectsRender() {
   if (_renderVideoProjectsListView) return;
-    const mod = await import('../features/video-projects/render.js?v=20260519-project-card-polish');
+    const mod = await import('../features/video-projects/render.js?v=20260520-whip-bugfix');
   _renderVideoProjectsListView = mod.renderVideoProjectsListView;
   _renderSelectedVideoProjectView = mod.renderSelectedVideoProjectView;
   _updateSelectedVideoProjectCompositionPreviewView = mod.updateSelectedVideoProjectCompositionPreview;
@@ -50,7 +50,7 @@ function isTerminalAudioStatus(...args) { return _audioRuntime?.isTerminalAudioS
 function normalizeAudioProgressPercent(...args) { return _audioRuntime?.normalizeAudioProgressPercent?.(...args); }
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
 import { createSettingsController } from './settings.js';
-import { createAppShellComposition } from './composition.js?v=20260520-newspaper-effect';
+import { createAppShellComposition } from './composition.js?v=20260520-whip-bugfix';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
 import { bindScriptEvents } from './events/scripts.js?v=20260519-project-card-polish';

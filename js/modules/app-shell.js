@@ -2,7 +2,7 @@ import {
   bootApp as bootAppImpl,
   bootCompatibilityShell as bootCompatibilityShellImpl,
   __testHooks as testHooksImpl,
-} from './app-shell/index.js?v=20260520-newspaper-effect';
+} from './app-shell/index.js?v=20260520-whip-bugfix';
 
 // Compatibility/parity tokens for legacy static checks during app-shell facade migration:
 // ./core/ui/toast.js ./core/ui/escape-html.js ./core/ui/word-count.js
