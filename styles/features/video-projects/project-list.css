@@ -79,7 +79,7 @@
   gap: 8px;
 }
 
-.video-project-card .video-project-card__delete {
+.video-project-card button.video-project-card__delete {
   appearance: none;
   display: inline-grid;
   width: 34px;
@@ -89,12 +89,12 @@
   min-width: 34px;
   min-height: 34px;
   padding: 0;
-  border: 1px solid rgba(255, 92, 92, 0.72);
+  border: 1px solid rgba(194, 88, 88, 0.52);
   border-radius: 0;
   background:
-    linear-gradient(135deg, rgba(255, 92, 92, 0.28), rgba(103, 16, 23, 0.94)),
-    rgba(96, 17, 24, 0.92);
-  color: #fff2f2;
+    linear-gradient(135deg, rgba(118, 76, 76, 0.46), rgba(48, 34, 34, 0.98)),
+    #2d2424 !important;
+  color: #ffb7b7 !important;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.82rem;
   font-weight: 800;
@@ -104,22 +104,24 @@
   letter-spacing: 0;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.28);
   cursor: pointer;
+  filter: none;
 }
 
-.video-project-card .video-project-card__delete span {
+.video-project-card button.video-project-card__delete span {
   display: block;
   transform: translateY(-0.5px);
 }
 
-.video-project-card .video-project-card__delete:hover,
-.video-project-card .video-project-card__delete:focus {
-  border-color: rgba(255, 118, 118, 0.92);
+.video-project-card button.video-project-card__delete:hover,
+.video-project-card button.video-project-card__delete:focus {
+  border-color: rgba(224, 108, 108, 0.78);
   background:
-    linear-gradient(135deg, rgba(255, 118, 118, 0.36), rgba(129, 22, 30, 0.98)),
-    rgba(128, 26, 26, 0.95);
-  color: #ffffff;
-  outline: 1px solid rgba(255, 92, 92, 0.55);
+    linear-gradient(135deg, rgba(144, 82, 82, 0.56), rgba(72, 39, 39, 0.98)),
+    #3a2929 !important;
+  color: #ffe2e2 !important;
+  outline: 1px solid rgba(224, 108, 108, 0.5);
   outline-offset: 2px;
+  filter: none;
 }
 
 .video-project-card__header h3,

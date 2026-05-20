@@ -37,9 +37,12 @@
 }
 
 .video-projects-hero .button-icon {
-  min-height: 38px;
-  padding: 8px 12px;
-  font-size: 0.72rem;
+  width: 128px;
+  min-width: 128px;
+  min-height: 48px;
+  padding: 11px 14px;
+  font-size: 0.8rem;
+  font-weight: 800;
   gap: 8px;
 }
 

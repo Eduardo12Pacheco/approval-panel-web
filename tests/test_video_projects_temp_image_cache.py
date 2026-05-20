@@ -190,6 +190,19 @@ def test_video_project_list_rpc_includes_detail_for_card_thumbnails():
     assert "listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: true })" in source
 
 
+def test_video_project_card_delete_and_hero_actions_keep_intended_visual_contract():
+    card_css = (ROOT / "styles" / "features" / "video-projects" / "project-list.css").read_text(encoding="utf-8")
+    layout_css = (ROOT / "styles" / "features" / "video-projects" / "layout.css").read_text(encoding="utf-8")
+
+    assert ".video-project-card button.video-project-card__delete" in card_css
+    assert "#2d2424 !important" in card_css
+    assert "color: #ffb7b7 !important" in card_css
+    assert "background: var(--accent);" not in card_css.split(".video-project-card button.video-project-card__delete", 1)[1].split("}", 1)[0]
+    assert "width: 128px;" in layout_css
+    assert "min-height: 48px;" in layout_css
+    assert "font-size: 0.8rem;" in layout_css
+
+
 def test_video_project_phase_labels_cover_workflow_phases():
     script = r"""
 import { getProjectPhaseLabel } from './js/modules/features/video-projects/domain/status-labels.js';
