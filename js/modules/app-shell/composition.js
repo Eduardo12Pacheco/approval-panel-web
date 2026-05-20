@@ -1,5 +1,5 @@
 import { createCustomDropdownController } from '../core/ui/custom-dropdowns.js';
-import { loadSettingsFromStorage } from '../core/state/app-store.js';
+import { loadSettingsFromStorage } from '../core/state/app-store.js?v=20260519-project-card-polish';
 import { createSingleFlightRunner } from '../core/async/single-flight.js';
 import { createApprovalApiClient } from '../core/http/approval-api.js';
 import { createApprovalFeature } from '../features/approval/index.js';

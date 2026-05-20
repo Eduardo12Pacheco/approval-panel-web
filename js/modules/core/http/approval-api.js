@@ -1,4 +1,4 @@
-import { resolveServiceConfig } from '../state/app-store.js';
+import { resolveServiceConfig } from '../state/app-store.js?v=20260519-project-card-polish';
 
 export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/approval/pending/supabase/v2',

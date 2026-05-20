@@ -1,5 +1,5 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
-import { resolveServiceConfig } from '../../../core/state/app-store.js';
+import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260519-project-card-polish';
 
 function resolveVideoProjectKey(row = {}) {
   return (row.project_id || row.draft_id || row.id_noticia || row.cluster_id || '').toString();
