@@ -52,6 +52,7 @@ function resolveApprovalRowImageAsset(project, assetId) {
 export function shouldFallbackApprovalSnapshotOperationError(error, operationType = '') {
   const message = (error?.message || error?.error?.message || '').toString();
   if (error?.code === 'unsupported_operation') return !operationType || message.includes(operationType);
+  if (operationType && message.includes(`unsupported operation: ${operationType}`)) return true;
   return operationType === 'setRowVideoSegment' && message.includes('unsupported operation: setRowVideoSegment');
 }
 
