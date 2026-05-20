@@ -5,7 +5,7 @@ import { createApprovalApiClient } from '../core/http/approval-api.js';
 import { createApprovalFeature } from '../features/approval/index.js';
 import { createScriptsFeature } from '../features/scripts/index.js';
 import { createVideoProjectsApiClient } from '../features/video-projects/api.js';
-import { createVideoProjectsFeature } from '../features/video-projects/index.js';
+import { createVideoProjectsFeature } from '../features/video-projects/index.js?v=20260520-newspaper-effect';
 import { createRadarApiClient } from '../features/radar/api-client.js';
 import { createRadarController } from '../features/radar/controller.js';
 import { createRadarState } from '../features/radar/state.js';

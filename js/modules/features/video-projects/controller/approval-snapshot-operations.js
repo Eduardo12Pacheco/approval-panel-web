@@ -1,6 +1,6 @@
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState, normalizeGlobalAudioState } from '../domain/editor-state.js';
-import { applyPendingMotionDrafts } from './row-commands.js';
+import { applyPendingMotionDrafts } from './row-commands.js?v=20260520-newspaper-effect';
 
 export function createApprovalSnapshotOperations({
   api,
