@@ -130,13 +130,15 @@ test('renderer helper facade exposes newspaper image layout parity semantics', (
 
   assert.equal(firstFrame.background.objectFit, 'cover');
   assert.equal(firstFrame.background.objectPosition, 'center top');
-  assert.equal(firstFrame.background.filter, 'blur(20px)');
+  assert.equal(firstFrame.background.filter, 'blur(15px)');
   assert.equal(firstFrame.foreground.objectFit, 'contain');
   assert.equal(firstFrame.foreground.objectPosition, 'center top');
   assert.equal(firstFrame.foreground.height, '100%');
   assert.equal(firstFrame.foreground.transform, 'scale(1)');
   assert.equal(lastFrame.foreground.transform, 'scale(1.25)');
   assert.equal(firstFrame.label.lines.join('\n'), 'RECREACIÓN\nARTÍSTICA');
+  assert.equal(firstFrame.label.fontFamily, 'Versa, VERSA, Inter, Arial, sans-serif');
+  assert.equal(firstFrame.label.fontSize, '30px');
 });
 
 test('renderer helper facade preserves video layer planning and managed video sync behavior', () => {
@@ -201,6 +203,9 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
   ]);
   assert.equal(layers.videoEffect2.src, './assets/effect-layer-02.webm');
   assert.equal(layers.videoEffect1.src, './assets/effect-layer-01.webm');
+  assert.match(layers.newspaperBackground.style.cssText, /filter:blur\(15px\)/);
+  assert.match(layers.newspaperLabel.style.cssText, /font-family:Versa, VERSA, Inter, Arial, sans-serif/);
+  assert.match(layers.newspaperLabel.style.cssText, /font-size:30px/);
   assert.equal(layers.outroText.textContent, 'Gracias por mirar');
 });
 
@@ -227,10 +232,13 @@ test('composition renderer assigns uncached image src for newspaper and normal r
   const stage = container.children[0];
   const newspaperBackground = stage.children.find((child) => child.className === 'composition-layer composition-layer--newspaper-bg');
   const newspaperForeground = stage.children.find((child) => child.className === 'composition-layer composition-layer--newspaper-foreground');
+  const normalImage = stage.children.find((child) => child.className === 'composition-layer composition-layer--image');
   assert.equal(newspaperBackground.src, 'https://cdn.test/news.jpg');
   assert.equal(newspaperForeground.src, 'https://cdn.test/news.jpg');
   assert.equal(newspaperBackground.style.visibility, 'visible');
   assert.equal(newspaperForeground.style.visibility, 'visible');
+  assert.equal(normalImage.src, '', 'newspaper rows must not hydrate the normal image layer');
+  assert.equal(normalImage.style.visibility, 'hidden', 'newspaper rows must hide the normal image layer after reload/hydration');
 
   renderer.update({
     rows: [{
@@ -246,9 +254,27 @@ test('composition renderer assigns uncached image src for newspaper and normal r
   });
   await flushMicrotasks();
 
-  const normalImage = stage.children.find((child) => child.className === 'composition-layer composition-layer--image');
   assert.equal(normalImage.src, 'https://cdn.test/normal.jpg');
   assert.equal(normalImage.style.visibility, 'visible');
   assert.equal(newspaperBackground.style.visibility, 'hidden');
   assert.equal(newspaperForeground.style.visibility, 'hidden');
+
+  renderer.update({
+    rows: [{
+      id: 'row-news-again',
+      startTime: 0,
+      endTime: 2,
+      image: 'https://cdn.test/news-again.jpg',
+      mediaMode: 'newspaper',
+      media: { kind: 'image' },
+      dust: { enabled: false },
+      logo: { enabled: false },
+    }],
+  });
+  await flushMicrotasks();
+
+  assert.equal(newspaperBackground.src, 'https://cdn.test/news-again.jpg');
+  assert.equal(newspaperForeground.src, 'https://cdn.test/news-again.jpg');
+  assert.equal(normalImage.src, '', 'switching back to newspaper must clear stale normal image src');
+  assert.equal(normalImage.style.visibility, 'hidden');
 });

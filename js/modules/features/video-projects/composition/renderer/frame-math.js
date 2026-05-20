@@ -1,5 +1,8 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
 const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
+const NEWSPAPER_BACKGROUND_BLUR = 15;
+const NEWSPAPER_LABEL_FONT_FAMILY = 'Versa, VERSA, Inter, Arial, sans-serif';
+const NEWSPAPER_LABEL_FONT_SIZE = 30;
 
 export const DEFAULT_FPS = 30;
 export const OUTRO_DURATION_SECONDS = 30;
@@ -138,7 +141,7 @@ export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
     background: {
       objectFit: 'cover',
       objectPosition: 'center top',
-      filter: 'blur(20px)',
+      filter: `blur(${NEWSPAPER_BACKGROUND_BLUR}px)`,
       transform: 'scale(1.08)',
     },
     foreground: {
@@ -151,7 +154,8 @@ export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
     },
     label: {
       lines: ['RECREACIÓN', 'ARTÍSTICA'],
-      fontFamily: 'VERSA, Inter, Arial, sans-serif',
+      fontFamily: NEWSPAPER_LABEL_FONT_FAMILY,
+      fontSize: `${NEWSPAPER_LABEL_FONT_SIZE}px`,
     },
   };
 }

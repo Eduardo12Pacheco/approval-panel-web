@@ -460,6 +460,7 @@ export class CompositionRenderer {
     } else if (isNewspaperMode) {
       this.#hideVideoSegmentLayers({ clear: false });
       layers.image.style.visibility = 'hidden';
+      layers.image.src = '';
       layers.newspaperBackground.style.visibility = 'visible';
       layers.newspaperForeground.style.visibility = 'visible';
       layers.newspaperLabel.style.visibility = 'visible';
@@ -501,6 +502,8 @@ export class CompositionRenderer {
       layers.newspaperForeground.style.objectPosition = newspaperStyles.foreground.objectPosition;
       layers.newspaperForeground.style.transform = newspaperStyles.foreground.transform;
       layers.newspaperForeground.style.transformOrigin = newspaperStyles.foreground.transformOrigin;
+      layers.newspaperLabel.style.fontFamily = newspaperStyles.label.fontFamily;
+      layers.newspaperLabel.style.fontSize = newspaperStyles.label.fontSize;
     }
 
     const zoom = resolveZoomRange(segment.motion);

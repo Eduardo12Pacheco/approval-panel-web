@@ -72,7 +72,7 @@ export function buildCompositionDOM(container) {
 
   const newspaperBackground = document.createElement('img');
   newspaperBackground.className = 'composition-layer composition-layer--newspaper-bg';
-  newspaperBackground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;object-position:center top;filter:blur(20px);transform:scale(1.08);pointer-events:none;visibility:hidden;';
+  newspaperBackground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;object-position:center top;filter:blur(15px);transform:scale(1.08);pointer-events:none;visibility:hidden;';
   newspaperBackground.draggable = false;
   stage.appendChild(newspaperBackground);
 
@@ -84,13 +84,13 @@ export function buildCompositionDOM(container) {
 
   const newspaperLabel = document.createElement('div');
   newspaperLabel.className = 'composition-layer composition-layer--newspaper-label';
-  newspaperLabel.style.cssText = 'position:absolute;right:42px;top:40px;z-index:8;color:#000;font-family:VERSA, Inter, Arial, sans-serif;font-size:34px;font-weight:900;line-height:0.92;text-align:right;letter-spacing:0.02em;pointer-events:none;visibility:hidden;';
+  newspaperLabel.style.cssText = 'position:absolute;right:42px;top:40px;z-index:8;color:#000;font-family:Versa, VERSA, Inter, Arial, sans-serif;font-size:30px;font-weight:900;line-height:0.92;text-align:right;letter-spacing:0.02em;pointer-events:none;visibility:hidden;';
   newspaperLabel.innerHTML = '<span>RECREACIÓN</span><br><span>ARTÍSTICA</span>';
   stage.appendChild(newspaperLabel);
 
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
-  image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;transform-origin:center center;will-change:transform;';
+  image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;transform-origin:center center;will-change:transform;visibility:hidden;';
   image.draggable = false;
   stage.appendChild(image);
 
