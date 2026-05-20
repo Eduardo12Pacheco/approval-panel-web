@@ -38,7 +38,7 @@ export function hydrateEditorPhaseInteractions({
     renderSelectedVideoProject?.();
   };
   const previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
-  hydrateEditorTabs({ root, project, renderSelectedVideoProject });
+  hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow });
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
@@ -119,7 +119,7 @@ export function hydrateRowImageSwapControls({ root, editorRows = [], updateRow, 
   return thumbs.length;
 }
 
-function hydrateEditorTabs({ root, project, renderSelectedVideoProject }) {
+function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow }) {
   root.querySelectorAll('[data-action="switch-effect-tab"]').forEach((button) => {
     button.addEventListener('click', () => {
       const activeTab = resolveEditorEffectTab(button.dataset.effectTab);
@@ -149,6 +149,17 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject }) {
       const rowId = button.dataset.rowId;
       if (rowId) project._selectedEditorRowId = rowId;
       project._editorEffectTab = 'videos';
+      renderSelectedVideoProject?.();
+    });
+  });
+  root.querySelectorAll('[data-action="open-newspaper-tab"]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const rowId = button.dataset.rowId;
+      const startTime = Number(button.dataset.startTime);
+      if (rowId) project._selectedEditorRowId = rowId;
+      if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
+      project._editorEffectTab = 'assets';
+      await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } });
       renderSelectedVideoProject?.();
     });
   });

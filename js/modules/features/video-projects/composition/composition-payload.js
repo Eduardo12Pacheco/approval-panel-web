@@ -38,6 +38,7 @@ export function buildCompositionPayload(project) {
     rows: rows.map((row) => ({
       id: row.id,
       selectedAssetId: row.selectedAssetId || null,
+      mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image',
       motion: row.motion || 'Zoom 110',
       dust: { enabled: Boolean(row.dust?.enabled) },
       logo: { enabled: row.logo?.enabled !== false },
@@ -93,6 +94,7 @@ export function buildCompositionPayload(project) {
       endTime: Number(row.endTime || 0),
       effectiveEndTime: Number(row.effectiveEndTime ?? row.endTime ?? 0),
       selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === rowId)?.assetId || null,
+      mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image',
       media,
       motion: row.motion || 'Zoom 110',
       dust: { enabled: Boolean(row.dust?.enabled) },

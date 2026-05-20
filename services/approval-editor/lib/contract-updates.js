@@ -98,6 +98,7 @@ function applyContractOperations(snapshot, operations = []) {
       next.assets[asset.assetId] = asset;
       row.selectedAssetId = asset.assetId;
       row.media = { kind: "image" };
+      if (Object.prototype.hasOwnProperty.call(op, "mediaMode")) row.mediaMode = op.mediaMode === "newspaper" ? "newspaper" : "image";
       if (!row.candidates?.some((candidate) => candidate.assetId === asset.assetId)) {
         row.candidates = [...(row.candidates || []), { id: `candidate-${row.rowId}-${asset.assetId}`, assetId: asset.assetId, source: asset.source, publicPath: asset.publicUrl, reason: "row-specific replacement" }];
       }
@@ -116,6 +117,15 @@ function applyContractOperations(snapshot, operations = []) {
         ...normalizeVideoSegmentOperation(row, op),
         sourceVideoAssetId: asset.assetId,
       };
+      row.mediaMode = "image";
+    } else if (op.type === "setRowMediaMode") {
+      const row = findRow(next, op.rowId);
+      row.mediaMode = op.mediaMode === "newspaper" ? "newspaper" : "image";
+      if (op.media?.kind !== "video-segment") row.media = { kind: "image" };
+      if (row.mediaMode === "newspaper" && (!row.motionPresetId || row.motionPresetId === "Zoom 110" || row.motionPresetId === "slow-zoom-in")) {
+        row.motionPresetId = "Zoom 125";
+        row.motion = { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
+      }
     } else if (op.type === "setRowMotion") {
       const row = findRow(next, op.rowId);
       const preset = findMotionPreset(op.motionPresetId || op.presetId || op.name);

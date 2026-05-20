@@ -1,4 +1,5 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
+const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
 
 export const DEFAULT_FPS = 30;
 export const OUTRO_DURATION_SECONDS = 30;
@@ -121,6 +122,38 @@ function resolveComparableUrl(url) {
   } catch {
     return String(url);
   }
+}
+
+export function resolveMediaMode(value) {
+  return String(value || '').trim().toLowerCase() === 'newspaper' ? 'newspaper' : 'image';
+}
+
+export function resolveNewspaperMotion() {
+  return { from: NEWSPAPER_FOREGROUND_ZOOM.from, to: NEWSPAPER_FOREGROUND_ZOOM.to, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+}
+
+export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
+  const scale = interpolateLinear(NEWSPAPER_FOREGROUND_ZOOM.from, NEWSPAPER_FOREGROUND_ZOOM.to, progress);
+  return {
+    background: {
+      objectFit: 'cover',
+      objectPosition: 'center top',
+      filter: 'blur(30px)',
+      transform: 'scale(1.08)',
+    },
+    foreground: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      objectPosition: 'center top',
+      transform: `scale(${Number(scale.toFixed(4))})`,
+      transformOrigin: 'center top',
+    },
+    label: {
+      lines: ['RECREACIÓN', 'ARTÍSTICA'],
+      fontFamily: 'VERSA, Inter, Arial, sans-serif',
+    },
+  };
 }
 
 export function resolveActiveImageDimensions({ activeUrl, segment, cacheImage, imageElement } = {}) {

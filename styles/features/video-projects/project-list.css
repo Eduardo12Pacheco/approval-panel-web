@@ -180,7 +180,11 @@
 
 .video-project-card__phase {
   flex-basis: 100%;
-  width: fit-content;
+  flex-grow: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  width: auto;
+  max-width: max-content;
   margin-top: 2px;
 }
 

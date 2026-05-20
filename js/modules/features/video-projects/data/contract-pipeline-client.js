@@ -15,6 +15,7 @@ export function normalizePreparedContractRows(rows = []) {
   if (!Array.isArray(rows)) return [];
   return rows.map((row, index) => {
     const isVideoSegment = row?.media?.kind === 'video-segment';
+    const mediaMode = !isVideoSegment && row?.mediaMode === 'newspaper' ? 'newspaper' : 'image';
     const dustType = row?.dust?.type || 'dust-1';
     const dustEnabled = isVideoSegment ? false : (row?.dust?.enabled !== undefined ? Boolean(row.dust.enabled) : true);
 
@@ -26,9 +27,10 @@ export function normalizePreparedContractRows(rows = []) {
       startTime: Number(row?.startTime ?? 0),
       endTime: Number(row?.endTime ?? 0),
       selectedAssetId: isVideoSegment ? null : (row?.selectedAssetId || null),
+      mediaMode,
       ...(isVideoSegment ? { media: { ...row.media } } : {}),
-      motionPresetId: row?.motionPresetId || (typeof row?.motion === 'string' ? row.motion : 'Zoom 110'),
-      motion: row?.motion || 'Zoom 110',
+      motionPresetId: row?.motionPresetId || (typeof row?.motion === 'string' ? row.motion : (mediaMode === 'newspaper' ? 'Zoom 125' : 'Zoom 110')),
+      motion: row?.motion || (mediaMode === 'newspaper' ? { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: 'linear' } : 'Zoom 110'),
       dust: { enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: row?.dust?.opacity ?? 0.36, blendMode: row?.dust?.blendMode || 'screen' },
       logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
       filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },

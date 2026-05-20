@@ -16,12 +16,14 @@ import {
   resolveActiveSegment,
   resolveCoverPanImageStyle,
   resolveCoverPanLayer,
+  resolveMediaMode,
+  resolveNewspaperImageStyles,
   resolveZoomRange,
   shouldChromaKeyLogo,
   syncManagedVideoElement,
 } from './renderer/index.js';
 
-export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
+export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the
@@ -384,6 +386,9 @@ export class CompositionRenderer {
     if (resolved.type === 'empty') {
       this.#hideVideoSegmentLayers({ clear: true });
       layers.image.style.visibility = 'hidden';
+      layers.newspaperBackground.style.visibility = 'hidden';
+      layers.newspaperForeground.style.visibility = 'hidden';
+      layers.newspaperLabel.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
@@ -398,6 +403,9 @@ export class CompositionRenderer {
     if (resolved.type === 'outro') {
       this.#hideVideoSegmentLayers({ clear: true });
       layers.image.style.visibility = 'hidden';
+      layers.newspaperBackground.style.visibility = 'hidden';
+      layers.newspaperForeground.style.visibility = 'hidden';
+      layers.newspaperLabel.style.visibility = 'hidden';
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
       layers.logo.style.visibility = 'hidden';
@@ -426,6 +434,8 @@ export class CompositionRenderer {
     layers.outroVideo.style.visibility = 'hidden';
     layers.outroText.style.visibility = 'hidden';
     const isVideoSegment = segment.media?.kind === 'video-segment';
+    const isNewspaperMode = !isVideoSegment && resolveMediaMode(segment.mediaMode) === 'newspaper';
+    const segmentRenderKey = `${isNewspaperMode ? 'newspaper' : isVideoSegment ? 'video' : 'image'}:${segmentKey}`;
     if (isVideoSegment) {
       const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime });
       const [background, color, effect2, effect1, foreground] = plan.layers;
@@ -444,14 +454,30 @@ export class CompositionRenderer {
       layers.videoEffect1.style.mixBlendMode = effect1.mixBlendMode;
       layers.videoEffect2.style.mixBlendMode = effect2.mixBlendMode;
       layers.image.style.visibility = 'hidden';
+      layers.newspaperBackground.style.visibility = 'hidden';
+      layers.newspaperForeground.style.visibility = 'hidden';
+      layers.newspaperLabel.style.visibility = 'hidden';
+    } else if (isNewspaperMode) {
+      this.#hideVideoSegmentLayers({ clear: false });
+      layers.image.style.visibility = 'hidden';
+      layers.newspaperBackground.style.visibility = 'visible';
+      layers.newspaperForeground.style.visibility = 'visible';
+      layers.newspaperLabel.style.visibility = 'visible';
     } else {
       this.#hideVideoSegmentLayers({ clear: false });
+      layers.newspaperBackground.style.visibility = 'hidden';
+      layers.newspaperForeground.style.visibility = 'hidden';
+      layers.newspaperLabel.style.visibility = 'hidden';
       layers.image.style.visibility = 'visible';
     }
 
-    if (!isVideoSegment && segmentKey && segmentKey !== this.#activeSegmentKey) {
-      this.#activeSegmentKey = segmentKey;
-      this.#swapSegmentImage(layers.image, segmentKey);
+    if (isNewspaperMode && segmentKey && segmentRenderKey !== this.#activeSegmentKey) {
+      this.#activeSegmentKey = segmentRenderKey;
+      this.#swapSegmentImage(layers.newspaperBackground, segmentKey, segmentRenderKey);
+      this.#swapSegmentImage(layers.newspaperForeground, segmentKey, segmentRenderKey);
+    } else if (!isVideoSegment && segmentKey && segmentRenderKey !== this.#activeSegmentKey) {
+      this.#activeSegmentKey = segmentRenderKey;
+      this.#swapSegmentImage(layers.image, segmentKey, segmentRenderKey);
     }
 
     if (isVideoSegment) {
@@ -461,6 +487,20 @@ export class CompositionRenderer {
       layers.logoVideo.style.visibility = 'hidden';
       layers.logoCanvas.style.visibility = 'hidden';
       return;
+    }
+
+    if (isNewspaperMode) {
+      const newspaperStyles = resolveNewspaperImageStyles({ progress: localProgress });
+      layers.newspaperBackground.style.objectFit = newspaperStyles.background.objectFit;
+      layers.newspaperBackground.style.objectPosition = newspaperStyles.background.objectPosition;
+      layers.newspaperBackground.style.filter = newspaperStyles.background.filter;
+      layers.newspaperBackground.style.transform = newspaperStyles.background.transform;
+      layers.newspaperForeground.style.width = newspaperStyles.foreground.width;
+      layers.newspaperForeground.style.height = newspaperStyles.foreground.height;
+      layers.newspaperForeground.style.objectFit = newspaperStyles.foreground.objectFit;
+      layers.newspaperForeground.style.objectPosition = newspaperStyles.foreground.objectPosition;
+      layers.newspaperForeground.style.transform = newspaperStyles.foreground.transform;
+      layers.newspaperForeground.style.transformOrigin = newspaperStyles.foreground.transformOrigin;
     }
 
     const zoom = resolveZoomRange(segment.motion);
@@ -477,19 +517,21 @@ export class CompositionRenderer {
     const viewportHeight = this.#viewportHeight;
     const layer = resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, x, y });
     const imageStyle = resolveCoverPanImageStyle(layer);
-    layers.image.style.width = imageStyle.width;
-    layers.image.style.height = imageStyle.height;
-    layers.image.style.left = imageStyle.left;
-    layers.image.style.top = imageStyle.top;
-    layers.image.style.objectFit = imageStyle.objectFit;
-    layers.image.style.transform = imageStyle.transform;
-    layers.image.style.transformOrigin = imageStyle.transformOrigin;
-    layers.image.style.willChange = imageStyle.willChange;
+    if (!isNewspaperMode) {
+      layers.image.style.width = imageStyle.width;
+      layers.image.style.height = imageStyle.height;
+      layers.image.style.left = imageStyle.left;
+      layers.image.style.top = imageStyle.top;
+      layers.image.style.objectFit = imageStyle.objectFit;
+      layers.image.style.transform = imageStyle.transform;
+      layers.image.style.transformOrigin = imageStyle.transformOrigin;
+      layers.image.style.willChange = imageStyle.willChange;
+    }
 
     const filterEnabled = segment.filter?.enabled !== false;
     layers.image.style.filter = filterEnabled ? 'contrast(1.06) saturate(0.92)' : 'none';
 
-    const dustEnabled = segment.dust?.enabled !== false;
+    const dustEnabled = !isNewspaperMode && segment.dust?.enabled !== false;
     if (dustEnabled) {
       const dustSrc = segment.dust?.src || this._dustWebmUrl;
       if (dustSrc) {
@@ -546,7 +588,7 @@ export class CompositionRenderer {
     }
   }
 
-  async #swapSegmentImage(imgEl, url) {
+  async #swapSegmentImage(imgEl, url, expectedActiveKey = url) {
     if (this.#imageCache.has(url)) {
       // LRU: bump this URL to the most-recently-used end.
       const idx = this.#imageCacheOrder.indexOf(url);
@@ -563,7 +605,7 @@ export class CompositionRenderer {
       preloader.src = url;
       await preloader.decode();
       this.#imageCache.set(url, preloader);
-      if (this.#activeSegmentKey === url) {
+      if (this.#activeSegmentKey === expectedActiveKey) {
         imgEl.src = url;
       }
     } catch {

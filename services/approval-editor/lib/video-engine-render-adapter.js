@@ -223,6 +223,7 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
       startTime: Number(row?.startTime ?? row?.start_time ?? row?.start ?? index * 3),
       endTime: Number(row?.endTime ?? row?.end_time ?? row?.end ?? (index + 1) * 3),
       selectedAssetId: row?.selectedAssetId || null,
+      mediaMode: row?.mediaMode === "newspaper" ? "newspaper" : "image",
       candidates: [],
       motion: row?.motion || "slow-zoom-in",
       dust: { ...(row?.dust || {}), enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: Number(row?.dust?.opacity ?? 0.36), blendMode: row?.dust?.blendMode || "screen" },

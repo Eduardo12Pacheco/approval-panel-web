@@ -40,6 +40,39 @@ function testBuildPayloadKeepsLegacyAndAddsContractWhenManifestExists() {
   assert.equal(payload.manifest.assets['voice-asset'].renderPath, '/api/projects/p/media?assetId=voice-asset');
 }
 
+function testBuildPayloadPersistsNewspaperMediaModeInLegacyAndContractRows() {
+  const project = {
+    _editorRows: [{
+      id: 'row-news',
+      phrase: 'Recreación',
+      selectedAssetId: 'asset-news',
+      mediaMode: 'newspaper',
+      media: { kind: 'image' },
+      startTime: 0,
+      endTime: 4,
+    }],
+    _globalAudio: {
+      voice: { volume: 1, muted: false },
+      music: { volume: 0.2, muted: false },
+    },
+    _previewAssets: {
+      images: [{ rowId: 'row-news', assetId: 'asset-news', mediaUrl: '/api/projects/p/media?assetId=asset-news' }],
+      audio: {
+        voice: { assetId: 'voice-asset', mediaUrl: '/api/projects/p/media?assetId=voice-asset' },
+        music: { assetId: 'music-asset', mediaUrl: '/api/projects/p/media?assetId=music-asset' },
+      },
+    },
+    editor_state: {},
+  };
+
+  const payload = buildCompositionPayloadForCheck(project);
+
+  assert.equal(payload.rows[0].mediaMode, 'newspaper');
+  assert.equal(payload.contract.segments[0].mediaMode, 'newspaper');
+  assert.equal(payload.contract.segments[0].media.kind, 'image');
+  assert.equal(payload.contract.segments[0].selectedAssetId, 'asset-news');
+}
+
 function testBuildPayloadFallsBackToLegacyWhenNoManifest() {
   const project = {
     _editorRows: [{ id: 'row-1', selectedAssetId: null, startTime: 0, endTime: 1 }],
@@ -55,6 +88,7 @@ function testBuildPayloadFallsBackToLegacyWhenNoManifest() {
 
 export function runVideoProjectsCompositionPayloadCheck() {
   testBuildPayloadKeepsLegacyAndAddsContractWhenManifestExists();
+  testBuildPayloadPersistsNewspaperMediaModeInLegacyAndContractRows();
   testBuildPayloadFallsBackToLegacyWhenNoManifest();
 }
 

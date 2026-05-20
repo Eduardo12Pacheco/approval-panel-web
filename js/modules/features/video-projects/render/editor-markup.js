@@ -73,6 +73,9 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                   <button class="video-editor-row__upload-label" type="button" data-action="open-videos-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
                     <span>Cambiar a video</span>
                   </button>
+                  <button class="video-editor-row__upload-label" type="button" data-action="open-newspaper-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
+                    <span>Cambiar a periódico</span>
+                  </button>
                 </td>
               </tr>
             `;

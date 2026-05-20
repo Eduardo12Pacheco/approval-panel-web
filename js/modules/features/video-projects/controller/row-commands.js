@@ -16,6 +16,7 @@ export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
     ...(hasOwnPatchValue(patch, 'logo') ? { logo: { ...(current.logo || {}), ...(patch.logo || {}), enabled: patch.logo?.enabled !== false } } : {}),
     ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
     ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
+    ...(hasOwnPatchValue(patch, 'mediaMode') ? { mediaMode: patch.mediaMode === 'newspaper' ? 'newspaper' : 'image' } : {}),
     ...(hasOwnPatchValue(patch, 'media') ? { media: patch.media?.kind === 'video-segment' ? { ...patch.media } : { kind: 'image' } } : {}),
   };
 }
@@ -113,7 +114,11 @@ export function createRowCommands({
     if (isApprovalServiceMode(project)) {
       const operations = [];
       const shouldDraftMotion = isMotionRowPatch(patch);
-      if (patch.selectedAssetId !== undefined) operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId) });
+      if (patch.selectedAssetId !== undefined) {
+        const currentMediaMode = patch.mediaMode || rows[index]?.mediaMode;
+        operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId), ...(currentMediaMode ? { mediaMode: currentMediaMode } : {}) });
+      }
+      if (patch.mediaMode !== undefined) operations.push({ type: 'setRowMediaMode', rowId, mediaMode: patch.mediaMode, media: patch.media });
       if (patch.media?.kind === 'video-segment') {
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
       }

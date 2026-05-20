@@ -70,6 +70,24 @@ export function buildCompositionDOM(container) {
   videoForeground.preload = 'auto';
   stage.appendChild(videoForeground);
 
+  const newspaperBackground = document.createElement('img');
+  newspaperBackground.className = 'composition-layer composition-layer--newspaper-bg';
+  newspaperBackground.style.cssText = 'position:absolute;inset:0;z-index:4;width:100%;height:100%;object-fit:cover;object-position:center top;filter:blur(30px);transform:scale(1.08);pointer-events:none;visibility:hidden;';
+  newspaperBackground.draggable = false;
+  stage.appendChild(newspaperBackground);
+
+  const newspaperForeground = document.createElement('img');
+  newspaperForeground.className = 'composition-layer composition-layer--newspaper-foreground';
+  newspaperForeground.style.cssText = 'position:absolute;inset:0;z-index:5;width:100%;height:100%;object-fit:contain;object-position:center top;transform-origin:center top;will-change:transform;pointer-events:none;visibility:hidden;';
+  newspaperForeground.draggable = false;
+  stage.appendChild(newspaperForeground);
+
+  const newspaperLabel = document.createElement('div');
+  newspaperLabel.className = 'composition-layer composition-layer--newspaper-label';
+  newspaperLabel.style.cssText = 'position:absolute;right:48px;top:42px;z-index:6;color:#000;font-family:VERSA, Inter, Arial, sans-serif;font-size:46px;font-weight:900;line-height:0.92;text-align:right;letter-spacing:0.02em;pointer-events:none;visibility:hidden;';
+  newspaperLabel.innerHTML = '<span>RECREACIÓN</span><br><span>ARTÍSTICA</span>';
+  stage.appendChild(newspaperLabel);
+
   const image = document.createElement('img');
   image.className = 'composition-layer composition-layer--image';
   image.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;object-position:center center;transform-origin:center center;will-change:transform;';
@@ -128,6 +146,6 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
+    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, newspaperBackground, newspaperForeground, newspaperLabel, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
   };
 }

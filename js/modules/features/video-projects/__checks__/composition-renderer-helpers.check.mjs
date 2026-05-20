@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   buildCompositionDOM as buildCompositionDOMFromFacade,
   buildVideoSegmentPreviewLayerPlan as buildLayerPlanFromFacade,
+  CompositionRenderer,
   frameToSeconds as frameToSecondsFromFacade,
   interpolateLinear as interpolateLinearFromFacade,
   isVideoSource as isVideoSourceFromFacade,
@@ -11,6 +12,7 @@ import {
   resolveActiveSegment as resolveActiveSegmentFromFacade,
   resolveCoverPanImageStyle as resolveCoverPanImageStyleFromFacade,
   resolveCoverPanLayer as resolveCoverPanLayerFromFacade,
+  resolveNewspaperImageStyles as resolveNewspaperImageStylesFromFacade,
   secondsToFrame as secondsToFrameFromFacade,
   syncManagedVideoElement as syncManagedVideoElementFromFacade,
 } from '../composition/composition-renderer.js';
@@ -24,6 +26,7 @@ import {
   resolveActiveSegment,
   resolveCoverPanImageStyle,
   resolveCoverPanLayer,
+  resolveNewspaperImageStyles,
   secondsToFrame,
   syncManagedVideoElement,
 } from '../composition/renderer/index.js';
@@ -46,6 +49,11 @@ function createElement(tagName) {
     currentTime: 0,
     src: '',
     preload: '',
+    innerHTML: '',
+    getAttribute(name) {
+      return this[name] || '';
+    },
+    load() {},
     textContent: '',
     appendChild(child) {
       child.parentNode = this;
@@ -68,6 +76,22 @@ function createElement(tagName) {
 }
 
 globalThis.document = { createElement, baseURI: 'https://control-panel.test/editor/' };
+globalThis.Image = class MockImage {
+  constructor() {
+    this.src = '';
+    this.naturalWidth = 1280;
+    this.naturalHeight = 720;
+  }
+
+  decode() {
+    return Promise.resolve();
+  }
+};
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 test('renderer helper facade preserves frame math, segment windows, and cover-pan outputs', () => {
   assert.equal(secondsToFrame, secondsToFrameFromFacade);
@@ -96,6 +120,23 @@ test('renderer helper facade preserves frame math, segment windows, and cover-pa
     localTime: 1,
   });
   assert.deepEqual(resolveActiveSegment(7, [{ startTime: 2, endTime: 6 }]), { type: 'outro', localProgress: 1 / 30, localTime: 1 });
+});
+
+test('renderer helper facade exposes newspaper image layout parity semantics', () => {
+  assert.equal(resolveNewspaperImageStyles, resolveNewspaperImageStylesFromFacade);
+
+  const firstFrame = resolveNewspaperImageStyles({ viewportWidth: 1920, viewportHeight: 1080, imageWidth: 720, imageHeight: 1280, progress: 0 });
+  const lastFrame = resolveNewspaperImageStyles({ viewportWidth: 1920, viewportHeight: 1080, imageWidth: 720, imageHeight: 1280, progress: 1 });
+
+  assert.equal(firstFrame.background.objectFit, 'cover');
+  assert.equal(firstFrame.background.objectPosition, 'center top');
+  assert.equal(firstFrame.background.filter, 'blur(30px)');
+  assert.equal(firstFrame.foreground.objectFit, 'contain');
+  assert.equal(firstFrame.foreground.objectPosition, 'center top');
+  assert.equal(firstFrame.foreground.height, '100%');
+  assert.equal(firstFrame.foreground.transform, 'scale(1)');
+  assert.equal(lastFrame.foreground.transform, 'scale(1.25)');
+  assert.equal(firstFrame.label.lines.join('\n'), 'RECREACIÓN\nARTÍSTICA');
 });
 
 test('renderer helper facade preserves video layer planning and managed video sync behavior', () => {
@@ -147,6 +188,9 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
     'composition-layer composition-layer--video-effect-02',
     'composition-layer composition-layer--video-effect-01',
     'composition-layer composition-layer--video-foreground',
+    'composition-layer composition-layer--newspaper-bg',
+    'composition-layer composition-layer--newspaper-foreground',
+    'composition-layer composition-layer--newspaper-label',
     'composition-layer composition-layer--image',
     'composition-layer composition-layer--dust',
     'composition-layer composition-layer--dust-fallback',
@@ -158,4 +202,53 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
   assert.equal(layers.videoEffect2.src, './assets/effect-layer-02.webm');
   assert.equal(layers.videoEffect1.src, './assets/effect-layer-01.webm');
   assert.equal(layers.outroText.textContent, 'Gracias por mirar');
+});
+
+test('composition renderer assigns uncached image src for newspaper and normal rows after decode', async () => {
+  const container = createElement('div');
+  container.clientWidth = 1920;
+  container.clientHeight = 1080;
+  const renderer = new CompositionRenderer({ container });
+
+  renderer.update({
+    rows: [{
+      id: 'row-news',
+      startTime: 0,
+      endTime: 2,
+      image: 'https://cdn.test/news.jpg',
+      mediaMode: 'newspaper',
+      media: { kind: 'image' },
+      dust: { enabled: false },
+      logo: { enabled: false },
+    }],
+  });
+  await flushMicrotasks();
+
+  const stage = container.children[0];
+  const newspaperBackground = stage.children.find((child) => child.className === 'composition-layer composition-layer--newspaper-bg');
+  const newspaperForeground = stage.children.find((child) => child.className === 'composition-layer composition-layer--newspaper-foreground');
+  assert.equal(newspaperBackground.src, 'https://cdn.test/news.jpg');
+  assert.equal(newspaperForeground.src, 'https://cdn.test/news.jpg');
+  assert.equal(newspaperBackground.style.visibility, 'visible');
+  assert.equal(newspaperForeground.style.visibility, 'visible');
+
+  renderer.update({
+    rows: [{
+      id: 'row-image',
+      startTime: 0,
+      endTime: 2,
+      image: 'https://cdn.test/normal.jpg',
+      mediaMode: 'image',
+      media: { kind: 'image' },
+      dust: { enabled: false },
+      logo: { enabled: false },
+    }],
+  });
+  await flushMicrotasks();
+
+  const normalImage = stage.children.find((child) => child.className === 'composition-layer composition-layer--image');
+  assert.equal(normalImage.src, 'https://cdn.test/normal.jpg');
+  assert.equal(normalImage.style.visibility, 'visible');
+  assert.equal(newspaperBackground.style.visibility, 'hidden');
+  assert.equal(newspaperForeground.style.visibility, 'hidden');
 });

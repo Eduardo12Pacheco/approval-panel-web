@@ -5,7 +5,7 @@ import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../r
 import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
-import { hydrateRowImageSwapControls } from '../render/editor-hydration.js';
+import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -30,7 +30,7 @@ function readCssWithImports(filePath, seen = new Set()) {
 
   const source = readFileSync(filePath, 'utf8');
   return source.replace(/@import\s+'([^']+)'\s*;/g, (_, importPath) => {
-    return readCssWithImports(resolve(dirname(filePath), importPath), seen);
+    return readCssWithImports(resolve(dirname(filePath), importPath.split('?')[0]), seen);
   });
 }
 
@@ -109,11 +109,52 @@ function runChangeImageNavigationCheck() {
   const detailMarkup = buildEditorDetailRail({ row, project: makeProject() });
 
   assert(tableMarkup.includes('data-action="open-assets-tab"'), 'Expected table Cambiar action to open Imágenes tab');
+  assert(tableMarkup.includes('data-action="open-newspaper-tab"'), 'Expected table to expose Cambiar a periódico as a first-class row action');
+  assert(tableMarkup.includes('Cambiar a periódico'), 'Expected newspaper row action to use the requested visible label');
   assert(!tableMarkup.includes('data-action="upload-row-image"'), 'Expected table Cambiar action not to open file picker');
   assert(!detailMarkup.includes('Cambiar imagen'), 'Expected detail rail image button to be removed');
   assert(detailMarkup.includes('video-editor-detail__summary'), 'Expected detail rail to render phrase/time and image summary');
   assert(detailMarkup.includes('video-editor-detail__image-card'), 'Expected detail rail to render larger right-side image card');
   assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
+}
+
+async function runNewspaperNavigationHydrationCheck() {
+  const listeners = new Map();
+  const newspaperButton = {
+    dataset: { rowId: 'row-news', startTime: '12.5' },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const project = { _selectedEditorRowId: null, _editorEffectTab: 'global', _previewSeekTime: 0 };
+  const patches = [];
+  let renderCount = 0;
+
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-action="open-newspaper-tab"]') return [newspaperButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project,
+    editorPhase: 'preview_ready',
+    editorRows: [],
+    updateRow: async (rowId, patch) => patches.push({ rowId, patch }),
+    renderSelectedVideoProject: () => { renderCount += 1; },
+  });
+
+  await listeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'row-news', 'Expected newspaper action to select the clicked row');
+  assertEqual(project._previewSeekTime, 12.5, 'Expected newspaper action to seek to the row start time');
+  assertEqual(project._editorEffectTab, 'assets', 'Expected newspaper action to route to image selection/upload');
+  assertEqual(patches.length, 1, 'Expected newspaper action to persist a row mode patch');
+  assertEqual(patches[0].rowId, 'row-news', 'Expected newspaper mode patch to target the clicked row');
+  assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected newspaper action to persist first-class mediaMode');
+  assertEqual(patches[0].patch.media?.kind, 'image', 'Expected newspaper mode to remain image-driven');
+  assertEqual(renderCount, 1, 'Expected newspaper action to rerender the selected row editor');
 }
 
 function runLayersTabLabelAndSeparationCheck() {
@@ -190,6 +231,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
+  await runNewspaperNavigationHydrationCheck();
   runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();
 }
