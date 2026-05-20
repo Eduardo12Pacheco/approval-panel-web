@@ -124,9 +124,9 @@ export function normalizeSettings(settings = {}, { defaultsFactory = defaultSett
   const merged = { ...defaults, ...(settings || {}) };
   merged.apiProfileMode = normalizeApiProfileMode(merged.apiProfileMode);
   merged.apiOrigin = trimTrailingSlash(merged.apiOrigin) || defaults.apiOrigin;
-  merged.sharedApiKey = fallbackCredential(merged.sharedApiKey, merged.ttsApiKey || merged.subtitlesApiKey || merged.transcriptServiceApiKey).trim();
-  merged.sharedBasicUser = fallbackCredential(merged.sharedBasicUser, merged.ttsBasicUser || merged.subtitlesBasicUser).trim();
-  merged.sharedBasicPass = fallbackCredential(merged.sharedBasicPass, merged.ttsBasicPass || merged.subtitlesBasicPass);
+  merged.sharedApiKey = fallbackCredential(merged.sharedApiKey, merged.subtitlesApiKey || merged.ttsApiKey || merged.transcriptServiceApiKey).trim();
+  merged.sharedBasicUser = fallbackCredential(merged.sharedBasicUser, merged.subtitlesBasicUser || merged.ttsBasicUser).trim();
+  merged.sharedBasicPass = fallbackCredential(merged.sharedBasicPass, merged.subtitlesBasicPass || merged.ttsBasicPass);
   merged.serviceOverrides = normalizeServiceOverrides(merged.serviceOverrides);
   merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
   merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
@@ -212,7 +212,7 @@ function resolveUniversalCredentials(settings = {}) {
   return {
     apiKey: fallbackCredential(settings.sharedApiKey, settings.ttsApiKey || settings.subtitlesApiKey || settings.transcriptServiceApiKey).trim(),
     basicUser: fallbackCredential(settings.sharedBasicUser, settings.ttsBasicUser || settings.subtitlesBasicUser).trim(),
-    basicPass: fallbackCredential(settings.sharedBasicPass, settings.ttsBasicPass || settings.subtitlesBasicPass),
+    basicPass: fallbackCredential(settings.sharedBasicPass, settings.subtitlesBasicPass || settings.ttsBasicPass),
   };
 }
 

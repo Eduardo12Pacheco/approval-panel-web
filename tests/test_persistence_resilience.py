@@ -230,7 +230,7 @@ const loaded = loadSettingsFromStorage({
 
 if (loaded.apiProfileMode !== 'unified') throw new Error(`expected unified mode, got ${loaded.apiProfileMode}`);
 if (loaded.apiOrigin !== 'https://api.automatizacionedun8n.me') throw new Error(`unexpected api origin ${loaded.apiOrigin}`);
-if (loaded.sharedApiKey !== 'tts-key' || loaded.sharedBasicUser !== 'tts-user' || loaded.sharedBasicPass !== 'tts-pass') {
+if (loaded.sharedApiKey !== 'subs-key' || loaded.sharedBasicUser !== 'tts-user' || loaded.sharedBasicPass !== 'tts-pass') {
   throw new Error(`legacy credentials must hydrate universal shared credentials, got ${JSON.stringify({ apiKey: loaded.sharedApiKey, user: loaded.sharedBasicUser, pass: loaded.sharedBasicPass })}`);
 }
 for (const [service, expected] of Object.entries({ n8n: true, tts: true, subtitles: true, radar: true, remotion: true, approvalPipeline: true })) {
@@ -314,7 +314,7 @@ const settings = {
   serviceOverrides: { n8n: false, tts: false, subtitles: false, radar: false, remotion: false, approvalPipeline: true },
   ttsApiKey: 'legacy-tts-key',
   ttsBasicUser: 'legacy-tts-user',
-  ttsBasicPass: 'legacy-tts-pass',
+  ttsBasicPass: 'stale-tts-pass',
   subtitlesApiKey: 'legacy-subtitles-key',
   subtitlesBasicUser: 'legacy-subtitles-user',
   subtitlesBasicPass: 'legacy-subtitles-pass',
@@ -322,17 +322,17 @@ const settings = {
 };
 
 const tts = resolveServiceConfig(settings, 'tts');
-if (tts.apiKey !== 'legacy-tts-key' || tts.basicUser !== 'legacy-tts-user' || tts.basicPass !== 'legacy-tts-pass') {
+if (tts.apiKey !== 'legacy-subtitles-key' || tts.basicUser !== 'legacy-subtitles-user' || tts.basicPass !== 'legacy-subtitles-pass') {
   throw new Error(`tts legacy fallback drift: ${JSON.stringify(tts)}`);
 }
 
 const subtitles = resolveServiceConfig(settings, 'subtitles');
-if (subtitles.apiKey !== 'legacy-tts-key' || subtitles.basicUser !== 'legacy-tts-user' || subtitles.basicPass !== 'legacy-tts-pass') {
+if (subtitles.apiKey !== 'legacy-subtitles-key' || subtitles.basicUser !== 'legacy-subtitles-user' || subtitles.basicPass !== 'legacy-subtitles-pass') {
   throw new Error(`subtitles universal legacy fallback drift: ${JSON.stringify(subtitles)}`);
 }
 
 const radar = resolveServiceConfig(settings, 'radar');
-if (radar.apiKey !== 'legacy-tts-key') throw new Error(`radar universal legacy fallback drift: ${JSON.stringify(radar)}`);
+if (radar.apiKey !== 'legacy-subtitles-key') throw new Error(`radar universal legacy fallback drift: ${JSON.stringify(radar)}`);
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
