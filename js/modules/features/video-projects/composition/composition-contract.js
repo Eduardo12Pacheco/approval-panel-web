@@ -1,5 +1,7 @@
 import { VIDEO_SEGMENT_EFFECT_ASSETS, resolveVideoSegmentEffectUrl } from './overlay-assets.js';
 
+export const FINAL_OUTRO_GAP_SECONDS = 2;
+
 function toSafeObject(value) {
   return value && typeof value === 'object' ? value : {};
 }
@@ -127,7 +129,7 @@ function resolveContractTotalDurationSeconds(canonical = {}) {
   ];
   for (const candidate of candidates) {
     const duration = Number(candidate);
-    if (Number.isFinite(duration) && duration > 0) return duration;
+    if (Number.isFinite(duration) && duration > 0) return Number((duration + FINAL_OUTRO_GAP_SECONDS).toFixed(6));
   }
   return null;
 }

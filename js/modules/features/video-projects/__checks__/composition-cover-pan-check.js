@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveNewspaperImageStyles } from '../composition/composition-renderer.js';
+import { FINAL_OUTRO_GAP_SECONDS, computeEffectiveSegmentTimes } from '../composition/composition-contract.js';
 import {
   LOGO_HEIGHT,
   LOGO_LEFT,
@@ -150,6 +151,14 @@ export function runCompositionCoverPanCheck() {
   if (!/font-display:\s*block;/.test(fontsCss)) {
     throw new Error('Expected Versa Versa preview @font-face to use font-display:block for preview fidelity');
   }
+
+  const rowsWithOutroGap = computeEffectiveSegmentTimes([
+    { id: 'row-1', startTime: 0, endTime: 1 },
+    { id: 'row-2', startTime: 1, endTime: 3 },
+  ], 3 + FINAL_OUTRO_GAP_SECONDS);
+  assertEqual(FINAL_OUTRO_GAP_SECONDS, 2, 'Expected final outro gap to stay at two seconds');
+  assertEqual(rowsWithOutroGap[0].effectiveEndTime, 1, 'Expected non-final preview row to keep next-row boundary');
+  assertEqual(rowsWithOutroGap[1].effectiveEndTime, 5, 'Expected final preview row to extend through two-second pre-outro gap');
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {
