@@ -1,4 +1,4 @@
-import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js';
+import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js?v=20260520-newspaper-effect';
 import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { formatSeconds } from '../domain/formatters.js';

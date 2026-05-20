@@ -7,7 +7,7 @@ export { renderSelectedVideoProjectView } from './selected-project-view.js?v=202
 export {
   updateSelectedVideoProjectCompositionPreview,
   syncVideoSelectorPreviewLayers,
-} from './preview-lifecycle.js';
+} from './preview-lifecycle.js?v=20260520-newspaper-effect';
 export {
   createMotionScrubHandlers,
   resolveMotionScrubValue,
