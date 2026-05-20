@@ -168,15 +168,26 @@ if (!html.includes('data-project-id="draft%201"')) {
 if (!html.includes('aria-label="Eliminar proyecto Proyecto peligroso"')) {
   throw new Error('delete action must be accessible by project title');
 }
+if (!html.includes('<span aria-hidden="true">✕</span>')) {
+  throw new Error('delete action should render the destructive icon glyph');
+}
 if (html.includes('Listo')) {
   throw new Error('ready projects should show workflow phase language, not final-sounding Listo');
 }
 if (!html.includes('video-project-card__phase') || !html.includes('>Imágenes<')) {
   throw new Error('project phase should render under the metadata as Imágenes');
 }
+if (html.indexOf('video-project-card__phase') < html.indexOf('imagen')) {
+  throw new Error('project phase should render after image count and date metadata');
+}
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_video_project_list_rpc_includes_detail_for_card_thumbnails():
+    source = (ROOT / "js" / "modules" / "features" / "video-projects" / "data" / "supabase-client.js").read_text(encoding="utf-8")
+    assert "listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: true })" in source
 
 
 def test_video_project_phase_labels_cover_workflow_phases():

@@ -37,7 +37,7 @@ export function buildProjectCard(project = {}) {
           <h3>${title}</h3>
         </div>
         <div class="video-project-card__actions">
-          <button class="video-project-card__delete" type="button" data-action="delete-video-project" data-project-id="${encodedId}" aria-label="Eliminar proyecto ${title}">×</button>
+          <button class="video-project-card__delete" type="button" data-action="delete-video-project" data-project-id="${encodedId}" aria-label="Eliminar proyecto ${title}"><span aria-hidden="true">✕</span></button>
         </div>
       </header>
 
@@ -52,8 +52,8 @@ export function buildProjectCard(project = {}) {
             <span>Jugador: <strong>${player}</strong></span>
             <span>País: <strong>${country}</strong></span>
             <span>${formatCount(project.image_count, 'imagen', 'imágenes')}</span>
-            <span class="video-project-status video-project-card__phase" data-status="${statusName}">${phase}</span>
             <span>${formatDateLabel(createdAt)}</span>
+            <span class="video-project-status video-project-card__phase" data-status="${statusName}">${phase}</span>
           </div>
         </div>
       </div>

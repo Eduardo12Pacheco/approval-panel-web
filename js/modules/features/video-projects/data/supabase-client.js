@@ -281,7 +281,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
   }
 
   return {
-    listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: false }),
+    listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: true }),
     getVideoProject: (draftId) => callVideoProjectsRpc({ draftId, limit: 1, includeDetail: true }),
     saveVideoProjectSelections,
     uploadAudioFile,

@@ -79,28 +79,45 @@
   gap: 8px;
 }
 
-.video-project-card__delete {
+.video-project-card .video-project-card__delete {
+  appearance: none;
   display: inline-grid;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   place-items: center;
-  flex: 0 0 32px;
-  border: 1px solid rgba(255, 92, 92, 0.55);
+  flex: 0 0 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid rgba(255, 92, 92, 0.72);
   border-radius: 0;
-  background: rgba(88, 18, 18, 0.72);
-  color: #ffb3b3;
+  background:
+    linear-gradient(135deg, rgba(255, 92, 92, 0.28), rgba(103, 16, 23, 0.94)),
+    rgba(96, 17, 24, 0.92);
+  color: #fff2f2;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 1rem;
+  font-size: 0.82rem;
   font-weight: 800;
   line-height: 1;
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 22px rgba(0, 0, 0, 0.28);
   cursor: pointer;
 }
 
-.video-project-card__delete:hover,
-.video-project-card__delete:focus {
-  border-color: rgba(255, 92, 92, 0.72);
-  background: rgba(128, 26, 26, 0.9);
-  color: #ffd6d6;
+.video-project-card .video-project-card__delete span {
+  display: block;
+  transform: translateY(-0.5px);
+}
+
+.video-project-card .video-project-card__delete:hover,
+.video-project-card .video-project-card__delete:focus {
+  border-color: rgba(255, 118, 118, 0.92);
+  background:
+    linear-gradient(135deg, rgba(255, 118, 118, 0.36), rgba(129, 22, 30, 0.98)),
+    rgba(128, 26, 26, 0.95);
+  color: #ffffff;
   outline: 1px solid rgba(255, 92, 92, 0.55);
   outline-offset: 2px;
 }
@@ -162,7 +179,7 @@
 .video-project-card__phase {
   flex-basis: 100%;
   width: fit-content;
-  margin-top: -2px;
+  margin-top: 2px;
 }
 
 .video-project-card__open {
