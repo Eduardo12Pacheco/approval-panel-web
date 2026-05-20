@@ -35,6 +35,10 @@ export function normalizePreparedContractRows(rows = []) {
       logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
       filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
       transition: row?.transition || 'none',
+      ...(row?.paragraphBoundaryAfter === true ? { paragraphBoundaryAfter: true } : {}),
+      ...(row?.nextRowId ? { nextRowId: row.nextRowId.toString() } : {}),
+      ...(row?.transitionConfig ? { transitionConfig: { ...row.transitionConfig } } : {}),
+      ...(Object.prototype.hasOwnProperty.call(row || {}, 'sfx') ? { sfx: row.sfx } : {}),
     };
   }).filter((row) => row.id);
 }

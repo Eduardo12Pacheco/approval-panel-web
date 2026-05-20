@@ -94,6 +94,18 @@ export function buildCompositionDOM(container) {
   image.draggable = false;
   stage.appendChild(image);
 
+  const whipPrevious = document.createElement('img');
+  whipPrevious.className = 'composition-layer composition-layer--whip-previous';
+  whipPrevious.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+  whipPrevious.draggable = false;
+  stage.appendChild(whipPrevious);
+
+  const whipNext = document.createElement('img');
+  whipNext.className = 'composition-layer composition-layer--whip-next';
+  whipNext.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+  whipNext.draggable = false;
+  stage.appendChild(whipNext);
+
   const dust = document.createElement('video');
   dust.className = 'composition-layer composition-layer--dust';
   dust.style.cssText = `position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;opacity:${DUST_VIDEO_OPACITY};pointer-events:none;visibility:hidden;`;
@@ -146,6 +158,6 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, newspaperBackground, newspaperForeground, newspaperLabel, image, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
+    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, newspaperBackground, newspaperForeground, newspaperLabel, image, whipPrevious, whipNext, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
   };
 }

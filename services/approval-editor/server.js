@@ -41,7 +41,7 @@ function markRenderStatus(store, projectId, latest, renderPatch) {
 }
 
 function errorStatus(error) {
-  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
+  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "invalid_boundary_transition", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
   if (["stale_snapshot"].includes(error.code)) return 409;
   return 500;
@@ -130,8 +130,9 @@ function distributeSegmentsByTextWeight(segments, totalDuration) {
 function normalizeSegments(input = {}) {
   const segments = Array.isArray(input.segments)
     ? input.segments
-    : parseGuionSegments(input.guion_piped || "").map((segment, index) => ({ id: `row-${index + 1}`, phrase: segment.phrase }));
+    : parseGuionSegments(input.guion_piped || "").map((segment, index) => ({ ...segment, id: `row-${index + 1}`, phrase: segment.phrase }));
   const normalized = segments.map((segment, index) => ({
+    ...segment,
     id: String(segment.id || `row-${index + 1}`),
     phrase: String(segment.phrase || segment.text || segment.caption || `Segmento ${index + 1}`).trim(),
   }));
@@ -206,6 +207,7 @@ function buildRowSeeds(segments = []) {
     filter: { enabled: true, mode: "cover" },
     transition: "none",
     sfx: null,
+    ...(segment.paragraphBoundaryAfter === true ? { paragraphBoundaryAfter: true } : {}),
   }));
 }
 

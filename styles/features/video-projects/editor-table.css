@@ -60,6 +60,34 @@
   background: rgba(110, 162, 255, 0.055);
 }
 
+.video-editor-boundary-row td {
+  padding: 8px 12px;
+  background: rgba(0, 232, 143, 0.035);
+}
+
+.video-editor-boundary-connector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px dashed rgba(0, 232, 143, 0.5);
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.video-editor-boundary-connector.is-active {
+  border-style: solid;
+  background: rgba(0, 232, 143, 0.14);
+  color: #fff;
+}
+
 .video-editor-row__time {
   width: 112px;
   color: var(--text);

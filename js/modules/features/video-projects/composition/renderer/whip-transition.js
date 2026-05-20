@@ -1,0 +1,149 @@
+export const WHIP_TRANSITION_DURATION_SECONDS = 0.5;
+export const WHIP_BROWSER_SFX_URL = './assets/sfx/whip.wav';
+export const WHIP_PREVIEW_SFX_VOLUME = 0.85;
+
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function toSafeDuration(value) {
+  const duration = Number(value);
+  return Number.isFinite(duration) && duration > 0 ? duration : WHIP_TRANSITION_DURATION_SECONDS;
+}
+
+function resolveRowId(row = {}) {
+  return (row?.rowId || row?.id || '').toString();
+}
+
+function isActiveWhipBoundary(row = {}, nextRow = null) {
+  if (!row || !nextRow) return false;
+  if (row.paragraphBoundaryAfter !== true) return false;
+  if (String(row.transition || '').trim().toLowerCase() !== 'whip') return false;
+  const expectedNextRowId = (row.nextRowId || '').toString();
+  if (expectedNextRowId && expectedNextRowId !== resolveRowId(nextRow)) return false;
+  return true;
+}
+
+function resolveBoundaryCutTime(row = {}, nextRow = {}) {
+  const nextStart = Number(nextRow?.startTime);
+  if (Number.isFinite(nextStart)) return nextStart;
+  return toFiniteNumber(row?.endTime, toFiniteNumber(row?.effectiveEndTime, 0));
+}
+
+export function buildWhipPreviewEvents(rows = [], { sfxUrl = WHIP_BROWSER_SFX_URL } = {}) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const events = [];
+  for (let index = 0; index < sourceRows.length - 1; index += 1) {
+    const row = sourceRows[index] || {};
+    const nextRow = sourceRows[index + 1] || null;
+    if (!isActiveWhipBoundary(row, nextRow)) continue;
+    const previousImage = (row.image || row.previewUrl || row.selectedAssetId || '').toString();
+    const nextImage = (nextRow?.image || nextRow?.previewUrl || nextRow?.selectedAssetId || '').toString();
+    if (!previousImage || !nextImage) continue;
+    const durationSeconds = toSafeDuration(row.transitionConfig?.durationSeconds);
+    const cutTime = resolveBoundaryCutTime(row, nextRow);
+    const startTime = Math.max(0, Number((cutTime - durationSeconds / 2).toFixed(6)));
+    const endTime = Number((startTime + durationSeconds).toFixed(6));
+    const rowId = resolveRowId(row);
+    const nextRowId = resolveRowId(nextRow);
+    events.push({
+      id: `${rowId || index}->${nextRowId || index + 1}:whip:${cutTime}`,
+      rowId,
+      nextRowId,
+      cutTime,
+      startTime,
+      endTime,
+      durationSeconds,
+      previousImage,
+      nextImage,
+      sfx: row.sfx === 'whip' || row.sfx?.type === 'whip' ? 'whip' : null,
+      sfxUrl,
+      direction: row.transitionConfig?.direction || 'left-to-right',
+    });
+  }
+  return events;
+}
+
+function resolveLayerStyles(progress) {
+  const clamped = Math.max(0, Math.min(1, progress));
+  const previousTranslate = Number((clamped * 110).toFixed(3));
+  const nextTranslate = Number(((1 - clamped) * -24).toFixed(3));
+  const blur = Number((Math.sin(clamped * Math.PI) * 18).toFixed(3));
+  return {
+    previous: {
+      transform: `translate3d(${previousTranslate}%, 0, 0) scale(1.035)`,
+      filter: `blur(${blur}px) contrast(1.08) saturate(0.95)`,
+      opacity: String(Number((1 - clamped * 0.18).toFixed(3))),
+    },
+    next: {
+      transform: `translate3d(${nextTranslate}%, 0, 0) scale(${Number((1.02 - (1 - clamped) * 0.02).toFixed(4))})`,
+      filter: `blur(${Number((blur * 0.72).toFixed(3))}px) contrast(1.04) saturate(0.96)`,
+      opacity: String(Number((0.72 + clamped * 0.28).toFixed(3))),
+    },
+  };
+}
+
+export function resolveWhipPreviewFrame(time, events = []) {
+  const currentTime = Number(time);
+  if (!Number.isFinite(currentTime)) return null;
+  const event = (Array.isArray(events) ? events : []).find((item) => currentTime >= item.startTime && currentTime <= item.endTime);
+  if (!event) return null;
+  const progress = Math.max(0, Math.min(1, Number(((currentTime - event.startTime) / event.durationSeconds).toFixed(6))));
+  const styles = resolveLayerStyles(progress);
+  return {
+    event,
+    progress,
+    previous: { src: event.previousImage, ...styles.previous },
+    next: { src: event.nextImage, ...styles.next },
+  };
+}
+
+function applyLayerState(layer, state) {
+  if (!layer) return;
+  layer.draggable = false;
+  if (!state) {
+    layer.style.visibility = 'hidden';
+    return;
+  }
+  if (layer.src !== state.src) layer.src = state.src;
+  layer.style.visibility = 'visible';
+  layer.style.transform = state.transform;
+  layer.style.filter = state.filter;
+  layer.style.opacity = state.opacity;
+}
+
+export function applyWhipOverlayLayers(layers = {}, frame = null) {
+  applyLayerState(layers.whipPrevious, frame?.previous || null);
+  applyLayerState(layers.whipNext, frame?.next || null);
+}
+
+export function createWhipSfxScheduler({ audioFactory } = {}) {
+  const played = new Set();
+  const createAudio = typeof audioFactory === 'function'
+    ? audioFactory
+    : (src) => (typeof Audio === 'function' ? new Audio(src) : null);
+  return {
+    schedule({ event = null, currentTime = 0, playing = false } = {}) {
+      if (!playing || !event || event.sfx !== 'whip' || !event.sfxUrl) return false;
+      const time = Number(currentTime);
+      if (!Number.isFinite(time) || time < event.cutTime || time > event.endTime) return false;
+      const key = `${event.id}:sfx`;
+      if (played.has(key)) return false;
+      played.add(key);
+      try {
+        const audio = createAudio(event.sfxUrl);
+        if (!audio) return false;
+        audio.currentTime = 0;
+        audio.volume = WHIP_PREVIEW_SFX_VOLUME;
+        void audio.play?.().catch?.(() => {});
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    reset() {
+      played.clear();
+    },
+  };
+}

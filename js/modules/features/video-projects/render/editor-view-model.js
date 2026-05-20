@@ -234,6 +234,13 @@ export function buildEditorRowsTableViewModel(rows = [], { selectedRowId, rowIma
       uploadLabel: uploadingThisRow ? 'Subiendo…' : 'Cambiar imagen',
       mediaKind: row?.media?.kind === 'video-segment' ? 'video-segment' : 'image',
       videoSrc,
+      boundaryConnector: row?.paragraphBoundaryAfter === true && row?.nextRowId
+        ? {
+          rowId: row.id,
+          nextRowId: row.nextRowId.toString(),
+          active: row.transition === 'whip',
+        }
+        : null,
     };
   });
 }

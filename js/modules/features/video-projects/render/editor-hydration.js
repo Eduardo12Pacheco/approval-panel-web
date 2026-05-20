@@ -40,6 +40,7 @@ export function hydrateEditorPhaseInteractions({
   const previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
   hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow });
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
+  hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
@@ -56,6 +57,21 @@ export function hydrateEditorPhaseInteractions({
     goToAudioStep?.();
   });
   root.querySelector('[data-action="export-final"]')?.addEventListener('click', () => exportFinal?.());
+}
+
+export function hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject } = {}) {
+  const buttons = [...(root?.querySelectorAll?.('[data-action="set-boundary-transition"]') || [])];
+  buttons.forEach((button) => {
+    button.addEventListener('click', async () => {
+      const rowId = button.dataset.rowId || '';
+      const nextRowId = button.dataset.nextRowId || '';
+      const transition = button.dataset.transition === 'whip' ? 'whip' : 'none';
+      if (!rowId || !nextRowId) return;
+      await updateRow?.(rowId, { boundaryTransition: transition, nextRowId });
+      renderSelectedVideoProject?.();
+    });
+  });
+  return buttons.length;
 }
 
 export function hydrateRowImageSwapControls({ root, editorRows = [], updateRow, swapRowImages } = {}) {

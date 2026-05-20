@@ -6,8 +6,11 @@ import {
   OUTRO_DURATION_SECONDS,
   PRELOAD_IMAGE_WINDOW_SIZE,
   buildCompositionDOM,
+  applyWhipOverlayLayers,
   buildVideoSegmentPreviewLayerPlan,
+  buildWhipPreviewEvents,
   clearManagedVideoElement,
+  createWhipSfxScheduler,
   drawChromaKeyVideoFrame,
   finitePositive,
   interpolateLinear,
@@ -18,12 +21,13 @@ import {
   resolveCoverPanLayer,
   resolveMediaMode,
   resolveNewspaperImageStyles,
+  resolveWhipPreviewFrame,
   resolveZoomRange,
   shouldChromaKeyLogo,
   syncManagedVideoElement,
 } from './renderer/index.js?v=20260520-newspaper-polish';
 
-export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, secondsToFrame, syncManagedVideoElement } from './renderer/index.js?v=20260520-newspaper-polish';
+export { applyWhipOverlayLayers, buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, buildWhipPreviewEvents, clearManagedVideoElement, createWhipSfxScheduler, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, resolveWhipPreviewFrame, secondsToFrame, syncManagedVideoElement } from './renderer/index.js?v=20260520-newspaper-polish';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the
@@ -31,7 +35,7 @@ export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVid
 
 export class CompositionRenderer {
   #container; #fps; #currentTime; #isPlaying; #assetsReady; #rows;
-  #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #rafId; #audioStartToken;
+  #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #whipSfx; #rafId; #audioStartToken;
   #viewportWidth; #viewportHeight; #frameCount;
 
   constructor({ container, fps = DEFAULT_FPS }) {
@@ -46,6 +50,7 @@ export class CompositionRenderer {
     this.#videoPreloadCache = new Map();
     this.#activeSegmentKey = null;
     this.#audio = new AudioManager();
+    this.#whipSfx = createWhipSfxScheduler();
     this.#rafId = null;
     this.#audioStartToken = 0;
     this.#frameCount = 0;
@@ -170,6 +175,7 @@ export class CompositionRenderer {
 
   update({ rows } = {}) {
     this.#rows = Array.isArray(rows) ? rows : [];
+    this.#whipSfx?.reset?.();
     this.#renderFrame();
   }
 
@@ -267,6 +273,8 @@ export class CompositionRenderer {
     this.pause();
     this.#audio.destroy();
     this.#audio = null;
+    this.#whipSfx?.reset?.();
+    this.#whipSfx = null;
 
     if (this.#dom?.stage?.parentNode) {
       this.#dom.stage.parentNode.removeChild(this.#dom.stage);
@@ -395,6 +403,7 @@ export class CompositionRenderer {
       layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'hidden';
       layers.outroVideo.style.visibility = 'hidden';
+      applyWhipOverlayLayers(layers, null);
       this.#activeSegmentKey = null;
       return;
     }
@@ -411,6 +420,7 @@ export class CompositionRenderer {
       layers.logoVideo.style.visibility = 'hidden';
       layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'visible';
+      applyWhipOverlayLayers(layers, null);
       if (this._outroUrl) {
         layers.outroVideo.style.visibility = 'visible';
         layers.outroText.style.visibility = 'hidden';
@@ -427,6 +437,10 @@ export class CompositionRenderer {
     }
 
     const { segment, localProgress, localTime } = resolved;
+    const whipEvents = buildWhipPreviewEvents(this.#rows);
+    const whipFrame = resolveWhipPreviewFrame(this.#currentTime, whipEvents);
+    applyWhipOverlayLayers(layers, whipFrame);
+    this.#whipSfx?.schedule?.({ event: whipFrame?.event, currentTime: this.#currentTime, playing: this.#isPlaying });
     const segmentKey = segment.image || '';
 
     layers.outro.style.visibility = 'hidden';

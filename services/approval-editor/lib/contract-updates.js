@@ -3,6 +3,9 @@ const { normalizeAsset } = require("./asset-resolver");
 const { findMotionPreset } = require("./motion-presets");
 const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
+const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
+const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/whip.wav" };
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -49,6 +52,44 @@ function normalizeVideoSegmentOperation(row, op = {}) {
     effect1AssetId: "effect-layer-01",
     effect2AssetId: "effect-layer-02",
   };
+}
+
+function rowIdOf(row = {}) {
+  return (row.rowId || row.id || "").toString();
+}
+
+function createInvalidBoundaryTransitionError(message, details) {
+  return Object.assign(new Error(message), { code: "invalid_boundary_transition", details });
+}
+
+function applyBoundaryTransition(next, op = {}) {
+  const row = findRow(next, op.rowId);
+  const rowIndex = next.rows.findIndex((candidate) => candidate === row);
+  const expectedNextRowId = (op.nextRowId || row.nextRowId || "").toString().trim();
+  const adjacentNextRowId = rowIdOf(next.rows[rowIndex + 1]);
+  const transition = (op.transition || "none").toString().trim().toLowerCase();
+
+  if (row.paragraphBoundaryAfter !== true || !expectedNextRowId || row.nextRowId !== expectedNextRowId || adjacentNextRowId !== expectedNextRowId) {
+    throw createInvalidBoundaryTransitionError("boundary transition requires an eligible outgoing paragraph boundary", {
+      rowId: rowIdOf(row),
+      nextRowId: expectedNextRowId || null,
+      paragraphBoundaryAfter: row.paragraphBoundaryAfter === true,
+    });
+  }
+  if (transition !== "none" && transition !== "whip") {
+    throw createInvalidBoundaryTransitionError("boundary transition must be none or whip", { transition });
+  }
+
+  if (transition === "none") {
+    row.transition = "none";
+    delete row.transitionConfig;
+    row.sfx = null;
+    return;
+  }
+
+  row.transition = "whip";
+  row.transitionConfig = { ...WHIP_TRANSITION_CONFIG, direction: op.direction || WHIP_TRANSITION_CONFIG.direction };
+  row.sfx = { ...WHIP_SFX };
 }
 
 function finalize(next) {
@@ -156,6 +197,8 @@ function applyContractOperations(snapshot, operations = []) {
         next.audio[kind].assetId = asset.assetId;
         next.audio[`${kind}AssetId`] = asset.assetId;
       }
+    } else if (op.type === "setBoundaryTransition") {
+      applyBoundaryTransition(next, op);
     } else {
       throw Object.assign(new Error(`unsupported operation: ${op.type}`), { code: "unsupported_operation" });
     }
