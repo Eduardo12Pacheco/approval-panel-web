@@ -115,6 +115,8 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.label.top, '40px', 'Expected newspaper label block to stay top anchored');
   assertEqual(newspaperStart.label.transform, 'none', 'Expected newspaper label to avoid translateX centering');
   assertEqual(newspaperStart.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request the installed Versa Versa face first with honest fallbacks');
+  assertEqual(newspaperStart.label.fontSize, '16px', 'Expected newspaper label to be reduced to a small upper-right stamp size');
+  assertEqual(newspaperStart.label.lineHeight, 1.12, 'Expected newspaper label leading to separate RECREACIÓN and ARTÍSTICA slightly');
 
   const versaFontPath = path.join(controlPanelRoot, 'assets/fonts/versa/Versa-Versa.woff2');
   if (!fs.existsSync(versaFontPath)) {

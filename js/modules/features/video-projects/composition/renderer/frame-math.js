@@ -2,7 +2,8 @@ const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
 const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.1 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
 const NEWSPAPER_LABEL_FONT_FAMILY = '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif';
-const NEWSPAPER_LABEL_FONT_SIZE = 30;
+const NEWSPAPER_LABEL_FONT_SIZE = 16;
+const NEWSPAPER_LABEL_LINE_HEIGHT = 1.12;
 const NEWSPAPER_LABEL_TOP = 40;
 const NEWSPAPER_LABEL_RIGHT = 40;
 
@@ -158,6 +159,7 @@ export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
       lines: ['RECREACIÓN', 'ARTÍSTICA'],
       fontFamily: NEWSPAPER_LABEL_FONT_FAMILY,
       fontSize: `${NEWSPAPER_LABEL_FONT_SIZE}px`,
+      lineHeight: NEWSPAPER_LABEL_LINE_HEIGHT,
       left: 'auto',
       right: `${NEWSPAPER_LABEL_RIGHT}px`,
       top: `${NEWSPAPER_LABEL_TOP}px`,
