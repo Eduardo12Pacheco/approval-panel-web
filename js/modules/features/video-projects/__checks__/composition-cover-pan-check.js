@@ -113,6 +113,9 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.label.left, 'auto', 'Expected newspaper label to avoid global horizontal centering');
   assertEqual(newspaperStart.label.right, '40px', 'Expected newspaper label block to sit in the upper-right area');
   assertEqual(newspaperStart.label.top, '40px', 'Expected newspaper label block to stay top anchored');
+  assertEqual(newspaperStart.label.bottom, 'auto', 'Expected newspaper label to undo the shared layer inset bottom');
+  assertEqual(newspaperStart.label.width, 'max-content', 'Expected newspaper label backing to wrap the text only');
+  assertEqual(newspaperStart.label.height, 'auto', 'Expected newspaper label backing to avoid stretching vertically');
   assertEqual(newspaperStart.label.transform, 'none', 'Expected newspaper label to avoid translateX centering');
   assertEqual(newspaperStart.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request the installed Versa Versa face first with honest fallbacks');
   assertEqual(newspaperStart.label.fontSize, '18px', 'Expected newspaper label to use the shared 18px preview/render contract size');
@@ -127,6 +130,9 @@ export function runCompositionCoverPanCheck() {
   }
   if (!domSource.includes('background:rgba(255,255,255,0.9)')) {
     throw new Error('Expected newspaper preview DOM fallback style to keep the label readable on dark images');
+  }
+  if (!domSource.includes('bottom:auto;width:max-content;height:auto')) {
+    throw new Error('Expected newspaper preview DOM fallback style to undo shared composition-layer inset stretching');
   }
 
   const versaFontPath = path.join(controlPanelRoot, 'assets/fonts/versa/Versa-Versa.woff2');

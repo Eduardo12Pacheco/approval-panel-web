@@ -507,6 +507,9 @@ export class CompositionRenderer {
       layers.newspaperLabel.style.left = newspaperStyles.label.left;
       layers.newspaperLabel.style.right = newspaperStyles.label.right;
       layers.newspaperLabel.style.top = newspaperStyles.label.top;
+      layers.newspaperLabel.style.bottom = newspaperStyles.label.bottom;
+      layers.newspaperLabel.style.width = newspaperStyles.label.width;
+      layers.newspaperLabel.style.height = newspaperStyles.label.height;
       layers.newspaperLabel.style.transform = newspaperStyles.label.transform;
       layers.newspaperLabel.style.textAlign = newspaperStyles.label.textAlign;
       layers.newspaperLabel.style.background = newspaperStyles.label.background;
