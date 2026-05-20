@@ -94,6 +94,72 @@ function generatedFolderForAsset(asset = {}) {
   return "assets";
 }
 
+function normalizeEditorAssetSource(source = {}, fallbackKind = "api-candidate") {
+  const kind = String(source?.kind || fallbackKind || "api-candidate").trim();
+  if (["local", "api-candidate", "generated"].includes(kind)) return { ...source, kind };
+  return { ...source, kind: fallbackKind };
+}
+
+function normalizeEditorAssetRecord(assetId, asset = {}, fallback = {}) {
+  const id = String(asset?.assetId || asset?.id || assetId || fallback.id || "").trim();
+  if (!id) return null;
+  const rawType = String(asset?.type || asset?.role || fallback.type || "image").toLowerCase();
+  const type = rawType === "voice" ? "audio" : rawType === "photo" ? "image" : rawType;
+  if (!["image", "audio", "music", "logo", "outro", "video"].includes(type)) return null;
+  const source = normalizeEditorAssetSource(asset?.source, type === "logo" || type === "outro" || type === "video" ? "local" : "api-candidate");
+  const publicPath = [asset?.publicPath, asset?.publicUrl, asset?.previewUrl, asset?.renderPath, asset?.localPath, asset?.url]
+    .find((entry) => typeof entry === "string" && entry.trim());
+  return {
+    ...asset,
+    id,
+    type,
+    source,
+    ...(asset?.localPath && !isHttpUrl(asset.localPath) ? { localPath: asset.localPath } : {}),
+    ...(publicPath ? { publicPath } : {}),
+    ...(Number.isFinite(Number(asset?.durationSeconds)) ? { durationSeconds: Number(asset.durationSeconds) } : {}),
+    status: asset?.status || "ready",
+  };
+}
+
+function resolveRowSelectedAsset(row = {}) {
+  const selectedAssetId = String(row?.selectedAssetId || "").trim();
+  if (!selectedAssetId) return null;
+  const candidates = Array.isArray(row?.candidates) ? row.candidates : [];
+  const matchingCandidate = candidates.find((candidate) => [candidate?.assetId, candidate?.id].some((value) => String(value || "") === selectedAssetId));
+  if (matchingCandidate) return normalizeEditorAssetRecord(selectedAssetId, matchingCandidate, { type: "image" });
+  if (isHttpUrl(selectedAssetId)) {
+    return normalizeEditorAssetRecord(selectedAssetId, { id: selectedAssetId, type: "image", source: { kind: "api-candidate" }, publicPath: selectedAssetId, previewUrl: selectedAssetId, renderPath: selectedAssetId }, { type: "image" });
+  }
+  const rowImageSource = [row?.publicPath, row?.publicUrl, row?.previewUrl, row?.renderPath, row?.imageUrl, row?.image]
+    .find((entry) => typeof entry === "string" && entry.trim());
+  if (rowImageSource) return normalizeEditorAssetRecord(selectedAssetId, { id: selectedAssetId, type: "image", source: { kind: "api-candidate" }, publicPath: rowImageSource, previewUrl: rowImageSource, renderPath: rowImageSource }, { type: "image" });
+  return null;
+}
+
+function buildScaffoldAssets(snapshot = {}) {
+  const assetsById = new Map();
+  const addAsset = (assetId, asset, fallback) => {
+    const normalized = normalizeEditorAssetRecord(assetId, asset, fallback);
+    if (normalized) assetsById.set(normalized.id, normalized);
+  };
+
+  const snapshotAssets = snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {};
+  for (const [assetId, asset] of Object.entries(snapshotAssets)) addAsset(assetId, asset, {});
+
+  const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
+  for (const [assetId, asset] of Object.entries(buildBrandAssetRecords(channelAssets))) addAsset(assetId, asset, {});
+
+  for (const row of Array.isArray(snapshot?.rows) ? snapshot.rows : []) {
+    const selectedAssetId = String(row?.selectedAssetId || "").trim();
+    if (selectedAssetId && !assetsById.has(selectedAssetId)) {
+      const rowAsset = resolveRowSelectedAsset(row);
+      if (rowAsset) assetsById.set(rowAsset.id, rowAsset);
+    }
+  }
+
+  return Array.from(assetsById.values());
+}
+
 function firstRenderableSource(asset = {}) {
   return [asset.renderPath, asset.localPath, asset.publicPath, asset.publicUrl, asset.url, asset.previewUrl]
     .find((entry) => typeof entry === "string" && entry.trim());
@@ -237,16 +303,18 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
     };
   });
 
+  const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
+
   return {
     schemaVersion: 1,
     projectId,
     title: title || projectId,
     fps: 30,
     canvas: { width: 1280, height: 720 },
-    assets: [],
+    assets: buildScaffoldAssets(snapshot),
     globalLayers: {
-      logoAssetId: snapshot?.globalLayers?.logoAssetId || snapshot?.globalLayers?.logo?.assetId || null,
-      outroAssetId: snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || null,
+      logoAssetId: snapshot?.globalLayers?.logoAssetId || snapshot?.globalLayers?.logo?.assetId || channelAssets.logo.assetId,
+      outroAssetId: snapshot?.globalLayers?.outroAssetId || snapshot?.globalLayers?.outro?.assetId || channelAssets.outro.assetId,
       logo: { enabled: snapshot?.globalLayers?.logo?.enabled !== false, position: "top-left" },
       dustDefault: snapshot?.globalLayers?.dustDefault !== false,
       filterDefault: true,
