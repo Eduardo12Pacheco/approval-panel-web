@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer } from '../composition/composition-renderer.js';
+import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveNewspaperImageStyles } from '../composition/composition-renderer.js';
 import {
   LOGO_HEIGHT,
   LOGO_LEFT,
@@ -92,6 +92,21 @@ export function runCompositionCoverPanCheck() {
   assertEqual(LOGO_TOP, 38, 'Expected chroma fix to preserve logo top placement');
   assertEqual(LOGO_WIDTH, 220, 'Expected chroma fix to preserve logo width');
   assertEqual(LOGO_HEIGHT, 124, 'Expected chroma fix to preserve logo height');
+
+  const newspaperStart = resolveNewspaperImageStyles({ progress: 0 });
+  const newspaperEnd = resolveNewspaperImageStyles({ progress: 1 });
+  assertEqual(newspaperStart.background.objectFit, 'cover', 'Expected newspaper background to stay cover');
+  assertEqual(newspaperStart.background.objectPosition, 'center top', 'Expected newspaper background to stay top anchored');
+  assertEqual(newspaperStart.background.filter, 'blur(15px)', 'Expected newspaper background to stay blurred at 15px');
+  assertEqual(newspaperStart.foreground.objectFit, 'contain', 'Expected newspaper foreground to stay contained');
+  assertEqual(newspaperStart.foreground.objectPosition, 'center center', 'Expected newspaper foreground zoom to stay vertically centered');
+  assertEqual(newspaperStart.foreground.transformOrigin, 'center center', 'Expected newspaper foreground zoom origin to stay centered');
+  assertEqual(newspaperStart.foreground.transform, 'scale(1)', 'Expected newspaper foreground to start at 100%');
+  assertEqual(newspaperEnd.foreground.transform, 'scale(1.1)', 'Expected newspaper foreground to end at Zoom 110');
+  assertEqual(newspaperStart.label.textAlign, 'center', 'Expected newspaper label text to be centered');
+  assertEqual(newspaperStart.label.left, '50%', 'Expected newspaper label to use symmetric horizontal positioning');
+  assertEqual(newspaperStart.label.transform, 'translateX(-50%)', 'Expected newspaper label to center itself from the middle');
+  assertEqual(newspaperStart.label.fontFamily, 'Versa, VERSA, Inter, Arial, sans-serif', 'Expected newspaper label to request real Versa first with honest fallbacks');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -1,6 +1,7 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
-const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
+const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.1 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
+// Versa is requested first; no local Versa font asset is bundled, so the browser falls back honestly when unavailable.
 const NEWSPAPER_LABEL_FONT_FAMILY = 'Versa, VERSA, Inter, Arial, sans-serif';
 const NEWSPAPER_LABEL_FONT_SIZE = 30;
 
@@ -148,14 +149,18 @@ export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
       width: '100%',
       height: '100%',
       objectFit: 'contain',
-      objectPosition: 'center top',
+      objectPosition: 'center center',
       transform: `scale(${Number(scale.toFixed(4))})`,
-      transformOrigin: 'center top',
+      transformOrigin: 'center center',
     },
     label: {
       lines: ['RECREACIÓN', 'ARTÍSTICA'],
       fontFamily: NEWSPAPER_LABEL_FONT_FAMILY,
       fontSize: `${NEWSPAPER_LABEL_FONT_SIZE}px`,
+      left: '50%',
+      right: 'auto',
+      transform: 'translateX(-50%)',
+      textAlign: 'center',
     },
   };
 }

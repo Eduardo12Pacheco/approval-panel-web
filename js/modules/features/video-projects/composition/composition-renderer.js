@@ -504,6 +504,10 @@ export class CompositionRenderer {
       layers.newspaperForeground.style.transformOrigin = newspaperStyles.foreground.transformOrigin;
       layers.newspaperLabel.style.fontFamily = newspaperStyles.label.fontFamily;
       layers.newspaperLabel.style.fontSize = newspaperStyles.label.fontSize;
+      layers.newspaperLabel.style.left = newspaperStyles.label.left;
+      layers.newspaperLabel.style.right = newspaperStyles.label.right;
+      layers.newspaperLabel.style.transform = newspaperStyles.label.transform;
+      layers.newspaperLabel.style.textAlign = newspaperStyles.label.textAlign;
     }
 
     const zoom = resolveZoomRange(segment.motion);
