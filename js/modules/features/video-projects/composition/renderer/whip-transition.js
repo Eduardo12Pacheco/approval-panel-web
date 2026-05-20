@@ -120,14 +120,19 @@ export function applyWhipOverlayLayers(layers = {}, frame = null) {
 
 export function createWhipSfxScheduler({ audioFactory } = {}) {
   const played = new Set();
+  let lastTime = null;
   const createAudio = typeof audioFactory === 'function'
     ? audioFactory
     : (src) => (typeof Audio === 'function' ? new Audio(src) : null);
   return {
     schedule({ event = null, currentTime = 0, playing = false } = {}) {
-      if (!playing || !event || event.sfx !== 'whip' || !event.sfxUrl) return false;
       const time = Number(currentTime);
-      if (!Number.isFinite(time) || time < event.cutTime || time > event.endTime) return false;
+      if (!Number.isFinite(time)) return false;
+      if (lastTime !== null && time < lastTime) played.clear();
+      lastTime = time;
+      if (!playing || !event || event.sfx !== 'whip' || !event.sfxUrl) return false;
+      const sfxStartTime = Number.isFinite(Number(event.sfxStartTime)) ? Number(event.sfxStartTime) : event.startTime;
+      if (time < sfxStartTime || time > event.endTime) return false;
       const key = `${event.id}:sfx`;
       if (played.has(key)) return false;
       played.add(key);
@@ -144,6 +149,7 @@ export function createWhipSfxScheduler({ audioFactory } = {}) {
     },
     reset() {
       played.clear();
+      lastTime = null;
     },
   };
 }

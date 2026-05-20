@@ -108,7 +108,7 @@ function testWhipOverlayDomWiringAppliesAndHidesLayers() {
   assertEqual(layers.whipNext.style.visibility, 'hidden', 'Expected next Whip layer to hide after event');
 }
 
-function testWhipSfxSchedulerIsOneShotAndNonBlocking() {
+function testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind() {
   const calls = [];
   const scheduler = createWhipSfxScheduler({
     audioFactory(src) {
@@ -128,14 +128,17 @@ function testWhipSfxSchedulerIsOneShotAndNonBlocking() {
     { id: 'row-b', startTime: 1, endTime: 2, image: 'next.jpg' },
   ]);
 
-  assertEqual(scheduler.schedule({ event, currentTime: 0.99, playing: true }), false, 'Expected SFX not to play before cut');
-  assertEqual(scheduler.schedule({ event, currentTime: 1, playing: true }), true, 'Expected SFX to play at cut');
-  assertEqual(scheduler.schedule({ event, currentTime: 1.01, playing: true }), false, 'Expected SFX not to replay for the same boundary');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.74, playing: true }), false, 'Expected SFX not to play before the visual Whip starts');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.75, playing: true }), true, 'Expected SFX to play when the visual Whip starts');
+  assertEqual(scheduler.schedule({ event, currentTime: 1.01, playing: true }), false, 'Expected SFX not to replay for the same forward pass');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.5, playing: false }), false, 'Expected paused rewind not to schedule SFX');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.75, playing: true }), true, 'Expected SFX to replay after rewinding before the boundary');
   assertEqual(scheduler.schedule({ event, currentTime: 1, playing: false }), false, 'Expected paused preview not to schedule SFX');
-  assertEqual(calls.length, 2, 'Expected one audio element creation and one play call');
+  assertEqual(calls.length, 4, 'Expected two audio element creations and two play calls');
   assertEqual(calls[0].src, WHIP_BROWSER_SFX_URL, 'Expected SFX scheduler to use local Whip asset');
   assertEqual(calls[1].currentTime, 0, 'Expected SFX playback to start from the beginning');
   assertEqual(calls[1].volume, 0.85, 'Expected SFX playback to use safe preview volume');
+  assertEqual(calls[3].currentTime, 0, 'Expected replayed SFX playback to restart from the beginning');
 }
 
 export async function runCompositionWhipPreviewCheck() {
@@ -143,7 +146,7 @@ export async function runCompositionWhipPreviewCheck() {
   testWhipEventMathIgnoresInactiveAndIneligibleRows();
   testWhipFrameStylesMoveOutgoingRightAndIncomingSettles();
   testWhipOverlayDomWiringAppliesAndHidesLayers();
-  testWhipSfxSchedulerIsOneShotAndNonBlocking();
+  testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
