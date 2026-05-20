@@ -159,6 +159,11 @@ export function runCompositionCoverPanCheck() {
   assertEqual(FINAL_OUTRO_GAP_SECONDS, 2, 'Expected final outro gap to stay at two seconds');
   assertEqual(rowsWithOutroGap[0].effectiveEndTime, 1, 'Expected non-final preview row to keep next-row boundary');
   assertEqual(rowsWithOutroGap[1].effectiveEndTime, 5, 'Expected final preview row to extend through two-second pre-outro gap');
+
+  const compositionRendererSource = fs.readFileSync(path.join(controlPanelRoot, 'js/modules/features/video-projects/composition/composition-renderer.js'), 'utf8');
+  if (/async\s+#startAudioForToken/.test(compositionRendererSource) || /await\s+this\.#audio\.init\(\)/.test(compositionRendererSource)) {
+    throw new Error('Expected preview audio startup to remain synchronous with the play gesture so browser autoplay policy does not silence voice/music');
+  }
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

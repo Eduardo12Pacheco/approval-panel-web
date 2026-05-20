@@ -139,7 +139,7 @@ export class AudioManager {
    *
    * @returns {Promise<boolean>} true if audio pipeline is ready
    */
-  async init() {
+  init() {
     if (this.#audioCtx && this.#audioReady) return true;
 
     try {

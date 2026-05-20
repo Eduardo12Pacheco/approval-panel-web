@@ -189,16 +189,15 @@ export class CompositionRenderer {
 
   #scheduleAudioStart() {
     const token = ++this.#audioStartToken;
-    void this.#startAudioForToken(token);
+    this.#startAudioForToken(token);
   }
 
-  async #startAudioForToken(token) {
-    const audioOk = await this.#audio.init();
+  #startAudioForToken(token) {
+    const audioOk = this.#audio.init();
     if (!audioOk || token !== this.#audioStartToken || !this.#isPlaying) return;
 
     if (audioOk && this.#audio.ctx) {
-      await this.#audio.resume();
-      if (token !== this.#audioStartToken || !this.#isPlaying) return;
+      void this.#audio.resume().catch(() => {});
 
       this.#audio.stopSources();
       const sources = this.#audio.createSources();
