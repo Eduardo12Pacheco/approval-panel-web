@@ -21,9 +21,9 @@ import {
   resolveZoomRange,
   shouldChromaKeyLogo,
   syncManagedVideoElement,
-} from './renderer/index.js';
+} from './renderer/index.js?v=20260520-newspaper-effect';
 
-export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
+export { buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, clearManagedVideoElement, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, secondsToFrame, syncManagedVideoElement } from './renderer/index.js?v=20260520-newspaper-effect';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the
