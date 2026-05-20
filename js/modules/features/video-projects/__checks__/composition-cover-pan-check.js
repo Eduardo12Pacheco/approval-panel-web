@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveActiveImageDimensions, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveNewspaperImageStyles } from '../composition/composition-renderer.js';
 import { FINAL_OUTRO_GAP_SECONDS, computeEffectiveSegmentTimes } from '../composition/composition-contract.js';
+import { resolvePreparedMediaUrl } from '../composition/composition-contract.js';
 import {
   LOGO_HEIGHT,
   LOGO_LEFT,
@@ -164,6 +165,12 @@ export function runCompositionCoverPanCheck() {
   if (/async\s+#startAudioForToken/.test(compositionRendererSource) || /await\s+this\.#audio\.init\(\)/.test(compositionRendererSource)) {
     throw new Error('Expected preview audio startup to remain synchronous with the play gesture so browser autoplay policy does not silence voice/music');
   }
+
+  assertEqual(
+    resolvePreparedMediaUrl('/api/projects/demo/files/audio/voice-preview.mp3', 'https://api.example.test/approval'),
+    'https://api.example.test/approval/api/projects/demo/files/audio/voice-preview.mp3',
+    'Expected preview audio URLs to preserve the Approval Pipeline base path',
+  );
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

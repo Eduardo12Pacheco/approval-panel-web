@@ -61,6 +61,13 @@ export function resolvePreparedMediaUrl(rawUrl = '', remotionApiUrl = '') {
   const baseUrl = toTrimmedString(remotionApiUrl);
   if (!baseUrl) return value;
   try {
+    if (value.startsWith('/')) {
+      const base = new URL(baseUrl);
+      const basePath = base.pathname.replace(/\/+$/, '');
+      if (basePath && basePath !== '/') {
+        return new URL(`${basePath}${value}`, base.origin).toString();
+      }
+    }
     return new URL(value, `${baseUrl.replace(/\/+$/, '')}/`).toString();
   } catch {
     return value;
