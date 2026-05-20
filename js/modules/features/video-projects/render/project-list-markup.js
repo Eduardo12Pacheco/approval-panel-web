@@ -5,7 +5,7 @@ import {
   resolveStoragePublicUrl,
 } from '../domain/image-candidates.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from '../domain/project-identity.js';
-import { getProjectPhaseLabel } from '../domain/status-labels.js';
+import { getProjectPhaseLabel } from '../domain/status-labels.js?v=20260519-project-card-polish';
 
 function resolveProjectThumbnailUrl(project = {}) {
   const firstImageUrl = (project.first_image_url || '').toString().trim();

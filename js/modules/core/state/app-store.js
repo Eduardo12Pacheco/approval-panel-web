@@ -179,13 +179,15 @@ const SERVICE_BASE_FIELD = Object.freeze({
   remotion: 'remotionApiUrl',
 });
 
-function hasPartialLegacyBaseOverride(rawSettings, service) {
+function hasPartialLegacyBaseOverride(rawSettings, service, { locationLike = globalThis?.location } = {}) {
   const field = SERVICE_BASE_FIELD[service];
   if (!field || !rawSettings || typeof rawSettings !== 'object') return false;
+  const storedValue = (rawSettings[field] || '').toString().trim();
+  if (service === 'subtitles' && isRemoteBrowserContext(locationLike) && isLocalServiceUrl(storedValue)) return false;
   return !Object.prototype.hasOwnProperty.call(rawSettings, 'apiProfileMode')
     && !Object.prototype.hasOwnProperty.call(rawSettings, 'serviceOverrides')
     && Object.prototype.hasOwnProperty.call(rawSettings, field)
-    && Boolean((rawSettings[field] || '').toString().trim());
+    && Boolean(storedValue);
 }
 
 function shouldUseUnifiedService(settings, service, rawSettings = {}) {

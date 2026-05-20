@@ -298,6 +298,35 @@ if (approvalPipeline.baseUrl !== 'https://api.automatizacionedun8n.me/approval')
     assert result.returncode == 0, result.stderr
 
 
+def test_remote_pages_context_routes_legacy_local_subtitles_through_gateway():
+    script = r"""
+import { resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const legacySettings = {
+  baseUrl: 'https://n8n.automatizacionedun8n.me',
+  ttsBaseUrl: 'https://tts-api.automatizacionedun8n.me',
+  subtitlesBaseUrl: 'http://127.0.0.1:8092',
+};
+
+const originalLocation = globalThis.location;
+Object.defineProperty(globalThis, 'location', {
+  value: { hostname: 'approval-panel-web.pages.dev' },
+  configurable: true,
+});
+
+try {
+  const subtitles = resolveServiceConfig(legacySettings, 'subtitles');
+  if (subtitles.baseUrl !== 'https://api.automatizacionedun8n.me/subtitles') {
+    throw new Error(`remote legacy local subtitles should use gateway, got ${subtitles.baseUrl}`);
+  }
+} finally {
+  Object.defineProperty(globalThis, 'location', { value: originalLocation, configurable: true });
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_saving_simple_profile_preserves_existing_service_overrides():
     script = r"""
 import { defaultSettingsFactory, mergeSettingsForSave } from './js/modules/core/state/app-store.js';

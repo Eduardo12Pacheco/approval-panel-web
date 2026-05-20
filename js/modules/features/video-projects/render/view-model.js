@@ -2,7 +2,7 @@ import {
   isBlockedImageCandidate,
   orderCandidatesByQuality,
 } from '../domain/image-candidates.js';
-import { getStatusLabel } from '../domain/status-labels.js';
+import { getStatusLabel } from '../domain/status-labels.js?v=20260519-project-card-polish';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';

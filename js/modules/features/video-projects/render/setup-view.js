@@ -1,7 +1,7 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { DEFAULT_BACKGROUND_MUSIC_TRACKS } from '../audio/default-background-music.js';
 import { formatCount } from '../domain/formatters.js';
-import { getPhaseLabel } from '../domain/status-labels.js';
+import { getPhaseLabel } from '../domain/status-labels.js?v=20260519-project-card-polish';
 import {
   getCandidateQualityScore,
   getImageNaturalQualityScore,
