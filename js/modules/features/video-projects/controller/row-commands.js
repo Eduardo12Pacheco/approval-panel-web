@@ -59,6 +59,10 @@ function isMotionRowPatch(patch = {}) {
   return hasOwnPatchValue(patch, 'motion') || hasOwnPatchValue(patch, 'motionPresetId');
 }
 
+function isMediaModeRowPatch(patch = {}) {
+  return hasOwnPatchValue(patch, 'mediaMode') || hasOwnPatchValue(patch, 'media');
+}
+
 function resolveMotionPatchForApprovalService(motion) {
   if (motion && typeof motion === 'object') {
     const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
@@ -161,7 +165,11 @@ export function createRowCommands({
           && operations.length === 1
           && operations[0]?.type === 'setRowVideoSegment'
           && shouldFallbackApprovalSnapshotOperationError(err, 'setRowVideoSegment');
-        if (canFallbackVideoSegment) {
+        const canFallbackMediaMode = isMediaModeRowPatch(patch)
+          && operations.length === 1
+          && operations[0]?.type === 'setRowMediaMode'
+          && shouldFallbackApprovalSnapshotOperationError(err, 'setRowMediaMode');
+        if (canFallbackVideoSegment || canFallbackMediaMode) {
           project._editorRows = patchLocalEditorRows(rows, rowId, patch);
           const compositionHash = computeCompositionHash(project);
           await persistEditorState(project, { timed_rows: project._editorRows, composition_hash: compositionHash, dirty: true, phase: 'editing_dirty', error: '' });
