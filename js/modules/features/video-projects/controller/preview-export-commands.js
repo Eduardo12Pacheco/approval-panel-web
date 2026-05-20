@@ -19,6 +19,24 @@ function resolveBrowserFinalDownloadUrl(client, projectId, fallbackUrl = '') {
   return fallbackUrl;
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForApprovalFinalRender(client, projectId, initialResult, { pollDelayMs = 3000, maxPolls = 600 } = {}) {
+  let result = initialResult;
+  for (let attempt = 0; attempt <= maxPolls; attempt += 1) {
+    const status = result?.render?.status;
+    if (pickDownloadableRenderPath(result)) return result;
+    if (status === 'rendered') return result;
+    if (status === 'error') throw new Error(result?.render?.error?.message || 'Approval Editor no pudo generar el render final.');
+    if (attempt === maxPolls) break;
+    if (pollDelayMs > 0) await delay(pollDelayMs);
+    result = await client.status(projectId);
+  }
+  throw new Error('Approval Editor tardó demasiado en generar el render final. Revisá el servicio local y volvé a intentar.');
+}
+
 export function createPreviewExportCommands({
   api,
   store,
@@ -27,6 +45,8 @@ export function createPreviewExportCommands({
   isApprovalServiceMode,
   createApprovalServiceClient,
   renderSelectedVideoProject,
+  renderFinalPollDelayMs,
+  renderFinalMaxPolls,
 }) {
   async function preparePreview() {
     const state = store.getState();
@@ -164,7 +184,8 @@ export function createPreviewExportCommands({
       try {
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });
         renderSelectedVideoProject();
-        const result = await client.renderFinal(projectId, { snapshotHash });
+        const started = await client.renderFinal(projectId, { snapshotHash, async: true });
+        const result = await waitForApprovalFinalRender(client, projectId, started, { pollDelayMs: renderFinalPollDelayMs, maxPolls: renderFinalMaxPolls });
         let downloadableOutput = pickDownloadableRenderPath(result);
         if (!downloadableOutput && isRenderedWithoutDownloadablePath(result)) throw new Error('Approval Editor no devolvió una URL final descargable. Revisá que el render adapter de 02-Video-Engine esté configurado y haya generado outputPath.');
         if (!downloadableOutput && typeof client.finalDownload === 'function') {

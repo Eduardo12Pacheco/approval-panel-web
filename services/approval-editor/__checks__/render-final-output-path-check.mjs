@@ -34,6 +34,10 @@ async function requestJson(baseUrl, pathname, { method = 'GET', body } = {}) {
   return { status: response.status, body: await response.json() };
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function withService(renderAdapter, run) {
   const projectsRoot = await mkdtemp(path.join(tmpdir(), 'approval-render-output-'));
   const server = createApprovalEditorService({
@@ -142,5 +146,40 @@ test('render-final persists adapter finalUrl as downloadable outputPath', async 
     assert.equal(rendered.body.data.render.status, 'rendered');
     assert.equal(rendered.body.data.render.outputPath, '/api/projects/render-output-contract/files/output/video-final.mp4');
     assert.equal(download.body.data.finalUrl, '/api/projects/render-output-contract/files/output/video-final.mp4');
+  });
+});
+
+test('render-final async mode returns immediately and exposes rendered status later', async () => {
+  let releaseRender;
+  const renderStarted = new Promise((resolve) => {
+    releaseRender = resolve;
+  });
+  await withService(async () => {
+    await renderStarted;
+    return { finalPath: 'C:/tmp/async-video-final.mp4' };
+  }, async (baseUrl) => {
+    const project = await createProject(baseUrl);
+
+    const started = await requestJson(baseUrl, `/api/projects/${project.projectId}/render-final`, {
+      method: 'POST',
+      body: { snapshotHash: project.snapshotHash, async: true },
+    });
+    const renderingStatus = await requestJson(baseUrl, `/api/projects/${project.projectId}/status`);
+
+    assert.equal(started.status, 202);
+    assert.equal(started.body.ok, true);
+    assert.equal(started.body.data.render.status, 'rendering');
+    assert.equal(renderingStatus.body.data.render.status, 'rendering');
+
+    releaseRender();
+    let renderedStatus;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      renderedStatus = await requestJson(baseUrl, `/api/projects/${project.projectId}/status`);
+      if (renderedStatus.body.data.render.status === 'rendered') break;
+      await wait(10);
+    }
+
+    assert.equal(renderedStatus.body.data.render.status, 'rendered');
+    assert.equal(renderedStatus.body.data.render.outputPath, 'C:/tmp/async-video-final.mp4');
   });
 });

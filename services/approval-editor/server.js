@@ -27,6 +27,19 @@ function fail(response, error, status = 500) {
   sendJson(response, status, { ok: false, error: { code: error.code || "internal_error", message: error.message || String(error), details: error.details } });
 }
 
+function persistLatestSnapshot(store, projectId, latest) {
+  const snapshots = store.readSnapshots(projectId);
+  snapshots[snapshots.length - 1] = latest;
+  store.writeSnapshots(projectId, snapshots);
+  fs.writeFileSync(path.join(store.projectDir(projectId), "latest-snapshot.json"), JSON.stringify(latest, null, 2));
+}
+
+function markRenderStatus(store, projectId, latest, renderPatch) {
+  latest.snapshot.render = { ...(latest.snapshot.render || {}), ...renderPatch, updatedAt: new Date().toISOString() };
+  persistLatestSnapshot(store, projectId, latest);
+  return latest.snapshot.render;
+}
+
 function errorStatus(error) {
   if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
@@ -330,6 +343,31 @@ function resolveRenderedOutputPath(rendered) {
 function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter, renderCommandRunner, alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
   const finalRenderAdapter = renderAdapter || createRenderAdapterFromEnv(env, renderCommandRunner, fetchImpl);
+  const renderJobs = new Map();
+
+  async function runAsyncFinalRender(projectId, latest) {
+    const jobKey = `${projectId}:${latest.snapshotHash}`;
+    if (renderJobs.has(jobKey)) return renderJobs.get(jobKey);
+    const markIfStillLatest = (renderPatch) => {
+      const currentLatest = store.latest(projectId);
+      if (!currentLatest || currentLatest.snapshotHash !== latest.snapshotHash) return null;
+      return markRenderStatus(store, projectId, currentLatest, renderPatch);
+    };
+    const job = (async () => {
+      try {
+        const rendered = await finalRenderAdapter({ projectId, snapshot: latest.snapshot, snapshotHash: latest.snapshotHash });
+        const outputPath = resolveRenderedOutputPath(rendered);
+        if (outputPath instanceof Error) throw outputPath;
+        markIfStillLatest({ status: "rendered", lastRenderedSnapshotHash: latest.snapshotHash, outputPath, error: null });
+      } catch (error) {
+        markIfStillLatest({ status: "error", lastRenderedSnapshotHash: latest.snapshotHash, error: { code: error.code || "render_command_failed", message: error.message || String(error), details: error.details } });
+      } finally {
+        renderJobs.delete(jobKey);
+      }
+    })();
+    renderJobs.set(jobKey, job);
+    return job;
+  }
 
   return http.createServer(async (request, response) => {
     try {
@@ -433,14 +471,19 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         if (request.method === "POST" && parts[3] === "render-final") {
           const body = await readBody(request);
           if (body.snapshotHash !== latest.snapshotHash) throw Object.assign(new Error("stale snapshotHash for final render"), { code: "stale_snapshot", details: { expected: latest.snapshotHash, received: body.snapshotHash } });
+          if (body.async === true) {
+            const currentRender = latest.snapshot.render || {};
+            if (currentRender.status === "rendering" && currentRender.lastRenderedSnapshotHash === latest.snapshotHash) {
+              return ok(response, { projectId, snapshotHash: latest.snapshotHash, lastRenderedSnapshotHash: currentRender.lastRenderedSnapshotHash, render: currentRender }, 202);
+            }
+            const render = markRenderStatus(store, projectId, latest, { status: "rendering", lastRenderedSnapshotHash: latest.snapshotHash, outputPath: null, error: null });
+            void runAsyncFinalRender(projectId, latest);
+            return ok(response, { projectId, snapshotHash: latest.snapshotHash, lastRenderedSnapshotHash: latest.snapshotHash, render }, 202);
+          }
           const rendered = await finalRenderAdapter({ projectId, snapshot: latest.snapshot, snapshotHash: latest.snapshotHash });
           const outputPath = resolveRenderedOutputPath(rendered);
           if (outputPath instanceof Error) throw outputPath;
-          latest.snapshot.render = { ...(latest.snapshot.render || {}), status: "rendered", lastRenderedSnapshotHash: latest.snapshotHash, outputPath, updatedAt: new Date().toISOString() };
-          const snapshots = store.readSnapshots(projectId);
-          snapshots[snapshots.length - 1] = latest;
-          store.writeSnapshots(projectId, snapshots);
-          fs.writeFileSync(path.join(store.projectDir(projectId), "latest-snapshot.json"), JSON.stringify(latest, null, 2));
+          markRenderStatus(store, projectId, latest, { status: "rendered", lastRenderedSnapshotHash: latest.snapshotHash, outputPath, error: null });
           return ok(response, { projectId, snapshotHash: latest.snapshotHash, lastRenderedSnapshotHash: latest.snapshotHash, render: latest.snapshot.render }, 202);
         }
         if (request.method === "GET" && parts[3] === "status") return ok(response, { projectId, ...toResponseSnapshot(latest), render: latest.snapshot.render || {} });

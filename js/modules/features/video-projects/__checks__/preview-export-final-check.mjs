@@ -39,7 +39,7 @@ function makeApprovalProject() {
   };
 }
 
-function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadImpl }) {
+function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadImpl, statusResults = [] }) {
   const project = makeApprovalProject();
   const persisted = [];
   const toasts = [];
@@ -53,7 +53,10 @@ function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadIm
     createApprovalServiceClient: () => ({
       async renderFinal(projectId, payload) {
         renderCalls.push({ projectId, payload });
-        return renderFinalResult || { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { outputPath: finalDownloadResult?.renderOutputPath || null } };
+        return renderFinalResult || { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { status: 'rendered', outputPath: finalDownloadResult?.renderOutputPath || null } };
+      },
+      async status() {
+        return statusResults.shift() || renderFinalResult || { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { status: 'rendered', outputPath: finalDownloadResult?.renderOutputPath || null } };
       },
       async finalDownload() {
         if (finalDownloadImpl) return finalDownloadImpl();
@@ -68,6 +71,7 @@ function createHarness({ finalDownloadResult, renderFinalResult, finalDownloadIm
       persisted.push(patch);
     },
     renderSelectedVideoProject() {},
+    renderFinalPollDelayMs: 0,
   });
   return { project, persisted, toasts, renderCalls, commands };
 }
@@ -82,7 +86,7 @@ test('approval export does not mark final ready when backend returns no download
     await commands.exportFinal();
 
     assert.equal(renderCalls.length, 1);
-    assert.deepEqual(renderCalls[0], { projectId: 'approval-project-export', payload: { snapshotHash: 'snapshot-export-hash' } });
+    assert.deepEqual(renderCalls[0], { projectId: 'approval-project-export', payload: { snapshotHash: 'snapshot-export-hash', async: true } });
     assert.equal(project.editor_state.phase, 'error');
     assert.equal(project.editor_state.export_status, 'error');
     assert.match(project.editor_state.error, /no devolvió una URL final descargable/i);
@@ -95,7 +99,7 @@ test('approval export does not mark final ready when backend returns no download
 });
 
 test('approval export marks final ready only after backend exposes a final download URL', async () => {
-  const { project, persisted, toasts, renderCalls, commands } = createHarness({ finalDownloadResult: { finalUrl: '/api/projects/approval-project-export/download/final' } });
+  const { project, persisted, toasts, renderCalls, commands } = createHarness({ finalDownloadResult: { finalUrl: '/api/projects/approval-project-export/download/final', renderOutputPath: '/api/projects/approval-project-export/files/output/video-final.mp4' } });
 
   await commands.exportFinal();
 
@@ -106,6 +110,23 @@ test('approval export marks final ready only after backend exposes a final downl
   assert.equal(project.editor_state.last_rendered_hash, 'snapshot-export-hash');
   assert.equal(persisted.some((patch) => patch.phase === 'error'), false);
   assert.equal(toasts.includes('Exportación lista. Descargá el video final.'), true);
+});
+
+test('approval export starts async render and polls status until rendered', async () => {
+  const { project, renderCalls, commands } = createHarness({
+    renderFinalResult: { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { status: 'rendering' } },
+    statusResults: [
+      { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { status: 'rendering' } },
+      { lastRenderedSnapshotHash: 'snapshot-export-hash', render: { status: 'rendered', outputPath: '/api/projects/approval-project-export/files/output/video-final.mp4' } },
+    ],
+  });
+
+  await commands.exportFinal();
+
+  assert.deepEqual(renderCalls[0], { projectId: 'approval-project-export', payload: { snapshotHash: 'snapshot-export-hash', async: true } });
+  assert.equal(project.editor_state.phase, 'final_ready');
+  assert.equal(project.editor_state.export_status, 'ready');
+  assert.equal(project.editor_state.final_url, 'https://approval.local/api/projects/approval-project-export/download/final?download=1');
 });
 
 test('approval export stores browser-download endpoint instead of raw local final path', async () => {
