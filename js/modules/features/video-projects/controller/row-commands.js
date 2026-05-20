@@ -2,6 +2,7 @@ import { buildCompositionPayload, computeCompositionHash } from '../composition/
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState } from '../domain/editor-state.js';
 import { findMotionPreset } from '../domain/motion-presets.js';
+import { mergeDerivedParagraphBoundaryMetadata } from './editor-state-persistence.js';
 
 function hasOwnPatchValue(patch, key) {
   return Object.prototype.hasOwnProperty.call(patch || {}, key);
@@ -127,7 +128,11 @@ export function createRowCommands({
     const project = state.selectedVideoProject;
     if (!project || !rowId) return;
 
-    const rows = Array.isArray(project._editorRows) ? project._editorRows : [];
+    const rows = mergeDerivedParagraphBoundaryMetadata(
+      Array.isArray(project._editorRows) ? project._editorRows : [],
+      project.guion_piped || project.editor_state?.guion_piped || '',
+    );
+    project._editorRows = rows;
     const index = rows.findIndex((r) => r.id === rowId);
     if (index === -1) return;
 
@@ -277,6 +282,9 @@ export function createRowCommands({
 export function normalizeRowsForPreview(project) {
   if (!Array.isArray(project?._editorRows) || !project._editorRows.length) {
     project._editorRows = normalizePreparedContractRows(project?.editor_state?.timed_rows);
+  }
+  if (Array.isArray(project?._editorRows) && project._editorRows.length) {
+    project._editorRows = mergeDerivedParagraphBoundaryMetadata(project._editorRows, project.guion_piped || project.editor_state?.guion_piped || '');
   }
   return project?._editorRows || [];
 }

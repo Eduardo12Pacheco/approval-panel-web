@@ -6,6 +6,7 @@ import { getStatusLabel } from '../domain/status-labels.js?v=20260519-project-ca
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';
+import { mergeDerivedParagraphBoundaryMetadata } from '../controller/editor-state-persistence.js';
 
 const EDITOR_PHASES = ['preparing', 'preview_rendering', 'preview_ready', 'editing_dirty', 'final_rendering', 'final_ready', 'error'];
 const EDITOR_SHELL_PHASES = ['preview_ready', 'editing_dirty', 'final_ready', 'error'];
@@ -36,7 +37,8 @@ export function buildSelectedVideoProjectViewModel(project = {}, state = {}) {
   const editorState = project.editor_state && typeof project.editor_state === 'object' ? project.editor_state : {};
   const editorPhase = (editorState.phase || 'idle').toString();
   const timedRows = Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [];
-  const editorRows = Array.isArray(project._editorRows) ? project._editorRows : timedRows;
+  const baseEditorRows = Array.isArray(project._editorRows) ? project._editorRows : timedRows;
+  const editorRows = mergeDerivedParagraphBoundaryMetadata(baseEditorRows, project.guion_piped || editorState.guion_piped || '');
   const globalAudio = project._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } };
   const inEditorPhase = EDITOR_PHASES.includes(editorPhase);
   const editorShellMode = inEditorPhase && EDITOR_SHELL_PHASES.includes(editorPhase);
