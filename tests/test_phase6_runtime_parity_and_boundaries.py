@@ -142,13 +142,10 @@ const calls = [];
 const api = createTtsApiClient({
   getSettings: () => ({
     ttsBaseUrl: 'http://localhost:8088',
-    ttsApiKey: 'api-key-1',
-    ttsBasicUser: 'user',
-    ttsBasicPass: 'pass',
+    sharedApiKey: 'api-key-1',
+    sharedBasicUser: 'user',
+    sharedBasicPass: 'pass',
     subtitlesBaseUrl: 'http://127.0.0.1:8092',
-    subtitlesApiKey: 'subtitles-key-1',
-    subtitlesBasicUser: 'subs-user',
-    subtitlesBasicPass: 'subs-pass',
   }),
   btoaImpl: (value) => Buffer.from(value).toString('base64'),
   fetchImpl: async (url, options = {}) => {
@@ -168,10 +165,10 @@ await api.deleteSubtitleSession('session-1');
 const deleteCall = calls[1];
 if (deleteCall.url !== 'http://127.0.0.1:8092/api/subtitles/sessions/session-1') throw new Error('subtitle delete url drift');
 if (deleteCall.options.method !== 'DELETE') throw new Error('subtitle delete method drift');
-if (deleteCall.options.headers['x-api-key'] !== 'subtitles-key-1') throw new Error('subtitle delete auth drift');
+if (deleteCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('subtitle universal auth drift');
 
 const apiMissingCreds = createTtsApiClient({
-  getSettings: () => ({ ttsBaseUrl: 'http://localhost:8088', ttsApiKey: 'k', ttsBasicUser: '', ttsBasicPass: '' }),
+  getSettings: () => ({ ttsBaseUrl: 'http://localhost:8088', sharedApiKey: 'k', sharedBasicUser: '', sharedBasicPass: '' }),
   fetchImpl: async () => ({ ok: true, status: 200, text: async () => '{}' }),
 });
 
@@ -261,9 +258,9 @@ const classTokens = new Set();
 const state = {
   settings: {
     ttsBaseUrl: 'http://localhost:8088',
-    ttsApiKey: 'api-key-1',
-    ttsBasicUser: 'user',
-    ttsBasicPass: 'pass',
+    sharedApiKey: 'api-key-1',
+    sharedBasicUser: 'user',
+    sharedBasicPass: 'pass',
   },
   audioRunning: false,
   audioJobId: null,
@@ -345,7 +342,7 @@ import { createAudioController } from './js/modules/features/audio/controller.js
 
 const toasts = [];
 const state = {
-  settings: { ttsBaseUrl: 'http://localhost:8088', ttsApiKey: 'api-key-1', ttsBasicUser: 'user', ttsBasicPass: 'pass' },
+  settings: { ttsBaseUrl: 'http://localhost:8088', sharedApiKey: 'api-key-1', sharedBasicUser: 'user', sharedBasicPass: 'pass' },
   audioJobId: 'job-sox-1',
   audioJobs: { 'job-sox-1': { job_id: 'job-sox-1', status: 'running', progress: { stage: 'loading_model', percent: 10 } } },
   audioJobOrder: ['job-sox-1'],

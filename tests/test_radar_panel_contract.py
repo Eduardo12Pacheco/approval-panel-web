@@ -45,7 +45,6 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarSubmitBtn"',
         'id="radarHistoryList"',
         'id="transcriptServiceBaseUrlInput"',
-        'id="transcriptServiceApiKeyInput"',
     ]:
         assert expected in index_source
 
@@ -61,7 +60,6 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         "radarSummaryDialog",
         "radarConfirmDialog",
         "transcriptServiceBaseUrlInput",
-        "transcriptServiceApiKeyInput",
     ]:
         assert expected in selectors_source
 
@@ -70,8 +68,8 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
     assert "http://127.0.0.1:8765" in app_store_source
     assert "http://127.0.0.1:8091" not in app_store_source
     assert 'placeholder="http://127.0.0.1:8765"' in index_source
-    assert "transcriptServiceApiKeyInput.value" in app_store_source
-    assert "transcriptServiceApiKey: el.transcriptServiceApiKeyInput.value.trim()" in bootstrap_source
+    assert "transcriptServiceApiKeyInput.value" not in app_store_source
+    assert "transcriptServiceApiKey: ''" in bootstrap_source
     assert "./features/radar/api-client.js" in app_shell_source
     assert "./features/radar/controller.js" in app_shell_source
     assert "setView('radar')" not in app_shell_source

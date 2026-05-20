@@ -1,11 +1,14 @@
+import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260519-project-card-polish';
+
 export function createAudioCommands({ context, callbacks }) {
   const { state, el, toast, getErrorMessage, ttsPost } = context;
 
   async function runAudioGenerationFromText({ text, voiceProfile = null, title = 'manual-ui' } = {}) {
     if (state.audioRunning) return;
 
-    const ttsBaseUrl = (state.settings.ttsBaseUrl || '').trim();
-    const ttsApiKey = (state.settings.ttsApiKey || '').trim();
+    const ttsConfig = resolveServiceConfig(state.settings, 'tts');
+    const ttsBaseUrl = (ttsConfig.baseUrl || '').trim();
+    const ttsApiKey = (ttsConfig.apiKey || '').trim();
     if (!ttsBaseUrl) {
       toast('Configurá Base URL Audio API antes de ejecutar');
       return;

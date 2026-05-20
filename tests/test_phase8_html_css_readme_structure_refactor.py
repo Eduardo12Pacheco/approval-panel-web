@@ -236,19 +236,23 @@ def test_settings_presents_single_unified_config_and_hides_legacy_compatibility_
         "baseUrlInput",
         "secretInput",
         "ttsBaseUrlInput",
-        "ttsApiKeyInput",
-        "ttsBasicUserInput",
-        "ttsBasicPassInput",
         "subtitlesBaseUrlInput",
-        "subtitlesApiKeyInput",
-        "subtitlesBasicUserInput",
-        "subtitlesBasicPassInput",
         "transcriptServiceBaseUrlInput",
-        "transcriptServiceApiKeyInput",
         "remotionApiUrlInput",
         "approvalPipelineBaseUrlInput",
     ]:
         assert f'id="{legacy_id}"' in source
+
+    for removed_service_credential_id in [
+        "ttsApiKeyInput",
+        "ttsBasicUserInput",
+        "ttsBasicPassInput",
+        "subtitlesApiKeyInput",
+        "subtitlesBasicUserInput",
+        "subtitlesBasicPassInput",
+        "transcriptServiceApiKeyInput",
+    ]:
+        assert f'id="{removed_service_credential_id}"' not in source
 
     script = r"""
 import { getDomSelectors } from './js/modules/shared/dom/selectors.js';

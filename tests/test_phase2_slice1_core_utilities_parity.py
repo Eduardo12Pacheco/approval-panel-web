@@ -44,9 +44,9 @@ def test_settings_defaults_and_hydration_contract_stay_frozen_in_app_store_modul
         "baseUrl",
         "secret",
         "ttsBaseUrl",
-        "ttsApiKey",
-        "ttsBasicUser",
-        "ttsBasicPass",
+        "sharedApiKey",
+        "sharedBasicUser",
+        "sharedBasicPass",
     ]:
         assert required_key in source, f"Missing settings key contract in app store module: {required_key}"
 

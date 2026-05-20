@@ -230,8 +230,8 @@ const loaded = loadSettingsFromStorage({
 
 if (loaded.apiProfileMode !== 'unified') throw new Error(`expected unified mode, got ${loaded.apiProfileMode}`);
 if (loaded.apiOrigin !== 'https://api.automatizacionedun8n.me') throw new Error(`unexpected api origin ${loaded.apiOrigin}`);
-if (loaded.sharedApiKey !== '' || loaded.sharedBasicUser !== '' || loaded.sharedBasicPass !== '') {
-  throw new Error('shared credentials must default empty during legacy migration');
+if (loaded.sharedApiKey !== 'tts-key' || loaded.sharedBasicUser !== 'tts-user' || loaded.sharedBasicPass !== 'tts-pass') {
+  throw new Error(`legacy credentials must hydrate universal shared credentials, got ${JSON.stringify({ apiKey: loaded.sharedApiKey, user: loaded.sharedBasicUser, pass: loaded.sharedBasicPass })}`);
 }
 for (const [service, expected] of Object.entries({ n8n: true, tts: true, subtitles: true, radar: true, remotion: true, approvalPipeline: true })) {
   if (loaded.serviceOverrides?.[service] !== expected) {
@@ -285,13 +285,96 @@ if (tts.apiKey !== 'shared-key' || tts.basicUser !== 'shared-user' || tts.basicP
 
 const subtitles = resolveServiceConfig(settings, 'subtitles');
 if (subtitles.baseUrl !== 'https://override-subtitles.example.test') throw new Error(`subtitles override drift: ${subtitles.baseUrl}`);
-if (subtitles.apiKey !== 'subs-key' || subtitles.basicUser !== 'subs-user' || subtitles.basicPass !== 'subs-pass') {
-  throw new Error(`subtitles override credential drift: ${JSON.stringify(subtitles)}`);
+if (subtitles.apiKey !== 'shared-key' || subtitles.basicUser !== 'shared-user' || subtitles.basicPass !== 'shared-pass') {
+  throw new Error(`subtitles shared credential drift: ${JSON.stringify(subtitles)}`);
 }
+
+const radar = resolveServiceConfig(settings, 'radar');
+if (radar.apiKey !== 'shared-key') throw new Error(`radar shared credential drift: ${JSON.stringify(radar)}`);
 
 const approvalPipeline = resolveServiceConfig(settings, 'approvalPipeline');
 if (approvalPipeline.baseUrl !== 'https://api.automatizacionedun8n.me/approval') {
   throw new Error(`approval pipeline must remain gateway-routed, got ${approvalPipeline.baseUrl}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_service_specific_credentials_migrate_to_one_universal_legacy_fallback_when_shared_credentials_are_blank():
+    script = r"""
+import { resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const settings = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test',
+  sharedApiKey: '',
+  sharedBasicUser: '',
+  sharedBasicPass: '',
+  serviceOverrides: { n8n: false, tts: false, subtitles: false, radar: false, remotion: false, approvalPipeline: true },
+  ttsApiKey: 'legacy-tts-key',
+  ttsBasicUser: 'legacy-tts-user',
+  ttsBasicPass: 'legacy-tts-pass',
+  subtitlesApiKey: 'legacy-subtitles-key',
+  subtitlesBasicUser: 'legacy-subtitles-user',
+  subtitlesBasicPass: 'legacy-subtitles-pass',
+  transcriptServiceApiKey: 'legacy-radar-key',
+};
+
+const tts = resolveServiceConfig(settings, 'tts');
+if (tts.apiKey !== 'legacy-tts-key' || tts.basicUser !== 'legacy-tts-user' || tts.basicPass !== 'legacy-tts-pass') {
+  throw new Error(`tts legacy fallback drift: ${JSON.stringify(tts)}`);
+}
+
+const subtitles = resolveServiceConfig(settings, 'subtitles');
+if (subtitles.apiKey !== 'legacy-tts-key' || subtitles.basicUser !== 'legacy-tts-user' || subtitles.basicPass !== 'legacy-tts-pass') {
+  throw new Error(`subtitles universal legacy fallback drift: ${JSON.stringify(subtitles)}`);
+}
+
+const radar = resolveServiceConfig(settings, 'radar');
+if (radar.apiKey !== 'legacy-tts-key') throw new Error(`radar universal legacy fallback drift: ${JSON.stringify(radar)}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_simple_settings_save_persists_universal_credentials_and_clears_service_specific_credentials():
+    script = r"""
+import { loadSettingsFromStorage, mergeSettingsForSave, saveSettingsToStorage } from './js/modules/core/state/app-store.js';
+
+let stored = '';
+const storage = {
+  getItem() { return stored; },
+  setItem(_key, value) { stored = value; },
+};
+
+const saved = saveSettingsToStorage({
+  storage,
+  storageKey: 'approval-panel-settings-v1',
+  nextSettings: mergeSettingsForSave({}, {
+    apiProfileMode: 'unified',
+    apiOrigin: 'https://api.automatizacionedun8n.me',
+    sharedApiKey: 'universal-key',
+    sharedBasicUser: 'universal-user',
+    sharedBasicPass: 'universal-pass',
+    ttsApiKey: '',
+    ttsBasicUser: '',
+    ttsBasicPass: '',
+    subtitlesApiKey: '',
+    subtitlesBasicUser: '',
+    subtitlesBasicPass: '',
+    transcriptServiceApiKey: '',
+  }),
+});
+
+const loaded = loadSettingsFromStorage({ storage, storageKey: 'approval-panel-settings-v1' });
+for (const candidate of [saved, loaded]) {
+  if (candidate.sharedApiKey !== 'universal-key') throw new Error(`shared api key did not persist: ${JSON.stringify(candidate)}`);
+  if (candidate.sharedBasicUser !== 'universal-user') throw new Error(`shared basic user did not persist: ${JSON.stringify(candidate)}`);
+  if (candidate.sharedBasicPass !== 'universal-pass') throw new Error(`shared basic pass did not persist: ${JSON.stringify(candidate)}`);
+  if (candidate.ttsApiKey || candidate.subtitlesApiKey || candidate.transcriptServiceApiKey) {
+    throw new Error(`service-specific api keys should be cleared on simple save: ${JSON.stringify(candidate)}`);
+  }
 }
 """
     result = _run_node(script)
@@ -350,8 +433,8 @@ const saved = mergeSettingsForSave(current, {
 
 if (saved.apiOrigin !== 'https://api.example.test') throw new Error(`api origin should be trimmed, got ${saved.apiOrigin}`);
 if (saved.ttsBaseUrl !== 'https://custom-tts.example.test') throw new Error('simple save must preserve ttsBaseUrl override');
-if (saved.ttsApiKey !== 'service-key' || saved.ttsBasicUser !== 'service-user' || saved.ttsBasicPass !== 'service-pass') {
-  throw new Error('simple save must preserve service-specific TTS credentials');
+if (saved.sharedApiKey !== 'shared-key' || saved.sharedBasicUser !== 'shared-user' || saved.sharedBasicPass !== 'shared-pass') {
+  throw new Error('simple save must preserve universal credentials');
 }
 if (saved.serviceOverrides.tts !== true) throw new Error('simple save must preserve explicit override flags');
 """

@@ -124,9 +124,9 @@ export function normalizeSettings(settings = {}, { defaultsFactory = defaultSett
   const merged = { ...defaults, ...(settings || {}) };
   merged.apiProfileMode = normalizeApiProfileMode(merged.apiProfileMode);
   merged.apiOrigin = trimTrailingSlash(merged.apiOrigin) || defaults.apiOrigin;
-  merged.sharedApiKey = (merged.sharedApiKey || '').toString().trim();
-  merged.sharedBasicUser = (merged.sharedBasicUser || '').toString().trim();
-  merged.sharedBasicPass = (merged.sharedBasicPass || '').toString();
+  merged.sharedApiKey = fallbackCredential(merged.sharedApiKey, merged.ttsApiKey || merged.subtitlesApiKey || merged.transcriptServiceApiKey).trim();
+  merged.sharedBasicUser = fallbackCredential(merged.sharedBasicUser, merged.ttsBasicUser || merged.subtitlesBasicUser).trim();
+  merged.sharedBasicPass = fallbackCredential(merged.sharedBasicPass, merged.ttsBasicPass || merged.subtitlesBasicPass);
   merged.serviceOverrides = normalizeServiceOverrides(merged.serviceOverrides);
   merged.remotionApiUrl = normalizeRemotionApiUrl(merged.remotionApiUrl, { fallback: defaults.remotionApiUrl });
   merged.approvalPipelineBaseUrl = normalizeApprovalPipelineBaseUrl(merged.approvalPipelineBaseUrl);
@@ -208,9 +208,18 @@ function fallbackCredential(primary, shared) {
   return value.trim() ? value : (shared || '').toString();
 }
 
+function resolveUniversalCredentials(settings = {}) {
+  return {
+    apiKey: fallbackCredential(settings.sharedApiKey, settings.ttsApiKey || settings.subtitlesApiKey || settings.transcriptServiceApiKey).trim(),
+    basicUser: fallbackCredential(settings.sharedBasicUser, settings.ttsBasicUser || settings.subtitlesBasicUser).trim(),
+    basicPass: fallbackCredential(settings.sharedBasicPass, settings.ttsBasicPass || settings.subtitlesBasicPass),
+  };
+}
+
 export function resolveServiceConfig(rawSettings = {}, service) {
   const settings = normalizeSettings(rawSettings);
   const unifiedBaseUrl = shouldUseUnifiedService(settings, service, rawSettings) ? deriveUnifiedBaseUrl(settings, service) : '';
+  const universalCredentials = resolveUniversalCredentials(settings);
 
   if (service === 'n8n') {
     return { baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.baseUrl), secret: settings.secret || '' };
@@ -218,23 +227,23 @@ export function resolveServiceConfig(rawSettings = {}, service) {
   if (service === 'tts') {
     return {
       baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.ttsBaseUrl),
-      apiKey: fallbackCredential(settings.ttsApiKey, settings.sharedApiKey).trim(),
-      basicUser: fallbackCredential(settings.ttsBasicUser, settings.sharedBasicUser).trim(),
-      basicPass: fallbackCredential(settings.ttsBasicPass, settings.sharedBasicPass),
+      apiKey: universalCredentials.apiKey,
+      basicUser: universalCredentials.basicUser,
+      basicPass: universalCredentials.basicPass,
     };
   }
   if (service === 'subtitles') {
     return {
       baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.subtitlesBaseUrl || settings.ttsBaseUrl),
-      apiKey: fallbackCredential(settings.subtitlesApiKey || settings.ttsApiKey, settings.sharedApiKey).trim(),
-      basicUser: fallbackCredential(settings.subtitlesBasicUser || settings.ttsBasicUser, settings.sharedBasicUser).trim(),
-      basicPass: fallbackCredential(settings.subtitlesBasicPass || settings.ttsBasicPass, settings.sharedBasicPass),
+      apiKey: universalCredentials.apiKey,
+      basicUser: universalCredentials.basicUser,
+      basicPass: universalCredentials.basicPass,
     };
   }
   if (service === 'radar') {
     return {
       baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.transcriptServiceBaseUrl),
-      apiKey: fallbackCredential(settings.transcriptServiceApiKey, settings.sharedApiKey).trim(),
+      apiKey: universalCredentials.apiKey,
     };
   }
   if (service === 'remotion') {
@@ -271,20 +280,8 @@ export function hydrateSettingsFormValues({ el, settings }) {
   el.baseUrlInput.value = normalized.baseUrl;
   el.secretInput.value = normalized.secret;
   el.ttsBaseUrlInput.value = normalized.ttsBaseUrl;
-  el.ttsApiKeyInput.value = normalized.ttsApiKey;
-  el.ttsBasicUserInput.value = normalized.ttsBasicUser;
-  el.ttsBasicPassInput.value = normalized.ttsBasicPass;
   if (el.subtitlesBaseUrlInput) {
     el.subtitlesBaseUrlInput.value = normalized.subtitlesBaseUrl || DEFAULT_SUBTITLES_SERVICE_URL;
-  }
-  if (el.subtitlesApiKeyInput) {
-    el.subtitlesApiKeyInput.value = normalized.subtitlesApiKey || '';
-  }
-  if (el.subtitlesBasicUserInput) {
-    el.subtitlesBasicUserInput.value = normalized.subtitlesBasicUser || '';
-  }
-  if (el.subtitlesBasicPassInput) {
-    el.subtitlesBasicPassInput.value = normalized.subtitlesBasicPass || '';
   }
   if (el.remotionApiUrlInput) {
     el.remotionApiUrlInput.value = normalizeRemotionApiUrl(normalized.remotionApiUrl, { fallback: DEFAULT_REMOTION_API_URL });
@@ -297,8 +294,5 @@ export function hydrateSettingsFormValues({ el, settings }) {
   }
   if (el.transcriptServiceBaseUrlInput) {
     el.transcriptServiceBaseUrlInput.value = normalized.transcriptServiceBaseUrl || DEFAULT_TRANSCRIPT_SERVICE_URL;
-  }
-  if (el.transcriptServiceApiKeyInput) {
-    el.transcriptServiceApiKeyInput.value = normalized.transcriptServiceApiKey || '';
   }
 }
