@@ -50,20 +50,19 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
             <th>Tiempo</th>
             <th>Frase</th>
             <th>Imagen</th>
+            <th>Transición</th>
             <th>Cambiar</th>
           </tr>
         </thead>
         <tbody>
           ${tableRows.map(({ row, index, isSelected, selectedClass, imageUrl, imageSwapAssetId, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel, mediaKind, videoSrc, boundaryConnector }) => {
             const connectorMarkup = boundaryConnector ? `
-              <tr class="video-editor-boundary-row" data-boundary-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-boundary-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}">
-                <td colspan="4">
-                  <button class="video-editor-boundary-connector ${boundaryConnector.active ? 'is-active' : ''}" type="button" data-action="set-boundary-transition" data-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}" data-transition="${boundaryConnector.active ? 'none' : 'whip'}" aria-pressed="${boundaryConnector.active ? 'true' : 'false'}">
-                    <span>${boundaryConnector.active ? 'Desactivar Whip' : 'Activar Whip'}</span>
-                  </button>
-                </td>
-              </tr>
-            ` : '';
+              <button class="video-editor-boundary-connector ${boundaryConnector.active ? 'is-active' : ''}" type="button" data-action="set-boundary-transition" data-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}" data-transition="${boundaryConnector.active ? 'none' : 'whip'}" aria-pressed="${boundaryConnector.active ? 'true' : 'false'}" title="${boundaryConnector.active ? 'Quitar Whip entre párrafos' : 'Activar Whip entre párrafos'}">
+                <span class="video-editor-boundary-connector__dot" aria-hidden="true"></span>
+                <span>${boundaryConnector.active ? 'Desactivar Whip' : 'Activar Whip'}</span>
+                <span class="video-editor-boundary-connector__dot" aria-hidden="true"></span>
+              </button>
+            ` : '<span class="video-editor-boundary-empty" aria-hidden="true">—</span>';
             return `
               <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">
                 <td class="video-editor-row__time"><span class="video-editor-row__time-start">${escapeHtmlCore(startTimeLabel)}</span><span class="video-editor-row__time-end">${escapeHtmlCore(endTimeLabel)}</span></td>
@@ -75,6 +74,7 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                     ? `<img class="video-editor-row__thumb video-editor-row__thumb--swap" src="${escapeHtmlCore(imageUrl)}" alt="${escapeHtmlCore(thumbAlt)}" loading="lazy" draggable="true" data-action="swap-row-image" data-row-id="${escapeHtmlCore(row.id)}" data-asset-id="${escapeHtmlCore(imageSwapAssetId)}" />`
                     : '<span class="video-editor-row__thumb video-editor-row__thumb--missing">Sin foto</span>'}
                 </td>
+                <td class="video-editor-row__transition">${connectorMarkup}</td>
                 <td class="video-editor-row__actions">
                   <button class="video-editor-row__upload-label" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
                     <span>${uploadLabel}</span>
@@ -87,7 +87,6 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                   </button>
                 </td>
               </tr>
-              ${connectorMarkup}
             `;
           }).join('')}
         </tbody>
