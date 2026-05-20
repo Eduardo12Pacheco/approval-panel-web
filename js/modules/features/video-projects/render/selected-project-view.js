@@ -1,9 +1,9 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { buildSelectedVideoProjectViewModel } from './view-model.js';
 import { buildProjectPhaseText, buildSetupPhaseContent, hydrateSetupPhaseInteractions } from './setup-view.js';
-import { buildEditorPhaseContent } from './editor-shell-view.js';
+import { buildEditorPhaseContent } from './editor-shell-view.js?v=20260520-newspaper-effect';
 import { captureCompositionPreviewSeekTime, destroyCompositionRenderer } from './preview-lifecycle.js';
-import { hydrateEditorPhaseInteractions } from './editor-hydration.js';
+import { hydrateEditorPhaseInteractions } from './editor-hydration.js?v=20260520-newspaper-effect';
 
 export function renderSelectedVideoProjectView({
   state,

@@ -2,7 +2,7 @@ import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
 import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
 import { formatCount } from '../domain/formatters.js';
 import { buildEditorShellViewModel } from './editor-view-model.js';
-import { buildEditorDetailRail, buildEditorRowsTable, buildPreviewTimeline } from './editor-markup.js';
+import { buildEditorDetailRail, buildEditorRowsTable, buildPreviewTimeline } from './editor-markup.js?v=20260520-newspaper-effect';
 import { buildPhaseBadge } from './setup-view.js';
 
 function buildPreviewMonitor({ project = {}, previewUrl, rows = [], selectedRowId = null }) {
