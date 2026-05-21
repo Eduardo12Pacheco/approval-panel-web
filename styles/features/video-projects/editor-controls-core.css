@@ -250,3 +250,8 @@
     flex: 1 1 220px;
   }
 }
+
+.video-editor-effect-panel[hidden] {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
