@@ -2,7 +2,7 @@ import { buildCompositionPayload, computeCompositionHash } from '../composition/
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState } from '../domain/editor-state.js';
 import { findMotionPreset } from '../domain/motion-presets.js';
-import { mergeDerivedParagraphBoundaryMetadata } from './editor-state-persistence.js';
+import { mergeDerivedParagraphBoundaryMetadata } from './editor-state-persistence.js?v=20260521-whosh-sfx';
 
 function hasOwnPatchValue(patch, key) {
   return Object.prototype.hasOwnProperty.call(patch || {}, key);
