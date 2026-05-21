@@ -49,8 +49,8 @@ function getAudioStatusLabelRuntime(...args) { return _audioRuntime?.getAudioSta
 function isTerminalAudioStatus(...args) { return _audioRuntime?.isTerminalAudioStatus?.(...args); }
 function normalizeAudioProgressPercent(...args) { return _audioRuntime?.normalizeAudioProgressPercent?.(...args); }
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
-import { createSettingsController } from './settings.js';
-import { createAppShellComposition } from './composition.js?v=20260520-whip-bugfix';
+import { createSettingsController } from './settings.js?v=20260521-settings-guard';
+import { createAppShellComposition } from './composition.js?v=20260521-settings-guard';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
 import { bindScriptEvents } from './events/scripts.js?v=20260519-project-card-polish';
