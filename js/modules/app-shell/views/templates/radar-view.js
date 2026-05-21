@@ -14,14 +14,26 @@ export const radarViewHTML = `\
           </header>
 
           <section class="audio-screen__grid radar-layout">
-            <section class="audio-panel audio-panel--main panel-shell radar-transcriptions-panel">
+            <section class="audio-panel audio-panel--main panel-shell radar-monitor-panel">
               <header class="audio-queue-header">
                 <div>
-                  <h3>Transcripciones</h3>
-                  <p class="meta word-count">Trabajos terminados y listos para descargar.</p>
+                  <h3>Radar Monitor</h3>
+                  <p id="radarMonitorStatus" class="meta word-count">Cargando videos monitoreados.</p>
+                </div>
+                <div class="radar-monitor-toolbar" aria-label="Filtros Radar Monitor">
+                  <label class="control-group approval-control approval-control--select">
+                    <span class="control-label">Pa\u00eds</span>
+                    <select id="radarCountryFilter">
+                      <option value="">Todos</option>
+                      <option value="colombia">Colombia</option>
+                      <option value="ecuador">Ecuador</option>
+                      <option value="argentina">Argentina</option>
+                    </select>
+                  </label>
+                  <button id="radarMonitorRefreshBtn" class="secondary" type="button">Actualizar</button>
                 </div>
               </header>
-              <section id="radarHistoryList" class="audio-queue-list is-empty">Sin transcripciones todav\u00eda.</section>
+              <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>
 
             <aside class="audio-panel audio-panel--queue panel-shell radar-queue-panel">
@@ -32,6 +44,10 @@ export const radarViewHTML = `\
                 </div>
               </header>
               <section id="radarQueueList" class="audio-queue-list is-empty">Sin trabajos en cola.</section>
+              <section class="radar-history-secondary">
+                <h3>Transcripciones</h3>
+                <section id="radarHistoryList" class="audio-queue-list is-empty">Sin transcripciones todav\u00eda.</section>
+              </section>
             </aside>
           </section>
 

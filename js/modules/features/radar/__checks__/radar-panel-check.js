@@ -4,10 +4,17 @@ import { createRadarController } from '../controller.js';
 import {
   formatMentionsCopy,
   formatTranscriptCopy,
+  renderRadarMonitor,
   renderRadarHistory,
   renderRadarResults,
 } from '../render.js';
-import { buildRadarJobPayload, createRadarState, parseRadarKeywords } from '../state.js';
+import {
+  buildRadarJobPayload,
+  createRadarState,
+  filterMonitorCards,
+  normalizeMonitorSummary,
+  parseRadarKeywords,
+} from '../state.js';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -57,9 +64,15 @@ function makeElement({ value = '', textContent = '' } = {}) {
 async function runApiClientCheck() {
   const calls = [];
   const api = createRadarApiClient({
-    getSettings: () => ({ transcriptServiceBaseUrl: 'https://radar.local/', transcriptServiceApiKey: 'secret-token' }),
+    getSettings: () => ({
+      transcriptServiceBaseUrl: 'https://radar.local/',
+      transcriptServiceApiKey: 'secret-token',
+      channelMonitorBaseUrl: 'https://monitor.local/',
+      channelMonitorApiKey: 'monitor-secret',
+    }),
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
+      if (url.endsWith('/api/monitor/cards')) return new Response(JSON.stringify({ items: [{ video_id: 'video-1' }] }), { status: 200 });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
       if (url.endsWith('/jobs/job-1/summary')) return new Response(JSON.stringify({ items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }), { status: 200 });
       if (url.endsWith('/jobs/job-1/export.txt')) return new Response('TXT backend', { status: 200, headers: { 'content-type': 'text/plain' } });
@@ -80,6 +93,7 @@ async function runApiClientCheck() {
   await api.downloadExportText('job-1');
   await api.cancelJob('job-1');
   await api.deleteJob('job-1');
+  const monitorPayload = await api.monitorCards();
 
   assertEqual(calls[0].url, 'https://radar.local/api/radar/health', 'health URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
@@ -93,6 +107,10 @@ async function runApiClientCheck() {
   assertEqual(calls[5].url, 'https://radar.local/api/radar/jobs/job-1/export.txt', 'export URL drift');
   assertEqual(calls[6].url, 'https://radar.local/api/radar/jobs/job-1/cancel', 'cancel URL drift');
   assertEqual(calls[7].options.method, 'DELETE', 'delete method drift');
+  assertEqual(calls[8].url, 'https://monitor.local/api/monitor/cards', 'monitor cards URL drift');
+  assertEqual(calls[8].options.method, 'GET', 'monitor cards must be read-only GET');
+  assertEqual(calls[8].options.headers['x-api-key'], 'monitor-secret', 'monitor cards api key header drift');
+  assertDeepEqual(monitorPayload.items, [{ video_id: 'video-1' }], 'monitor cards payload drift');
 
   let authMessage = '';
   try {
@@ -116,6 +134,21 @@ async function runApiClientCheck() {
   if (!unavailableMessage.includes('Transcript Service no disponible')) {
     throw new Error(`expected actionable service unavailable error, got ${unavailableMessage}`);
   }
+
+  const unavailableMonitorApi = createRadarApiClient({
+    getSettings: () => ({ channelMonitorBaseUrl: 'https://monitor.local/', channelMonitorApiKey: 'monitor-secret' }),
+    fetchImpl: async () => { throw new TypeError('fetch failed monitor-secret'); },
+  });
+  let unavailableMonitorMessage = '';
+  try {
+    await unavailableMonitorApi.monitorCards();
+  } catch (error) {
+    unavailableMonitorMessage = error?.message || '';
+  }
+  if (!unavailableMonitorMessage.includes('Channel Monitor no disponible')) {
+    throw new Error(`expected actionable monitor unavailable error, got ${unavailableMonitorMessage}`);
+  }
+  if (unavailableMonitorMessage.includes('monitor-secret')) throw new Error(`monitor error leaked secret: ${unavailableMonitorMessage}`);
 
   const blockedCalls = [];
   const blockedApi = createRadarApiClient({
@@ -156,6 +189,24 @@ function runStateAndRenderCheck() {
   const state = createRadarState();
   assertEqual(state.status, 'idle', 'initial state drift');
   assertEqual(state.history.length, 0, 'initial history drift');
+  assertEqual(state.monitorStatus, 'idle', 'initial monitor status drift');
+  assertDeepEqual(state.monitorCards, [], 'initial monitor cards drift');
+
+  const summaryColumns = normalizeMonitorSummary({ items: [
+    { label: 'Messi', count: 4 },
+    { label: 'Argentina', count: 2 },
+    { label: '<script>', count: 1 },
+    { label: 'Overflow', count: 99 },
+  ] });
+  assertDeepEqual(summaryColumns, [
+    { label: 'Messi', count: 4, status: 'ready' },
+    { label: 'Argentina', count: 2, status: 'ready' },
+    { label: '<script>', count: 1, status: 'ready' },
+  ], 'summary column normalization drift');
+  assertDeepEqual(filterMonitorCards([
+    { video_id: 'a', country: 'argentina' },
+    { video_id: 'e', country: 'ecuador' },
+  ], 'argentina'), [{ video_id: 'a', country: 'argentina' }], 'country filter drift');
 
   const queueEl = makeElement();
   renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
@@ -166,6 +217,48 @@ function runStateAndRenderCheck() {
   if (!historyEl.innerHTML.includes('Final') || !historyEl.innerHTML.includes('fr') || !historyEl.innerHTML.includes('Descargar TXT')) {
     throw new Error(`history render drift: ${historyEl.innerHTML}`);
   }
+
+  const monitorEl = makeElement();
+  const monitorStatusEl = makeElement();
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'video-1',
+        title: '<b>Final peligrosa</b>',
+        country: 'argentina',
+        channel_label: 'TyC',
+        published_at: '2026-05-21T12:00:00Z',
+        lifecycle: 'enqueue_pending',
+        mentionCounts: [{ label: 'Messi', count: 3, status: 'ready' }],
+      }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('&lt;b&gt;Final peligrosa&lt;/b&gt;')) throw new Error(`monitor title should be escaped: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('argentina · TyC · 2026-05-21T12:00:00Z')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Messi') || !monitorEl.innerHTML.includes('3')) throw new Error(`monitor mentions drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'video-without-radar-job',
+        title: 'Sin job Radar todavía',
+        country: 'ecuador',
+        channel_label: 'Ecuador TV',
+        mentionCounts: [],
+      }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('video-without-radar-job')) throw new Error(`missing-linkage card should stay visible: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Pendiente') || !monitorEl.innerHTML.includes('—')) throw new Error(`missing-linkage card should render pending mention column: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({ el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl }, state: { monitorStatus: 'error', monitorError: 'Monitor caído', monitorCards: [] } });
+  if (!monitorEl.innerHTML.includes('Monitor caído')) throw new Error(`monitor error drift: ${monitorEl.innerHTML}`);
 }
 
 async function runControllerCheck() {
@@ -183,6 +276,10 @@ async function runControllerCheck() {
     radarHealthStatus: makeElement(),
     radarProgressStatus: makeElement(),
     radarQueueList: makeElement(),
+    radarMonitorStatus: makeElement(),
+    radarMonitorList: makeElement(),
+    radarCountryFilter: makeElement({ value: '' }),
+    radarMonitorRefreshBtn: makeElement(),
     radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
     radarSummaryDialog: { showModal() { calls.push('summaryModal'); }, close() {} },
     radarSummaryBody: makeElement(),
@@ -195,6 +292,7 @@ async function runControllerCheck() {
   };
   const api = {
     async health() { calls.push('health'); return { status: 'ok' }; },
+    async monitorCards() { calls.push('monitorCards'); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }] }; },
     async createJob(payload) { calls.push({ type: 'create', payload }); return { job_id: 'job-1', status: 'queued' }; },
     async getJob(jobId) { calls.push({ type: 'getJob', jobId }); return { job_id: jobId, status: 'succeeded', progress: { percent: 100 } }; },
     async getSummary(jobId) { calls.push({ type: 'summary', jobId }); return { items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }; },
@@ -237,6 +335,7 @@ async function runControllerCheck() {
   });
 
   await controller.refreshHealth();
+  await controller.refreshMonitor();
   await controller.submitCurrentJob();
   await controller.showSummary('job-1');
   await controller.downloadJob('job-1');
@@ -246,8 +345,10 @@ async function runControllerCheck() {
   await el.radarConfirmAcceptBtn.onclick();
 
   assertEqual(calls[0], 'health', 'health call drift');
-  assertEqual(calls[1].type, 'create', 'submit should create a service job');
-  assertEqual(calls[1].payload.countries[0], 'argentina', 'controller countries payload drift');
+  assertEqual(calls[1], 'monitorCards', 'monitor refresh should read cards');
+  assertEqual(calls[2].type, 'summary', 'monitor refresh should enrich linked cards with summaries');
+  assertEqual(calls[3].type, 'create', 'submit should create a service job');
+  assertEqual(calls[3].payload.countries[0], 'argentina', 'controller countries payload drift');
   if (!calls.some((entry) => entry.type === 'getJob')) throw new Error('controller should poll job detail');
   if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
   if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');
@@ -260,6 +361,49 @@ async function runControllerCheck() {
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (calls.some((entry) => entry.type === 'delete')) throw new Error('confirm accept handler should replace stale actions');
   if (!el.radarProgressStatus.textContent.includes('Listo para investigar')) throw new Error(`progress status drift after cancel: ${el.radarProgressStatus.textContent}`);
+  if (!calls.includes('closeModal')) throw new Error(`submit should close the new-job modal after creating a job: ${JSON.stringify(calls)}`);
+  if (!calls.includes('history')) throw new Error(`submit should refresh visible history after completed polling: ${JSON.stringify(calls)}`);
+}
+
+async function runControllerMonitorFallbackCheck() {
+  const calls = [];
+  const state = createRadarState();
+  const el = {
+    radarHealthStatus: makeElement(),
+    radarProgressStatus: makeElement(),
+    radarQueueList: makeElement(),
+    radarMonitorStatus: makeElement(),
+    radarMonitorList: makeElement(),
+    radarHistoryList: makeElement(),
+  };
+  const controller = createRadarController({
+    state,
+    el,
+    api: {
+      async monitorCards() {
+        calls.push('monitorCards');
+        return { items: [
+          { video_id: 'without-radar-link', title: 'No Radar link', country: 'argentina', channel_label: 'TyC' },
+          { video_id: 'summary-failed', title: 'Summary failed', country: 'ecuador', channel_label: 'Ecuador TV', radar_job_id: 'job-failed-summary' },
+        ] };
+      },
+      async getSummary(jobId) {
+        calls.push({ type: 'summary', jobId });
+        throw new Error('summary backend down');
+      },
+    },
+    ui: { toast() {} },
+  });
+
+  await controller.refreshMonitor();
+
+  assertEqual(calls[0], 'monitorCards', 'monitor fallback check should read monitor cards first');
+  assertDeepEqual(calls.filter((entry) => entry?.type === 'summary'), [{ type: 'summary', jobId: 'job-failed-summary' }], 'summary should only be requested for linked Radar jobs');
+  assertEqual(state.monitorCards[0].mentionCounts.length, 0, 'unlinked card should keep default pending mention column input');
+  assertDeepEqual(state.monitorCards[1].mentionCounts, [{ label: 'Pendiente', count: '—', status: 'summary_unavailable' }], 'failed summary fallback drift');
+  if (!el.radarMonitorList.innerHTML.includes('without-radar-link')) throw new Error(`unlinked monitor card disappeared: ${el.radarMonitorList.innerHTML}`);
+  if (!el.radarMonitorList.innerHTML.includes('Summary failed')) throw new Error(`failed-summary monitor card disappeared: ${el.radarMonitorList.innerHTML}`);
+  if (!el.radarMonitorList.innerHTML.includes('Pendiente')) throw new Error(`failed-summary card should render pending fallback: ${el.radarMonitorList.innerHTML}`);
 }
 
 function runControllerRemoteGuardCheck() {
@@ -269,6 +413,8 @@ function runControllerRemoteGuardCheck() {
     radarHealthStatus: makeElement(),
     radarProgressStatus: makeElement(),
     radarQueueList: makeElement(),
+    radarMonitorList: makeElement(),
+    radarMonitorStatus: makeElement(),
     radarHistoryList: makeElement(),
   };
   const controller = createRadarController({
@@ -294,6 +440,7 @@ export async function runRadarPanelCheck() {
   await runApiClientCheck();
   runStateAndRenderCheck();
   await runControllerCheck();
+  await runControllerMonitorFallbackCheck();
   runControllerRemoteGuardCheck();
 }
 

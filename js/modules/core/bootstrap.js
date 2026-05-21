@@ -68,6 +68,7 @@ export function bindCoreEvents({
         tts: false,
         subtitles: false,
         radar: false,
+        monitor: false,
         remotion: false,
         approvalPipeline: true,
       },
@@ -86,6 +87,8 @@ export function bindCoreEvents({
       brandChannel: el.brandChannelSelect?.value || defaults.brandChannel,
       transcriptServiceBaseUrl: el.transcriptServiceBaseUrlInput?.value?.trim() || defaults.transcriptServiceBaseUrl,
       transcriptServiceApiKey: '',
+      channelMonitorBaseUrl: el.channelMonitorBaseUrlInput?.value?.trim() || defaults.channelMonitorBaseUrl,
+      channelMonitorApiKey: '',
     });
     el.settingsDialog.close();
     toast('Configuración guardada');

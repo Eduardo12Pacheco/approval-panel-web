@@ -6,8 +6,37 @@ export function createRadarState() {
     currentJob: null,
     summary: null,
     history: [],
+    monitorStatus: 'idle',
+    monitorCards: [],
+    monitorError: '',
+    selectedCountry: '',
+    summaryByJobId: {},
     pollingTimer: null,
     pollingInFlight: false,
+  };
+}
+
+export function normalizeMonitorSummary(summary = {}, { limit = 3 } = {}) {
+  const items = Array.isArray(summary?.items) ? summary.items : [];
+  return items
+    .map((item) => ({
+      label: (item?.label || 'Sin etiqueta').toString(),
+      count: Number.isFinite(Number(item?.count)) ? Number(item.count) : 0,
+      status: item?.status || 'ready',
+    }))
+    .slice(0, limit);
+}
+
+export function filterMonitorCards(cards = [], country = '') {
+  const selected = (country || '').toString().trim().toLowerCase();
+  if (!selected) return [...cards];
+  return cards.filter((card) => (card.country || '').toString().trim().toLowerCase() === selected);
+}
+
+export function mapMonitorCard(card = {}, summaryColumns = []) {
+  return {
+    ...card,
+    mentionCounts: summaryColumns.length ? summaryColumns : (Array.isArray(card.mention_counts) ? card.mention_counts : []),
   };
 }
 

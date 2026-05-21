@@ -1,7 +1,8 @@
-import { buildRadarJobPayload } from './state.js';
+import { buildRadarJobPayload, mapMonitorCard, normalizeMonitorSummary } from './state.js';
 import {
   formatMentionsCopy,
   formatTranscriptCopy,
+  renderRadarMonitor,
   renderRadarHistory,
   renderRadarResults,
   renderRadarSummary,
@@ -24,6 +25,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
 
   function renderAll() {
     renderRadarStatus({ el, state });
+    renderRadarMonitor({ el, state });
     renderRadarResults({ el, state });
     renderRadarHistory({ el, history: state.history });
   }
@@ -59,6 +61,37 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     } finally {
       renderAll();
     }
+  }
+
+  async function refreshMonitor() {
+    state.monitorStatus = 'loading';
+    state.monitorError = '';
+    renderAll();
+    try {
+      const payload = await api.monitorCards();
+      const cards = Array.isArray(payload.items) ? payload.items : [];
+      state.monitorCards = await enrichMonitorCards(cards);
+      state.monitorStatus = payload.degraded || payload.status === 'degraded' ? 'degraded' : 'ready';
+    } catch (error) {
+      state.monitorStatus = 'error';
+      state.monitorError = error?.message || 'Channel Monitor no disponible';
+      state.monitorCards = [];
+      toast(state.monitorError);
+    } finally {
+      renderAll();
+    }
+  }
+
+  async function enrichMonitorCards(cards) {
+    return Promise.all(cards.map(async (card) => {
+      if (!card.radar_job_id) return mapMonitorCard(card, []);
+      try {
+        const summary = await api.getSummary(card.radar_job_id);
+        return mapMonitorCard(card, normalizeMonitorSummary(summary));
+      } catch (error) {
+        return mapMonitorCard(card, [{ label: 'Pendiente', count: '—', status: 'summary_unavailable' }]);
+      }
+    }));
   }
 
   function readPayloadFromForm() {
@@ -195,6 +228,11 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     el.radarSummaryCloseBtn?.addEventListener('click', () => el.radarSummaryDialog?.close?.());
     el.radarConfirmCancelBtn?.addEventListener('click', () => el.radarConfirmDialog?.close?.());
     el.radarSubmitBtn?.addEventListener('click', () => { void submitCurrentJob(); });
+    el.radarMonitorRefreshBtn?.addEventListener('click', () => { void refreshMonitor(); });
+    el.radarCountryFilter?.addEventListener('input', () => {
+      state.selectedCountry = el.radarCountryFilter?.value || '';
+      renderAll();
+    });
     el.radarCopyTranscriptBtn?.addEventListener('click', () => { void copyTranscript(); });
     el.radarCopyMentionsBtn?.addEventListener('click', () => { void copyMentions(); });
     el.radarHistoryList?.addEventListener?.('click', (event) => {
@@ -222,6 +260,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     bindEvents,
     refreshHealth,
     refreshHistory,
+    refreshMonitor,
     submitCurrentJob,
     pollActiveJob,
     copyTranscript,

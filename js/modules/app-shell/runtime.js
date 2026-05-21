@@ -571,6 +571,7 @@ function legacySetView(view) {
   if (isRadar) {
     if (radarController.activate?.() !== false) {
       radarController.render();
+      void radarController.refreshMonitor?.();
       void radarController.refreshHealth();
       void radarController.refreshHistory();
     }

@@ -1,6 +1,7 @@
 const DEFAULT_REMOTION_API_URL = 'https://remotion-api.automatizacionedun8n.me';
 const DEFAULT_APPROVAL_EDITOR_SERVICE_URL = 'https://api.automatizacionedun8n.me/approval';
 const DEFAULT_TRANSCRIPT_SERVICE_URL = 'http://127.0.0.1:8765';
+const DEFAULT_CHANNEL_MONITOR_SERVICE_URL = 'http://127.0.0.1:8775';
 const DEFAULT_SUBTITLES_SERVICE_URL = 'http://127.0.0.1:8092';
 const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
@@ -9,6 +10,7 @@ const DEFAULT_SERVICE_OVERRIDES = Object.freeze({
   tts: false,
   subtitles: false,
   radar: false,
+  monitor: false,
   remotion: false,
   approvalPipeline: true,
 });
@@ -17,6 +19,7 @@ const UNIFIED_SERVICE_PREFIX = Object.freeze({
   tts: 'tts',
   subtitles: 'subtitles',
   radar: 'radar',
+  monitor: 'monitor',
   remotion: 'remotion',
 });
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
@@ -116,6 +119,8 @@ export function defaultSettingsFactory() {
     brandChannel: DEFAULT_BRAND_CHANNEL,
     transcriptServiceBaseUrl: DEFAULT_TRANSCRIPT_SERVICE_URL,
     transcriptServiceApiKey: '',
+    channelMonitorBaseUrl: DEFAULT_CHANNEL_MONITOR_SERVICE_URL,
+    channelMonitorApiKey: '',
   };
 }
 
@@ -124,7 +129,7 @@ export function normalizeSettings(settings = {}, { defaultsFactory = defaultSett
   const merged = { ...defaults, ...(settings || {}) };
   merged.apiProfileMode = normalizeApiProfileMode(merged.apiProfileMode);
   merged.apiOrigin = trimTrailingSlash(merged.apiOrigin) || defaults.apiOrigin;
-  merged.sharedApiKey = fallbackCredential(merged.sharedApiKey, merged.subtitlesApiKey || merged.ttsApiKey || merged.transcriptServiceApiKey).trim();
+  merged.sharedApiKey = fallbackCredential(merged.sharedApiKey, merged.subtitlesApiKey || merged.ttsApiKey || merged.transcriptServiceApiKey || merged.channelMonitorApiKey).trim();
   merged.sharedBasicUser = fallbackCredential(merged.sharedBasicUser, merged.subtitlesBasicUser || merged.ttsBasicUser).trim();
   merged.sharedBasicPass = fallbackCredential(merged.sharedBasicPass, merged.subtitlesBasicPass || merged.ttsBasicPass);
   merged.serviceOverrides = normalizeServiceOverrides(merged.serviceOverrides);
@@ -176,6 +181,7 @@ const SERVICE_BASE_FIELD = Object.freeze({
   tts: 'ttsBaseUrl',
   subtitles: 'subtitlesBaseUrl',
   radar: 'transcriptServiceBaseUrl',
+  monitor: 'channelMonitorBaseUrl',
   remotion: 'remotionApiUrl',
 });
 
@@ -210,7 +216,7 @@ function fallbackCredential(primary, shared) {
 
 function resolveUniversalCredentials(settings = {}) {
   return {
-    apiKey: fallbackCredential(settings.sharedApiKey, settings.ttsApiKey || settings.subtitlesApiKey || settings.transcriptServiceApiKey).trim(),
+    apiKey: fallbackCredential(settings.sharedApiKey, settings.ttsApiKey || settings.subtitlesApiKey || settings.transcriptServiceApiKey || settings.channelMonitorApiKey).trim(),
     basicUser: fallbackCredential(settings.sharedBasicUser, settings.ttsBasicUser || settings.subtitlesBasicUser).trim(),
     basicPass: fallbackCredential(settings.sharedBasicPass, settings.subtitlesBasicPass || settings.ttsBasicPass),
   };
@@ -244,6 +250,12 @@ export function resolveServiceConfig(rawSettings = {}, service) {
     return {
       baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.transcriptServiceBaseUrl),
       apiKey: universalCredentials.apiKey,
+    };
+  }
+  if (service === 'monitor') {
+    return {
+      baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.channelMonitorBaseUrl),
+      apiKey: fallbackCredential(settings.channelMonitorApiKey, universalCredentials.apiKey).trim(),
     };
   }
   if (service === 'remotion') {
@@ -300,5 +312,8 @@ export function hydrateSettingsFormValues({ el, settings }) {
   }
   if (el.transcriptServiceBaseUrlInput) {
     el.transcriptServiceBaseUrlInput.value = normalized.transcriptServiceBaseUrl || DEFAULT_TRANSCRIPT_SERVICE_URL;
+  }
+  if (el.channelMonitorBaseUrlInput) {
+    el.channelMonitorBaseUrlInput.value = normalized.channelMonitorBaseUrl || DEFAULT_CHANNEL_MONITOR_SERVICE_URL;
   }
 }

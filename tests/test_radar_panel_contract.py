@@ -44,7 +44,12 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarConfirmDialog"',
         'id="radarSubmitBtn"',
         'id="radarHistoryList"',
+        'id="radarMonitorStatus"',
+        'id="radarMonitorRefreshBtn"',
+        'id="radarCountryFilter"',
+        'id="radarMonitorList"',
         'id="transcriptServiceBaseUrlInput"',
+        'id="channelMonitorBaseUrlInput"',
     ]:
         assert expected in index_source
 
@@ -60,16 +65,26 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         "radarSummaryDialog",
         "radarConfirmDialog",
         "transcriptServiceBaseUrlInput",
+        "radarMonitorStatus",
+        "radarMonitorRefreshBtn",
+        "radarCountryFilter",
+        "radarMonitorList",
+        "channelMonitorBaseUrlInput",
     ]:
         assert expected in selectors_source
 
     assert "transcriptServiceBaseUrl" in app_store_source
     assert "transcriptServiceApiKey" in app_store_source
+    assert "channelMonitorBaseUrl" in app_store_source
+    assert "channelMonitorApiKey" in app_store_source
     assert "http://127.0.0.1:8765" in app_store_source
+    assert "http://127.0.0.1:8775" in app_store_source
     assert "http://127.0.0.1:8091" not in app_store_source
     assert 'placeholder="http://127.0.0.1:8765"' in index_source
+    assert 'placeholder="http://127.0.0.1:8775"' in index_source
     assert "transcriptServiceApiKeyInput.value" not in app_store_source
     assert "transcriptServiceApiKey: ''" in bootstrap_source
+    assert "channelMonitorApiKey: ''" in bootstrap_source
     assert "./features/radar/api-client.js" in app_shell_source
     assert "./features/radar/controller.js" in app_shell_source
     assert "setView('radar')" not in app_shell_source
@@ -90,3 +105,19 @@ def test_radar_new_job_dialog_uses_compact_single_panel_layout():
     assert "width: auto;" in source
     assert "box-sizing: border-box;" in source
     assert "#viewRadar dialog article {" not in source
+
+
+def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
+    source = RADAR_CSS_PATH.read_text(encoding="utf-8")
+
+    for expected in [
+        ".radar-monitor-toolbar",
+        ".radar-monitor-card",
+        "grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);",
+        ".radar-monitor-card__meta",
+        ".radar-monitor-card__mentions",
+        ".radar-mention-column",
+        ".radar-monitor-empty",
+        ".radar-monitor-error",
+    ]:
+        assert expected in source

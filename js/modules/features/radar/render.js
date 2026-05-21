@@ -1,3 +1,5 @@
+import { filterMonitorCards } from './state.js';
+
 function escapeHtml(value) {
   return (value ?? '').toString()
     .replace(/&/g, '&amp;')
@@ -113,6 +115,67 @@ export function renderRadarHistory({ el, history = [] }) {
       </article>
     `;
   }).join('');
+}
+
+export function renderRadarMonitor({ el, state }) {
+  if (!el.radarMonitorList) return;
+  const status = state.monitorStatus || 'idle';
+  const visibleCards = filterMonitorCards(state.monitorCards || [], state.selectedCountry || '');
+  if (el.radarMonitorStatus) {
+    el.radarMonitorStatus.textContent = monitorStatusText({ status, total: state.monitorCards?.length || 0, visible: visibleCards.length, error: state.monitorError });
+  }
+  if (status === 'loading') {
+    el.radarMonitorList.classList?.add?.('is-empty');
+    el.radarMonitorList.innerHTML = '<article class="radar-monitor-empty">Cargando videos monitoreados.</article>';
+    return;
+  }
+  if (status === 'error') {
+    el.radarMonitorList.classList?.add?.('is-empty');
+    el.radarMonitorList.innerHTML = `<article class="radar-monitor-error">${escapeHtml(state.monitorError || 'Channel Monitor no disponible')}</article>`;
+    return;
+  }
+  if (!visibleCards.length) {
+    el.radarMonitorList.classList?.add?.('is-empty');
+    el.radarMonitorList.innerHTML = '<article class="radar-monitor-empty">Sin videos monitoreados para este filtro.</article>';
+    return;
+  }
+  el.radarMonitorList.classList?.remove?.('is-empty');
+  el.radarMonitorList.innerHTML = visibleCards.map(renderMonitorCard).join('');
+}
+
+function monitorStatusText({ status, total, visible, error }) {
+  if (status === 'loading') return 'Cargando videos monitoreados.';
+  if (status === 'error') return error || 'Channel Monitor no disponible.';
+  if (status === 'degraded') return `${visible}/${total} videos · monitor degradado`;
+  return `${visible}/${total} videos monitoreados`;
+}
+
+function renderMonitorCard(card = {}) {
+  const title = card.title || card.video_id || 'Video sin título';
+  const meta = [card.country, card.channel_label || card.channel, card.published_at].filter(Boolean).join(' · ');
+  const mentions = Array.isArray(card.mentionCounts) ? card.mentionCounts : [];
+  return `
+    <article class="radar-monitor-card" data-video-id="${escapeHtml(card.video_id || '')}">
+      <div class="radar-monitor-card__main">
+        <span class="radar-kicker">${escapeHtml(card.lifecycle || card.enqueue_status || 'monitor')}</span>
+        <strong>${escapeHtml(title)}</strong>
+        <small class="radar-monitor-card__meta">${escapeHtml(meta || 'Metadata pendiente')}</small>
+      </div>
+      <div class="radar-monitor-card__mentions" aria-label="Menciones detectadas">
+        ${mentions.length ? mentions.map(renderMentionColumn).join('') : '<span class="radar-mention-column is-pending"><strong>—</strong><small>Pendiente</small></span>'}
+      </div>
+    </article>
+  `;
+}
+
+function renderMentionColumn(item = {}) {
+  const isPending = item.status && item.status !== 'ready';
+  return `
+    <span class="radar-mention-column ${isPending ? 'is-pending' : ''}">
+      <strong>${escapeHtml(item.count ?? '—')}</strong>
+      <small>${escapeHtml(item.label || 'Pendiente')}</small>
+    </span>
+  `;
 }
 
 function humanJobStatus(status = '') {

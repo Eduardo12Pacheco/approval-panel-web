@@ -59,11 +59,117 @@
 }
 
 #viewRadar .radar-transcriptions-panel,
+#viewRadar .radar-monitor-panel,
 #viewRadar .radar-queue-panel {
   min-height: calc(100vh - 260px);
   padding: 24px;
   background: #0A0A0A;
   border: 1px solid #262626;
+}
+
+#viewRadar .radar-monitor-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#viewRadar .radar-monitor-toolbar select {
+  min-width: 180px;
+}
+
+#viewRadar .radar-monitor-list {
+  display: grid;
+  gap: 14px;
+}
+
+#viewRadar .radar-monitor-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
+  gap: 18px;
+  align-items: stretch;
+  padding: 18px 20px;
+  border: 1px solid #2A2A2A;
+  background: #0D0D0D;
+}
+
+#viewRadar .radar-monitor-card__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+#viewRadar .radar-monitor-card strong {
+  color: #FFFFFF;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+#viewRadar .radar-monitor-card__meta {
+  color: #8B8E93;
+  font-size: 12px;
+}
+
+#viewRadar .radar-monitor-card__mentions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+#viewRadar .radar-mention-column {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid #262626;
+  background: #090909;
+  text-align: center;
+}
+
+#viewRadar .radar-mention-column strong {
+  color: #00E88F;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+#viewRadar .radar-mention-column small {
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewRadar .radar-mention-column.is-pending strong,
+#viewRadar .radar-mention-column.is-pending small {
+  color: #8B8E93;
+}
+
+#viewRadar .radar-monitor-empty,
+#viewRadar .radar-monitor-error {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #262626;
+  background: #090909;
+  color: #F5F7F7;
+  text-align: center;
+}
+
+#viewRadar .radar-monitor-error {
+  color: #F7B955;
+}
+
+#viewRadar .radar-history-secondary {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
 }
 
 #viewRadar .radar-transcriptions-panel .audio-queue-header h3,
