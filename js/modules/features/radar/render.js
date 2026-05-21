@@ -124,6 +124,7 @@ export function renderRadarMonitor({ el, state }) {
   if (el.radarMonitorStatus) {
     el.radarMonitorStatus.textContent = monitorStatusText({ status, total: state.monitorCards?.length || 0, visible: visibleCards.length, error: state.monitorError });
   }
+  updateCountryBar(el.radarCountryBar, state.selectedCountry || '');
   if (status === 'loading') {
     el.radarMonitorList.classList?.add?.('is-empty');
     el.radarMonitorList.innerHTML = '<article class="radar-monitor-empty">Cargando videos monitoreados.</article>';
@@ -150,6 +151,14 @@ function monitorStatusText({ status, total, visible, error }) {
   return `${visible}/${total} videos monitoreados`;
 }
 
+function updateCountryBar(countryBar, selectedCountry = '') {
+  countryBar?.querySelectorAll?.('[data-radar-country-option]')?.forEach?.((button) => {
+    const isActive = button.dataset?.radarCountryOption === selectedCountry;
+    button.classList?.toggle?.('is-active', isActive);
+    button.setAttribute?.('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
 function renderMonitorCard(card = {}) {
   const title = card.title || card.video_id || 'Video sin título';
   const meta = [card.country, card.channel_label || card.channel, card.published_at].filter(Boolean).join(' · ');
@@ -172,8 +181,8 @@ function renderMentionColumn(item = {}) {
   const isPending = item.status && item.status !== 'ready';
   return `
     <span class="radar-mention-column ${isPending ? 'is-pending' : ''}">
-      <strong>${escapeHtml(item.count ?? '—')}</strong>
       <small>${escapeHtml(item.label || 'Pendiente')}</small>
+      <strong>${escapeHtml(item.count ?? '—')}</strong>
     </span>
   `;
 }

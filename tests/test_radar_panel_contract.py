@@ -38,6 +38,9 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarCountryColombia"',
         'id="radarCountryEcuador"',
         'id="radarCountryArgentina"',
+        'id="radarCountryParaguay"',
+        'id="radarCountryUruguay"',
+        'id="radarCountryMexico"',
         'id="radarExtraKeywordsInput"',
         'id="radarQueueList"',
         'id="radarSummaryDialog"',
@@ -46,6 +49,7 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarHistoryList"',
         'id="radarMonitorStatus"',
         'id="radarMonitorRefreshBtn"',
+        'id="radarCountryBar"',
         'id="radarCountryFilter"',
         'id="radarMonitorList"',
         'id="transcriptServiceBaseUrlInput"',
@@ -63,12 +67,16 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         "radarNewJobBtn",
         "radarNewJobDialog",
         "radarCountryColombia",
+        "radarCountryParaguay",
+        "radarCountryUruguay",
+        "radarCountryMexico",
         "radarQueueList",
         "radarSummaryDialog",
         "radarConfirmDialog",
         "transcriptServiceBaseUrlInput",
         "radarMonitorStatus",
         "radarMonitorRefreshBtn",
+        "radarCountryBar",
         "radarCountryFilter",
         "radarMonitorList",
         "channelMonitorBaseUrlInput",
@@ -112,11 +120,18 @@ def test_radar_new_job_dialog_uses_compact_single_panel_layout():
 
 def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
     source = RADAR_CSS_PATH.read_text(encoding="utf-8")
+    template = RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+    for country in ["Ecuador", "Colombia", "Argentina", "Paraguay", "Uruguay", "M\\u00e9xico"]:
+        assert country in template
+    assert "data-radar-country-option" in template
 
     for expected in [
         ".radar-monitor-toolbar",
+        ".radar-country-bar",
+        ".radar-country-card",
         ".radar-monitor-card",
-        "grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);",
+        "grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);",
         ".radar-monitor-card__meta",
         ".radar-monitor-card__mentions",
         ".radar-mention-column",

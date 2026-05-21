@@ -54,7 +54,9 @@
 }
 
 #viewRadar .radar-layout {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -65,6 +67,12 @@
   padding: 24px;
   background: #0A0A0A;
   border: 1px solid #262626;
+}
+
+#viewRadar .radar-monitor-panel {
+  display: grid;
+  align-content: start;
+  gap: 18px;
 }
 
 #viewRadar .radar-monitor-toolbar {
@@ -79,6 +87,51 @@
   min-width: 180px;
 }
 
+#viewRadar .radar-country-bar {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#viewRadar .radar-country-card {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 14px 16px;
+  border: 1px solid #262626;
+  background: #0A0A0A;
+  color: #D8DBDE;
+  text-align: left;
+}
+
+#viewRadar .radar-country-card span {
+  color: #8B8E93;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewRadar .radar-country-card strong {
+  color: #D8DBDE;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#viewRadar .radar-country-card:hover,
+#viewRadar .radar-country-card.is-active {
+  border-color: #00E88F55;
+  background: #03140D;
+}
+
+#viewRadar .radar-country-card.is-active span,
+#viewRadar .radar-country-card.is-active strong {
+  color: #00E88F;
+}
+
 #viewRadar .radar-monitor-list {
   display: grid;
   gap: 14px;
@@ -86,11 +139,17 @@
 
 #viewRadar .radar-monitor-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 36%);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);
+  gap: 24px;
   align-items: stretch;
-  padding: 18px 20px;
+  min-height: 128px;
+  padding: 20px 24px;
   border: 1px solid #2A2A2A;
+  background: #0A0A0A;
+}
+
+#viewRadar .radar-monitor-card:hover {
+  border-color: #00E88F55;
   background: #0D0D0D;
 }
 
@@ -115,26 +174,26 @@
 
 #viewRadar .radar-monitor-card__mentions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(72px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
+  gap: 18px;
   align-items: stretch;
 }
 
 #viewRadar .radar-mention-column {
   display: grid;
   align-content: center;
-  gap: 4px;
-  min-height: 76px;
-  padding: 12px;
-  border: 1px solid #262626;
-  background: #090909;
+  gap: 8px;
+  min-height: 84px;
+  padding: 12px 10px;
+  border: 0;
+  background: transparent;
   text-align: center;
 }
 
 #viewRadar .radar-mention-column strong {
   color: #00E88F;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 24px;
+  font-size: 34px;
   line-height: 1;
 }
 
@@ -153,7 +212,7 @@
 
 #viewRadar .radar-monitor-empty,
 #viewRadar .radar-monitor-error {
-  min-height: 260px;
+  min-height: 132px;
   display: grid;
   place-items: center;
   border: 1px dashed #262626;
@@ -347,5 +406,15 @@
     grid-column: 1;
     grid-row: auto;
     justify-self: start;
+  }
+
+  #viewRadar .radar-layout,
+  #viewRadar .radar-monitor-card {
+    grid-template-columns: 1fr;
+  }
+
+  #viewRadar .radar-country-bar,
+  #viewRadar .radar-monitor-card__mentions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

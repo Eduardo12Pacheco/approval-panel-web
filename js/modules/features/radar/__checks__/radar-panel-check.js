@@ -12,6 +12,7 @@ import {
   buildRadarJobPayload,
   createRadarState,
   filterMonitorCards,
+  mapMonitorCard,
   normalizeMonitorSummary,
   parseRadarKeywords,
 } from '../state.js';
@@ -172,12 +173,12 @@ function runStateAndRenderCheck() {
   assertDeepEqual(parseRadarKeywords('Messi, Di María\nScaloni'), ['Messi', 'Di María', 'Scaloni'], 'keyword parsing drift');
   const payload = buildRadarJobPayload({
     url: ' https://youtu.be/abc ',
-    countries: ['colombia', 'argentina'],
+    countries: ['colombia', 'argentina', 'paraguay', 'uruguay', 'mexico'],
     extraKeywords: 'Messi, Di María',
   });
   assertDeepEqual(payload, {
     url: 'https://youtu.be/abc',
-    countries: ['colombia', 'argentina'],
+    countries: ['colombia', 'argentina', 'paraguay', 'uruguay', 'mexico'],
     extra_keywords: ['Messi', 'Di María'],
   }, 'job payload drift');
 
@@ -208,7 +209,15 @@ function runStateAndRenderCheck() {
   assertDeepEqual(filterMonitorCards([
     { video_id: 'a', country: 'argentina' },
     { video_id: 'e', country: 'ecuador' },
+    { video_id: 'm', country: 'méxico' },
   ], 'argentina'), [{ video_id: 'a', country: 'argentina' }], 'country filter drift');
+
+  const pendingMexicoCard = mapMonitorCard({ video_id: 'mx-1', country: 'México' }, []);
+  assertDeepEqual(pendingMexicoCard.mentionCounts, [
+    { label: 'Giménez', count: '—', status: 'pending' },
+    { label: 'Ochoa', count: '—', status: 'pending' },
+    { label: 'Edson Álvarez', count: '—', status: 'pending' },
+  ], 'country famous-player pending mentions drift');
 
   const queueEl = makeElement();
   renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
@@ -273,6 +282,9 @@ async function runControllerCheck() {
     radarCountryColombia: { checked: false },
     radarCountryEcuador: { checked: false },
     radarCountryArgentina: { checked: true },
+    radarCountryParaguay: { checked: true },
+    radarCountryUruguay: { checked: false },
+    radarCountryMexico: { checked: false },
     radarExtraKeywordsInput: makeElement({ value: 'Messi' }),
     radarSubmitBtn: makeElement(),
     radarHealthStatus: makeElement(),
@@ -281,6 +293,7 @@ async function runControllerCheck() {
     radarMonitorStatus: makeElement(),
     radarMonitorList: makeElement(),
     radarCountryFilter: makeElement({ value: '' }),
+    radarCountryBar: makeElement(),
     radarMonitorRefreshBtn: makeElement(),
     radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
     radarSummaryDialog: { showModal() { calls.push('summaryModal'); }, close() {} },
@@ -351,6 +364,7 @@ async function runControllerCheck() {
   assertEqual(calls[2].type, 'summary', 'monitor refresh should enrich linked cards with summaries');
   assertEqual(calls[3].type, 'create', 'submit should create a service job');
   assertEqual(calls[3].payload.countries[0], 'argentina', 'controller countries payload drift');
+  assertEqual(calls[3].payload.countries[1], 'paraguay', 'controller expanded countries payload drift');
   if (!calls.some((entry) => entry.type === 'getJob')) throw new Error('controller should poll job detail');
   if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
   if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');
@@ -401,7 +415,11 @@ async function runControllerMonitorFallbackCheck() {
 
   assertEqual(calls[0], 'monitorCards', 'monitor fallback check should read monitor cards first');
   assertDeepEqual(calls.filter((entry) => entry?.type === 'summary'), [{ type: 'summary', jobId: 'job-failed-summary' }], 'summary should only be requested for linked Radar jobs');
-  assertEqual(state.monitorCards[0].mentionCounts.length, 0, 'unlinked card should keep default pending mention column input');
+  assertDeepEqual(state.monitorCards[0].mentionCounts, [
+    { label: 'Messi', count: '—', status: 'pending' },
+    { label: 'Álvarez', count: '—', status: 'pending' },
+    { label: 'Di María', count: '—', status: 'pending' },
+  ], 'unlinked card should show famous-player pending mentions');
   assertDeepEqual(state.monitorCards[1].mentionCounts, [{ label: 'Pendiente', count: '—', status: 'summary_unavailable' }], 'failed summary fallback drift');
   if (!el.radarMonitorList.innerHTML.includes('without-radar-link')) throw new Error(`unlinked monitor card disappeared: ${el.radarMonitorList.innerHTML}`);
   if (!el.radarMonitorList.innerHTML.includes('Summary failed')) throw new Error(`failed-summary monitor card disappeared: ${el.radarMonitorList.innerHTML}`);

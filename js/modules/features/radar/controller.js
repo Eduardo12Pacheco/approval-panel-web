@@ -101,6 +101,9 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
         el.radarCountryColombia?.checked ? 'colombia' : '',
         el.radarCountryEcuador?.checked ? 'ecuador' : '',
         el.radarCountryArgentina?.checked ? 'argentina' : '',
+        el.radarCountryParaguay?.checked ? 'paraguay' : '',
+        el.radarCountryUruguay?.checked ? 'uruguay' : '',
+        el.radarCountryMexico?.checked ? 'mexico' : '',
       ],
       extraKeywords: el.radarExtraKeywordsInput?.value,
     });
@@ -229,6 +232,14 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     el.radarConfirmCancelBtn?.addEventListener('click', () => el.radarConfirmDialog?.close?.());
     el.radarSubmitBtn?.addEventListener('click', () => { void submitCurrentJob(); });
     el.radarMonitorRefreshBtn?.addEventListener('click', () => { void refreshMonitor(); });
+    el.radarCountryBar?.addEventListener?.('click', (event) => {
+      const button = event.target?.closest?.('[data-radar-country-option]');
+      if (!button) return;
+      const nextCountry = button.dataset.radarCountryOption || '';
+      state.selectedCountry = state.selectedCountry === nextCountry ? '' : nextCountry;
+      if (el.radarCountryFilter) el.radarCountryFilter.value = state.selectedCountry;
+      renderAll();
+    });
     el.radarCountryFilter?.addEventListener('input', () => {
       state.selectedCountry = el.radarCountryFilter?.value || '';
       renderAll();
