@@ -277,9 +277,15 @@ export function hydrateSettingsFormValues({ el, settings }) {
     el.advancedSettingsSection.hidden = true;
     el.advancedSettingsSection.setAttribute?.('aria-hidden', 'true');
   }
-  el.baseUrlInput.value = normalized.baseUrl;
-  el.secretInput.value = normalized.secret;
-  el.ttsBaseUrlInput.value = normalized.ttsBaseUrl;
+  if (el.baseUrlInput) {
+    el.baseUrlInput.value = normalized.baseUrl;
+  }
+  if (el.secretInput) {
+    el.secretInput.value = normalized.secret;
+  }
+  if (el.ttsBaseUrlInput) {
+    el.ttsBaseUrlInput.value = normalized.ttsBaseUrl;
+  }
   if (el.subtitlesBaseUrlInput) {
     el.subtitlesBaseUrlInput.value = normalized.subtitlesBaseUrl || DEFAULT_SUBTITLES_SERVICE_URL;
   }
