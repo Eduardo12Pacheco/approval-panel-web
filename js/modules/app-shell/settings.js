@@ -3,7 +3,7 @@ import {
   hydrateSettingsFormValues,
   mergeSettingsForSave,
   saveSettingsToStorage,
-} from '../core/state/app-store.js?v=20260519-project-card-polish';
+} from '../core/state/app-store.js?v=20260521-settings-guard';
 
 export function createSettingsController({
   state,

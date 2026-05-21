@@ -1,4 +1,4 @@
-import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js?v=20260519-project-card-polish';
+import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js?v=20260521-settings-guard';
 
 function trimTrailingSlash(value) {
   return (value || '').toString().trim().replace(/\/+$/, '');

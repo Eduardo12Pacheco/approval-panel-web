@@ -6,7 +6,7 @@ import {
   resolveServiceConfig,
   shouldSkipApprovalBackgroundRefresh,
   shouldSkipApprovalInitialBootRefresh,
-} from '../core/state/app-store.js?v=20260519-project-card-polish';
+} from '../core/state/app-store.js?v=20260521-settings-guard';
 import {
   clearSessionStatus,
   isValidCredentials,
