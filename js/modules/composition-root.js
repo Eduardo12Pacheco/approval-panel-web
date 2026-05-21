@@ -1,4 +1,4 @@
-import { bootApp } from './app-shell.js?v=20260520-whip-bugfix';
+import { bootApp } from './app-shell.js?v=20260521-settings-guard';
 
 export const EVENT_BINDING_ROUTE_MAP = {
   approval: ['searchInput', 'countryFilter', 'sourcesFilter', 'cards', 'queueDialog'],
