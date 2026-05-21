@@ -94,16 +94,30 @@ export function buildCompositionDOM(container) {
   image.draggable = false;
   stage.appendChild(image);
 
-  const whipPrevious = document.createElement('img');
+  const whipPrevious = document.createElement('div');
   whipPrevious.className = 'composition-layer composition-layer--whip-previous';
-  whipPrevious.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+  whipPrevious.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
   whipPrevious.draggable = false;
+  for (let index = 0; index < 7; index += 1) {
+    const sample = document.createElement('img');
+    sample.className = 'composition-layer composition-layer--whip-sample composition-layer--whip-previous-sample';
+    sample.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+    sample.draggable = false;
+    whipPrevious.appendChild(sample);
+  }
   stage.appendChild(whipPrevious);
 
-  const whipNext = document.createElement('img');
+  const whipNext = document.createElement('div');
   whipNext.className = 'composition-layer composition-layer--whip-next';
-  whipNext.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+  whipNext.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
   whipNext.draggable = false;
+  for (let index = 0; index < 7; index += 1) {
+    const sample = document.createElement('img');
+    sample.className = 'composition-layer composition-layer--whip-sample composition-layer--whip-next-sample';
+    sample.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;transform-origin:center center;will-change:transform,filter,opacity;pointer-events:none;visibility:hidden;';
+    sample.draggable = false;
+    whipNext.appendChild(sample);
+  }
   stage.appendChild(whipNext);
 
   const dust = document.createElement('video');

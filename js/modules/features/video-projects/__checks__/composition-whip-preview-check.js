@@ -1,6 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import {
   WHIP_BROWSER_SFX_URL,
+  WHIP_SMEAR_SAMPLE_COUNT,
+  WHIP_TRANSITION_DURATION_SECONDS,
   applyWhipOverlayLayers,
   buildWhipPreviewEvents,
   createWhipSfxScheduler,
@@ -18,7 +20,7 @@ function assertOk(value, message) {
 }
 
 function createLayer() {
-  return {
+  const layer = {
     src: '',
     draggable: true,
     style: {
@@ -27,7 +29,16 @@ function createLayer() {
       filter: '',
       opacity: '',
     },
+    children: [],
   };
+  for (let index = 0; index < WHIP_SMEAR_SAMPLE_COUNT; index += 1) {
+    layer.children.push({
+      src: '',
+      draggable: true,
+      style: { visibility: '', transform: '', filter: '', opacity: '' },
+    });
+  }
+  return layer;
 }
 
 function testWhipEventMathKeepsSegmentTimingUntouched() {
@@ -50,8 +61,9 @@ function testWhipEventMathKeepsSegmentTimingUntouched() {
 
   assertEqual(events.length, 1, 'Expected one active Whip preview event');
   assertEqual(events[0].cutTime, 1, 'Expected Whip cut to use the next row start time');
-  assertEqual(events[0].startTime, 0.75, 'Expected Whip to be centered before the cut');
-  assertEqual(events[0].endTime, 1.25, 'Expected Whip to keep a half-second visual window');
+  assertEqual(events[0].durationSeconds, WHIP_TRANSITION_DURATION_SECONDS, 'Expected browser preview to use the tighter reference-matched Whip duration');
+  assertEqual(events[0].startTime, 0.785, 'Expected Whip to be centered before the cut');
+  assertEqual(events[0].endTime, 1.215, 'Expected Whip to keep a short reference-matched visual window');
   assertEqual(events[0].previousImage, 'previous.jpg', 'Expected outgoing row image in the event');
   assertEqual(events[0].nextImage, 'next.jpg', 'Expected incoming row image in the event');
   assertEqual(events[0].sfxUrl, WHIP_BROWSER_SFX_URL, 'Expected browser preview to use the local Control Panel SFX asset');
@@ -82,9 +94,13 @@ function testWhipFrameStylesMoveOutgoingRightAndIncomingSettles() {
   assertEqual(frame.progress, 0.5, 'Expected cut-centered Whip frame to be halfway through');
   assertEqual(frame.previous.src, 'previous.jpg', 'Expected previous layer source');
   assertEqual(frame.next.src, 'next.jpg', 'Expected next layer source');
-  assertOk(frame.previous.transform.includes('translate3d(55'), 'Expected outgoing image to move right at the cut');
+  assertOk(frame.previous.transform.includes('translate3d(60'), 'Expected outgoing image to move right at the cut');
   assertOk(frame.previous.filter.includes('blur('), 'Expected outgoing image to blur during Whip');
-  assertOk(frame.next.transform.includes('translate3d(-12'), 'Expected incoming image to enter from a safe left offset at the cut');
+  assertOk(frame.next.transform.includes('translate3d(-17.5'), 'Expected incoming image to enter from the left during the same rightward move');
+  assertEqual(frame.previous.samples.length, WHIP_SMEAR_SAMPLE_COUNT, 'Expected outgoing Whip smear samples');
+  assertEqual(frame.next.samples.length, WHIP_SMEAR_SAMPLE_COUNT, 'Expected incoming Whip smear samples');
+  assertOk(frame.previous.samples[0].transform.includes('translate3d(-16'), 'Expected outgoing smear to fan horizontally');
+  assertOk(frame.previous.samples[3].opacity > frame.previous.samples[0].opacity, 'Expected center smear sample to be strongest');
 }
 
 function testWhipOverlayDomWiringAppliesAndHidesLayers() {
@@ -101,11 +117,15 @@ function testWhipOverlayDomWiringAppliesAndHidesLayers() {
   assertEqual(layers.whipPrevious.src, 'previous.jpg', 'Expected previous Whip layer src to update');
   assertEqual(layers.whipNext.src, 'next.jpg', 'Expected next Whip layer src to update');
   assertEqual(layers.whipPrevious.draggable, false, 'Expected Whip image layers to remain non-draggable');
+  assertEqual(layers.whipPrevious.children[0].src, 'previous.jpg', 'Expected previous Whip sample src to update');
+  assertEqual(layers.whipNext.children[0].src, 'next.jpg', 'Expected next Whip sample src to update');
+  assertEqual(layers.whipPrevious.children[0].style.visibility, 'visible', 'Expected previous Whip sample to be visible');
 
   applyWhipOverlayLayers(layers, null);
 
   assertEqual(layers.whipPrevious.style.visibility, 'hidden', 'Expected previous Whip layer to hide after event');
   assertEqual(layers.whipNext.style.visibility, 'hidden', 'Expected next Whip layer to hide after event');
+  assertEqual(layers.whipPrevious.children[0].style.visibility, 'hidden', 'Expected previous Whip sample to hide after event');
 }
 
 function testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind() {
@@ -128,11 +148,11 @@ function testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind() {
     { id: 'row-b', startTime: 1, endTime: 2, image: 'next.jpg' },
   ]);
 
-  assertEqual(scheduler.schedule({ event, currentTime: 0.74, playing: true }), false, 'Expected SFX not to play before the visual Whip starts');
-  assertEqual(scheduler.schedule({ event, currentTime: 0.75, playing: true }), true, 'Expected SFX to play when the visual Whip starts');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.78, playing: true }), false, 'Expected SFX not to play before the visual Whip starts');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.785, playing: true }), true, 'Expected SFX to play when the visual Whip starts');
   assertEqual(scheduler.schedule({ event, currentTime: 1.01, playing: true }), false, 'Expected SFX not to replay for the same forward pass');
   assertEqual(scheduler.schedule({ event, currentTime: 0.5, playing: false }), false, 'Expected paused rewind not to schedule SFX');
-  assertEqual(scheduler.schedule({ event, currentTime: 0.75, playing: true }), true, 'Expected SFX to replay after rewinding before the boundary');
+  assertEqual(scheduler.schedule({ event, currentTime: 0.785, playing: true }), true, 'Expected SFX to replay after rewinding before the boundary');
   assertEqual(scheduler.schedule({ event, currentTime: 1, playing: false }), false, 'Expected paused preview not to schedule SFX');
   assertEqual(calls.length, 4, 'Expected two audio element creations and two play calls');
   assertEqual(calls[0].src, WHIP_BROWSER_SFX_URL, 'Expected SFX scheduler to use local Whip asset');

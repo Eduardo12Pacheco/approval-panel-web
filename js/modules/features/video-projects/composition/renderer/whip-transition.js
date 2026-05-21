@@ -1,6 +1,7 @@
-export const WHIP_TRANSITION_DURATION_SECONDS = 0.5;
+export const WHIP_TRANSITION_DURATION_SECONDS = 0.43;
 export const WHIP_BROWSER_SFX_URL = './assets/sfx/whip.wav';
 export const WHIP_PREVIEW_SFX_VOLUME = 0.85;
+export const WHIP_SMEAR_SAMPLE_COUNT = 7;
 
 function toFiniteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -9,7 +10,13 @@ function toFiniteNumber(value, fallback = 0) {
 
 function toSafeDuration(value) {
   const duration = Number(value);
-  return Number.isFinite(duration) && duration > 0 ? duration : WHIP_TRANSITION_DURATION_SECONDS;
+  if (!Number.isFinite(duration) || duration <= 0) return WHIP_TRANSITION_DURATION_SECONDS;
+  return Math.min(duration, WHIP_TRANSITION_DURATION_SECONDS);
+}
+
+function easeInOutCubic(value) {
+  const clamped = Math.max(0, Math.min(1, value));
+  return clamped < 0.5 ? 4 * clamped * clamped * clamped : 1 - Math.pow(-2 * clamped + 2, 3) / 2;
 }
 
 function resolveRowId(row = {}) {
@@ -65,21 +72,59 @@ export function buildWhipPreviewEvents(rows = [], { sfxUrl = WHIP_BROWSER_SFX_UR
   return events;
 }
 
-function resolveLayerStyles(progress) {
+function buildSmearSamples({ src, smear, opacity, blur, scale, contrast }) {
+  const center = (WHIP_SMEAR_SAMPLE_COUNT - 1) / 2;
+  return Array.from({ length: WHIP_SMEAR_SAMPLE_COUNT }, (_, index) => {
+    const ratio = (index - center) / center;
+    const offset = Number((ratio * smear).toFixed(3));
+    const sampleOpacity = Number((opacity * (0.18 + (1 - Math.abs(ratio)) * 0.22)).toFixed(3));
+    return {
+      src,
+      transform: `translate3d(${offset}%, 0, 0) scale(${scale})`,
+      filter: `blur(${blur}px) contrast(${contrast}) saturate(0.96)`,
+      opacity: String(sampleOpacity),
+    };
+  });
+}
+
+function resolveLayerStyles(progress, event) {
   const clamped = Math.max(0, Math.min(1, progress));
-  const previousTranslate = Number((clamped * 110).toFixed(3));
-  const nextTranslate = Number(((1 - clamped) * -24).toFixed(3));
-  const blur = Number((Math.sin(clamped * Math.PI) * 18).toFixed(3));
+  const eased = easeInOutCubic(clamped);
+  const intensity = Math.sin(clamped * Math.PI);
+  const previousTranslate = Number((eased * 120).toFixed(3));
+  const nextTranslate = Number((-35 + eased * 35).toFixed(3));
+  const smear = Number((intensity * 16).toFixed(3));
+  const blur = Number((intensity * 10).toFixed(3));
+  const previousOpacity = Number((1 - clamped * 0.22).toFixed(3));
+  const nextOpacity = Number((0.58 + clamped * 0.42).toFixed(3));
+  const previousScale = Number((1.035 + intensity * 0.018).toFixed(4));
+  const nextScale = Number((1.015 + intensity * 0.012).toFixed(4));
   return {
     previous: {
-      transform: `translate3d(${previousTranslate}%, 0, 0) scale(1.035)`,
+      transform: `translate3d(${previousTranslate}%, 0, 0) scale(${previousScale})`,
       filter: `blur(${blur}px) contrast(1.08) saturate(0.95)`,
-      opacity: String(Number((1 - clamped * 0.18).toFixed(3))),
+      opacity: String(previousOpacity),
+      samples: buildSmearSamples({
+        src: event.previousImage,
+        smear,
+        opacity: intensity,
+        blur,
+        scale: previousScale,
+        contrast: 1.08,
+      }),
     },
     next: {
-      transform: `translate3d(${nextTranslate}%, 0, 0) scale(${Number((1.02 - (1 - clamped) * 0.02).toFixed(4))})`,
-      filter: `blur(${Number((blur * 0.72).toFixed(3))}px) contrast(1.04) saturate(0.96)`,
-      opacity: String(Number((0.72 + clamped * 0.28).toFixed(3))),
+      transform: `translate3d(${nextTranslate}%, 0, 0) scale(${nextScale})`,
+      filter: `blur(${Number((blur * 0.86).toFixed(3))}px) contrast(1.05) saturate(0.96)`,
+      opacity: String(nextOpacity),
+      samples: buildSmearSamples({
+        src: event.nextImage,
+        smear: Number((smear * 0.82).toFixed(3)),
+        opacity: intensity,
+        blur: Number((blur * 0.86).toFixed(3)),
+        scale: nextScale,
+        contrast: 1.05,
+      }),
     },
   };
 }
@@ -90,7 +135,7 @@ export function resolveWhipPreviewFrame(time, events = []) {
   const event = (Array.isArray(events) ? events : []).find((item) => currentTime >= item.startTime && currentTime <= item.endTime);
   if (!event) return null;
   const progress = Math.max(0, Math.min(1, Number(((currentTime - event.startTime) / event.durationSeconds).toFixed(6))));
-  const styles = resolveLayerStyles(progress);
+  const styles = resolveLayerStyles(progress, event);
   return {
     event,
     progress,
@@ -104,6 +149,11 @@ function applyLayerState(layer, state) {
   layer.draggable = false;
   if (!state) {
     layer.style.visibility = 'hidden';
+    if (layer.children?.length) {
+      Array.from(layer.children).forEach((sample) => {
+        sample.style.visibility = 'hidden';
+      });
+    }
     return;
   }
   if (layer.src !== state.src) layer.src = state.src;
@@ -111,6 +161,20 @@ function applyLayerState(layer, state) {
   layer.style.transform = state.transform;
   layer.style.filter = state.filter;
   layer.style.opacity = state.opacity;
+  if (!layer.children?.length || !Array.isArray(state.samples)) return;
+  Array.from(layer.children).forEach((sample, index) => {
+    const sampleState = state.samples[index];
+    if (!sampleState) {
+      sample.style.visibility = 'hidden';
+      return;
+    }
+    if (sample.src !== sampleState.src) sample.src = sampleState.src;
+    sample.draggable = false;
+    sample.style.visibility = 'visible';
+    sample.style.transform = sampleState.transform;
+    sample.style.filter = sampleState.filter;
+    sample.style.opacity = sampleState.opacity;
+  });
 }
 
 export function applyWhipOverlayLayers(layers = {}, frame = null) {
