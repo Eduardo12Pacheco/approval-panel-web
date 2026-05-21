@@ -18,6 +18,17 @@ No es una app con framework. Es un panel de operación con contratos de DOM, API
 - Trabajar con Video Projects, preview, overlays, logos, música y composición.
 - Usar el servicio local Approval Editor para snapshots/contratos del editor.
 
+## API unificada para Radar y Channel Monitor
+
+En modo normal el panel usa un solo `API Origin / Endpoint del proyecto` y una sola `x-api-key compartida`.
+
+```text
+https://api.automatizacionedun8n.me/radar   -> Transcript Service
+https://api.automatizacionedun8n.me/monitor -> Channel Monitor
+```
+
+El campo visible `Base URL Channel Monitor` ya no forma parte de la configuración normal. El estado conserva `channelMonitorBaseUrl` solo como fallback interno/migración para operación legacy explícita; en modo unificado Monitor resuelve desde `apiOrigin + /monitor` y usa la key compartida.
+
 ## Cómo abrir el panel
 
 Desde la raíz del workspace:
@@ -234,6 +245,13 @@ node --test tests/approval-editor-service-v1.test.js
 ```
 
 No hace falta correr build para validar este panel. La validación normal es con pytest y checks Node focalizados. **No correr builds** para este subproyecto.
+
+Checks focalizados para Radar/Monitor:
+
+```powershell
+python -m pytest "01-Control-Panel/tests/test_radar_panel_contract.py"
+node --experimental-default-type=module "01-Control-Panel/js/modules/features/radar/__checks__/radar-panel-check.js"
+```
 
 ## Qué NO borrar
 

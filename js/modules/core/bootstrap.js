@@ -87,7 +87,7 @@ export function bindCoreEvents({
       brandChannel: el.brandChannelSelect?.value || defaults.brandChannel,
       transcriptServiceBaseUrl: el.transcriptServiceBaseUrlInput?.value?.trim() || defaults.transcriptServiceBaseUrl,
       transcriptServiceApiKey: '',
-      channelMonitorBaseUrl: el.channelMonitorBaseUrlInput?.value?.trim() || defaults.channelMonitorBaseUrl,
+      channelMonitorBaseUrl: defaults.channelMonitorBaseUrl,
       channelMonitorApiKey: '',
     });
     el.settingsDialog.close();

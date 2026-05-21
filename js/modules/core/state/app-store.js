@@ -255,7 +255,9 @@ export function resolveServiceConfig(rawSettings = {}, service) {
   if (service === 'monitor') {
     return {
       baseUrl: unifiedBaseUrl || trimTrailingSlash(settings.channelMonitorBaseUrl),
-      apiKey: fallbackCredential(settings.channelMonitorApiKey, universalCredentials.apiKey).trim(),
+      apiKey: unifiedBaseUrl
+        ? universalCredentials.apiKey
+        : fallbackCredential(settings.channelMonitorApiKey, universalCredentials.apiKey).trim(),
     };
   }
   if (service === 'remotion') {

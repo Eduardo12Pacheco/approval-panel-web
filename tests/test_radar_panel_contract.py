@@ -49,9 +49,11 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarCountryFilter"',
         'id="radarMonitorList"',
         'id="transcriptServiceBaseUrlInput"',
-        'id="channelMonitorBaseUrlInput"',
     ]:
         assert expected in index_source
+
+    assert 'id="channelMonitorBaseUrlInput"' not in index_source
+    assert "Base URL Channel Monitor" not in index_source
 
     assert '<option value="manual">Manual</option>' not in index_source
 
@@ -81,10 +83,11 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
     assert "http://127.0.0.1:8775" in app_store_source
     assert "http://127.0.0.1:8091" not in app_store_source
     assert 'placeholder="http://127.0.0.1:8765"' in index_source
-    assert 'placeholder="http://127.0.0.1:8775"' in index_source
+    assert 'placeholder="http://127.0.0.1:8775"' not in index_source
     assert "transcriptServiceApiKeyInput.value" not in app_store_source
     assert "transcriptServiceApiKey: ''" in bootstrap_source
     assert "channelMonitorApiKey: ''" in bootstrap_source
+    assert "channelMonitorBaseUrlInput" not in bootstrap_source
     assert "./features/radar/api-client.js" in app_shell_source
     assert "./features/radar/controller.js" in app_shell_source
     assert "setView('radar')" not in app_shell_source

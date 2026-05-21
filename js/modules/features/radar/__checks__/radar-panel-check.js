@@ -65,10 +65,12 @@ async function runApiClientCheck() {
   const calls = [];
   const api = createRadarApiClient({
     getSettings: () => ({
-      transcriptServiceBaseUrl: 'https://radar.local/',
-      transcriptServiceApiKey: 'secret-token',
-      channelMonitorBaseUrl: 'https://monitor.local/',
-      channelMonitorApiKey: 'monitor-secret',
+      apiProfileMode: 'unified',
+      apiOrigin: 'https://api.example.test',
+      sharedApiKey: 'secret-token',
+      transcriptServiceBaseUrl: 'https://legacy-radar.local/',
+      channelMonitorBaseUrl: 'https://legacy-monitor.local/',
+      channelMonitorApiKey: 'legacy-monitor-secret',
     }),
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
@@ -95,21 +97,21 @@ async function runApiClientCheck() {
   await api.deleteJob('job-1');
   const monitorPayload = await api.monitorCards();
 
-  assertEqual(calls[0].url, 'https://radar.local/api/radar/health', 'health URL drift');
+  assertEqual(calls[0].url, 'https://api.example.test/radar/api/radar/health', 'health URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
-  assertEqual(calls[1].url, 'https://radar.local/api/radar/jobs', 'create URL drift');
+  assertEqual(calls[1].url, 'https://api.example.test/radar/api/radar/jobs', 'create URL drift');
   assertEqual(calls[1].options.method, 'POST', 'create method drift');
   assertEqual(calls[1].options.headers['x-api-key'], 'secret-token', 'api key header drift');
   assertEqual(JSON.parse(calls[1].options.body).countries[0], 'argentina', 'create payload country drift');
-  assertEqual(calls[2].url, 'https://radar.local/api/radar/jobs/job-1', 'detail URL drift');
-  assertEqual(calls[3].url, 'https://radar.local/api/radar/jobs', 'history URL drift');
-  assertEqual(calls[4].url, 'https://radar.local/api/radar/jobs/job-1/summary', 'summary URL drift');
-  assertEqual(calls[5].url, 'https://radar.local/api/radar/jobs/job-1/export.txt', 'export URL drift');
-  assertEqual(calls[6].url, 'https://radar.local/api/radar/jobs/job-1/cancel', 'cancel URL drift');
+  assertEqual(calls[2].url, 'https://api.example.test/radar/api/radar/jobs/job-1', 'detail URL drift');
+  assertEqual(calls[3].url, 'https://api.example.test/radar/api/radar/jobs', 'history URL drift');
+  assertEqual(calls[4].url, 'https://api.example.test/radar/api/radar/jobs/job-1/summary', 'summary URL drift');
+  assertEqual(calls[5].url, 'https://api.example.test/radar/api/radar/jobs/job-1/export.txt', 'export URL drift');
+  assertEqual(calls[6].url, 'https://api.example.test/radar/api/radar/jobs/job-1/cancel', 'cancel URL drift');
   assertEqual(calls[7].options.method, 'DELETE', 'delete method drift');
-  assertEqual(calls[8].url, 'https://monitor.local/api/monitor/cards', 'monitor cards URL drift');
+  assertEqual(calls[8].url, 'https://api.example.test/monitor/api/monitor/cards', 'monitor cards URL drift');
   assertEqual(calls[8].options.method, 'GET', 'monitor cards must be read-only GET');
-  assertEqual(calls[8].options.headers['x-api-key'], 'monitor-secret', 'monitor cards api key header drift');
+  assertEqual(calls[8].options.headers['x-api-key'], 'secret-token', 'monitor cards shared api key header drift');
   assertDeepEqual(monitorPayload.items, [{ video_id: 'video-1' }], 'monitor cards payload drift');
 
   let authMessage = '';
