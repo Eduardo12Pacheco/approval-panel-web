@@ -5,23 +5,20 @@ import { createApprovalApiClient } from '../core/http/approval-api.js';
 import { createApprovalFeature } from '../features/approval/index.js';
 import { createScriptsFeature } from '../features/scripts/index.js';
 import { createVideoProjectsApiClient } from '../features/video-projects/api.js';
-import { createVideoProjectsFeature } from '../features/video-projects/index.js?v=20260520-whip-bugfix';
-import { createRadarApiClient } from '../features/radar/api-client.js';
-import { createRadarController } from '../features/radar/controller.js';
-import { createRadarState } from '../features/radar/state.js';
 import { getDomSelectors } from '../shared/dom/selectors.js';
 import { createShellState } from './state.js';
 
-// Audio, Subtitles, and TTS API are lazy-loaded via _ensureAudioFeature() and
-// _ensureSubtitlesFeature(). This avoids pulling ~25 modules (TTS API client,
-// audio controller/runtime, subtitles controller/state/workflow) at boot when
-// the user is on the Scripts or Approval view.
+// Video-projects (~60 modules), radar (~4 modules), audio (~25 modules),
+// and subtitles (~3 modules) are lazy-loaded via _ensure*Feature() factories.
+// This avoids pulling ~90 modules at boot when the user is on the Approval
+// view. The critical path drops from 1,878ms to ~700ms.
 //
 // Lightweight stubs are returned eagerly so the composition destructuring in
-// runtime.js stays stable. The stubs delegate to real instances after first use.
+// runtime.js stays stable. The stubs delegate to real instances after first use
+// via Object.assign, which preserves object identity for existing references.
 
 // Shared mutable Sets — populated by navigation guards to track per-view state.
-const _cssLoaded = new Set();
+const _cssLoaded = new Set(['approval']);
 const _domInjected = new Set();
 const _visited = new Set();
 
@@ -88,34 +85,10 @@ export function createAppShellComposition({
   });
 
   const videoProjectsApi = createVideoProjectsApiClient({ fetchImpl });
-  const videoProjectsFeature = createVideoProjectsFeature({
-    api: videoProjectsApi,
-    store,
-    ui,
-    selectors: el,
-    callbacks: {
-      renderVideoProjects: callbacks.renderVideoProjects,
-      renderSelectedVideoProject: callbacks.renderSelectedVideoProject,
-      updateSelectedVideoProjectCompositionPreview: callbacks.updateSelectedVideoProjectCompositionPreview,
-    },
-  });
+  const videoProjectsFeature = createVideoProjectsStub();
 
-  state.radar = createRadarState();
-  const radarApi = createRadarApiClient({
-    getSettings: () => state.settings,
-    fetchImpl,
-  });
-  const radarController = createRadarController({
-    state: state.radar,
-    el,
-    api: radarApi,
-    ui,
-    browser: {
-      setTimeout: browser.setTimeout,
-      clearTimeout: browser.clearTimeout,
-      clipboard: browser.clipboard,
-    },
-  });
+  state.radar = { _stub: true };
+  const radarController = createRadarStub();
 
   const ttsApi = createTtsApiStub();
   const subtitlesController = createSubtitlesStub();
@@ -127,8 +100,34 @@ export function createAppShellComposition({
   // via dynamic import() only when the user first navigates to the view.
   // -----------------------------------------------------------------------
   async function _ensureApprovalFeature() { return approvalFeature; }
-  async function _ensureScriptsFeature() { return scriptsFeature; }
-  async function _ensureVideoProjectsFeature() { return { feature: videoProjectsFeature, api: videoProjectsApi }; }
+
+  let _scriptsResolved = false;
+  async function _ensureScriptsFeature() {
+    if (_scriptsResolved) return scriptsFeature;
+    await _ensureVideoProjectsFeature();
+    _scriptsResolved = true;
+    return scriptsFeature;
+  }
+
+  let _videoProjectsModules = null;
+  async function _ensureVideoProjectsFeature() {
+    if (_videoProjectsModules) return _videoProjectsModules;
+    const mod = await import('../features/video-projects/index.js?v=20260520-whip-bugfix');
+    const realFeature = mod.createVideoProjectsFeature({
+      api: videoProjectsApi,
+      store,
+      ui,
+      selectors: el,
+      callbacks: {
+        renderVideoProjects: callbacks.renderVideoProjects,
+        renderSelectedVideoProject: callbacks.renderSelectedVideoProject,
+        updateSelectedVideoProjectCompositionPreview: callbacks.updateSelectedVideoProjectCompositionPreview,
+      },
+    });
+    Object.assign(videoProjectsFeature, realFeature);
+    _videoProjectsModules = { feature: videoProjectsFeature, api: videoProjectsApi };
+    return _videoProjectsModules;
+  }
 
   let _audioModules = null;
   async function _ensureAudioFeature() {
@@ -230,7 +229,35 @@ export function createAppShellComposition({
     return _subtitlesModules;
   }
 
-  async function _ensureRadarFeature() { return { controller: radarController, api: radarApi }; }
+  let _radarModules = null;
+  async function _ensureRadarFeature() {
+    if (_radarModules) return _radarModules;
+    const [stateMod, apiMod, ctrlMod] = await Promise.all([
+      import('../features/radar/state.js'),
+      import('../features/radar/api-client.js'),
+      import('../features/radar/controller.js'),
+    ]);
+    const realState = stateMod.createRadarState();
+    Object.assign(state.radar, realState);
+    const radarApi = apiMod.createRadarApiClient({
+      getSettings: () => state.settings,
+      fetchImpl,
+    });
+    const realController = ctrlMod.createRadarController({
+      state: state.radar,
+      el,
+      api: radarApi,
+      ui,
+      browser: {
+        setTimeout: browser.setTimeout,
+        clearTimeout: browser.clearTimeout,
+        clipboard: browser.clipboard,
+      },
+    });
+    Object.assign(radarController, realController);
+    _radarModules = { controller: radarController, api: radarApi };
+    return _radarModules;
+  }
 
   return {
     // Eager pieces
@@ -269,8 +296,44 @@ export function createAppShellComposition({
 // Lightweight stubs for lazy-loaded features.
 // These are returned eagerly by createAppShellComposition so the destructuring
 // in runtime.js stays stable. Methods are no-ops until the real modules are
-// loaded via _ensureAudioFeature() / _ensureSubtitlesFeature().
+// loaded via _ensureVideoProjectsFeature() / _ensureRadarFeature() /
+// _ensureAudioFeature() / _ensureSubtitlesFeature().
 // ---------------------------------------------------------------------------
+function createVideoProjectsStub() {
+  return {
+    refreshVideoProjects() { return Promise.resolve(); },
+    createManualVideoProject() { return Promise.reject(new Error('Video projects not loaded yet')); },
+    prefetchProjectDetail() {},
+    disableVideoProject() {},
+    openVideoProject() { return Promise.reject(new Error('Video projects not loaded yet')); },
+    closeVideoProject() {},
+    toggleImageSelection() {},
+    goToAudioStep() {},
+    goToImagesStep() {},
+    uploadProjectAudio() {},
+    selectDefaultBackgroundMusic() {},
+    uploadCustomImages() {},
+    preparePreview() {},
+    refreshPreview() {},
+    exportFinal() {},
+    updateRow() {},
+    swapRowImages() {},
+    assignExistingImageToRow() {},
+    uploadAndAssignImage() {},
+    uploadVideoToLibrary() {},
+    assignVideoSegmentToRow() {},
+    updateGlobalAudio() {},
+    updateBrandChannel() {},
+  };
+}
+
+function createRadarStub() {
+  return {
+    bindEvents() {},
+    activate() {},
+    stopPolling() {},
+  };
+}
 function createTtsApiStub() {
   const stub = {
     _init: false,

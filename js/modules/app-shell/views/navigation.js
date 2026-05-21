@@ -202,6 +202,9 @@ export function createShellNavigationController({
     // Only auto-refresh approval/queue monitor when on approval or scripts views.
     ensureApprovalAutoRefresh(isApproval || isScripts);
 
+    // Batch DOM reads before writes to avoid forced reflows.
+    const navItems = el.sidebarNav.querySelectorAll('.nav-item');
+
     // Show/hide views via CSS class toggle
     el.viewApproval.classList.toggle('hidden', !isApproval);
     el.viewScripts.classList.toggle('hidden', !isScripts);
@@ -222,7 +225,7 @@ export function createShellNavigationController({
       activeEl.style.visibility = 'visible';
     }
 
-    el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
+    navItems.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.view === nextView);
     });
 
