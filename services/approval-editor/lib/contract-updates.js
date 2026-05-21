@@ -4,7 +4,7 @@ const { findMotionPreset } = require("./motion-presets");
 const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 
 const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
-const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/whip.wav" };
+const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/sound-whosh.wav" };
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));

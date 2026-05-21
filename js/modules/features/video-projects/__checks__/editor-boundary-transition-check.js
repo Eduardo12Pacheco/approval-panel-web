@@ -26,14 +26,14 @@ function runPreparedRowsPreserveBoundaryTransitionMetadataCheck() {
     nextRowId: 'row-2',
     transition: 'whip',
     transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' },
-    sfx: { type: 'whip', assetId: 'whip', src: 'sfx/whip.wav' },
+    sfx: { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' },
   }]);
 
   assertEqual(row.paragraphBoundaryAfter, true, 'Expected client row normalizer to preserve boundary eligibility');
   assertEqual(row.nextRowId, 'row-2', 'Expected client row normalizer to preserve next row target');
   assertEqual(row.transition, 'whip', 'Expected client row normalizer to preserve active transition');
   assertDeepEqual(row.transitionConfig, { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, 'Expected client row normalizer to preserve Whip config');
-  assertDeepEqual(row.sfx, { type: 'whip', assetId: 'whip', src: 'sfx/whip.wav' }, 'Expected client row normalizer to preserve SFX reference');
+  assertDeepEqual(row.sfx, { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' }, 'Expected client row normalizer to preserve SFX reference');
 }
 
 function runBoundaryConnectorMarkupCheck() {
@@ -156,7 +156,7 @@ async function runApprovalBoundaryTransitionOperationCheck() {
                 snapshotId: 'snapshot-2',
                 snapshotHash: 'hash-2',
                 rows: [
-                  { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'whip', transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, sfx: { type: 'whip', assetId: 'whip', src: 'sfx/whip.wav' } },
+                  { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'whip', transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, sfx: { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' } },
                   { id: 'row-2', rowId: 'row-2', selectedAssetId: 'asset-b', media: { kind: 'image' }, transition: 'none' },
                 ],
               },

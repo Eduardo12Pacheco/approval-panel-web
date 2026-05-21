@@ -1,5 +1,5 @@
 export const WHIP_TRANSITION_DURATION_SECONDS = 0.43;
-export const WHIP_BROWSER_SFX_URL = './assets/sfx/whip.wav';
+export const WHIP_BROWSER_SFX_URL = './assets/sfx/sound-whosh.wav';
 export const WHIP_PREVIEW_SFX_VOLUME = 0.85;
 export const WHIP_SMEAR_SAMPLE_COUNT = 7;
 
