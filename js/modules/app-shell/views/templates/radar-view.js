@@ -3,16 +3,6 @@
  * 1:1 parity — exact DOM structure from original index.html.
  */
 export const radarViewHTML = `\
-          <header class="panel-shell radar-screen__header">
-            <div>
-              <p class="subtitle2-section-label">PANEL / RADAR / CHANNEL MONITOR</p>
-              <h1>Radar de menciones</h1>
-              <p>Canales monitoreados, videos candidatos y menciones listas para revisi\u00f3n editorial.</p>
-            </div>
-            <button id="radarNewJobBtn" class="approve" type="button">+ Nuevo</button>
-            <div id="radarHealthStatus" class="subtitle2-health-chip">Servicio sin verificar</div>
-          </header>
-
           <section class="radar-layout">
             <section class="panel-shell radar-monitor-panel">
               <header class="audio-queue-header">
@@ -46,20 +36,6 @@ export const radarViewHTML = `\
               </nav>
               <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>
-
-            <aside class="panel-shell radar-queue-panel">
-              <header class="audio-queue-header">
-                <div>
-                  <h3>Cola de jobs</h3>
-                  <p id="radarProgressStatus" class="meta">Listo para investigar.</p>
-                </div>
-              </header>
-              <section id="radarQueueList" class="audio-queue-list is-empty">Sin trabajos en cola.</section>
-              <section class="radar-history-secondary">
-                <h3>Transcripciones</h3>
-                <section id="radarHistoryList" class="audio-queue-list is-empty">Sin transcripciones todav\u00eda.</section>
-              </section>
-            </aside>
           </section>
 
           <dialog id="radarNewJobDialog">

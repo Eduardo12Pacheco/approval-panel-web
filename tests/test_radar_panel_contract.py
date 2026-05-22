@@ -33,7 +33,6 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'data-view="radar"',
         'id="viewRadar"',
         'id="radarUrlInput"',
-        'id="radarNewJobBtn"',
         'id="radarNewJobDialog"',
         'id="radarCountryColombia"',
         'id="radarCountryEcuador"',
@@ -42,11 +41,9 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarCountryUruguay"',
         'id="radarCountryMexico"',
         'id="radarExtraKeywordsInput"',
-        'id="radarQueueList"',
         'id="radarSummaryDialog"',
         'id="radarConfirmDialog"',
         'id="radarSubmitBtn"',
-        'id="radarHistoryList"',
         'id="radarMonitorStatus"',
         'id="radarMonitorRefreshBtn"',
         'id="radarCountryBar"',
@@ -139,3 +136,31 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
         ".radar-monitor-error",
     ]:
         assert expected in source
+
+
+def test_radar_view_exposes_only_monitor_area_as_visible_ui():
+    template = RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
+    source = RADAR_CSS_PATH.read_text(encoding="utf-8")
+
+    for removed_copy in [
+        "PANEL / RADAR / CHANNEL MONITOR",
+        "Radar de menciones",
+        "Canales monitoreados, videos candidatos",
+        "+ Nuevo",
+        "Servicio sin verificar",
+        "Cola de jobs",
+        "Transcripciones",
+    ]:
+        assert removed_copy not in template
+
+    for removed_selector in [
+        "radar-screen__header",
+        "radar-queue-panel",
+        "radarProgressStatus",
+        "radarQueueList",
+        "radarHistoryList",
+    ]:
+        assert removed_selector not in template
+
+    assert "grid-template-columns: minmax(0, 1fr) 400px;" not in source
+    assert "#viewRadar .radar-layout" in source
