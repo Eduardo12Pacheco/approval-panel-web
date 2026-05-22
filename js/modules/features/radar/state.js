@@ -50,11 +50,17 @@ export function filterMonitorCards(cards = [], country = '') {
 export function mapMonitorCard(card = {}, summaryColumns = []) {
   const countryConfig = getCountryConfig(card.target_country || card.country);
   const sourceCounts = summaryColumns.length ? summaryColumns : normalizeExistingMentionCounts(card.mention_counts);
-  const mentionCounts = buildCountryMentionDashboard({ countryConfig, sourceCounts });
+  const mentionCounts = normalizeMonitorCardStatus(card) === 'transcrito'
+    ? sourceCounts
+    : buildCountryMentionDashboard({ countryConfig, sourceCounts });
   return {
     ...card,
     mentionCounts,
   };
+}
+
+export function normalizeMonitorCardStatus(card = {}) {
+  return normalizeCountryKey(card.status || card.lifecycle || card.enqueue_status || 'monitor').replace(/-/g, '_');
 }
 
 function normalizeExistingMentionCounts(mentionCounts = []) {

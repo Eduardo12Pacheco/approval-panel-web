@@ -17,6 +17,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
   const clipboard = browser.clipboard || globalThis.navigator?.clipboard;
   const documentImpl = browser.document || globalThis.document;
   const urlImpl = browser.URL || globalThis.URL;
+  const windowImpl = browser.window || globalThis.window;
   const pollDelayMs = Number(browser.pollDelayMs || 8000);
 
   function toast(message) {
@@ -214,6 +215,25 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     urlImpl.revokeObjectURL?.(href);
   }
 
+  function openMonitorLink(url) {
+    const cleanUrl = (url || '').toString().trim();
+    if (!isSafeYouTubeUrl(cleanUrl)) {
+      toast('Link de YouTube no disponible');
+      return;
+    }
+    windowImpl?.open?.(cleanUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  function isSafeYouTubeUrl(rawUrl = '') {
+    try {
+      const parsed = new URL(rawUrl);
+      const hostname = parsed.hostname.toLowerCase();
+      return parsed.protocol === 'https:' && ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(hostname);
+    } catch {
+      return false;
+    }
+  }
+
   async function confirmJobAction(jobId, action) {
     if (el.radarConfirmTitle) el.radarConfirmTitle.textContent = action === 'cancel' ? 'Cancelar job' : 'Eliminar job';
     if (el.radarConfirmMessage) el.radarConfirmMessage.textContent = action === 'cancel'
@@ -274,6 +294,13 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       if (button.dataset.radarAction === 'cancel') void confirmJobAction(button.dataset.radarJobId, 'cancel');
       if (button.dataset.radarAction === 'delete') void confirmJobAction(button.dataset.radarJobId, 'delete');
     });
+    el.radarMonitorList?.addEventListener?.('click', (event) => {
+      const button = event.target?.closest?.('[data-radar-action]');
+      if (!button) return;
+      if (button.disabled) return;
+      if (button.dataset.radarAction === 'open-link') openMonitorLink(button.dataset.radarUrl);
+      if (button.dataset.radarAction === 'download-monitor-transcript' && button.dataset.radarJobId) void downloadJob(button.dataset.radarJobId);
+    });
   }
 
   function stopPolling() {
@@ -293,6 +320,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     copyMentions,
     showSummary,
     downloadJob,
+    openMonitorLink,
     confirmJobAction,
     render: renderAll,
     stopPolling,

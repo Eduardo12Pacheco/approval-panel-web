@@ -299,6 +299,24 @@
   background: #9DB8FF12;
 }
 
+#viewRadar .radar-status-chip.is-info {
+  border-color: #9DB8FF55;
+  color: #9DB8FF;
+  background: #9DB8FF12;
+}
+
+#viewRadar .radar-status-chip.is-warning {
+  border-color: #F7B95555;
+  color: #F7B955;
+  background: #F7B95512;
+}
+
+#viewRadar .radar-status-chip.is-success {
+  border-color: #22C55E55;
+  color: #22C55E;
+  background: #22C55E12;
+}
+
 #viewRadar .radar-status-chip.is-failed {
   border-color: #F7B95555;
   color: #F7B955;
@@ -312,8 +330,16 @@
   gap: 8px;
 }
 
+#viewRadar .radar-monitor-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 #viewRadar .radar-card-actions button,
-#viewRadar .radar-job-card button {
+#viewRadar .radar-job-card button,
+#viewRadar .radar-monitor-card__actions button {
   min-height: 34px;
   border: 1px solid #353535;
   background: #0A0A0A;
@@ -325,9 +351,19 @@
 }
 
 #viewRadar .radar-card-actions button:hover,
-#viewRadar .radar-job-card button:hover {
+#viewRadar .radar-job-card button:hover,
+#viewRadar .radar-monitor-card__actions button:hover {
   border-color: #00E88F55;
   color: #00E88F;
+}
+
+#viewRadar .radar-card-actions button:disabled,
+#viewRadar .radar-job-card button:disabled,
+#viewRadar .radar-monitor-card__actions button:disabled {
+  cursor: not-allowed;
+  border-color: #262626;
+  color: #555B60;
+  background: #080808;
 }
 
 #viewRadar #radarNewJobDialog {

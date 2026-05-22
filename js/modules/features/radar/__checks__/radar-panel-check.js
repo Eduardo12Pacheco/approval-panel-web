@@ -229,6 +229,9 @@ function runStateAndRenderCheck() {
     { label: 'México', count: '—', status: 'pending' },
   ], 'country famous-player pending mentions drift');
 
+  const lifecycleTranscribedMexicoCard = mapMonitorCard({ video_id: 'mx-life', country: 'mexico', lifecycle: 'transcrito' }, []);
+  assertDeepEqual(lifecycleTranscribedMexicoCard.mentionCounts, [], 'lifecycle transcrito cards should not fake pending dashboard dashes');
+
   const ecuadorDashboardCard = mapMonitorCard({ video_id: 'ec-1', country: 'ecuador' }, [
     { label: 'Pacho', count: 12, status: 'ready' },
     { label: 'Caicedo', count: 13, status: 'ready' },
@@ -240,6 +243,16 @@ function runStateAndRenderCheck() {
     { label: 'Hincapié', count: '—', status: 'pending' },
     { label: 'Ecuador', count: 20, status: 'ready' },
   ], 'country dashboard mentions should keep concrete player/country labels');
+
+  const transcribedMexicoCard = mapMonitorCard({ video_id: 'mx-2', country: 'mexico', status: 'transcrito' }, [
+    { label: 'México', count: 7, status: 'ready' },
+  ]);
+  assertDeepEqual(transcribedMexicoCard.mentionCounts, [
+    { label: 'México', count: 7, status: 'ready' },
+  ], 'transcribed cards should show backend mention counts without pending dashboard dashes');
+
+  const transcribedEmptyMexicoCard = mapMonitorCard({ video_id: 'mx-3', country: 'mexico', status: 'transcrito' }, []);
+  assertDeepEqual(transcribedEmptyMexicoCard.mentionCounts, [], 'transcribed cards without backend mentions should not fake pending dashboard dashes');
 
   const queueEl = makeElement();
   renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
@@ -264,6 +277,7 @@ function runStateAndRenderCheck() {
         channel_label: 'TyC',
         published_at: '2026-05-21T12:00:00Z',
         lifecycle: 'IGNORED_SEEN',
+        url: 'https://youtu.be/video-1',
         mentionCounts: [{ label: 'Messi', count: 3, status: 'ready' }],
       }],
       selectedCountry: '',
@@ -272,7 +286,81 @@ function runStateAndRenderCheck() {
   if (!monitorEl.innerHTML.includes('&lt;b&gt;Final peligrosa&lt;/b&gt;')) throw new Error(`monitor title should be escaped: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('Destino: Argentina · Canal: TyC · Subido 21 may 2026, 12:00 UTC')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('Ya visto · descartado')) throw new Error(`monitor lifecycle label drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('data-radar-action="open-link"') || !monitorEl.innerHTML.includes('https://youtu.be/video-1')) throw new Error(`monitor link action drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('data-radar-action="download-monitor-transcript"') || !monitorEl.innerHTML.includes('disabled')) throw new Error(`pending monitor transcript action should be disabled: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('Menciones:') || !monitorEl.innerHTML.includes('Messi:') || !monitorEl.innerHTML.includes('Argentina:') || !monitorEl.innerHTML.includes('3')) throw new Error(`monitor mentions drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'approved-video', title: 'Aprobado', country: 'ecuador', status: 'aprobado' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('APROBADO') || !monitorEl.innerHTML.includes('is-info')) throw new Error(`approved status chip drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'transcribing-video', title: 'Transcribiendo', country: 'ecuador', status: 'transcribiendo', radar_job_id: 'radar-transcribing' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('TRANSCRIBIENDO') || !monitorEl.innerHTML.includes('is-warning')) throw new Error(`transcribing status chip drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'transcribed-video',
+        title: 'Transcrito',
+        country: 'mexico',
+        status: 'transcrito',
+        radar_job_id: 'radar-transcribed',
+        mentionCounts: [{ label: 'México', count: 7, status: 'ready' }],
+      }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('TRANSCRITO') || !monitorEl.innerHTML.includes('is-success')) throw new Error(`transcribed status chip drift: ${monitorEl.innerHTML}`);
+  if (monitorEl.innerHTML.includes('disabled') || monitorEl.innerHTML.includes('Giménez:') || monitorEl.innerHTML.includes('—')) throw new Error(`transcribed card should enable transcript and show real counts only: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'transcribed-empty-video',
+        title: 'Transcrito sin menciones',
+        country: 'mexico',
+        status: 'transcrito',
+        radar_job_id: 'radar-transcribed-empty',
+        mentionCounts: [],
+      }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('TRANSCRITO') || !monitorEl.innerHTML.includes('Transcripción')) throw new Error(`transcribed empty card should still expose transcript action: ${monitorEl.innerHTML}`);
+  if (monitorEl.innerHTML.includes('Giménez:') || monitorEl.innerHTML.includes('—')) throw new Error(`transcribed empty card should not render fake pending mention rows: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'unsafe-url-video',
+        title: 'Unsafe URL',
+        country: 'ecuador',
+        status: 'aprobado',
+        url: 'javascript:alert(1)',
+      }],
+      selectedCountry: '',
+    },
+  });
+  if (monitorEl.innerHTML.includes('javascript:alert') || !monitorEl.innerHTML.includes('https://www.youtube.com/watch?v=unsafe-url-video')) throw new Error(`unsafe monitor URL should be replaced by safe YouTube fallback: ${monitorEl.innerHTML}`);
 
   renderRadarMonitor({
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
@@ -299,6 +387,7 @@ async function runControllerCheck() {
   const calls = [];
   const copied = [];
   const downloads = [];
+  const opened = [];
   const state = createRadarState();
   const el = {
     radarUrlInput: makeElement({ value: 'https://youtu.be/abc' }),
@@ -370,6 +459,7 @@ async function runControllerCheck() {
         },
         revokeObjectURL(href) { downloads.push({ type: 'revoke', href }); },
       },
+      window: { open(url, target, features) { opened.push({ url, target, features }); } },
     },
   });
 
@@ -378,6 +468,8 @@ async function runControllerCheck() {
   await controller.submitCurrentJob();
   await controller.showSummary('job-1');
   await controller.downloadJob('job-1');
+  controller.openMonitorLink('https://youtu.be/video-1');
+  controller.openMonitorLink('javascript:alert(1)');
   if (!el.radarProgressStatus.textContent.includes('Completado')) throw new Error(`progress status drift before cancel: ${el.radarProgressStatus.textContent}`);
   await controller.confirmJobAction('job-1', 'delete');
   await controller.confirmJobAction('job-1', 'cancel');
@@ -398,6 +490,7 @@ async function runControllerCheck() {
   if (!downloads.some((entry) => entry.type === 'revoke' && entry.href === 'blob:radar-export')) {
     throw new Error(`controller should revoke TXT download URL: ${JSON.stringify(downloads)}`);
   }
+  assertDeepEqual(opened, [{ url: 'https://youtu.be/video-1', target: '_blank', features: 'noopener,noreferrer' }], 'monitor link should open independently of status');
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (calls.some((entry) => entry.type === 'delete')) throw new Error('confirm accept handler should replace stale actions');
   if (!el.radarProgressStatus.textContent.includes('Listo para investigar')) throw new Error(`progress status drift after cancel: ${el.radarProgressStatus.textContent}`);

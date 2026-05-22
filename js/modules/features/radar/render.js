@@ -1,4 +1,4 @@
-import { RADAR_COUNTRIES, filterMonitorCards, mapMonitorCard } from './state.js';
+import { RADAR_COUNTRIES, filterMonitorCards, mapMonitorCard, normalizeMonitorCardStatus } from './state.js';
 
 const COUNTRY_LABELS = new Map([
   ...RADAR_COUNTRIES.map((country) => [country.value, country.label]),
@@ -17,6 +17,9 @@ const COUNTRY_LABELS = new Map([
 ]);
 
 const LIFECYCLE_LABELS = {
+  aprobado: 'APROBADO',
+  transcribiendo: 'TRANSCRIBIENDO',
+  transcrito: 'TRANSCRITO',
   enqueue_pending: 'Esperando análisis Radar',
   enqueued: 'En cola para analizar',
   queued: 'En cola para analizar',
@@ -195,22 +198,63 @@ function renderMonitorCard(card = {}) {
   const dashboardCard = mapMonitorCard(card, Array.isArray(card.mentionCounts) ? card.mentionCounts : []);
   const title = card.title || card.video_id || 'Video sin título';
   const meta = formatMonitorMetadata(card);
+  const status = normalizeMonitorCardStatus(card);
+  const statusLabel = formatLifecycleLabel(status);
+  const url = resolveMonitorVideoUrl(card);
+  const canDownloadTranscript = status === 'transcrito' && Boolean(card.radar_job_id);
+  const linkDisabled = url ? '' : 'disabled aria-disabled="true" title="Link no disponible"';
+  const transcriptDisabled = canDownloadTranscript ? '' : 'disabled aria-disabled="true" title="Disponible cuando la transcripción esté lista"';
   const mentions = Array.isArray(dashboardCard.mentionCounts) ? dashboardCard.mentionCounts : [];
+  const emptyMentions = status === 'transcrito'
+    ? '<span class="radar-mention-row is-ready"><small>Sin menciones:</small><strong>0</strong></span>'
+    : '<span class="radar-mention-row is-pending"><small>Pendiente:</small><strong>—</strong></span>';
   return `
-    <article class="radar-monitor-card" data-video-id="${escapeHtml(card.video_id || '')}">
+    <article class="radar-monitor-card" data-video-id="${escapeHtml(card.video_id || '')}" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}">
       <div class="radar-monitor-card__main">
-        <span class="radar-kicker">${escapeHtml(formatLifecycleLabel(card.status || card.lifecycle || card.enqueue_status || 'monitor'))}</span>
+        <span class="radar-status-chip ${escapeHtml(monitorStatusChipClass(status))}">${escapeHtml(statusLabel)}</span>
         <strong>${escapeHtml(title)}</strong>
         <small class="radar-monitor-card__meta">${escapeHtml(meta || 'Metadata pendiente')}</small>
+        <div class="radar-monitor-card__actions">
+          <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
+          <button type="button" data-radar-action="download-monitor-transcript" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}" aria-label="Descargar transcripción TXT" ${transcriptDisabled}>Transcripción</button>
+        </div>
       </div>
       <div class="radar-monitor-card__mentions" aria-label="Menciones detectadas">
         <span class="radar-monitor-card__mentions-title">Menciones:</span>
         <div class="radar-monitor-card__mentions-grid">
-          ${mentions.length ? mentions.map(renderMentionColumn).join('') : '<span class="radar-mention-row is-pending"><small>Pendiente:</small><strong>—</strong></span>'}
+          ${mentions.length ? mentions.map(renderMentionColumn).join('') : emptyMentions}
         </div>
       </div>
     </article>
   `;
+}
+
+function resolveMonitorVideoUrl(card = {}) {
+  const rawUrl = (card.url || '').toString().trim();
+  if (isSafeYouTubeUrl(rawUrl)) return rawUrl;
+  const videoId = (card.video_id || '').toString().trim();
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(videoId)) return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+  return '';
+}
+
+function isSafeYouTubeUrl(rawUrl = '') {
+  if (!rawUrl) return false;
+  try {
+    const url = new URL(rawUrl);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === 'https:' && ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function monitorStatusChipClass(status = '') {
+  const normalized = normalizeKey(status).replace(/-/g, '_');
+  if (normalized === 'aprobado') return 'is-info';
+  if (normalized === 'transcribiendo') return 'is-warning';
+  if (normalized === 'transcrito') return 'is-success';
+  if (normalized === 'error' || normalized === 'failed') return 'is-failed';
+  return 'is-processing';
 }
 
 function formatMonitorMetadata(card = {}) {
