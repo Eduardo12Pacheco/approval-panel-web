@@ -214,10 +214,10 @@ function renderMonitorCard(card = {}) {
         <span class="radar-status-chip ${escapeHtml(monitorStatusChipClass(status))}">${escapeHtml(statusLabel)}</span>
         <strong>${escapeHtml(title)}</strong>
         <small class="radar-monitor-card__meta">${escapeHtml(meta || 'Metadata pendiente')}</small>
-        <div class="radar-monitor-card__actions">
-          <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
-          <button type="button" data-radar-action="download-monitor-transcript" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}" aria-label="Descargar transcripción TXT" ${transcriptDisabled}>Transcripción</button>
-        </div>
+      </div>
+      <div class="radar-monitor-card__actions" aria-label="Acciones del video monitoreado">
+        <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
+        <button type="button" data-radar-action="download-monitor-transcript" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}" aria-label="Descargar transcripción TXT" ${transcriptDisabled}>Transcripción</button>
       </div>
       <div class="radar-monitor-card__mentions" aria-label="Menciones detectadas">
         <span class="radar-monitor-card__mentions-title">Menciones:</span>
