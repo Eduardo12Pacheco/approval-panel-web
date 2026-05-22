@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { buildEditorEffectTabs } from '../render/editor-effect-tabs.js';
+import { hydrateEditorPhaseInteractions } from '../render/editor-hydration.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
 import { buildMotionPicker, buildMotionViewportPreviewStyle } from '../render/editor-motion-picker.js';
 
@@ -111,12 +112,58 @@ function runManualMotionControlsCheck() {
   assert(manualMarkup.includes('data-motion-editor-panel="presets" hidden'), 'Expected presets panel to hide when manual tab is active');
 }
 
+function runPresetSelectionSyncsManualControlsCheck() {
+  const listeners = new Map();
+  const presetButton = {
+    tagName: 'BUTTON',
+    value: 'Zoom-Esquina-Arriba-Derecha',
+    dataset: { rowId: 'row-1' },
+    classList: { toggle() {} },
+    setAttribute() {},
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const inputs = new Map(['fromX', 'fromY', 'toX', 'toY', 'fromScalePercent', 'toScalePercent'].map((field) => [field, { value: 'stale' }]));
+  const manualPanel = {
+    dataset: { rowId: 'row-1', motionPreset: 'Zoom 125' },
+    querySelector(selector) {
+      const field = selector.match(/data-motion-field="([^"]+)"/)?.[1];
+      return inputs.get(field) || null;
+    },
+  };
+  const patches = [];
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-action="update-row-motion"]') return [presetButton];
+      if (selector === '[data-motion-manual]') return [manualPanel];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project: {},
+    editorPhase: 'preview_ready',
+    editorRows: [],
+    updateRow(rowId, patch) { patches.push({ rowId, patch }); },
+  });
+
+  listeners.get('click')();
+
+  assertEqual(manualPanel.dataset.motionPreset, 'Zoom-Esquina-Arriba-Derecha', 'Expected manual panel preset dataset to sync after preset click');
+  assertEqual(inputs.get('toX').value, '-120', 'Expected manual End X to mirror selected preset');
+  assertEqual(inputs.get('toY').value, '65', 'Expected manual End Y to mirror selected preset');
+  assertEqual(inputs.get('toScalePercent').value, '125', 'Expected manual End scale to mirror selected preset');
+  assertEqual(patches[0]?.patch?.motionPresetId, 'Zoom-Esquina-Arriba-Derecha', 'Expected preset patch to keep selected preset id');
+}
+
 export function runEditorMotionPresetsCheck() {
   runZoomOnlyPresetCheck();
   runDefaultSelectionCheck();
   runMotionPickerMarkupCheck();
   runViewportSemanticsCheck();
   runManualMotionControlsCheck();
+  runPresetSelectionSyncsManualControlsCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

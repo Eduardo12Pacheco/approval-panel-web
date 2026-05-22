@@ -30,11 +30,11 @@ export const MOTION_PRESETS = [
   { category: 'HORIZONTALES', name: 'Movimiento-Diagonal-horizontal-2', sourceScaleBase: 1.45, fromX: -328, fromY: -99, toX: 540, toY: 105, fromScale: 1.2, toScale: 1.2, easing: 'linear' },
   { category: 'HORIZONTALES', name: 'Movimiento-Diagonal-horizontal-3', sourceScaleBase: 1.45, fromX: -328, fromY: 105, toX: 540, toY: -101, fromScale: 1.2, toScale: 1.2, easing: 'linear' },
   { category: 'HORIZONTALES', name: 'Movimiento-Diagonal-horizontal-4', sourceScaleBase: 1.45, fromX: 540, fromY: -101, toX: -328, toY: 105, fromScale: 1.2, toScale: 1.2, easing: 'linear' },
-  { category: 'ZOOMS', name: 'Zoom-Esquina-Arriba-Derecha', fromX: 0, fromY: 0, toX: -229, toY: 114, fromScale: 1, toScale: 1.25, easing: 'linear' },
-  { category: 'ZOOMS', name: 'Zoom-Arriba-Centro', fromX: 0, fromY: 0, toX: 0, toY: 115, fromScale: 1, toScale: 1.25, easing: 'linear' },
-  { category: 'ZOOMS', name: 'Zoom-Esquina-Arriba-Izquierda', fromX: 0, fromY: 0, toX: 231, toY: 115, fromScale: 1, toScale: 1.25, easing: 'linear' },
-  { category: 'ZOOMS', name: 'Zoom-derecha', fromX: 0, fromY: 0, toX: -240, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
-  { category: 'ZOOMS', name: 'Zoom-Izquierda', fromX: 0, fromY: 0, toX: 240, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom-Esquina-Arriba-Derecha', fromX: 0, fromY: 0, toX: -120, toY: 65, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom-Arriba-Centro', fromX: 0, fromY: 0, toX: 0, toY: 65, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom-Esquina-Arriba-Izquierda', fromX: 0, fromY: 0, toX: 120, toY: 65, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom-derecha', fromX: 0, fromY: 0, toX: -120, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom-Izquierda', fromX: 0, fromY: 0, toX: 120, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
 ];
 
 export function findMotionPreset(idOrName) {

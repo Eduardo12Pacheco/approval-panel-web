@@ -239,6 +239,7 @@ function hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline
         button.classList.toggle('is-selected', isSelected);
         button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
       });
+      updateManualMotionPanelValues(root, rowId, preset, preset?.name || control.value);
       updateRow?.(rowId, { motionPresetId: preset?.name || control.value, motion: preset ? { ...preset } : control.value });
     });
   });
@@ -277,6 +278,24 @@ function hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline
     input.addEventListener('change', updateManualMotionKeyframe);
     hydrateMotionScrubberInput(input);
   });
+}
+
+function updateManualMotionPanelValues(root, rowId, preset, presetName = '') {
+  if (!root || !rowId || !preset || typeof preset !== 'object') return;
+  const panels = [...(root.querySelectorAll?.('[data-motion-manual]') || [])];
+  const panel = panels.find((item) => item?.dataset?.rowId === rowId);
+  if (!panel) return;
+  panel.dataset.motionPreset = presetName || preset.name || 'custom';
+  const setFieldValue = (field, value) => {
+    const input = panel.querySelector?.(`[data-motion-field="${field}"]`);
+    if (input) input.value = Number.isFinite(Number(value)) ? String(value) : '0';
+  };
+  setFieldValue('fromX', preset.fromX ?? 0);
+  setFieldValue('fromY', preset.fromY ?? 0);
+  setFieldValue('toX', preset.toX ?? 0);
+  setFieldValue('toY', preset.toY ?? 0);
+  setFieldValue('fromScalePercent', Math.round(Number(preset.fromScale ?? 1) * 100));
+  setFieldValue('toScalePercent', Math.round(Number(preset.toScale ?? 1) * 100));
 }
 
 function hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, updateBrandChannel }) {
