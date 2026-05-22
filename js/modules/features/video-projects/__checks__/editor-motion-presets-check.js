@@ -23,12 +23,16 @@ function buildMotionPresetGroups() {
 }
 
 function runZoomOnlyPresetCheck() {
+  const preset110 = findMotionPreset('Zoom 110');
   const preset125 = findMotionPreset('Zoom 125');
   const preset150 = findMotionPreset('Zoom 150');
   const preset200 = findMotionPreset('Zoom 200');
+  assert(preset110, 'Expected Zoom 110 preset to remain available');
   assert(preset125, 'Expected Zoom 125 preset to exist');
   assert(preset150, 'Expected Zoom 150 preset to exist');
   assert(preset200, 'Expected Zoom 200 preset to exist');
+  assertEqual(preset110.fromScale, 1, 'Expected Zoom 110 to start at 100%');
+  assertEqual(preset110.toScale, 1.1, 'Expected Zoom 110 to end at 110%');
   assertEqual(preset125.fromScale, 1, 'Expected Zoom 125 to start at 100%');
   assertEqual(preset125.toScale, 1.25, 'Expected Zoom 125 to end at 125%');
   assertEqual(preset150.fromScale, 1, 'Expected Zoom 150 to start at 100%');
@@ -38,8 +42,9 @@ function runZoomOnlyPresetCheck() {
 
   const zoomGroup = buildMotionPresetGroups().find((group) => group.category === 'ZOOMS');
   assertEqual(zoomGroup?.presets?.[0]?.name, 'Zoom 125', 'Expected Zoom 125 to be first zoom preset');
-  assertEqual(zoomGroup?.presets?.[1]?.name, 'Zoom 150', 'Expected Zoom 150 to sit immediately after Zoom 125');
-  assertEqual(zoomGroup?.presets?.[2]?.name, 'Zoom 200', 'Expected Zoom 200 to sit immediately after Zoom 150');
+  assertEqual(zoomGroup?.presets?.[1]?.name, 'Zoom 110', 'Expected Zoom 110 to remain available without becoming default');
+  assertEqual(zoomGroup?.presets?.[2]?.name, 'Zoom 150', 'Expected Zoom 150 to sit with zoom-only presets');
+  assertEqual(zoomGroup?.presets?.[3]?.name, 'Zoom 200', 'Expected Zoom 200 to sit with zoom-only presets');
 }
 
 function runDefaultSelectionCheck() {
@@ -59,6 +64,7 @@ function runMotionPickerMarkupCheck() {
   });
 
   assert(markup.includes('value="Zoom 125"'), 'Expected Zoom 125 to be selectable');
+  assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to remain selectable');
   assert(markup.includes('value="Zoom 150"'), 'Expected Zoom 150 to be selectable');
   assert(markup.includes('value="Zoom 200"'), 'Expected Zoom 200 to be selectable');
   assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 125 to render selected state');

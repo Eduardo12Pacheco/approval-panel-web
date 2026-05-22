@@ -6,6 +6,7 @@ function normalizeMotionPresetKey(idOrName) {
 
 export const MOTION_PRESETS = [
   { category: 'ZOOMS', name: 'Zoom 125', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  { category: 'ZOOMS', name: 'Zoom 110', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.1, easing: 'linear' },
   { category: 'ZOOMS', name: 'Zoom 150', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.5, easing: 'linear' },
   { category: 'ZOOMS', name: 'Zoom 200', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 2, easing: 'linear' },
   { category: 'MOVIMIENTOS', name: 'Movimiento-derecha-Izquierda-150-amplio', fromX: -240, fromY: 0, toX: 240, toY: 0, fromScale: 1.5, toScale: 1.5, easing: 'linear' },
