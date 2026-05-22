@@ -1,5 +1,5 @@
-const ZOOM_SLOW_IN = { from: 1.0, to: 1.1 };
-const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.1 };
+const ZOOM_SLOW_IN = { from: 1.0, to: 1.25 };
+const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
 const NEWSPAPER_LABEL_FONT_FAMILY = '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif';
 const NEWSPAPER_LABEL_FONT_SIZE = 18;
@@ -115,7 +115,10 @@ export function resolveZoomRange(motion) {
   if (normalized === 'still' || normalized === 'none') return { from: 1.0, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'slow-zoom') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'slow-zoom-out') return { from: 1.08, to: 1.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
-  if (normalized === 'slow-zoom-in' || normalized === 'zoom 110' || normalized === 'zoom-110') return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'slow-zoom-in' || normalized === 'zoom 110' || normalized === 'zoom-110') return { from: 1.0, to: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'zoom 125' || normalized === 'zoom-125') return { from: 1.0, to: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'zoom 150' || normalized === 'zoom-150') return { from: 1.0, to: 1.5, fromX: 0, fromY: 0, toX: 0, toY: 0 };
+  if (normalized === 'zoom 200' || normalized === 'zoom-200') return { from: 1.0, to: 2.0, fromX: 0, fromY: 0, toX: 0, toY: 0 };
   if (normalized === 'pan-left') return { from: 1.1, to: 1.1, fromX: 72, fromY: 0, toX: -72, toY: 0 };
   if (normalized === 'pan-right') return { from: 1.1, to: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 };
   return { ...ZOOM_SLOW_IN, fromX: 0, fromY: 0, toX: 0, toY: 0 };

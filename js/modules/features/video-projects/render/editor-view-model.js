@@ -8,7 +8,7 @@ import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 
 const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
-const DEFAULT_MOTION_PRESET_NAME = 'Zoom 110';
+const DEFAULT_MOTION_PRESET_NAME = 'Zoom 125';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
 
 function normalizeBrandChannel(value = DEFAULT_BRAND_CHANNEL) {
@@ -20,7 +20,7 @@ function normalizeBrandChannel(value = DEFAULT_BRAND_CHANNEL) {
 function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
   const normalized = value.toString().trim().toLowerCase();
   if (!normalized) return defaultEmpty ? DEFAULT_MOTION_PRESET_NAME : '';
-  if (normalized === 'slow-zoom-in' || normalized === 'slow-zoom' || normalized === 'zoom-110') {
+  if (normalized === 'slow-zoom-in' || normalized === 'slow-zoom' || normalized === 'zoom-110' || normalized === 'zoom-125') {
     return DEFAULT_MOTION_PRESET_NAME;
   }
   return value.toString().trim();

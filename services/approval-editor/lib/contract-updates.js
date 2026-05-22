@@ -170,8 +170,8 @@ function applyContractOperations(snapshot, operations = []) {
       row.mediaMode = op.mediaMode === "newspaper" ? "newspaper" : "image";
       if (op.media?.kind !== "video-segment") row.media = { kind: "image" };
       if (row.mediaMode === "newspaper" && (!row.motionPresetId || row.motionPresetId === "Zoom 110" || row.motionPresetId === "slow-zoom-in")) {
-        row.motionPresetId = "Zoom 110";
-        row.motion = { fromScale: 1, toScale: 1.1, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
+        row.motionPresetId = "Zoom 125";
+        row.motion = { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
       }
     } else if (op.type === "setRowMotion") {
       const row = findRow(next, op.rowId);

@@ -88,8 +88,8 @@ function resolveMotionPatchForApprovalService(motion) {
   const preset = findMotionPreset(motion);
   if (preset) return { motionPresetId: preset.name, motion: { ...preset } };
   const normalized = (motion || '').toString().trim().toLowerCase();
-  if (!normalized || normalized === 'zoom 110' || normalized === 'zoom-110' || normalized === 'slow-zoom-in' || normalized === 'slow-zoom') {
-    return { motionPresetId: 'Zoom 110', motion: { fromScale: 1, toScale: 1.1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
+  if (!normalized || normalized === 'zoom 110' || normalized === 'zoom-110' || normalized === 'zoom 125' || normalized === 'zoom-125' || normalized === 'slow-zoom-in' || normalized === 'slow-zoom') {
+    return { motionPresetId: 'Zoom 125', motion: { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0 } };
   }
   if (normalized === 'none' || normalized === 'still') {
     return { motionPresetId: 'none', motion: { fromScale: 1, toScale: 1, fromX: 0, fromY: 0, toX: 0, toY: 0 } };

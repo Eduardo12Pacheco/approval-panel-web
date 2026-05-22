@@ -21,35 +21,47 @@ function buildMotionPresetGroups() {
   })).filter((group) => group.presets.length);
 }
 
-function runZoom110PresetCheck() {
-  const preset = findMotionPreset('Zoom 110');
-  assert(preset, 'Expected Zoom 110 preset to exist');
-  assertEqual(preset.fromScale, 1, 'Expected Zoom 110 to start at 100%');
-  assertEqual(preset.toScale, 1.1, 'Expected Zoom 110 to end at 110%');
+function runZoomOnlyPresetCheck() {
+  const preset125 = findMotionPreset('Zoom 125');
+  const preset150 = findMotionPreset('Zoom 150');
+  const preset200 = findMotionPreset('Zoom 200');
+  assert(preset125, 'Expected Zoom 125 preset to exist');
+  assert(preset150, 'Expected Zoom 150 preset to exist');
+  assert(preset200, 'Expected Zoom 200 preset to exist');
+  assertEqual(preset125.fromScale, 1, 'Expected Zoom 125 to start at 100%');
+  assertEqual(preset125.toScale, 1.25, 'Expected Zoom 125 to end at 125%');
+  assertEqual(preset150.fromScale, 1, 'Expected Zoom 150 to start at 100%');
+  assertEqual(preset150.toScale, 1.5, 'Expected Zoom 150 to end at 150%');
+  assertEqual(preset200.fromScale, 1, 'Expected Zoom 200 to start at 100%');
+  assertEqual(preset200.toScale, 2, 'Expected Zoom 200 to end at 200%');
 
   const zoomGroup = buildMotionPresetGroups().find((group) => group.category === 'ZOOMS');
-  assertEqual(zoomGroup?.presets?.[0]?.name, 'Zoom 110', 'Expected Zoom 110 to be first zoom preset');
+  assertEqual(zoomGroup?.presets?.[0]?.name, 'Zoom 125', 'Expected Zoom 125 to be first zoom preset');
+  assertEqual(zoomGroup?.presets?.[1]?.name, 'Zoom 150', 'Expected Zoom 150 to sit immediately after Zoom 125');
+  assertEqual(zoomGroup?.presets?.[2]?.name, 'Zoom 200', 'Expected Zoom 200 to sit immediately after Zoom 150');
 }
 
 function runDefaultSelectionCheck() {
   const defaultDetail = buildEditorDetailRailViewModel({ row: { id: 'row-1' } });
   const legacyDetail = buildEditorDetailRailViewModel({ row: { id: 'row-1', motion: 'slow-zoom-in' } });
 
-  assertEqual(defaultDetail.motion, 'Zoom 110', 'Expected empty row motion to select Zoom 110');
-  assertEqual(legacyDetail.motion, 'Zoom 110', 'Expected legacy slow-zoom-in to select Zoom 110');
+  assertEqual(defaultDetail.motion, 'Zoom 125', 'Expected empty row motion to select Zoom 125');
+  assertEqual(legacyDetail.motion, 'Zoom 125', 'Expected legacy slow-zoom-in to select Zoom 125');
 }
 
 function runMotionPickerMarkupCheck() {
   const presetsBefore = JSON.stringify(MOTION_PRESETS);
   const markup = buildMotionPicker({
     rowId: 'row-1',
-    selectedMotion: 'Zoom 110',
+    selectedMotion: 'Zoom 125',
     motionPresetGroups: buildMotionPresetGroups(),
   });
 
-  assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to be selectable');
-  assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 110 to render selected state');
-  assert(markup.includes('--motion-to-scale:0.909;'), 'Expected Zoom 110 preview frame to shrink as image zoom increases');
+  assert(markup.includes('value="Zoom 125"'), 'Expected Zoom 125 to be selectable');
+  assert(markup.includes('value="Zoom 150"'), 'Expected Zoom 150 to be selectable');
+  assert(markup.includes('value="Zoom 200"'), 'Expected Zoom 200 to be selectable');
+  assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 125 to render selected state');
+  assert(markup.includes('--motion-to-scale:0.800;'), 'Expected Zoom 125 preview frame to shrink as image zoom increases');
   assertEqual(JSON.stringify(MOTION_PRESETS), presetsBefore, 'Expected motion picker rendering to leave preset values untouched');
 }
 
@@ -77,8 +89,8 @@ function runManualMotionControlsCheck() {
     id: 'row-1',
     startTime: 10,
     endTime: 15,
-    motionPresetId: 'Zoom 110',
-    motion: { fromX: 0, fromY: 0, toX: 12, toY: -8, fromScale: 1, toScale: 1.1 },
+    motionPresetId: 'Zoom 125',
+    motion: { fromX: 0, fromY: 0, toX: 12, toY: -8, fromScale: 1, toScale: 1.25 },
   };
   const detail = buildEditorDetailRailViewModel({ row });
   const markup = buildEditorEffectTabs({ row, detail, activeTab: 'motion' });
@@ -94,13 +106,13 @@ function runManualMotionControlsCheck() {
   assert(markup.includes('data-action="seek-motion-keyframe"'), 'Expected Start/End seek controls');
   assert(markup.includes('data-action="update-row-motion-keyframe"'), 'Expected autosave keyframe inputs');
   assert(markup.includes('data-motion-field="toX"'), 'Expected end X keyframe input');
-  assert(markup.includes('value="110"'), 'Expected scale percent values in controls');
+  assert(markup.includes('value="125"'), 'Expected scale percent values in controls');
   assert(manualMarkup.includes('data-motion-editor-panel="manual"'), 'Expected manual panel to render');
   assert(manualMarkup.includes('data-motion-editor-panel="presets" hidden'), 'Expected presets panel to hide when manual tab is active');
 }
 
 export function runEditorMotionPresetsCheck() {
-  runZoom110PresetCheck();
+  runZoomOnlyPresetCheck();
   runDefaultSelectionCheck();
   runMotionPickerMarkupCheck();
   runViewportSemanticsCheck();
