@@ -76,6 +76,8 @@ async function runApiClientCheck() {
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
       if (url.endsWith('/api/monitor/cards')) return new Response(JSON.stringify({ items: [{ video_id: 'video-1' }] }), { status: 200 });
+      if (url.endsWith('/api/monitor/summary')) return new Response(JSON.stringify({ basura_count: 2, targets: [] }), { status: 200 });
+      if (url.endsWith('/api/monitor/basura')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }] }), { status: 200 });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
       if (url.endsWith('/jobs/job-1/summary')) return new Response(JSON.stringify({ items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }), { status: 200 });
       if (url.endsWith('/jobs/job-1/export.txt')) return new Response('TXT backend', { status: 200, headers: { 'content-type': 'text/plain' } });
@@ -97,6 +99,8 @@ async function runApiClientCheck() {
   await api.cancelJob('job-1');
   await api.deleteJob('job-1');
   const monitorPayload = await api.monitorCards();
+  const monitorSummary = await api.monitorSummary();
+  const basuraPayload = await api.monitorBasura();
 
   assertEqual(calls[0].url, 'https://api.example.test/radar/api/radar/health', 'health URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
@@ -114,6 +118,10 @@ async function runApiClientCheck() {
   assertEqual(calls[8].options.method, 'GET', 'monitor cards must be read-only GET');
   assertEqual(calls[8].options.headers['x-api-key'], 'secret-token', 'monitor cards shared api key header drift');
   assertDeepEqual(monitorPayload.items, [{ video_id: 'video-1' }], 'monitor cards payload drift');
+  assertEqual(calls[9].url, 'https://api.example.test/monitor/api/monitor/summary', 'monitor summary URL drift');
+  assertEqual(calls[10].url, 'https://api.example.test/monitor/api/monitor/basura', 'monitor basura URL drift');
+  assertEqual(monitorSummary.basura_count, 2, 'monitor summary basura counter drift');
+  assertEqual(basuraPayload.total, 2, 'monitor basura payload drift');
 
   let authMessage = '';
   try {
@@ -205,6 +213,7 @@ function runStateAndRenderCheck() {
     { label: 'Messi', count: 4, status: 'ready' },
     { label: 'Argentina', count: 2, status: 'ready' },
     { label: '<script>', count: 1, status: 'ready' },
+    { label: 'Overflow', count: 99, status: 'ready' },
   ], 'summary column normalization drift');
   assertDeepEqual(filterMonitorCards([
     { video_id: 'a', country: 'argentina' },
@@ -217,7 +226,20 @@ function runStateAndRenderCheck() {
     { label: 'Giménez', count: '—', status: 'pending' },
     { label: 'Ochoa', count: '—', status: 'pending' },
     { label: 'Edson Álvarez', count: '—', status: 'pending' },
+    { label: 'México', count: '—', status: 'pending' },
   ], 'country famous-player pending mentions drift');
+
+  const ecuadorDashboardCard = mapMonitorCard({ video_id: 'ec-1', country: 'ecuador' }, [
+    { label: 'Pacho', count: 12, status: 'ready' },
+    { label: 'Caicedo', count: 13, status: 'ready' },
+    { label: 'Ecuador', count: 20, status: 'ready' },
+  ]);
+  assertDeepEqual(ecuadorDashboardCard.mentionCounts, [
+    { label: 'Caicedo', count: 13, status: 'ready' },
+    { label: 'Pacho', count: 12, status: 'ready' },
+    { label: 'Hincapié', count: '—', status: 'pending' },
+    { label: 'Ecuador', count: 20, status: 'ready' },
+  ], 'country dashboard mentions should keep concrete player/country labels');
 
   const queueEl = makeElement();
   renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
@@ -241,15 +263,16 @@ function runStateAndRenderCheck() {
         country: 'argentina',
         channel_label: 'TyC',
         published_at: '2026-05-21T12:00:00Z',
-        lifecycle: 'enqueue_pending',
+        lifecycle: 'IGNORED_SEEN',
         mentionCounts: [{ label: 'Messi', count: 3, status: 'ready' }],
       }],
       selectedCountry: '',
     },
   });
   if (!monitorEl.innerHTML.includes('&lt;b&gt;Final peligrosa&lt;/b&gt;')) throw new Error(`monitor title should be escaped: ${monitorEl.innerHTML}`);
-  if (!monitorEl.innerHTML.includes('argentina · TyC · 2026-05-21T12:00:00Z')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
-  if (!monitorEl.innerHTML.includes('Messi') || !monitorEl.innerHTML.includes('3')) throw new Error(`monitor mentions drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Destino: Argentina · Canal: TyC · Subido 21 may 2026, 12:00 UTC')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Ya visto · descartado')) throw new Error(`monitor lifecycle label drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Menciones:') || !monitorEl.innerHTML.includes('Messi:') || !monitorEl.innerHTML.includes('Argentina:') || !monitorEl.innerHTML.includes('3')) throw new Error(`monitor mentions drift: ${monitorEl.innerHTML}`);
 
   renderRadarMonitor({
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
@@ -266,7 +289,7 @@ function runStateAndRenderCheck() {
     },
   });
   if (!monitorEl.innerHTML.includes('video-without-radar-job')) throw new Error(`missing-linkage card should stay visible: ${monitorEl.innerHTML}`);
-  if (!monitorEl.innerHTML.includes('Pendiente') || !monitorEl.innerHTML.includes('—')) throw new Error(`missing-linkage card should render pending mention column: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Caicedo:') || !monitorEl.innerHTML.includes('Ecuador:') || !monitorEl.innerHTML.includes('—')) throw new Error(`missing-linkage card should render concrete pending mention rows: ${monitorEl.innerHTML}`);
 
   renderRadarMonitor({ el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl }, state: { monitorStatus: 'error', monitorError: 'Monitor caído', monitorCards: [] } });
   if (!monitorEl.innerHTML.includes('Monitor caído')) throw new Error(`monitor error drift: ${monitorEl.innerHTML}`);
@@ -292,7 +315,6 @@ async function runControllerCheck() {
     radarQueueList: makeElement(),
     radarMonitorStatus: makeElement(),
     radarMonitorList: makeElement(),
-    radarCountryFilter: makeElement({ value: '' }),
     radarCountryBar: makeElement(),
     radarMonitorRefreshBtn: makeElement(),
     radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
@@ -308,6 +330,8 @@ async function runControllerCheck() {
   const api = {
     async health() { calls.push('health'); return { status: 'ok' }; },
     async monitorCards() { calls.push('monitorCards'); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }] }; },
+    async monitorSummary() { calls.push('monitorSummary'); return { basura_count: 1, targets: [] }; },
+    async monitorBasura() { calls.push('monitorBasura'); return { total: 1, items: [{ video_id: 'trash-1', title: 'Trash' }] }; },
     async createJob(payload) { calls.push({ type: 'create', payload }); return { job_id: 'job-1', status: 'queued' }; },
     async getJob(jobId) { calls.push({ type: 'getJob', jobId }); return { job_id: jobId, status: 'succeeded', progress: { percent: 100 } }; },
     async getSummary(jobId) { calls.push({ type: 'summary', jobId }); return { items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }; },
@@ -361,7 +385,7 @@ async function runControllerCheck() {
 
   assertEqual(calls[0], 'health', 'health call drift');
   assertEqual(calls[1], 'monitorCards', 'monitor refresh should read cards');
-  assertEqual(calls[2].type, 'summary', 'monitor refresh should enrich linked cards with summaries');
+  assertEqual(calls[2], 'monitorSummary', 'monitor refresh should read summary counters');
   assertEqual(calls[3].type, 'create', 'submit should create a service job');
   assertEqual(calls[3].payload.countries[0], 'argentina', 'controller countries payload drift');
   assertEqual(calls[3].payload.countries[1], 'paraguay', 'controller expanded countries payload drift');
@@ -414,16 +438,22 @@ async function runControllerMonitorFallbackCheck() {
   await controller.refreshMonitor();
 
   assertEqual(calls[0], 'monitorCards', 'monitor fallback check should read monitor cards first');
-  assertDeepEqual(calls.filter((entry) => entry?.type === 'summary'), [{ type: 'summary', jobId: 'job-failed-summary' }], 'summary should only be requested for linked Radar jobs');
+  assertDeepEqual(calls.filter((entry) => entry?.type === 'summary'), [], 'monitor cards should not fetch per-card Transcript summaries');
   assertDeepEqual(state.monitorCards[0].mentionCounts, [
     { label: 'Messi', count: '—', status: 'pending' },
     { label: 'Álvarez', count: '—', status: 'pending' },
     { label: 'Di María', count: '—', status: 'pending' },
+    { label: 'Argentina', count: '—', status: 'pending' },
   ], 'unlinked card should show famous-player pending mentions');
-  assertDeepEqual(state.monitorCards[1].mentionCounts, [{ label: 'Pendiente', count: '—', status: 'summary_unavailable' }], 'failed summary fallback drift');
+  assertDeepEqual(state.monitorCards[1].mentionCounts, [
+    { label: 'Caicedo', count: '—', status: 'pending' },
+    { label: 'Pacho', count: '—', status: 'pending' },
+    { label: 'Hincapié', count: '—', status: 'pending' },
+    { label: 'Ecuador', count: '—', status: 'pending' },
+  ], 'failed summary fallback should keep concrete country dashboard labels');
   if (!el.radarMonitorList.innerHTML.includes('without-radar-link')) throw new Error(`unlinked monitor card disappeared: ${el.radarMonitorList.innerHTML}`);
   if (!el.radarMonitorList.innerHTML.includes('Summary failed')) throw new Error(`failed-summary monitor card disappeared: ${el.radarMonitorList.innerHTML}`);
-  if (!el.radarMonitorList.innerHTML.includes('Pendiente')) throw new Error(`failed-summary card should render pending fallback: ${el.radarMonitorList.innerHTML}`);
+  if (!el.radarMonitorList.innerHTML.includes('Ecuador:')) throw new Error(`failed-summary card should render country dashboard fallback: ${el.radarMonitorList.innerHTML}`);
 }
 
 function runControllerRemoteGuardCheck() {

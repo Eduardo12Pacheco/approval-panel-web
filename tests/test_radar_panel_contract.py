@@ -46,12 +46,17 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         'id="radarSubmitBtn"',
         'id="radarMonitorStatus"',
         'id="radarMonitorRefreshBtn"',
+        'id="radarBasuraBtn"',
+        'id="radarBasuraCount"',
+        'id="radarBasuraDialog"',
+        'id="radarBasuraList"',
         'id="radarCountryBar"',
-        'id="radarCountryFilter"',
         'id="radarMonitorList"',
         'id="transcriptServiceBaseUrlInput"',
     ]:
         assert expected in index_source
+
+    assert 'id="radarCountryFilter"' not in index_source
 
     assert 'id="channelMonitorBaseUrlInput"' not in index_source
     assert "Base URL Channel Monitor" not in index_source
@@ -73,12 +78,17 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
         "transcriptServiceBaseUrlInput",
         "radarMonitorStatus",
         "radarMonitorRefreshBtn",
+        "radarBasuraBtn",
+        "radarBasuraCount",
+        "radarBasuraDialog",
+        "radarBasuraList",
         "radarCountryBar",
-        "radarCountryFilter",
         "radarMonitorList",
         "channelMonitorBaseUrlInput",
     ]:
         assert expected in selectors_source
+
+    assert "radarCountryFilter" not in selectors_source
 
     assert "transcriptServiceBaseUrl" in app_store_source
     assert "transcriptServiceApiKey" in app_store_source
@@ -119,8 +129,12 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
     source = RADAR_CSS_PATH.read_text(encoding="utf-8")
     template = RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
 
-    for country in ["Ecuador", "Colombia", "Argentina", "Paraguay", "Uruguay", "M\\u00e9xico"]:
+    previous = -1
+    for country in ["Ecuador", "Colombia", "Argentina", "Uruguay", "Paraguay", "M\\u00e9xico"]:
         assert country in template
+        current = template.index(country)
+        assert current > previous
+        previous = current
     assert "data-radar-country-option" in template
 
     for expected in [
@@ -131,9 +145,13 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
         "grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);",
         ".radar-monitor-card__meta",
         ".radar-monitor-card__mentions",
-        ".radar-mention-column",
+        ".radar-monitor-card__mentions-title",
+        ".radar-monitor-card__mentions-grid",
+        ".radar-mention-row",
         ".radar-monitor-empty",
         ".radar-monitor-error",
+        ".radar-basura-list",
+        ".radar-basura-item",
     ]:
         assert expected in source
 

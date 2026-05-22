@@ -49,10 +49,6 @@
   flex-wrap: wrap;
 }
 
-#viewRadar .radar-monitor-toolbar select {
-  min-width: 180px;
-}
-
 #viewRadar .radar-country-bar {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -140,39 +136,54 @@
 
 #viewRadar .radar-monitor-card__mentions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(104px, 1fr));
-  gap: 18px;
+  gap: 10px;
   align-items: stretch;
+  padding: 14px 16px;
+  border: 1px solid #232323;
+  background: #090909;
 }
 
-#viewRadar .radar-mention-column {
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  min-height: 84px;
-  padding: 12px 10px;
-  border: 0;
-  background: transparent;
-  text-align: center;
-}
-
-#viewRadar .radar-mention-column strong {
+#viewRadar .radar-monitor-card__mentions-title {
   color: #00E88F;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 34px;
-  line-height: 1;
-}
-
-#viewRadar .radar-mention-column small {
-  color: #DADDE0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-#viewRadar .radar-mention-column.is-pending strong,
-#viewRadar .radar-mention-column.is-pending small {
+#viewRadar .radar-monitor-card__mentions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+
+#viewRadar .radar-mention-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+  padding: 7px 0;
+  border-bottom: 1px solid #1D1D1D;
+}
+
+#viewRadar .radar-mention-row strong {
+  color: #00E88F;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1;
+}
+
+#viewRadar .radar-mention-row small {
+  color: #DADDE0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+#viewRadar .radar-mention-row.is-pending strong,
+#viewRadar .radar-mention-row.is-pending small {
   color: #8B8E93;
 }
 
@@ -189,6 +200,25 @@
 
 #viewRadar .radar-monitor-error {
   color: #F7B955;
+}
+
+#viewRadar .radar-basura-list {
+  display: grid;
+  gap: 12px;
+  max-height: min(70vh, 680px);
+  overflow: auto;
+}
+
+#viewRadar .radar-basura-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #262626;
+  background: #0A0A0A;
+}
+
+#viewRadar .radar-basura-item small {
+  color: #8B8E93;
 }
 
 #viewRadar .radar-history-secondary {
@@ -369,7 +399,7 @@
   }
 
   #viewRadar .radar-country-bar,
-  #viewRadar .radar-monitor-card__mentions {
+  #viewRadar .radar-monitor-card__mentions-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

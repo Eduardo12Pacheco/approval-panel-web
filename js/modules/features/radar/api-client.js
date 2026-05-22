@@ -81,7 +81,9 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationL
   return {
     isBlockedByRemoteContext,
     getRemoteLocalServiceMessage: () => REMOTE_LOCAL_SERVICE_MESSAGE,
-    monitorCards: () => request('/api/monitor/cards', { service: 'monitor' }),
+    monitorCards: (targetCountry = '') => request(`/api/monitor/cards${targetCountry ? `?target_country=${encodeURIComponent(targetCountry)}` : ''}`, { service: 'monitor' }),
+    monitorSummary: () => request('/api/monitor/summary', { service: 'monitor' }),
+    monitorBasura: () => request('/api/monitor/basura', { service: 'monitor' }),
     health: () => request('/api/radar/health'),
     createJob: (payload) => request('/api/radar/jobs', { method: 'POST', body: payload }),
     history: () => request('/api/radar/jobs'),

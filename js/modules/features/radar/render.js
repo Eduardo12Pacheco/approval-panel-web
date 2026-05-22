@@ -1,4 +1,34 @@
-import { filterMonitorCards } from './state.js';
+import { RADAR_COUNTRIES, filterMonitorCards, mapMonitorCard } from './state.js';
+
+const COUNTRY_LABELS = new Map([
+  ...RADAR_COUNTRIES.map((country) => [country.value, country.label]),
+  ['ar', 'Argentina'],
+  ['arg', 'Argentina'],
+  ['co', 'Colombia'],
+  ['col', 'Colombia'],
+  ['ec', 'Ecuador'],
+  ['ecu', 'Ecuador'],
+  ['py', 'Paraguay'],
+  ['pry', 'Paraguay'],
+  ['uy', 'Uruguay'],
+  ['ury', 'Uruguay'],
+  ['mx', 'México'],
+  ['mex', 'México'],
+]);
+
+const LIFECYCLE_LABELS = {
+  enqueue_pending: 'Esperando análisis Radar',
+  enqueued: 'En cola para analizar',
+  queued: 'En cola para analizar',
+  processing: 'Analizando menciones',
+  processed: 'Análisis listo',
+  completed: 'Análisis listo',
+  ignored_seen: 'Ya visto · descartado',
+  ignored: 'Descartado por monitor',
+  skipped: 'Omitido',
+  failed: 'Revisar error',
+  monitor: 'Monitoreado',
+};
 
 function escapeHtml(value) {
   return (value ?? '').toString()
@@ -124,6 +154,8 @@ export function renderRadarMonitor({ el, state }) {
   if (el.radarMonitorStatus) {
     el.radarMonitorStatus.textContent = monitorStatusText({ status, total: state.monitorCards?.length || 0, visible: visibleCards.length, error: state.monitorError });
   }
+  if (el.radarBasuraCount) el.radarBasuraCount.textContent = String(Number(state.basuraCount || 0));
+  renderBasuraList({ el, state });
   updateCountryBar(el.radarCountryBar, state.selectedCountry || '');
   if (status === 'loading') {
     el.radarMonitorList.classList?.add?.('is-empty');
@@ -160,28 +192,77 @@ function updateCountryBar(countryBar, selectedCountry = '') {
 }
 
 function renderMonitorCard(card = {}) {
+  const dashboardCard = mapMonitorCard(card, Array.isArray(card.mentionCounts) ? card.mentionCounts : []);
   const title = card.title || card.video_id || 'Video sin título';
-  const meta = [card.country, card.channel_label || card.channel, card.published_at].filter(Boolean).join(' · ');
-  const mentions = Array.isArray(card.mentionCounts) ? card.mentionCounts : [];
+  const meta = formatMonitorMetadata(card);
+  const mentions = Array.isArray(dashboardCard.mentionCounts) ? dashboardCard.mentionCounts : [];
   return `
     <article class="radar-monitor-card" data-video-id="${escapeHtml(card.video_id || '')}">
       <div class="radar-monitor-card__main">
-        <span class="radar-kicker">${escapeHtml(card.lifecycle || card.enqueue_status || 'monitor')}</span>
+        <span class="radar-kicker">${escapeHtml(formatLifecycleLabel(card.status || card.lifecycle || card.enqueue_status || 'monitor'))}</span>
         <strong>${escapeHtml(title)}</strong>
         <small class="radar-monitor-card__meta">${escapeHtml(meta || 'Metadata pendiente')}</small>
       </div>
       <div class="radar-monitor-card__mentions" aria-label="Menciones detectadas">
-        ${mentions.length ? mentions.map(renderMentionColumn).join('') : '<span class="radar-mention-column is-pending"><strong>—</strong><small>Pendiente</small></span>'}
+        <span class="radar-monitor-card__mentions-title">Menciones:</span>
+        <div class="radar-monitor-card__mentions-grid">
+          ${mentions.length ? mentions.map(renderMentionColumn).join('') : '<span class="radar-mention-row is-pending"><small>Pendiente:</small><strong>—</strong></span>'}
+        </div>
       </div>
     </article>
   `;
 }
 
+function formatMonitorMetadata(card = {}) {
+  const target = card.target_country_label || card.country_label || formatCountryLabel(card.target_country || card.country);
+  const source = card.source_country_label || formatCountryLabel(card.source_country);
+  const channel = card.channel_label || card.channel_name || card.channel;
+  const uploaded = formatUploadedAt(card.published_at || card.uploaded_at || card.created_at);
+  return [target ? `Destino: ${target}` : '', source ? `Fuente: ${source}` : '', channel ? `Canal: ${channel}` : '', uploaded].filter(Boolean).join(' · ');
+}
+
+function formatCountryLabel(value = '') {
+  const normalized = normalizeKey(value);
+  if (!normalized) return '';
+  return COUNTRY_LABELS.get(normalized) || value.toString().trim();
+}
+
+function formatLifecycleLabel(value = '') {
+  const normalized = normalizeKey(value).replace(/-/g, '_');
+  if (!normalized) return 'Monitoreado';
+  return LIFECYCLE_LABELS[normalized] || humanizeToken(value);
+}
+
+function formatUploadedAt(value = '') {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.toString();
+  const formatted = new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date).replace(/\./g, '');
+  return `Subido ${formatted} UTC`;
+}
+
+function normalizeKey(value = '') {
+  return (value || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function humanizeToken(value = '') {
+  const text = (value || '').toString().trim().replace(/[_-]+/g, ' ').toLowerCase();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Monitoreado';
+}
+
 function renderMentionColumn(item = {}) {
   const isPending = item.status && item.status !== 'ready';
   return `
-    <span class="radar-mention-column ${isPending ? 'is-pending' : ''}">
-      <small>${escapeHtml(item.label || 'Pendiente')}</small>
+    <span class="radar-mention-row ${isPending ? 'is-pending' : ''}">
+      <small>${escapeHtml(item.label || 'Pendiente')}:</small>
       <strong>${escapeHtml(item.count ?? '—')}</strong>
     </span>
   `;
@@ -189,6 +270,10 @@ function renderMentionColumn(item = {}) {
 
 function humanJobStatus(status = '') {
   const map = {
+    aprobado: 'Aprobado',
+    transcribiendo: 'Transcribiendo',
+    transcrito: 'Transcrito',
+    error: 'Error',
     queued: 'En cola',
     running: 'Procesando',
     succeeded: 'Completado',
@@ -198,6 +283,19 @@ function humanJobStatus(status = '') {
     delete_requested: 'Eliminando',
   };
   return map[status] || status || 'Sin estado';
+}
+
+function renderBasuraList({ el, state }) {
+  if (!el.radarBasuraList) return;
+  const items = Array.isArray(state.basuraItems) ? state.basuraItems : [];
+  el.radarBasuraList.innerHTML = items.length
+    ? items.map((item) => `
+      <article class="radar-basura-item" data-video-id="${escapeHtml(item.video_id || '')}">
+        <strong>${escapeHtml(item.title || item.video_id || 'Video rechazado')}</strong>
+        <small>${escapeHtml([item.source_country_label || formatCountryLabel(item.source_country), item.channel_label, item.reason].filter(Boolean).join(' · '))}</small>
+      </article>
+    `).join('')
+    : '<article class="radar-monitor-empty">Sin videos en Basura.</article>';
 }
 
 export function renderRadarSummary({ el, summary }) {

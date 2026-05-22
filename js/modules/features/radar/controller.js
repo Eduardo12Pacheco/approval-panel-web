@@ -68,9 +68,14 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     state.monitorError = '';
     renderAll();
     try {
-      const payload = await api.monitorCards();
+      const [payload, summary] = await Promise.all([
+        api.monitorCards(state.selectedCountry || ''),
+        api.monitorSummary?.().catch?.(() => null) || null,
+      ]);
       const cards = Array.isArray(payload.items) ? payload.items : [];
-      state.monitorCards = await enrichMonitorCards(cards);
+      state.monitorSummary = summary;
+      state.basuraCount = Number(summary?.basura_count || 0);
+      state.monitorCards = cards.map((card) => mapMonitorCard(card, normalizeMonitorSummary({ items: card.mention_counts || card.mentionCounts || [] })));
       state.monitorStatus = payload.degraded || payload.status === 'degraded' ? 'degraded' : 'ready';
     } catch (error) {
       state.monitorStatus = 'error';
@@ -79,6 +84,18 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       toast(state.monitorError);
     } finally {
       renderAll();
+    }
+  }
+
+  async function showBasura() {
+    try {
+      const payload = await api.monitorBasura?.();
+      state.basuraItems = Array.isArray(payload?.items) ? payload.items : [];
+      state.basuraCount = Number(payload?.total ?? state.basuraItems.length);
+      renderAll();
+      el.radarBasuraDialog?.showModal?.();
+    } catch (error) {
+      toast(error?.message || 'No pude cargar Basura');
     }
   }
 
@@ -232,17 +249,14 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     el.radarConfirmCancelBtn?.addEventListener('click', () => el.radarConfirmDialog?.close?.());
     el.radarSubmitBtn?.addEventListener('click', () => { void submitCurrentJob(); });
     el.radarMonitorRefreshBtn?.addEventListener('click', () => { void refreshMonitor(); });
+    el.radarBasuraBtn?.addEventListener('click', () => { void showBasura(); });
+    el.radarBasuraCloseBtn?.addEventListener('click', () => el.radarBasuraDialog?.close?.());
     el.radarCountryBar?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-radar-country-option]');
       if (!button) return;
       const nextCountry = button.dataset.radarCountryOption || '';
       state.selectedCountry = state.selectedCountry === nextCountry ? '' : nextCountry;
-      if (el.radarCountryFilter) el.radarCountryFilter.value = state.selectedCountry;
-      renderAll();
-    });
-    el.radarCountryFilter?.addEventListener('input', () => {
-      state.selectedCountry = el.radarCountryFilter?.value || '';
-      renderAll();
+      void refreshMonitor();
     });
     el.radarCopyTranscriptBtn?.addEventListener('click', () => { void copyTranscript(); });
     el.radarCopyMentionsBtn?.addEventListener('click', () => { void copyMentions(); });
@@ -272,6 +286,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     refreshHealth,
     refreshHistory,
     refreshMonitor,
+    showBasura,
     submitCurrentJob,
     pollActiveJob,
     copyTranscript,

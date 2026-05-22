@@ -2,12 +2,12 @@ export const RADAR_COUNTRIES = [
   { value: 'ecuador', label: 'Ecuador', players: ['Caicedo', 'Pacho', 'Hincapié'] },
   { value: 'colombia', label: 'Colombia', players: ['Luis Díaz', 'James', 'Quintero'] },
   { value: 'argentina', label: 'Argentina', players: ['Messi', 'Álvarez', 'Di María'] },
-  { value: 'paraguay', label: 'Paraguay', players: ['Almirón', 'Enciso', 'Sanabria'] },
   { value: 'uruguay', label: 'Uruguay', players: ['Valverde', 'Darwin', 'Suárez'] },
+  { value: 'paraguay', label: 'Paraguay', players: ['Almirón', 'Enciso', 'Sanabria'] },
   { value: 'mexico', label: 'México', players: ['Giménez', 'Ochoa', 'Edson Álvarez'] },
 ];
 
-const DEFAULT_PENDING_PLAYERS = ['Menciones', 'Jugadores', 'País'];
+const DEFAULT_MENTION_LABELS = ['Jugador clave', 'Referente', 'Selección', 'País'];
 
 export function createRadarState() {
   return {
@@ -19,6 +19,9 @@ export function createRadarState() {
     history: [],
     monitorStatus: 'idle',
     monitorCards: [],
+    monitorSummary: null,
+    basuraItems: [],
+    basuraCount: 0,
     monitorError: '',
     selectedCountry: '',
     summaryByJobId: {},
@@ -27,7 +30,7 @@ export function createRadarState() {
   };
 }
 
-export function normalizeMonitorSummary(summary = {}, { limit = 3 } = {}) {
+export function normalizeMonitorSummary(summary = {}, { limit = 12 } = {}) {
   const items = Array.isArray(summary?.items) ? summary.items : [];
   return items
     .map((item) => ({
@@ -41,15 +44,13 @@ export function normalizeMonitorSummary(summary = {}, { limit = 3 } = {}) {
 export function filterMonitorCards(cards = [], country = '') {
   const selected = normalizeCountryKey(country);
   if (!selected) return [...cards];
-  return cards.filter((card) => normalizeCountryKey(card.country) === selected);
+  return cards.filter((card) => normalizeCountryKey(card.target_country || card.country) === selected);
 }
 
 export function mapMonitorCard(card = {}, summaryColumns = []) {
-  const mentionCounts = summaryColumns.length
-    ? summaryColumns
-    : normalizeExistingMentionCounts(card.mention_counts).length
-      ? normalizeExistingMentionCounts(card.mention_counts)
-      : buildPendingMentionColumns(card.country);
+  const countryConfig = getCountryConfig(card.target_country || card.country);
+  const sourceCounts = summaryColumns.length ? summaryColumns : normalizeExistingMentionCounts(card.mention_counts);
+  const mentionCounts = buildCountryMentionDashboard({ countryConfig, sourceCounts });
   return {
     ...card,
     mentionCounts,
@@ -64,16 +65,27 @@ function normalizeExistingMentionCounts(mentionCounts = []) {
       count: Number.isFinite(Number(item?.count)) ? Number(item.count) : (item?.count ?? '—'),
       status: item?.status || 'ready',
     }))
-    .slice(0, 3);
+    .slice(0, 12);
 }
 
-function buildPendingMentionColumns(country = '') {
-  const countryConfig = RADAR_COUNTRIES.find((item) => item.value === normalizeCountryKey(country));
-  return (countryConfig?.players || DEFAULT_PENDING_PLAYERS).map((label) => ({
-    label,
-    count: '—',
-    status: 'pending',
-  }));
+function buildCountryMentionDashboard({ countryConfig, sourceCounts = [] } = {}) {
+  const labels = countryConfig
+    ? [...countryConfig.players, countryConfig.label]
+    : DEFAULT_MENTION_LABELS;
+  const countsByLabel = new Map(sourceCounts.map((item) => [normalizeCountryKey(item.label), item]));
+
+  return labels.map((label) => {
+    const source = countsByLabel.get(normalizeCountryKey(label));
+    return {
+      label,
+      count: source?.count ?? '—',
+      status: source?.status || 'pending',
+    };
+  });
+}
+
+function getCountryConfig(country = '') {
+  return RADAR_COUNTRIES.find((item) => item.value === normalizeCountryKey(country));
 }
 
 function normalizeCountryKey(value = '') {

@@ -10,19 +10,8 @@ export const radarViewHTML = `\
                   <h3>Radar Monitor</h3>
                   <p id="radarMonitorStatus" class="meta word-count">Cargando videos monitoreados.</p>
                 </div>
-                <div class="radar-monitor-toolbar" aria-label="Filtros Radar Monitor">
-                  <label class="control-group approval-control approval-control--select radar-filter-select">
-                    <span class="control-label">Pa\u00eds</span>
-                    <select id="radarCountryFilter">
-                      <option value="">Todos</option>
-                      <option value="ecuador">Ecuador</option>
-                      <option value="colombia">Colombia</option>
-                      <option value="argentina">Argentina</option>
-                      <option value="paraguay">Paraguay</option>
-                      <option value="uruguay">Uruguay</option>
-                      <option value="mexico">M\u00e9xico</option>
-                    </select>
-                  </label>
+                <div class="radar-monitor-toolbar" aria-label="Acciones Radar Monitor">
+                  <button id="radarBasuraBtn" class="secondary" type="button">Basura <span id="radarBasuraCount">0</span></button>
                   <button id="radarMonitorRefreshBtn" class="secondary" type="button">Actualizar</button>
                 </div>
               </header>
@@ -30,13 +19,23 @@ export const radarViewHTML = `\
                 <button class="radar-country-card" type="button" data-radar-country-option="ecuador" aria-pressed="false"><span>01 / Ecuador</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="colombia" aria-pressed="false"><span>02 / Colombia</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="argentina" aria-pressed="false"><span>03 / Argentina</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="paraguay" aria-pressed="false"><span>04 / Paraguay</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="uruguay" aria-pressed="false"><span>05 / Uruguay</span><strong>Monitoreo</strong></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="uruguay" aria-pressed="false"><span>04 / Uruguay</span><strong>Monitoreo</strong></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="paraguay" aria-pressed="false"><span>05 / Paraguay</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="mexico" aria-pressed="false"><span>06 / M\u00e9xico</span><strong>Monitoreo</strong></button>
               </nav>
               <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>
           </section>
+
+          <dialog id="radarBasuraDialog">
+            <article>
+              <header class="dialog-header">
+                <h2>Basura</h2>
+                <button id="radarBasuraCloseBtn" class="secondary" type="button">Cerrar</button>
+              </header>
+              <div id="radarBasuraList" class="radar-basura-list"></div>
+            </article>
+          </dialog>
 
           <dialog id="radarNewJobDialog">
             <article>
