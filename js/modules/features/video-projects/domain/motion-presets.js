@@ -1,5 +1,7 @@
 export const MOTION_PRESET_CATEGORIES = ['ZOOMS', 'MOVIMIENTOS', 'MOVIMIENTOS DIAGONALES', 'VERTICALES', 'HORIZONTALES'];
 
+// Keep this module as the browser-facing motion preset source for Video Projects.
+
 function normalizeMotionPresetKey(idOrName) {
   return String(idOrName || '').trim().toLowerCase().replace(/^zoom-(\d+)$/, 'zoom $1');
 }
