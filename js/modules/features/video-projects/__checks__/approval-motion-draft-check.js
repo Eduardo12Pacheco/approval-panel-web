@@ -382,12 +382,12 @@ async function runApprovalPresetMotionUsesOptimisticDraftCheck() {
 
     await feature.updateRow('row-1', {
       motionPresetId: 'Movimiento-Derecha-Izquierda',
-      motion: { fromX: -240, toX: 238.4, fromScale: 1.25, toScale: 1.25 },
+      motion: { fromX: -120, toX: 120, fromScale: 1.25, toScale: 1.25 },
     });
 
     assertEqual(state.selectedVideoProject._editorRows[0].motionPresetId, 'Movimiento-Derecha-Izquierda', 'Expected preset motion selection to patch the local preset immediately');
-    assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 238.4, 'Expected preset motion selection to patch local motion immediately');
-    assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].motion.toX, 238.4, 'Expected preset motion selection to keep editor state in sync before remote snapshot save');
+    assertEqual(state.selectedVideoProject._editorRows[0].motion.toX, 120, 'Expected preset motion selection to patch local motion immediately');
+    assertEqual(state.selectedVideoProject.editor_state.timed_rows[0].motion.toX, 120, 'Expected preset motion selection to keep editor state in sync before remote snapshot save');
     assertEqual(updateSnapshotCalls.length, 0, 'Expected preset motion selection to use debounced snapshot persistence, not an immediate remote update');
     assertEqual(previewUpdateEvents.length, 1, 'Expected preset motion selection to update the existing composition preview once immediately');
     assertEqual(renderEvents.length, 0, 'Expected preset motion selection not to trigger a full detail render before debounce persistence');
