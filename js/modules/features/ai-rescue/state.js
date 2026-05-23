@@ -95,7 +95,7 @@ export function normalizeAiRescueQueueItem(item = null) {
 
 export function normalizeAiRescueRejection(record = {}) {
   const source = (record.source || 'ai').toString().trim().toLowerCase();
-  const details = record.details && typeof record.details === 'object' ? record.details : {};
+  const targetCountry = normalizeAiRescueCountryKey(record.target_country || record.targetCountry);
   return {
     ...record,
     id: Number(record.id || 0),
@@ -104,9 +104,31 @@ export function normalizeAiRescueRejection(record = {}) {
     source,
     sourceLabel: REJECTION_SOURCE_LABELS[source] || humanizeToken(source),
     reason: record.reason || 'Sin motivo',
-    targetLabel: record.target_country_label || record.targetLabel || formatAiRescueCountryLabel(record.target_country || record.targetCountry),
-    detailText: details.note || details.explanation || details.error || details.message || JSON.stringify(details),
+    targetCountry,
+    targetLabel: record.target_country_label || record.targetLabel || formatAiRescueCountryLabel(targetCountry),
+    detailText: getAiRescueRejectionDetailText(record.details),
   };
+}
+
+export function getAiRescueRejectionGroups(records = []) {
+  const groups = new Map();
+  for (const record of records.map(normalizeAiRescueRejection)) {
+    const key = record.videoId || `rejection-${record.id}`;
+    if (!groups.has(key)) {
+      groups.set(key, { videoId: record.videoId, items: [], summaryItems: [] });
+    }
+    const group = groups.get(key);
+    if (!record.targetCountry && record.reason === 'no-candidates') {
+      group.summaryItems.push(record);
+    } else {
+      group.items.push(record);
+    }
+  }
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    items: group.items.length ? group.items : group.summaryItems,
+    summary: group.items.length ? '' : group.summaryItems[0]?.detailText || '',
+  })).filter((group) => group.items.length);
 }
 
 export function normalizeAiRescueCountryKey(value = '') {
@@ -121,4 +143,32 @@ export function formatAiRescueCountryLabel(value = '') {
 function humanizeToken(value = '') {
   const text = (value || '').toString().trim().replace(/[_-]+/g, ' ').toLowerCase();
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Sin estado';
+}
+
+function getAiRescueRejectionDetailText(details) {
+  if (typeof details === 'string') {
+    const trimmed = details.trim();
+    return looksLikeJsonString(trimmed) ? '' : trimmed;
+  }
+  if (!details || typeof details !== 'object') return '';
+  return firstStringValue([
+    details.explanation_es,
+    details.explanation,
+    details.note,
+    details.error,
+    details.message,
+  ]);
+}
+
+function firstStringValue(values = []) {
+  for (const value of values) {
+    const text = (value || '').toString().trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function looksLikeJsonString(value = '') {
+  const trimmed = value.trim();
+  return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
 }

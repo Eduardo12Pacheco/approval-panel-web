@@ -45,6 +45,10 @@ function assertNotIncludes(value, expected, message) {
   }
 }
 
+function countOccurrences(value, expected) {
+  return value.split(expected).length - 1;
+}
+
 function makeClassList() {
   const values = new Set();
   return {
@@ -145,11 +149,18 @@ function runStateCheck() {
     id: 8,
     source: 'human',
     reason: 'weak-evidence',
-    details: { note: 'No alcanza' },
+    details: { explanation_es: 'Explicación editorial en español', note: 'No alcanza' },
     target_country_label: 'México',
   });
   assertEqual(rejection.sourceLabel, 'Humano', 'human rejection source label drift');
-  assertEqual(rejection.detailText, 'No alcanza', 'rejection detail text drift');
+  assertEqual(rejection.detailText, 'Explicación editorial en español', 'rejection detail text should prefer explanation_es');
+
+  const rawOnlyRejection = normalizeAiRescueRejection({
+    id: 9,
+    reason: 'analysis-error',
+    details: { raw: { leaked: true } },
+  });
+  assertEqual(rawOnlyRejection.detailText, '', 'rejection details must not stringify raw JSON objects');
 }
 
 function runRenderCheck() {
@@ -175,14 +186,23 @@ function runRenderCheck() {
   renderAiRescueRejections({
     el: { aiRescueList: rejectedEl },
     rejections: [
-      { id: 1, source: 'ai', reason: 'weak-evidence', details: { explanation: 'Elogio casual' }, target_country_label: 'Argentina' },
-      { id: 2, source: 'system', reason: 'no-subtitles', details: { error: 'Timed text unavailable' } },
-      { id: 3, source: 'human', reason: 'editorial-risk', details: { note: 'No conviene' } },
+      { id: 1, video_id: 'vid-777', source: 'ai', reason: 'weak-evidence', details: { explanation_es: 'Elogio casual para Argentina', explanation: 'Should not win' }, target_country: 'argentina', target_country_label: 'Argentina' },
+      { id: 2, video_id: 'vid-777', source: 'ai', reason: 'weak-evidence', details: { explanation_es: 'Evidencia insuficiente para México' }, target_country: 'mexico', target_country_label: 'México' },
+      { id: 3, video_id: 'vid-777', source: 'system', reason: 'no-candidates', details: { explanation_es: 'Resumen global sin candidatos', raw: { leaked: true } }, target_country: null },
+      { id: 4, video_id: 'vid-888', source: 'system', reason: 'no-subtitles', details: { error: 'Timed text unavailable' } },
+      { id: 5, video_id: 'vid-999', source: 'human', reason: 'editorial-risk', details: { note: 'No conviene' } },
     ],
   });
   assertIncludes(rejectedEl.innerHTML, 'IA', 'AI rejection source should render');
   assertIncludes(rejectedEl.innerHTML, 'Sistema', 'system rejection source should render');
   assertIncludes(rejectedEl.innerHTML, 'Humano', 'human rejection source should render');
+  assertEqual(countOccurrences(rejectedEl.innerHTML, 'class="ai-rescue-rejection-card"'), 3, 'multiple rejections for one video should render as one grouped card');
+  assertIncludes(rejectedEl.innerHTML, 'Video: vid-777', 'grouped rejection should show video id once with a clear label');
+  assertEqual(countOccurrences(rejectedEl.innerHTML, 'Video: vid-777'), 1, 'video id should not repeat per country');
+  assertIncludes(rejectedEl.innerHTML, 'Elogio casual para Argentina', 'per-country Argentina explanation should remain visible');
+  assertIncludes(rejectedEl.innerHTML, 'Evidencia insuficiente para México', 'per-country México explanation should remain visible');
+  assertNotIncludes(rejectedEl.innerHTML, 'Resumen global sin candidatos', 'global no-candidates row should not duplicate country details when per-country rows exist');
+  assertNotIncludes(rejectedEl.innerHTML, 'raw', 'normal rejection details must not render raw JSON keys');
   assertIncludes(rejectedEl.innerHTML, 'Timed text unavailable', 'rejection detail should render for calibration');
 
   const detailEl = makeElement();
