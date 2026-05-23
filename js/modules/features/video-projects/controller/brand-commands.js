@@ -71,13 +71,30 @@ export function createBrandCommands({
   renderSelectedVideoProject,
   getSaveTimer,
   setSaveTimer,
+  cancelPendingEditorSave,
+  beforeMutate,
   debounceMs,
 }) {
+  function clearPendingEditorSave() {
+    if (typeof cancelPendingEditorSave === 'function') {
+      cancelPendingEditorSave();
+      return;
+    }
+    clearTimeout(getSaveTimer());
+  }
+
+  function notifyBeforeMutate(label, project, details = {}) {
+    if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
+  }
+
   async function updateBrandChannel(value) {
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project) return;
     const brandChannel = normalizeBrandChannel(value);
+    const currentBrandChannel = normalizeBrandChannel(project.editor_state?.brandChannel || project.editor_state?.brand_channel || project.editor_state?.approval_contract_snapshot?.brandChannel);
+    if (brandChannel === currentBrandChannel) return;
+    notifyBeforeMutate('update-brand-channel', project, { brandChannel });
 
     if (isApprovalServiceMode(project)) {
       const snapshot = applyLocalBrandChannelSnapshot(project.editor_state?.approval_contract_snapshot || {}, brandChannel);
@@ -99,7 +116,7 @@ export function createBrandCommands({
     updateSelectedVideoProjectCompositionPreview({ project });
     renderSelectedVideoProject();
 
-    clearTimeout(getSaveTimer());
+    clearPendingEditorSave();
     setSaveTimer(setTimeout(() => {
       void persistEditorState(project, { approval_contract_snapshot: snapshot, brandChannel, brand_channel: brandChannel, dirty: true, phase: 'editing_dirty' });
     }, debounceMs));

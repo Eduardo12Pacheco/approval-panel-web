@@ -1,8 +1,34 @@
 import { findMotionPreset } from '../domain/motion-presets.js';
+import { shouldHandleEditorUndoKey } from '../controller/undo-manager.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
 import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js?v=20260520-whip-bugfix';
 import { hydrateVideoSelectorControls } from './video-selector-hydration.js';
+
+const EDITOR_UNDO_CLEANUP_KEY = '__videoProjectsEditorUndoCleanup';
+
+export function hydrateEditorUndoShortcut({ root, editorPhase, undoEditorChange } = {}) {
+  const doc = root?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const editorActive = ['preview_ready', 'editing_dirty', 'final_ready', 'error'].includes(editorPhase);
+  if (typeof root?.[EDITOR_UNDO_CLEANUP_KEY] === 'function') {
+    root[EDITOR_UNDO_CLEANUP_KEY]();
+    root[EDITOR_UNDO_CLEANUP_KEY] = null;
+  }
+  if (!doc || !editorActive || typeof undoEditorChange !== 'function') return null;
+
+  const handleKeydown = async (event) => {
+    const isRootConnected = root?.isConnected !== false;
+    if (!isRootConnected) return;
+    if (!shouldHandleEditorUndoKey(event, { editorActive: true })) return;
+    event.preventDefault?.();
+    await undoEditorChange();
+  };
+
+  doc.addEventListener?.('keydown', handleKeydown);
+  const cleanup = () => doc.removeEventListener?.('keydown', handleKeydown);
+  root[EDITOR_UNDO_CLEANUP_KEY] = cleanup;
+  return cleanup;
+}
 
 export function hydrateEditorPhaseInteractions({
   root,
@@ -23,8 +49,10 @@ export function hydrateEditorPhaseInteractions({
   exportFinal,
   preparePreview,
   goToAudioStep,
+  undoEditorChange,
 }) {
   if (!['preview_ready', 'editing_dirty', 'final_ready', 'error'].includes(editorPhase)) return;
+  hydrateEditorUndoShortcut({ root, editorPhase, undoEditorChange });
   if (editorRows.length) hydrateCompositionPreview({ root, project, editorRows });
   else destroyCompositionRenderer();
   const selectEditorRow = (rowId, startTime) => {

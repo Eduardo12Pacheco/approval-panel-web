@@ -915,6 +915,7 @@ async function renderSelectedVideoProject() {
     assignVideoSegmentToRow: videoProjectsFeature.assignVideoSegmentToRow,
     updateGlobalAudio: videoProjectsFeature.updateGlobalAudio,
     updateBrandChannel: videoProjectsFeature.updateBrandChannel,
+    undoEditorChange: videoProjectsFeature.undoEditorChange,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast: toast,

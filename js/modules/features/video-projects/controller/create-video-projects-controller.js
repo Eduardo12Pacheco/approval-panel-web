@@ -14,6 +14,7 @@ import { createGlobalAudioCommands } from './audio-commands.js';
 import { createPreviewExportCommands } from './preview-export-commands.js';
 import { createProjectLoadingCommands } from './project-loading.js';
 import { createRowCommands } from './row-commands.js?v=20260520-whip-bugfix';
+import { createEditorUndoManager } from './undo-manager.js';
 
 const SAVE_DEBOUNCE_MS = 400;
 
@@ -29,11 +30,20 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
   } = callbacks || {};
 
   let saveTimer = null;
+  function cancelPendingEditorSave() {
+    const hadTimer = saveTimer !== null;
+    if (hadTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    return hadTimer;
+  }
+
   const timerAccess = {
     getSaveTimer: () => saveTimer,
     setSaveTimer: (timer) => { saveTimer = timer; },
+    cancelPendingEditorSave,
     debounceMs: SAVE_DEBOUNCE_MS,
   };
+  const undoManager = createEditorUndoManager();
 
   const detailCache = createVideoProjectDetailCache({
     api,
@@ -53,6 +63,44 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     updateSelectedVideoProjectCompositionPreview,
     debounceMs: SAVE_DEBOUNCE_MS,
   });
+
+  function prepareEditorUndoRestore({ neutralizeApprovalQueue = true } = {}) {
+    const canceledEditorSave = cancelPendingEditorSave();
+    const approvalCancellation = approval.cancelPendingApprovalDrafts?.({ neutralizeQueue: neutralizeApprovalQueue }) || null;
+    return { canceledEditorSave, approvalCancellation };
+  }
+
+  function captureEditorUndoCheckpoint(label, project = store.getState().selectedVideoProject) {
+    return undoManager.capture(label, project);
+  }
+
+  function captureBeforeEditorMutation({ label, project } = {}) {
+    return captureEditorUndoCheckpoint(label || 'editor mutation', project);
+  }
+
+  async function undoEditorChange() {
+    const project = store.getState().selectedVideoProject;
+    if (!project || !undoManager.canUndo(project)) return false;
+    prepareEditorUndoRestore({ neutralizeApprovalQueue: true });
+    const restored = undoManager.undo({ project });
+    if (!restored) return false;
+
+    await persistEditorState(project, {
+      ...(project.editor_state || {}),
+      timed_rows: project._editorRows,
+      global_audio: project._globalAudio,
+      video_assets: project.video_assets,
+      preview_assets: project._previewAssets,
+      dirty: project.editor_state?.dirty === true,
+      phase: project.editor_state?.phase || 'editing_dirty',
+      error: project.editor_state?.error || '',
+    });
+
+    if (!updateSelectedVideoProjectCompositionPreview?.({ project })) {
+      renderSelectedVideoProject();
+    }
+    return true;
+  }
 
   const projectLoading = createProjectLoadingCommands({
     api,
@@ -150,6 +198,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     createMotionDraft: approval.createMotionDraft,
     updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
+    beforeMutate: captureBeforeEditorMutation,
     ...timerAccess,
   });
 
@@ -160,6 +209,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     resolveProjectKey: resolveVideoProjectKey,
     renderSelectedVideoProject,
     updateRow,
+    beforeMutate: captureBeforeEditorMutation,
     mergeCachedProjectEditorState: detailCache.mergeCachedProjectEditorState,
   });
 
@@ -170,6 +220,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     resolveProjectKey: resolveVideoProjectKey,
     renderSelectedVideoProject,
     updateRow,
+    beforeMutate: captureBeforeEditorMutation,
   });
 
   const previewExport = createPreviewExportCommands({
@@ -191,6 +242,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     scheduleApprovalMotionPersistence: approval.scheduleApprovalMotionPersistence,
     updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
+    beforeMutate: captureBeforeEditorMutation,
     ...timerAccess,
   });
 
@@ -203,10 +255,11 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     scheduleApprovalMotionPersistence: approval.scheduleApprovalMotionPersistence,
     updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
+    beforeMutate: captureBeforeEditorMutation,
     ...timerAccess,
   });
 
-  return {
+  const controller = {
     refreshVideoProjects: projectLoading.refreshVideoProjects,
     openVideoProject: projectLoading.openVideoProject,
     disableVideoProject: projectLoading.disableVideoProject,
@@ -229,6 +282,16 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     assignVideoSegmentToRow: rowVideos.assignVideoSegmentToRow,
     updateGlobalAudio: globalAudio.updateGlobalAudio,
     updateBrandChannel: brand.updateBrandChannel,
+    undoEditorChange,
     activate: () => {},  // no-op: video-projects init happens on first view render
   };
+
+  Object.defineProperties(controller, {
+    cancelPendingEditorSave: { value: cancelPendingEditorSave },
+    prepareEditorUndoRestore: { value: prepareEditorUndoRestore },
+    captureEditorUndoCheckpoint: { value: captureEditorUndoCheckpoint },
+    captureBeforeEditorMutation: { value: captureBeforeEditorMutation },
+  });
+
+  return controller;
 }

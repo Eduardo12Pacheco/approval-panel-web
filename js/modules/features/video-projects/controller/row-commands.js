@@ -85,6 +85,22 @@ function isBoundaryTransitionPatch(patch = {}) {
   return hasOwnPatchValue(patch, 'boundaryTransition');
 }
 
+function stableJson(value) {
+  return JSON.stringify(value ?? null);
+}
+
+function rowsWouldChange(rows = [], rowId, patch = {}) {
+  const index = Array.isArray(rows) ? rows.findIndex((row) => row?.id === rowId) : -1;
+  if (index === -1) return false;
+  const localPatch = isBoundaryTransitionPatch(patch)
+    ? resolveBoundaryTransitionPatch(patch.boundaryTransition)
+    : patch;
+  const nextRows = hasOwnPatchValue(localPatch, 'logo')
+    ? rows.map((row) => mergeLocalEditorRowPatch(row, localPatch))
+    : patchLocalEditorRows(rows, rowId, localPatch);
+  return stableJson(nextRows) !== stableJson(rows);
+}
+
 function resolveMotionPatchForApprovalService(motion) {
   if (motion && typeof motion === 'object') {
     const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
@@ -126,8 +142,22 @@ export function createRowCommands({
   renderSelectedVideoProject,
   getSaveTimer,
   setSaveTimer,
+  cancelPendingEditorSave,
+  beforeMutate,
   debounceMs,
 }) {
+  function clearPendingEditorSave() {
+    if (typeof cancelPendingEditorSave === 'function') {
+      cancelPendingEditorSave();
+      return;
+    }
+    clearTimeout(getSaveTimer());
+  }
+
+  function notifyBeforeMutate(label, project, details = {}) {
+    if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
+  }
+
   async function updateRow(rowId, patch) {
     const state = store.getState();
     const project = state.selectedVideoProject;
@@ -140,6 +170,9 @@ export function createRowCommands({
     project._editorRows = rows;
     const index = rows.findIndex((r) => r.id === rowId);
     if (index === -1) return;
+    const meaningfulChange = rowsWouldChange(rows, rowId, patch);
+    if (!meaningfulChange) return;
+    notifyBeforeMutate('update-row', project, { rowId, patch });
 
     if (isApprovalServiceMode(project)) {
       const operations = [];
@@ -228,7 +261,7 @@ export function createRowCommands({
     if (patch.manualMotionDraft === true || isMotionRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else renderSelectedVideoProject();
 
-    clearTimeout(getSaveTimer());
+    clearPendingEditorSave();
     setSaveTimer(setTimeout(() => {
       void persistEditorState(project, { timed_rows: project._editorRows, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
     }, debounceMs));
@@ -248,6 +281,7 @@ export function createRowCommands({
     const sourceAssetId = sourceRow.selectedAssetId || '';
     const targetAssetId = targetRow.selectedAssetId || '';
     if (!sourceAssetId || !targetAssetId || sourceAssetId === targetAssetId) return;
+    notifyBeforeMutate('swap-row-images', project, { sourceRowId, targetRowId });
 
     if (isApprovalServiceMode(project)) {
       const operations = [
@@ -275,7 +309,7 @@ export function createRowCommands({
     updateSelectedVideoProjectCompositionPreview({ project });
     renderSelectedVideoProject();
 
-    clearTimeout(getSaveTimer());
+    clearPendingEditorSave();
     setSaveTimer(setTimeout(() => {
       void persistEditorState(project, { timed_rows: project._editorRows, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
     }, debounceMs));

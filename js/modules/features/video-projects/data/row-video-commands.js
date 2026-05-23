@@ -42,7 +42,11 @@ export function readVideoDuration(file) {
   });
 }
 
-export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, mergeCachedProjectEditorState = () => {} }) {
+export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, mergeCachedProjectEditorState = () => {}, beforeMutate }) {
+  function notifyBeforeMutate(label, project, details = {}) {
+    if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
+  }
+
   async function uploadVideoToLibrary(rowId, file) {
     const project = getProject();
     if (!project || !rowId || !file) return null;
@@ -75,6 +79,7 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
         file_size: Number(file.size || 0),
         mime_type: file.type || '',
       };
+      notifyBeforeMutate('upload-row-video', project, { rowId, videoAssetId: video.id, storagePath: video.storage_path || '' });
       const nextVideoAssets = mergeProjectVideoAsset(project, video);
       project.video_assets = nextVideoAssets;
       project.editor_state = {

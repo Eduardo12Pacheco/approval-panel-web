@@ -4,7 +4,11 @@ import {
   detectImageDimensions,
 } from '../domain/image-files.js';
 
-export function createRowImageCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow }) {
+export function createRowImageCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, beforeMutate }) {
+  function notifyBeforeMutate(label, project, details = {}) {
+    if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
+  }
+
   async function assignExistingImageToRow(rowId, imageUrl) {
     const cleanUrl = (imageUrl || '').toString().trim();
     if (!rowId || !cleanUrl) return;
@@ -57,6 +61,8 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
         draftId,
         customCandidates: [candidate],
       });
+
+      notifyBeforeMutate('upload-row-image', project, { rowId, storagePath: upload.storage_path || '', publicUrl: upload.storage_public_url || '' });
 
       project.image_candidates = Array.isArray(result?.image_candidates)
         ? result.image_candidates

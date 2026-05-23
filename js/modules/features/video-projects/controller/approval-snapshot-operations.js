@@ -13,6 +13,7 @@ export function createApprovalSnapshotOperations({
 }) {
   let approvalMotionSaveTimer = null;
   let approvalMotionDraftRevision = 0;
+  let approvalQueueRevision = 0;
   let approvalCommitQueue = Promise.resolve();
   const pendingApprovalMotionOperations = new Map();
   const pendingApprovalMotionDrafts = new Map();
@@ -105,11 +106,40 @@ export function createApprovalSnapshotOperations({
   }
 
   function queueApprovalSnapshotOperations(project, operations = [], options = {}) {
+    const queueRevision = approvalQueueRevision;
     const run = approvalCommitQueue
       .catch(() => {})
-      .then(() => commitApprovalSnapshotOperations(project, operations, options));
+      .then(() => {
+        if (queueRevision !== approvalQueueRevision) return null;
+        return commitApprovalSnapshotOperations(project, operations, options);
+      });
     approvalCommitQueue = run.catch(() => {});
     return run;
+  }
+
+  function cancelPendingApprovalDrafts({ neutralizeQueue = false } = {}) {
+    const hadTimer = approvalMotionSaveTimer !== null;
+    if (hadTimer) clearTimeout(approvalMotionSaveTimer);
+    approvalMotionSaveTimer = null;
+
+    const motionOperations = pendingApprovalMotionOperations.size;
+    const motionDrafts = pendingApprovalMotionDrafts.size;
+    const snapshotDrafts = pendingApprovalSnapshotDrafts.size;
+    pendingApprovalMotionOperations.clear();
+    pendingApprovalMotionDrafts.clear();
+    pendingApprovalSnapshotDrafts.clear();
+    approvalMotionDraftRevision += 1;
+    if (neutralizeQueue) approvalQueueRevision += 1;
+
+    return {
+      canceledTimer: hadTimer,
+      clearedOperations: motionOperations,
+      clearedMotionDrafts: motionDrafts,
+      clearedSnapshotDrafts: snapshotDrafts,
+      invalidated: hadTimer || motionOperations > 0 || motionDrafts > 0 || snapshotDrafts > 0 || neutralizeQueue,
+      revision: approvalMotionDraftRevision,
+      queueRevision: approvalQueueRevision,
+    };
   }
 
   function scheduleApprovalMotionPersistence(project) {
@@ -172,6 +202,7 @@ export function createApprovalSnapshotOperations({
     commitApprovalSnapshotOperations,
     queueApprovalSnapshotOperations,
     scheduleApprovalMotionPersistence,
+    cancelPendingApprovalDrafts,
     createMotionDraft,
     createSnapshotDraft,
   };

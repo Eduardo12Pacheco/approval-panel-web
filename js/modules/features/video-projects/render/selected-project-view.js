@@ -27,6 +27,7 @@ export function renderSelectedVideoProjectView({
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
   swapRowImages,
+  undoEditorChange,
   showToast,
 }) {
   if (!el.videoProjectDetail) return;
@@ -110,5 +111,6 @@ export function renderSelectedVideoProjectView({
     exportFinal,
     preparePreview,
     goToAudioStep,
+    undoEditorChange,
   });
 }
