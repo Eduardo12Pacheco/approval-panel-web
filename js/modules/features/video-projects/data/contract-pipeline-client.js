@@ -1,4 +1,5 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
+import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
 import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260521-settings-guard';
 
 function resolveVideoProjectKey(row = {}) {
@@ -18,6 +19,7 @@ export function normalizePreparedContractRows(rows = []) {
     const mediaMode = !isVideoSegment && row?.mediaMode === 'newspaper' ? 'newspaper' : 'image';
     const dustType = row?.dust?.type || 'dust-1';
     const dustEnabled = isVideoSegment ? false : (row?.dust?.enabled !== undefined ? Boolean(row.dust.enabled) : true);
+    const motion = normalizeRowMotionForPreview(row);
 
     return {
       id: (row?.id || row?.rowId || `row-${index + 1}`).toString(),
@@ -29,8 +31,8 @@ export function normalizePreparedContractRows(rows = []) {
       selectedAssetId: isVideoSegment ? null : (row?.selectedAssetId || null),
       mediaMode,
       media: isVideoSegment ? { ...row.media } : { kind: 'image' },
-      motionPresetId: row?.motionPresetId || (typeof row?.motion === 'string' ? row.motion : 'Zoom 150'),
-      motion: row?.motion || (mediaMode === 'newspaper' ? { fromScale: 1, toScale: 1.5, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: 'linear' } : 'Zoom 150'),
+      motionPresetId: motion.motionPresetId,
+      motion: motion.motion,
       dust: { enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: row?.dust?.opacity ?? 0.36, blendMode: row?.dust?.blendMode || 'screen' },
       logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
       filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },

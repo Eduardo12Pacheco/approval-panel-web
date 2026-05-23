@@ -1,6 +1,7 @@
 import { buildPreviewCompositionContract } from './composition-contract.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeGlobalAudioState } from '../domain/editor-state.js';
+import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
 
 export function hashString(input) {
   let hash = 2166136261;
@@ -35,18 +36,21 @@ export function buildCompositionPayload(project) {
   const rows = Array.isArray(project._editorRows) ? project._editorRows : (project.editor_state?.timed_rows || []);
   const globalAudio = normalizeGlobalAudioState(project._globalAudio);
   const legacyPayload = {
-    rows: rows.map((row) => ({
-      id: row.id,
-      selectedAssetId: row.selectedAssetId || null,
-      mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image',
-      motion: row.motion || 'Zoom 150',
-      dust: { enabled: Boolean(row.dust?.enabled) },
-      logo: { enabled: row.logo?.enabled !== false },
-      filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
-      transition: row.transition || 'none',
-      startTime: row.startTime,
-      endTime: row.endTime,
-    })),
+    rows: rows.map((row) => {
+      const motion = normalizeRowMotionForPreview(row);
+      return {
+        id: row.id,
+        selectedAssetId: row.selectedAssetId || null,
+        mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image',
+        motion: motion.motion,
+        dust: { enabled: Boolean(row.dust?.enabled) },
+        logo: { enabled: row.logo?.enabled !== false },
+        filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },
+        transition: row.transition || 'none',
+        startTime: row.startTime,
+        endTime: row.endTime,
+      };
+    }),
     audio: globalAudio,
   };
 
@@ -75,6 +79,7 @@ export function buildCompositionPayload(project) {
     brandChannel: previewContract?.canonical?.brandChannel || project?.editor_state?.brandChannel || project?.editor_state?.brand_channel || 'pelotazo-ecuador',
     segments: (Array.isArray(previewContract.rows) ? previewContract.rows : []).map((row, index) => {
       const rowId = row.id || row.rowId;
+      const motion = normalizeRowMotionForPreview(row);
       const media = row.media?.kind === 'video-segment'
         ? {
           kind: 'video-segment',
@@ -96,7 +101,7 @@ export function buildCompositionPayload(project) {
       selectedAssetId: row.selectedAssetId || manifestImages.find((item) => item?.rowId === rowId)?.assetId || null,
       mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image',
       media,
-      motion: row.motion || 'Zoom 150',
+      motion: motion.motion,
       dust: { enabled: Boolean(row.dust?.enabled) },
       logo: { enabled: row.logo?.enabled !== false },
       filter: { enabled: Boolean(row.filter?.enabled), mode: row.filter?.mode || 'cover' },

@@ -1,4 +1,7 @@
 import { fileURLToPath } from 'node:url';
+import { buildPreviewCompositionContract } from '../composition/composition-contract.js';
+import { buildCompositionPayload } from '../composition/composition-payload.js';
+import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../domain/motion-presets.js';
 import { buildEditorEffectTabs } from '../render/editor-effect-tabs.js';
 import { hydrateEditorPhaseInteractions } from '../render/editor-hydration.js';
@@ -165,6 +168,51 @@ function runPresetSelectionSyncsManualControlsCheck() {
   assertEqual(patches[0]?.patch?.motionPresetId, 'Zoom-Esquina-Arriba-Derecha', 'Expected preset patch to keep selected preset id');
 }
 
+function runDefaultZoom150PreviewNormalizationCheck() {
+  const staleLegacyRow = {
+    id: 'row-legacy',
+    rowId: 'row-legacy',
+    startTime: 0,
+    endTime: 1,
+    motionPresetId: 'slow-zoom-in',
+    motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.08, easing: 'linear' },
+  };
+  const staleExplicitZoom150Row = {
+    ...staleLegacyRow,
+    id: 'row-explicit-150',
+    rowId: 'row-explicit-150',
+    motionPresetId: 'Zoom 150',
+  };
+  const prepared = normalizePreparedContractRows([staleLegacyRow])[0];
+  const preparedExplicitZoom150 = normalizePreparedContractRows([staleExplicitZoom150Row])[0];
+  const contractRow = buildPreviewCompositionContract({}, [staleLegacyRow]).rows[0];
+  const payloadRow = buildCompositionPayload({ _editorRows: [staleLegacyRow] }).rows[0];
+
+  assertEqual(prepared.motionPresetId, 'Zoom 150', 'Expected prepared row legacy slow-zoom-in alias to normalize to Zoom 150');
+  assertEqual(prepared.motion.toScale, 1.5, 'Expected prepared row stale 108% motion to be replaced by Zoom 150 motion');
+  assertEqual(preparedExplicitZoom150.motionPresetId, 'Zoom 150', 'Expected explicit Zoom 150 row to keep the selected preset id');
+  assertEqual(preparedExplicitZoom150.motion.toScale, 1.5, 'Expected explicit Zoom 150 row to ignore stale 108% motion');
+  assertEqual(contractRow.motionPresetId, 'Zoom 150', 'Expected preview contract legacy slow-zoom-in alias to normalize to Zoom 150');
+  assertEqual(contractRow.motion.toScale, 1.5, 'Expected preview contract stale 108% motion to be replaced by Zoom 150 motion');
+  assertEqual(payloadRow.motion.toScale, 1.5, 'Expected runtime payload row to receive Zoom 150 motion instead of stale 108% motion');
+
+  const customRow = buildPreviewCompositionContract({}, [{
+    id: 'row-custom',
+    motionPresetId: 'custom',
+    motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.08, easing: 'linear' },
+  }]).rows[0];
+  const zoom125Row = buildPreviewCompositionContract({}, [{
+    id: 'row-125',
+    motionPresetId: 'Zoom 125',
+    motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
+  }]).rows[0];
+
+  assertEqual(customRow.motionPresetId, 'custom', 'Expected explicit custom motion to keep its preset id');
+  assertEqual(customRow.motion.toScale, 1.08, 'Expected explicit custom/manual 108% motion to remain respected');
+  assertEqual(zoom125Row.motionPresetId, 'Zoom 125', 'Expected explicit Zoom 125 selection not to normalize to Zoom 150');
+  assertEqual(zoom125Row.motion.toScale, 1.25, 'Expected explicit Zoom 125 motion to remain respected');
+}
+
 export function runEditorMotionPresetsCheck() {
   runZoomOnlyPresetCheck();
   runDefaultSelectionCheck();
@@ -172,6 +220,7 @@ export function runEditorMotionPresetsCheck() {
   runViewportSemanticsCheck();
   runManualMotionControlsCheck();
   runPresetSelectionSyncsManualControlsCheck();
+  runDefaultZoom150PreviewNormalizationCheck();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -1,9 +1,16 @@
 export const MOTION_PRESET_CATEGORIES = ['ZOOMS', 'MOVIMIENTOS', 'MOVIMIENTOS DIAGONALES', 'VERTICALES', 'HORIZONTALES'];
+export const DEFAULT_MOTION_PRESET_NAME = 'Zoom 150';
 
 // Keep this module as the browser-facing motion preset source for Video Projects.
 
 function normalizeMotionPresetKey(idOrName) {
   return String(idOrName || '').trim().toLowerCase().replace(/^zoom-(\d+)$/, 'zoom $1');
+}
+
+function isLegacyDefaultZoomAlias(value, { defaultEmpty = false } = {}) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return defaultEmpty;
+  return normalized === 'slow-zoom' || normalized === 'slow-zoom-in' || normalized === 'zoom-110';
 }
 
 export const MOTION_PRESETS = [
@@ -43,4 +50,46 @@ export const MOTION_PRESETS = [
 export function findMotionPreset(idOrName) {
   const key = normalizeMotionPresetKey(idOrName);
   return MOTION_PRESETS.find((preset) => normalizeMotionPresetKey(preset.name) === key) || null;
+}
+
+export function defaultMotionPresetMotion() {
+  const { category, name, ...motion } = findMotionPreset(DEFAULT_MOTION_PRESET_NAME) || {};
+  return Object.keys(motion).length ? motion : { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.5, easing: 'linear' };
+}
+
+export function normalizeLegacyDefaultMotionPresetName(value, options = {}) {
+  return isLegacyDefaultZoomAlias(value, options) ? DEFAULT_MOTION_PRESET_NAME : String(value || '').trim();
+}
+
+export function shouldUseDefaultMotionPresetForRow(row = {}) {
+  const explicitPreset = row?.motionPresetId || row?.motion_preset_id || row?.motionPreset;
+  if (findMotionPreset(explicitPreset)?.name === DEFAULT_MOTION_PRESET_NAME) return true;
+  if (isLegacyDefaultZoomAlias(explicitPreset, { defaultEmpty: false })) return true;
+  if (typeof row?.motion === 'string') return isLegacyDefaultZoomAlias(row.motion, { defaultEmpty: !explicitPreset });
+  if (row?.motion && typeof row.motion === 'object') {
+    const motionPreset = row.motion.presetName || row.motion.name;
+    if (motionPreset) return isLegacyDefaultZoomAlias(motionPreset, { defaultEmpty: false });
+    return !explicitPreset
+      && Number(row.motion.fromX ?? 0) === 0
+      && Number(row.motion.fromY ?? 0) === 0
+      && Number(row.motion.toX ?? 0) === 0
+      && Number(row.motion.toY ?? 0) === 0
+      && Number(row.motion.fromScale ?? 1) === 1
+      && Number(row.motion.toScale ?? 1) === 1.08;
+  }
+  return !explicitPreset && isLegacyDefaultZoomAlias('', { defaultEmpty: true });
+}
+
+export function normalizeRowMotionForPreview(row = {}) {
+  if (!shouldUseDefaultMotionPresetForRow(row)) {
+    const motionPresetId = row?.motionPresetId || row?.motion_preset_id || row?.motionPreset || (typeof row?.motion === 'string' ? row.motion : DEFAULT_MOTION_PRESET_NAME);
+    return {
+      motionPresetId,
+      motion: row?.motion || motionPresetId,
+    };
+  }
+  return {
+    motionPresetId: DEFAULT_MOTION_PRESET_NAME,
+    motion: defaultMotionPresetMotion(),
+  };
 }

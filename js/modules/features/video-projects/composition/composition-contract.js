@@ -1,4 +1,5 @@
 import { VIDEO_SEGMENT_EFFECT_ASSETS, resolveVideoSegmentEffectUrl } from './overlay-assets.js';
+import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
 
 export const FINAL_OUTRO_GAP_SECONDS = 2;
 
@@ -164,6 +165,15 @@ export function computeEffectiveSegmentTimes(rows = [], totalDurationSeconds = n
   });
 }
 
+function normalizePreviewContractRowMotion(row = {}) {
+  const motion = normalizeRowMotionForPreview(row);
+  return {
+    ...row,
+    motionPresetId: motion.motionPresetId,
+    motion: motion.motion,
+  };
+}
+
 function mergeCanonicalRowsWithLocalRows(canonicalRows = [], localRows = []) {
   const canonical = Array.isArray(canonicalRows) ? canonicalRows : [];
   const local = Array.isArray(localRows) ? localRows : [];
@@ -185,13 +195,14 @@ function mergeCanonicalRowsWithLocalRows(canonicalRows = [], localRows = []) {
 }
 
 export function buildPreviewCompositionContract(project = {}, rows = []) {
+  const localRows = Array.isArray(rows) ? rows : [];
   const canonical = project?.editor_state?.approval_contract_snapshot || project?.approval_contract_snapshot;
   if (canonical?.contractVersion === 'approval-editor-service-v1') {
     const totalDurationSeconds = resolveContractTotalDurationSeconds(canonical);
     return {
       remotionApiUrl: toTrimmedString(project?.editor_state?.pipeline_base_url || project?.editor_state?.remotion_api_url),
       manifest: normalizePreviewAssetManifest(project),
-      rows: computeEffectiveSegmentTimes(mergeCanonicalRowsWithLocalRows(canonical.rows, rows), totalDurationSeconds),
+      rows: computeEffectiveSegmentTimes(mergeCanonicalRowsWithLocalRows(canonical.rows, localRows).map(normalizePreviewContractRowMotion), totalDurationSeconds),
       canonical,
       snapshotHash: canonical.snapshotHash,
       snapshotId: canonical.snapshotId,
@@ -202,7 +213,7 @@ export function buildPreviewCompositionContract(project = {}, rows = []) {
   return {
     remotionApiUrl,
     manifest,
-    rows: computeEffectiveSegmentTimes(rows),
+    rows: computeEffectiveSegmentTimes(localRows.map(normalizePreviewContractRowMotion)),
   };
 }
 
