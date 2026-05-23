@@ -4,6 +4,7 @@ const fs = require("fs");
 const { buildApprovalContractPipeline, computeApprovalSnapshotHash, parseGuionSegments } = require("../../../03-Contracts-Core/approval-contract-pipeline");
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
+const { findMotionPreset } = require("./lib/motion-presets");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
@@ -65,6 +66,11 @@ const MIN_ESTIMATED_SEGMENT_SECONDS = 1.2;
 const WAV_DURATION_FETCH_TIMEOUT_MS = 2500;
 const REMOTION_OVERLAYS_DIR = path.resolve(__dirname, "..", "..", "..", "02-Video-Engine", "assets", "overlays");
 const PUBLIC_OVERLAY_FILES = new Set(["dust-1.mp4", "dust-2.mp4", "logo-alpha.webm", "effect-layer-01.mp4", "effect-layer-02.mp4"]);
+
+function defaultZoom150Motion() {
+  const { category, name, ...motion } = findMotionPreset("Zoom 150") || {};
+  return Object.keys(motion).length ? motion : { fromScale: 1, toScale: 1.5, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
+}
 
 function toFinitePositiveNumber(value) {
   const number = Number(value);
@@ -219,8 +225,8 @@ function buildRowSeeds(segments = []) {
     index,
     phrase: segment.phrase,
     caption: segment.phrase,
-    motionPresetId: "Zoom 125",
-    motion: { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" },
+    motionPresetId: "Zoom 150",
+    motion: defaultZoom150Motion(),
     dust: { enabled: true, type: "dust-1", assetId: "dust-1", opacity: 0.36, blendMode: "screen" },
     logo: { enabled: true, source: "logo-alpha.webm" },
     filter: { enabled: true, mode: "cover" },

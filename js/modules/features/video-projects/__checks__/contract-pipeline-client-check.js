@@ -246,8 +246,8 @@ function assertApprovalServicePersistsNewspaperMediaMode() {
   if (next.rows[0].media?.kind !== 'image') {
     throw new Error('Expected newspaper media mode to persist as image media');
   }
-  if (next.rows[0].motionPresetId !== 'Zoom 125' || next.rows[0].motion?.toScale !== 1.25) {
-    throw new Error('Expected newspaper mode to persist Zoom 125 defaults');
+  if (next.rows[0].motionPresetId !== 'Zoom 150' || next.rows[0].motion?.toScale !== 1.5) {
+    throw new Error('Expected newspaper mode to persist Zoom 150 defaults');
   }
   if (next.snapshotHash === snapshot.snapshotHash) {
     throw new Error('Expected persisted newspaper mode to produce a new snapshot hash');

@@ -50,16 +50,18 @@ function runZoomOnlyPresetCheck() {
 function runDefaultSelectionCheck() {
   const defaultDetail = buildEditorDetailRailViewModel({ row: { id: 'row-1' } });
   const legacyDetail = buildEditorDetailRailViewModel({ row: { id: 'row-1', motion: 'slow-zoom-in' } });
+  const zoom125AliasDetail = buildEditorDetailRailViewModel({ row: { id: 'row-1', motionPresetId: 'zoom-125' } });
 
-  assertEqual(defaultDetail.motion, 'Zoom 125', 'Expected empty row motion to select Zoom 125');
-  assertEqual(legacyDetail.motion, 'Zoom 125', 'Expected legacy slow-zoom-in to select Zoom 125');
+  assertEqual(defaultDetail.motion, 'Zoom 150', 'Expected empty row motion to select Zoom 150');
+  assertEqual(legacyDetail.motion, 'Zoom 150', 'Expected legacy slow-zoom-in to select Zoom 150');
+  assertEqual(zoom125AliasDetail.motion, 'zoom-125', 'Expected explicit Zoom 125 alias not to be treated as the default Zoom 150');
 }
 
 function runMotionPickerMarkupCheck() {
   const presetsBefore = JSON.stringify(MOTION_PRESETS);
   const markup = buildMotionPicker({
     rowId: 'row-1',
-    selectedMotion: 'Zoom 125',
+    selectedMotion: 'Zoom 150',
     motionPresetGroups: buildMotionPresetGroups(),
   });
 
@@ -67,8 +69,8 @@ function runMotionPickerMarkupCheck() {
   assert(markup.includes('value="Zoom 110"'), 'Expected Zoom 110 to remain selectable');
   assert(markup.includes('value="Zoom 150"'), 'Expected Zoom 150 to be selectable');
   assert(markup.includes('value="Zoom 200"'), 'Expected Zoom 200 to be selectable');
-  assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 125 to render selected state');
-  assert(markup.includes('--motion-to-scale:0.800;'), 'Expected Zoom 125 preview frame to shrink as image zoom increases');
+  assert(markup.includes('aria-pressed="true"'), 'Expected Zoom 150 to render selected state');
+  assert(markup.includes('--motion-to-scale:0.667;'), 'Expected Zoom 150 preview frame to shrink as image zoom increases');
   assertEqual(JSON.stringify(MOTION_PRESETS), presetsBefore, 'Expected motion picker rendering to leave preset values untouched');
 }
 

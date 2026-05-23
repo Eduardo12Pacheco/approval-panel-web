@@ -6,6 +6,11 @@ const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords
 const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
 const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/sound-whosh.wav" };
 
+function defaultZoom150Motion() {
+  const { category, name, ...motion } = findMotionPreset("Zoom 150") || {};
+  return Object.keys(motion).length ? motion : { fromScale: 1, toScale: 1.5, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -170,8 +175,8 @@ function applyContractOperations(snapshot, operations = []) {
       row.mediaMode = op.mediaMode === "newspaper" ? "newspaper" : "image";
       if (op.media?.kind !== "video-segment") row.media = { kind: "image" };
       if (row.mediaMode === "newspaper" && (!row.motionPresetId || row.motionPresetId === "Zoom 110" || row.motionPresetId === "slow-zoom-in")) {
-        row.motionPresetId = "Zoom 125";
-        row.motion = { fromScale: 1, toScale: 1.25, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: "linear" };
+        row.motionPresetId = "Zoom 150";
+        row.motion = defaultZoom150Motion();
       }
     } else if (op.type === "setRowMotion") {
       const row = findRow(next, op.rowId);
