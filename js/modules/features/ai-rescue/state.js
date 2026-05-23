@@ -96,16 +96,19 @@ export function normalizeAiRescueQueueItem(item = null) {
 export function normalizeAiRescueRejection(record = {}) {
   const source = (record.source || 'ai').toString().trim().toLowerCase();
   const targetCountry = normalizeAiRescueCountryKey(record.target_country || record.targetCountry);
+  const videoId = (record.video_id || record.videoId || '').toString();
   return {
     ...record,
     id: Number(record.id || 0),
-    videoId: (record.video_id || record.videoId || '').toString(),
+    videoId,
     candidateId: record.candidate_id || record.candidateId || null,
     source,
     sourceLabel: REJECTION_SOURCE_LABELS[source] || humanizeToken(source),
     reason: record.reason || 'Sin motivo',
     targetCountry,
     targetLabel: record.target_country_label || record.targetLabel || formatAiRescueCountryLabel(targetCountry),
+    url: normalizeVideoUrl(record.url || record.video_url || record.videoUrl, videoId),
+    createdAt: record.created_at || record.createdAt || '',
     detailText: getAiRescueRejectionDetailText(record.details),
   };
 }
@@ -115,9 +118,13 @@ export function getAiRescueRejectionGroups(records = []) {
   for (const record of records.map(normalizeAiRescueRejection)) {
     const key = record.videoId || `rejection-${record.id}`;
     if (!groups.has(key)) {
-      groups.set(key, { videoId: record.videoId, items: [], summaryItems: [] });
+      groups.set(key, { videoId: record.videoId, url: record.url, items: [], summaryItems: [], sources: new Set(), latestTime: 0, latestId: 0 });
     }
     const group = groups.get(key);
+    group.url = group.url || record.url;
+    group.sources.add(record.sourceLabel);
+    group.latestTime = Math.max(group.latestTime, getSortableTime(record.createdAt));
+    group.latestId = Math.max(group.latestId, record.id);
     if (!record.targetCountry && record.reason === 'no-candidates') {
       group.summaryItems.push(record);
     } else {
@@ -126,9 +133,11 @@ export function getAiRescueRejectionGroups(records = []) {
   }
   return Array.from(groups.values()).map((group) => ({
     ...group,
+    sourceLabel: Array.from(group.sources).filter(Boolean).join(' · '),
     items: group.items.length ? group.items : group.summaryItems,
     summary: group.items.length ? '' : group.summaryItems[0]?.detailText || '',
-  })).filter((group) => group.items.length);
+  })).filter((group) => group.items.length)
+    .sort((a, b) => b.latestTime - a.latestTime || b.latestId - a.latestId);
 }
 
 export function normalizeAiRescueCountryKey(value = '') {
@@ -171,4 +180,17 @@ function firstStringValue(values = []) {
 function looksLikeJsonString(value = '') {
   const trimmed = value.trim();
   return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+}
+
+function normalizeVideoUrl(value = '', videoId = '') {
+  const explicitUrl = (value || '').toString().trim();
+  if (explicitUrl && /^https?:\/\//i.test(explicitUrl)) return explicitUrl;
+  const id = (videoId || '').toString().trim();
+  return id ? `https://www.youtube.com/watch?v=${encodeURIComponent(id)}` : '';
+}
+
+function getSortableTime(value = '') {
+  if (!value) return 0;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
 }

@@ -147,13 +147,17 @@ function runStateCheck() {
 
   const rejection = normalizeAiRescueRejection({
     id: 8,
+    video_id: 'abc123',
     source: 'human',
     reason: 'weak-evidence',
+    created_at: '2026-05-22T13:00:00Z',
     details: { explanation_es: 'Explicación editorial en español', note: 'No alcanza' },
     target_country_label: 'México',
   });
   assertEqual(rejection.sourceLabel, 'Humano', 'human rejection source label drift');
   assertEqual(rejection.detailText, 'Explicación editorial en español', 'rejection detail text should prefer explanation_es');
+  assertEqual(rejection.url, 'https://www.youtube.com/watch?v=abc123', 'rejection should generate a safe YouTube URL from video id');
+  assertEqual(rejection.createdAt, '2026-05-22T13:00:00Z', 'rejection created_at normalization drift');
 
   const rawOnlyRejection = normalizeAiRescueRejection({
     id: 9,
@@ -189,18 +193,32 @@ function runRenderCheck() {
       { id: 1, video_id: 'vid-777', source: 'ai', reason: 'weak-evidence', details: { explanation_es: 'Elogio casual para Argentina', explanation: 'Should not win' }, target_country: 'argentina', target_country_label: 'Argentina' },
       { id: 2, video_id: 'vid-777', source: 'ai', reason: 'weak-evidence', details: { explanation_es: 'Evidencia insuficiente para México' }, target_country: 'mexico', target_country_label: 'México' },
       { id: 3, video_id: 'vid-777', source: 'system', reason: 'no-candidates', details: { explanation_es: 'Resumen global sin candidatos', raw: { leaked: true } }, target_country: null },
-      { id: 4, video_id: 'vid-888', source: 'system', reason: 'no-subtitles', details: { error: 'Timed text unavailable' } },
-      { id: 5, video_id: 'vid-999', source: 'human', reason: 'editorial-risk', details: { note: 'No conviene' } },
+      { id: 4, video_id: 'vid-888', source: 'system', reason: 'no-subtitles', created_at: '2026-05-21T08:00:00Z', details: { error: 'Timed text unavailable' } },
+      { id: 5, video_id: 'vid-999', source: 'human', reason: 'editorial-risk', created_at: '2026-05-23T09:00:00Z', details: { note: 'No conviene' } },
     ],
   });
-  assertIncludes(rejectedEl.innerHTML, 'IA', 'AI rejection source should render');
+  assertIncludes(rejectedEl.innerHTML, 'class="ai-rescue-rejection-scroll"', 'rejected groups should render inside an internal scroll wrapper');
+  assertIncludes(rejectedEl.innerHTML, 'Ver video', 'grouped rejection card should include a source video link');
+  assertIncludes(rejectedEl.innerHTML, 'href="https://www.youtube.com/watch?v=vid-777"', 'grouped rejection card should generate YouTube link from video id');
+  assertIncludes(rejectedEl.innerHTML, 'target="_blank"', 'video link should open in a new tab');
+  assertIncludes(rejectedEl.innerHTML, 'rel="noopener noreferrer"', 'video link should be safe for new tabs');
+  assertIncludes(rejectedEl.innerHTML, 'Fuente: IA', 'AI rejection source should render once per group');
   assertIncludes(rejectedEl.innerHTML, 'Sistema', 'system rejection source should render');
   assertIncludes(rejectedEl.innerHTML, 'Humano', 'human rejection source should render');
   assertEqual(countOccurrences(rejectedEl.innerHTML, 'class="ai-rescue-rejection-card"'), 3, 'multiple rejections for one video should render as one grouped card');
   assertIncludes(rejectedEl.innerHTML, 'Video: vid-777', 'grouped rejection should show video id once with a clear label');
   assertEqual(countOccurrences(rejectedEl.innerHTML, 'Video: vid-777'), 1, 'video id should not repeat per country');
+  assertEqual(countOccurrences(rejectedEl.innerHTML, 'class="ai-rescue-source-chip"'), 3, 'source/status chip should render once per group, not once per country row');
+  if (rejectedEl.innerHTML.indexOf('Video: vid-999') > rejectedEl.innerHTML.indexOf('Video: vid-888')) {
+    throw new Error(`grouped rejections are not latest-first: ${rejectedEl.innerHTML}`);
+  }
   assertIncludes(rejectedEl.innerHTML, 'Elogio casual para Argentina', 'per-country Argentina explanation should remain visible');
   assertIncludes(rejectedEl.innerHTML, 'Evidencia insuficiente para México', 'per-country México explanation should remain visible');
+  assertIncludes(rejectedEl.innerHTML, '<strong>Argentina</strong>', 'country should be the primary per-row label');
+  if (rejectedEl.innerHTML.indexOf('Elogio casual para Argentina') > rejectedEl.innerHTML.indexOf('weak-evidence')) {
+    throw new Error(`Spanish explanation should be primary before raw English reason: ${rejectedEl.innerHTML}`);
+  }
+  assertNotIncludes(rejectedEl.innerHTML, '<strong>weak-evidence</strong>', 'English reason must not be the per-country headline');
   assertNotIncludes(rejectedEl.innerHTML, 'Resumen global sin candidatos', 'global no-candidates row should not duplicate country details when per-country rows exist');
   assertNotIncludes(rejectedEl.innerHTML, 'raw', 'normal rejection details must not render raw JSON keys');
   assertIncludes(rejectedEl.innerHTML, 'Timed text unavailable', 'rejection detail should render for calibration');

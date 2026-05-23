@@ -80,6 +80,15 @@
   gap: 14px;
 }
 
+#viewAiRescue .ai-rescue-rejection-scroll {
+  display: grid;
+  gap: 16px;
+  max-height: min(68vh, 760px);
+  overflow: auto;
+  padding-right: 8px;
+  overscroll-behavior: contain;
+}
+
 #viewAiRescue .ai-rescue-card {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr) 172px;
@@ -191,10 +200,84 @@
 #viewAiRescue .ai-rescue-queue-item,
 #viewAiRescue .ai-rescue-evidence-item {
   display: grid;
-  gap: 8px;
+  gap: 14px;
   padding: 16px;
   border: 1px solid #2A2A2A;
   background: #0A0A0A;
+}
+
+#viewAiRescue .ai-rescue-rejection-card {
+  padding: 18px;
+}
+
+#viewAiRescue .ai-rescue-rejection-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+}
+
+#viewAiRescue .ai-rescue-rejection-card__title {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+#viewAiRescue .ai-rescue-rejection-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#viewAiRescue .ai-rescue-video-link {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid #00E88F55;
+  color: #00E88F;
+  background: #03140D;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#viewAiRescue .ai-rescue-video-link:hover {
+  border-color: #00E88F;
+  background: #062216;
+}
+
+#viewAiRescue .ai-rescue-rejection-card__items {
+  display: grid;
+  gap: 12px;
+}
+
+#viewAiRescue .ai-rescue-rejection-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid #242424;
+  background: #070707;
+}
+
+#viewAiRescue .ai-rescue-rejection-item + .ai-rescue-rejection-item {
+  margin-top: 2px;
+}
+
+#viewAiRescue .ai-rescue-rejection-item strong {
+  color: #FFFFFF;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+}
+
+#viewAiRescue .ai-rescue-rejection-item small {
+  color: #777D83;
 }
 
 #viewAiRescue .ai-rescue-source-chip,
@@ -230,7 +313,8 @@
 
 @media (max-width: 960px) {
   #viewAiRescue .ai-rescue-card,
-  #viewAiRescue .ai-rescue-detail__header {
+  #viewAiRescue .ai-rescue-detail__header,
+  #viewAiRescue .ai-rescue-rejection-card__header {
     grid-template-columns: 1fr;
   }
 

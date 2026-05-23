@@ -124,16 +124,24 @@ export function renderAiRescueRejections({ el, rejections = [] }) {
   if (!el.aiRescueList) return;
   const groups = getAiRescueRejectionGroups(rejections);
   el.aiRescueList.innerHTML = groups.length
-    ? groups.map(renderRejectionGroup).join('')
+    ? `<div class="ai-rescue-rejection-scroll">${groups.map(renderRejectionGroup).join('')}</div>`
     : '<article class="ai-rescue-empty">Sin rechazados IA para calibrar.</article>';
 }
 
 function renderRejectionGroup(group) {
   const videoMeta = group.videoId ? `<small>Video: ${escapeHtml(group.videoId)}</small>` : '';
   const summary = group.summary ? `<p class="meta">${escapeHtml(group.summary)}</p>` : '';
+  const source = group.sourceLabel ? `<span class="ai-rescue-source-chip">Fuente: ${escapeHtml(group.sourceLabel)}</span>` : '';
+  const videoLink = group.url ? `<a class="ai-rescue-video-link" href="${escapeHtml(group.url)}" target="_blank" rel="noopener noreferrer">Ver video</a>` : '';
   return `
     <article class="ai-rescue-rejection-card">
-      <header class="ai-rescue-rejection-card__header"><strong>Video rechazado IA</strong>${videoMeta}</header>
+      <header class="ai-rescue-rejection-card__header">
+        <div class="ai-rescue-rejection-card__title">
+          <strong>Video rechazado IA</strong>
+          <div class="ai-rescue-rejection-card__meta">${videoMeta}${source}</div>
+        </div>
+        ${videoLink}
+      </header>
       ${summary}
       <div class="ai-rescue-rejection-card__items">
         ${group.items.map(renderRejectionItem).join('')}
@@ -143,7 +151,9 @@ function renderRejectionGroup(group) {
 
 function renderRejectionItem(item) {
   const meta = [item.targetLabel, item.sourceLabel].filter(Boolean).join(' · ');
-  return `<section class="ai-rescue-rejection-item"><span class="ai-rescue-source-chip">${escapeHtml(item.sourceLabel)}</span><strong>${escapeHtml(item.reason)}</strong><small>${escapeHtml(meta)}</small><p>${escapeHtml(item.detailText || 'Sin detalle adicional.')}</p></section>`;
+  const country = item.targetLabel || 'Sin país específico';
+  const reason = item.reason ? `<small>Motivo técnico: ${escapeHtml(item.reason)}</small>` : '';
+  return `<section class="ai-rescue-rejection-item"><strong>${escapeHtml(country)}</strong><p>${escapeHtml(item.detailText || 'Sin detalle adicional.')}</p>${reason}<small>${escapeHtml(meta)}</small></section>`;
 }
 
 export function renderAiRescueQueue({ el, queue }) {
