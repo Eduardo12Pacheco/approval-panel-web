@@ -10,11 +10,13 @@ const MODULES_ROOT = path.resolve(__dirname, '..');
 
 test('check manifest accounts for every legacy facade and implementation exactly once', async () => {
   const result = validateCheckManifestCoverage(CHECK_MANIFEST);
+  const facadeCount = new Set(CHECK_MANIFEST.map((entry) => entry.facadePath)).size;
+  const implementationCount = new Set(CHECK_MANIFEST.map((entry) => entry.implementationPath)).size;
 
   assert.deepEqual(result.failures, [], `manifest coverage failures: ${result.failures.join('; ')}`);
-  assert.equal(result.summary.total, 22, 'current __checks__ inventory must stay fully accounted for');
-  assert.equal(result.summary.facades, 22, 'every legacy __checks__ path must be a stable facade or kept entry');
-  assert.equal(result.summary.implementations, 22, 'every implementation path must be mapped once');
+  assert.equal(result.summary.total, CHECK_MANIFEST.length, 'current __checks__ inventory must stay fully accounted for');
+  assert.equal(result.summary.facades, facadeCount, 'every legacy __checks__ path must be a stable facade or kept entry');
+  assert.equal(result.summary.implementations, implementationCount, 'every implementation path must be mapped once');
 });
 
 test('check manifest paths resolve and expose ownership metadata', async () => {
@@ -36,6 +38,7 @@ test('feature-owned manifest entries point to owner check implementations behind
     ['js/modules/__checks__/app-shell-seams.check.mjs', 'js/modules/app-shell/__checks__/app-shell-seams.check.mjs'],
     ['js/modules/__checks__/subtitles-controller-seams.check.mjs', 'js/modules/features/subtitles/__checks__/subtitles-controller-seams.check.mjs'],
     ['js/modules/__checks__/radar-panel-check.js', 'js/modules/features/radar/__checks__/radar-panel-check.js'],
+    ['js/modules/__checks__/ai-rescue-panel-check.js', 'js/modules/features/ai-rescue/__checks__/ai-rescue-panel-check.js'],
     ['js/modules/__checks__/video-segment-picker-ux.check.mjs', 'js/modules/features/video-projects/__checks__/video-segment-picker-ux.check.mjs'],
     ['js/modules/__checks__/composition-renderer-helpers.check.mjs', 'js/modules/features/video-projects/__checks__/composition-renderer-helpers.check.mjs'],
     ['js/modules/__checks__/video-projects-controller-seams.check.mjs', 'js/modules/features/video-projects/__checks__/video-projects-controller-seams.check.mjs'],
@@ -61,7 +64,8 @@ test('assertion inventory reads moved implementation source instead of thin faca
     ['js/modules/__checks__/audio-seams.check.mjs', 'Audio endpoint contract'],
     ['js/modules/__checks__/app-shell-seams.check.mjs', 'app-shell lifecycle replay preserves public boot'],
     ['js/modules/__checks__/subtitles-controller-seams.check.mjs', 'subtitles public facades keep stable exports'],
-    ['js/modules/__checks__/radar-panel-check.js', 'create payload drift'],
+    ['js/modules/__checks__/radar-panel-check.js', 'monitor cards payload drift'],
+    ['js/modules/__checks__/ai-rescue-panel-check.js', 'candidate order must preserve descending score'],
     ['js/modules/__checks__/video-projects-composition-payload.check.mjs', 'buildCompositionPayloadForCheck'],
   ]);
 

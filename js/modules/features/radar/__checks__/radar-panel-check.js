@@ -304,6 +304,17 @@ function runStateAndRenderCheck() {
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
     state: {
       monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'rescued-video', title: 'Rescatado', country: 'ecuador', status: 'aprobado', display_status: 'RESCATADO IA', approval_source: 'ai_rescue' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('RESCATADO IA') || !monitorEl.innerHTML.includes('is-info')) throw new Error(`rescued AI status chip drift: ${monitorEl.innerHTML}`);
+  if (monitorEl.innerHTML.includes('TRANSCRIPCIÓN" disabled') && monitorEl.innerHTML.includes('data-radar-action="open-link" disabled')) throw new Error(`rescued AI card should keep approved interactions functional: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
       monitorCards: [{ video_id: 'transcribing-video', title: 'Transcribiendo', country: 'ecuador', status: 'transcribiendo', radar_job_id: 'radar-transcribing' }],
       selectedCountry: '',
     },

@@ -89,6 +89,8 @@ export function createAppShellComposition({
 
   state.radar = { _stub: true };
   const radarController = createRadarStub();
+  state.aiRescue = { _stub: true };
+  const aiRescueController = createAiRescueStub();
 
   const ttsApi = createTtsApiStub();
   const subtitlesController = createSubtitlesStub();
@@ -259,6 +261,36 @@ export function createAppShellComposition({
     return _radarModules;
   }
 
+  let _aiRescueModules = null;
+  async function _ensureAiRescueFeature() {
+    if (_aiRescueModules) return _aiRescueModules;
+    const [stateMod, apiMod, ctrlMod] = await Promise.all([
+      import('../features/ai-rescue/state.js'),
+      import('../features/ai-rescue/api-client.js'),
+      import('../features/ai-rescue/controller.js'),
+    ]);
+    const realState = stateMod.createAiRescueState();
+    Object.assign(state.aiRescue, realState);
+    const aiRescueApi = apiMod.createAiRescueApiClient({
+      getSettings: () => state.settings,
+      fetchImpl,
+    });
+    const realController = ctrlMod.createAiRescueController({
+      state: state.aiRescue,
+      el,
+      api: aiRescueApi,
+      ui,
+      browser: {
+        setInterval: browser.setInterval,
+        clearInterval: browser.clearInterval,
+        window: windowRef,
+      },
+    });
+    Object.assign(aiRescueController, realController);
+    _aiRescueModules = { controller: aiRescueController, api: aiRescueApi };
+    return _aiRescueModules;
+  }
+
   return {
     // Eager pieces
     state,
@@ -270,6 +302,7 @@ export function createAppShellComposition({
     scriptsFeature,
     videoProjectsFeature,
     radarController,
+    aiRescueController,
     subtitlesController,
     audioFeature,
     ttsApi,
@@ -284,6 +317,7 @@ export function createAppShellComposition({
     _ensureAudioFeature,
     _ensureSubtitlesFeature,
     _ensureRadarFeature,
+    _ensureAiRescueFeature,
 
     // Tracker Sets — populated by navigation guards
     _cssLoaded,
@@ -332,6 +366,14 @@ function createRadarStub() {
     bindEvents() {},
     activate() {},
     stopPolling() {},
+  };
+}
+function createAiRescueStub() {
+  return {
+    bindEvents() {},
+    activate() { return Promise.resolve(); },
+    deactivate() {},
+    render() {},
   };
 }
 function createTtsApiStub() {

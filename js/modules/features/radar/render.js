@@ -199,7 +199,7 @@ function renderMonitorCard(card = {}) {
   const title = card.title || card.video_id || 'Video sin título';
   const meta = formatMonitorMetadata(card);
   const status = normalizeMonitorCardStatus(card);
-  const statusLabel = formatLifecycleLabel(status);
+  const statusLabel = formatMonitorDisplayStatus(card, status);
   const url = resolveMonitorVideoUrl(card);
   const canDownloadTranscript = status === 'transcrito' && Boolean(card.radar_job_id);
   const linkDisabled = url ? '' : 'disabled aria-disabled="true" title="Link no disponible"';
@@ -275,6 +275,12 @@ function formatLifecycleLabel(value = '') {
   const normalized = normalizeKey(value).replace(/-/g, '_');
   if (!normalized) return 'Monitoreado';
   return LIFECYCLE_LABELS[normalized] || humanizeToken(value);
+}
+
+function formatMonitorDisplayStatus(card = {}, normalizedStatus = '') {
+  const displayStatus = (card.display_status || card.displayStatus || '').toString().trim();
+  if (displayStatus) return displayStatus;
+  return formatLifecycleLabel(normalizedStatus);
 }
 
 function formatUploadedAt(value = '') {

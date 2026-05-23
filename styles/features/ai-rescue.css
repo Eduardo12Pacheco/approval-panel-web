@@ -1,0 +1,254 @@
+#viewAiRescue .ai-rescue-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
+#viewAiRescue .ai-rescue-panel {
+  min-height: calc(100vh - 260px);
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: 24px;
+  background: #0A0A0A;
+  border: 1px solid #262626;
+}
+
+#viewAiRescue .ai-rescue-toolbar,
+#viewAiRescue .ai-rescue-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#viewAiRescue .ai-rescue-country-bar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#viewAiRescue .ai-rescue-country-card {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 14px 16px;
+  border: 1px solid #262626;
+  background: #0A0A0A;
+  color: #D8DBDE;
+  text-align: left;
+}
+
+#viewAiRescue .ai-rescue-country-card span,
+#viewAiRescue .ai-rescue-country-card strong,
+#viewAiRescue .ai-rescue-card__score,
+#viewAiRescue .ai-rescue-source-chip,
+#viewAiRescue .ai-rescue-score-chip,
+#viewAiRescue .ai-rescue-queue-item span {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewAiRescue .ai-rescue-country-card span {
+  color: #8B8E93;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+#viewAiRescue .ai-rescue-country-card strong {
+  color: #D8DBDE;
+  font-size: 10px;
+}
+
+#viewAiRescue .ai-rescue-country-card:hover,
+#viewAiRescue .ai-rescue-country-card.is-active {
+  border-color: #00E88F55;
+  background: #03140D;
+}
+
+#viewAiRescue .ai-rescue-country-card.is-active span,
+#viewAiRescue .ai-rescue-country-card.is-active strong {
+  color: #00E88F;
+}
+
+#viewAiRescue .ai-rescue-list,
+#viewAiRescue .ai-rescue-queue-body,
+#viewAiRescue .ai-rescue-evidence {
+  display: grid;
+  gap: 14px;
+}
+
+#viewAiRescue .ai-rescue-card {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 172px;
+  gap: 24px;
+  align-items: stretch;
+  min-height: 128px;
+  padding: 20px 24px;
+  border: 1px solid #2A2A2A;
+  background: #0A0A0A;
+}
+
+#viewAiRescue .ai-rescue-card:hover,
+#viewAiRescue .ai-rescue-rejection-card:hover {
+  border-color: #00E88F55;
+  background: #0D0D0D;
+}
+
+#viewAiRescue .ai-rescue-card__score {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 6px;
+  color: #00E88F;
+  font-size: 10px;
+}
+
+#viewAiRescue .ai-rescue-card__score strong {
+  font-size: 18px;
+}
+
+#viewAiRescue .ai-rescue-card__main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+#viewAiRescue .ai-rescue-card__main strong,
+#viewAiRescue .ai-rescue-detail h3,
+#viewAiRescue .ai-rescue-rejection-card strong,
+#viewAiRescue .ai-rescue-queue-item strong {
+  color: #FFFFFF;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+#viewAiRescue .ai-rescue-card__main small,
+#viewAiRescue .ai-rescue-rejection-card small,
+#viewAiRescue .ai-rescue-queue-item small {
+  color: #8B8E93;
+  font-size: 12px;
+}
+
+#viewAiRescue .ai-rescue-card__main p,
+#viewAiRescue .ai-rescue-rejection-card p,
+#viewAiRescue .ai-rescue-detail p {
+  margin: 0;
+  color: #DADDE0;
+  line-height: 1.5;
+}
+
+#viewAiRescue .ai-rescue-card__actions {
+  flex-direction: column;
+  align-self: center;
+  justify-self: stretch;
+}
+
+#viewAiRescue .ai-rescue-card__actions button {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #353535;
+  background: #0A0A0A;
+  color: #F5F7F7;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewAiRescue .ai-rescue-card__actions button:hover {
+  border-color: #00E88F55;
+  color: #00E88F;
+}
+
+#viewAiRescue .ai-rescue-card__actions button:disabled {
+  cursor: not-allowed;
+  border-color: #262626;
+  color: #555B60;
+  background: #080808;
+}
+
+#viewAiRescue .ai-rescue-empty,
+#viewAiRescue .ai-rescue-error {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #262626;
+  background: #090909;
+  color: #F5F7F7;
+  text-align: center;
+}
+
+#viewAiRescue .ai-rescue-error {
+  color: #F7B955;
+}
+
+#viewAiRescue .ai-rescue-rejection-card,
+#viewAiRescue .ai-rescue-queue-item,
+#viewAiRescue .ai-rescue-evidence-item {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #2A2A2A;
+  background: #0A0A0A;
+}
+
+#viewAiRescue .ai-rescue-source-chip,
+#viewAiRescue .ai-rescue-score-chip,
+#viewAiRescue .ai-rescue-queue-item span {
+  width: fit-content;
+  border: 1px solid #9DB8FF55;
+  padding: 6px 8px;
+  color: #9DB8FF;
+  background: #9DB8FF12;
+  font-size: 10px;
+}
+
+#viewAiRescue #aiRescueQueueDialog article,
+#viewAiRescue #aiRescueDetailDialog article,
+#viewAiRescue #aiRescueConfirmDialog article {
+  width: min(860px, calc(100vw - 48px));
+  border: 1px solid #2A2A2A;
+  background: #0A0A0A;
+}
+
+#viewAiRescue .ai-rescue-detail,
+#viewAiRescue .ai-rescue-detail__header,
+#viewAiRescue .ai-rescue-queue-section {
+  display: grid;
+  gap: 14px;
+}
+
+#viewAiRescue .ai-rescue-detail__header {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  #viewAiRescue .ai-rescue-card,
+  #viewAiRescue .ai-rescue-detail__header {
+    grid-template-columns: 1fr;
+  }
+
+  #viewAiRescue .ai-rescue-country-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #viewAiRescue .ai-rescue-card__actions {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 560px) {
+  #viewAiRescue .ai-rescue-country-bar {
+    grid-template-columns: 1fr;
+  }
+
+  #viewAiRescue .ai-rescue-card__actions {
+    flex-direction: column;
+  }
+}

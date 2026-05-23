@@ -109,6 +109,13 @@ export const CHECK_MANIFEST = [
     exportedHelpers: ['runRadarPanelCheck'],
   },
   {
+    facadePath: 'js/modules/__checks__/ai-rescue-panel-check.js',
+    implementationPath: 'js/modules/features/ai-rescue/__checks__/ai-rescue-panel-check.js',
+    owner: 'ai-rescue',
+    commandKind: 'node-cli',
+    exportedHelpers: ['runAiRescuePanelCheck'],
+  },
+  {
     facadePath: 'js/modules/__checks__/composition-cover-pan-check.js',
     implementationPath: 'js/modules/features/video-projects/__checks__/composition-cover-pan-check.js',
     owner: 'video-projects',
