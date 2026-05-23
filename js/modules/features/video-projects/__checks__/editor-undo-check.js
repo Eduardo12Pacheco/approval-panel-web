@@ -289,6 +289,7 @@ async function runUndoRestoreCancelsStaleSaveAndPersistsOnceCheck() {
   const timers = createFakeTimers();
   const savedStates = [];
   const previewUpdates = [];
+  let selectedProjectRenders = 0;
   const remoteRenderCalls = [];
   const project = makeProject();
   const originalRows = JSON.parse(JSON.stringify(project._editorRows));
@@ -310,7 +311,7 @@ async function runUndoRestoreCancelsStaleSaveAndPersistsOnceCheck() {
     ui: { toast() {} },
     callbacks: {
       renderVideoProjects() {},
-      renderSelectedVideoProject() {},
+      renderSelectedVideoProject() { selectedProjectRenders += 1; },
       updateSelectedVideoProjectCompositionPreview({ project: previewProject } = {}) {
         previewUpdates.push(previewProject);
         return true;
@@ -322,6 +323,7 @@ async function runUndoRestoreCancelsStaleSaveAndPersistsOnceCheck() {
     assertEqual(controller.captureEditorUndoCheckpoint('before local row edit'), true, 'Expected controller undo checkpoint to capture the pre-edit state');
     await controller.updateRow('row-1', { selectedAssetId: 'img-later' });
     assertEqual(project._editorRows[0].selectedAssetId, 'img-later', 'Expected row update to mutate editor state before undo restore');
+    selectedProjectRenders = 0;
 
     assertEqual(await controller.undoEditorChange(), true, 'Expected controller undo restore helper to apply captured state');
     timers.runPending();
@@ -332,6 +334,7 @@ async function runUndoRestoreCancelsStaleSaveAndPersistsOnceCheck() {
     assertDeepEqual(savedStates[0].timed_rows, originalRows, 'Expected persisted state to contain restored rows, not stale debounced rows');
     assertEqual(previewUpdates.length, 1, 'Expected undo restore helper to refresh browser-local composition preview exactly once');
     assertEqual(previewUpdates[0], project, 'Expected undo preview refresh to use the restored selected project');
+    assertEqual(selectedProjectRenders, 1, 'Expected undo restore helper to fully render selected project details even when lightweight preview succeeds');
     assertEqual(remoteRenderCalls.length, 0, 'Expected undo preview refresh not to request a remote MP4 preview render');
   } finally {
     timers.restore();

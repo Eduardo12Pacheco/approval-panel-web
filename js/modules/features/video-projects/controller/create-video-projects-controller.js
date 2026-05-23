@@ -96,9 +96,8 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
       error: project.editor_state?.error || '',
     });
 
-    if (!updateSelectedVideoProjectCompositionPreview?.({ project })) {
-      renderSelectedVideoProject();
-    }
+    updateSelectedVideoProjectCompositionPreview?.({ project });
+    renderSelectedVideoProject();
     return true;
   }
 
