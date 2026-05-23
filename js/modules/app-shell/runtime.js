@@ -697,7 +697,7 @@ function formatNewsSearchTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const pad = (input) => String(input).padStart(2, '0');
-  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function assertSearchRefreshSucceeded(result) {
@@ -742,39 +742,7 @@ function renderSearchRefreshState() {
 }
 
 async function runSearchRefresh() {
-  if (state.searchRefreshRunning) return;
-
-  const windowValue = getSearchRefreshWindowValue();
-  const windowLabel = getSearchRefreshWindowLabel(windowValue);
-  state.searchRefreshRunning = true;
-  state.searchRefreshStatusKind = 'running';
-  state.searchRefreshStatus = `Buscando noticias: ${windowLabel}. Esto puede tardar aproximadamente 2 minutos...`;
-  state.lastSearchRefresh = null;
-  renderSearchRefreshState();
-
-  try {
-    const result = await approvalApi.post('/webhook/approval/search-refresh/supabase/v2', { window: windowValue });
-    assertSearchRefreshSucceeded(result);
-    state.lastSearchRefresh = result;
-    state.searchRefreshStatusKind = 'success';
-    state.searchRefreshStatus = 'Búsqueda completada. Actualizando panel...';
-    renderSearchRefreshState();
-    toast('Búsqueda completada. Actualizando noticias...');
-    await refreshAll();
-    state.lastNewsSearchAt = new Date().toISOString();
-    saveLastNewsSearchAt(state.lastNewsSearchAt);
-    renderCards();
-    state.searchRefreshStatus = resolveSearchRefreshCompletionMessage(result, windowLabel);
-  } catch (err) {
-    console.error(err);
-    const message = getErrorMessage(err, 'Error ejecutando búsqueda');
-    state.searchRefreshStatusKind = 'error';
-    state.searchRefreshStatus = `Error: ${message}`;
-    toast(message);
-  } finally {
-    state.searchRefreshRunning = false;
-    renderSearchRefreshState();
-  }
+  return approvalSearch.runSearchRefresh();
 }
 
 function renderQueue() {
@@ -849,8 +817,10 @@ function renderCards() {
 function renderLastNewsSearchMeta() {
   if (!el.lastNewsSearchMeta) return;
   const formatted = formatNewsSearchTimestamp(state.lastNewsSearchAt);
-  el.lastNewsSearchMeta.hidden = !formatted;
-  el.lastNewsSearchMeta.textContent = formatted ? `Última actualización: ${formatted}` : '';
+  el.lastNewsSearchMeta.hidden = false;
+  el.lastNewsSearchMeta.textContent = formatted
+    ? `Última actualización del panel: ${formatted}`
+    : 'Última actualización del panel: pendiente';
 }
 
 function renderScriptStats() {

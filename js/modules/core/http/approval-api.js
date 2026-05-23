@@ -6,6 +6,7 @@ export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/approval/topic/supabase/v2',
   '/webhook/approval/decision/supabase/v2',
   '/webhook/approval/search-refresh/supabase/v2',
+  '/webhook/approval/search-refresh/status/supabase/v1',
   '/webhook/mvp-script-drafts-pending/supabase/v2',
   '/webhook/mvp-script-draft-save/supabase/v2',
   '/webhook/mvp-script-publish/supabase/v2',
