@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260524-control-panel-cache-v1';
+export const APP_CACHE_VERSION = '20260524-inline-subtitle-render-v1';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);

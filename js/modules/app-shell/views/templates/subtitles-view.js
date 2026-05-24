@@ -126,20 +126,20 @@ export const subtitlesViewHTML = `\
                   <div class="audio-actions">
                     <button id="subtitle2AddRowBtn" class="secondary">Agregar subt\u00edtulo</button>
                     <button id="subtitle2SaveBtn" class="secondary">Guardar cambios</button>
-                    <button id="subtitle2ReadyBtn" class="approve">Listo</button>
                   </div>
-                </article>
-              </section>
 
-              <section id="subtitle2PhaseDone" class="subtitle-phase-section subtitle-phase-section--centered hidden">
-                <article class="subtitle2-editor-card subtitle-centered-card subtitle-success-card">
-                  <div class="subtitle-phase-icon subtitle-phase-icon--success" aria-hidden="true">\u2705</div>
-                  <h3 id="subtitle2DoneTitle">Video listo</h3>
-                  <p id="subtitle2DoneMessage" class="meta">Tu video ya est\u00e1 listo. Descargalo manualmente cuando quieras.</p>
-                  <div class="audio-actions subtitle-finish-actions">
-                    <button id="subtitle2DownloadBtn">Descargar video</button>
-                    <button id="subtitle2AnotherVideoBtn" class="secondary">Subtitular otro video</button>
-                  </div>
+                  <section id="subtitle2PhaseDone" class="subtitle-render-card" aria-live="polite">
+                    <div>
+                      <span class="subtitle2-section-label">Render final</span>
+                      <h3 id="subtitle2DoneTitle">Renderizar video</h3>
+                      <p id="subtitle2DoneMessage" class="meta">Cuando la tabla est\u00e9 lista, renderiz\u00e1 el video desde ac\u00e1 sin salir del editor.</p>
+                    </div>
+                    <div class="audio-actions subtitle-finish-actions">
+                      <button id="subtitle2ReadyBtn" class="approve">Renderizar video</button>
+                      <button id="subtitle2DownloadBtn">Descargar video</button>
+                      <button id="subtitle2AnotherVideoBtn" class="secondary">Subtitular otro video</button>
+                    </div>
+                  </section>
                 </article>
               </section>
             </section>

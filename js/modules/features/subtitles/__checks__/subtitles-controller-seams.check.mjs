@@ -206,7 +206,78 @@ test('workflow renderer seam preserves visible health and done-card behavior', (
   assert.equal(serviceHealthBanner.textContent, 'Servidor conectado');
   assert.equal(serviceHealthBanner.classList.contains('is-online'), true);
   assert.equal(doneTitle.textContent, 'Video listo');
-  assert.equal(doneMessage.textContent, 'Tu video ya está listo. Descargalo manualmente cuando quieras.');
+  assert.equal(doneMessage.textContent, 'Tu video ya está listo para descargar; podés seguir editando y renderizar de nuevo.');
+});
+
+test('workflow renderer keeps the editor and inline render card usable during and after render', () => {
+  const upload = { classList: createClassList() };
+  const processing = { classList: createClassList() };
+  const edition = { classList: createClassList() };
+  const renderCard = { classList: createClassList() };
+  const saveButton = { disabled: true };
+  const readyButton = { disabled: true, textContent: '' };
+  const downloadButton = { disabled: true };
+  const doneTitle = { textContent: '' };
+  const doneMessage = { textContent: '' };
+  const state = {
+    subtitles2: {
+      machine: { getPhase: () => 'Procesando video' },
+      sessionId: 'session-123',
+      snapshotVersion: 4,
+      dirty: false,
+      renderStatus: 'running',
+      renderProgressPct: 42,
+      renderArtifactReady: false,
+    },
+  };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state,
+    el: {
+      subtitle2PhaseUpload: upload,
+      subtitle2PhaseProcessing: processing,
+      subtitle2PhaseEdition: edition,
+      subtitle2PhaseDone: renderCard,
+      subtitle2SaveBtn: saveButton,
+      subtitle2ReadyBtn: readyButton,
+      subtitle2DownloadBtn: downloadButton,
+      subtitle2DoneTitle: doneTitle,
+      subtitle2DoneMessage: doneMessage,
+    },
+  });
+  const renderer = createSubtitleWorkflowRenderer(ctx, {
+    hasDraftRows: () => false,
+    getLastNonDraftRowIndex: () => 0,
+  });
+
+  renderer.renderPhaseSections();
+  renderer.renderDoneCard();
+  renderer.updateButtonsByPhase();
+
+  assert.equal(edition.classList.contains('hidden'), false);
+  assert.equal(renderCard.classList.contains('hidden'), false);
+  assert.equal(processing.classList.contains('hidden'), true);
+  assert.equal(readyButton.disabled, true);
+  assert.equal(downloadButton.disabled, true);
+  assert.equal(doneTitle.textContent, 'Renderizando video');
+  assert.match(doneMessage.textContent, /42%/);
+
+  state.subtitles2.machine = { getPhase: () => 'Terminado' };
+  state.subtitles2.dirty = true;
+  state.subtitles2.renderStatus = 'succeeded';
+  state.subtitles2.renderProgressPct = 100;
+  state.subtitles2.renderArtifactReady = true;
+  renderer.renderPhaseSections();
+  renderer.renderDoneCard();
+  renderer.updateButtonsByPhase();
+
+  assert.equal(edition.classList.contains('hidden'), false);
+  assert.equal(renderCard.classList.contains('hidden'), false);
+  assert.equal(saveButton.disabled, false);
+  assert.equal(readyButton.disabled, false);
+  assert.equal(downloadButton.disabled, false);
+  assert.equal(readyButton.textContent, 'Renderizar de nuevo');
+  assert.match(doneMessage.textContent, /podés seguir editando/i);
 });
 
 test('preview player seam preserves object URL replacement and latest seek behavior', async () => {
@@ -566,9 +637,10 @@ test('render commands seam preserves save payload, render polling handoff, and d
     translated_text: 'hello',
     style: { font_size: 110, font_family: 'Khand', font_weight: 'Bold', color: '#FFFFFF', align: 'center', max_width_px: 1080 },
   });
-  assert.ok(calls.some((call) => call.type === 'phase' && call.phase === 'Procesando video'));
+  assert.equal(calls.some((call) => call.type === 'phase' && call.phase === 'Procesando video'), false);
   assert.ok(calls.some((call) => call.type === 'poll-render' && call.sessionId === 'session-123'));
   assert.equal(ctx.state.subtitles2.renderStatus, 'queued');
+  assert.equal(ctx.state.subtitles2.renderArtifactReady, false);
   assert.deepEqual(downloads.map((item) => item.filename), ['session-123.mp4']);
 });
 

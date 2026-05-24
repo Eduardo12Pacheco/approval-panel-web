@@ -135,11 +135,36 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
 
   function renderDoneCard() {
     const status = (state.subtitles2.renderStatus || '').toString().trim().toLowerCase();
-    if (el.subtitle2DoneTitle) el.subtitle2DoneTitle.textContent = status === 'succeeded' ? 'Video listo' : 'Render fallido';
+    const progressPct = resolveSubtitleProgressPercentRuntime(state.subtitles2.renderProgressPct, state.subtitles2.renderStatus);
+    const rendering = ['queued', 'processing', 'running', 'rendering'].includes(status);
+    const failed = status === 'failed';
+    const succeeded = status === 'succeeded';
+    if (el.subtitle2DoneTitle) {
+      el.subtitle2DoneTitle.textContent = rendering
+        ? 'Renderizando video'
+        : failed
+          ? 'Render fallido'
+          : succeeded
+            ? 'Video listo'
+            : 'Renderizar video';
+    }
     if (el.subtitle2DoneMessage) {
-      el.subtitle2DoneMessage.textContent = status === 'succeeded'
-        ? (state.subtitles2.renderArtifactReady ? 'Tu video ya está listo. Descargalo manualmente cuando quieras.' : 'Render terminado, esperando disponibilidad del archivo final.')
-        : (state.subtitles2.renderFailureReason || 'Estado final de render.');
+      el.subtitle2DoneMessage.textContent = rendering
+        ? `Estamos renderizando el video final… ${progressPct}%`
+        : failed
+          ? (state.subtitles2.renderFailureReason || 'El render remoto falló. Revisá los cambios y reintentá sin perder la edición.')
+          : succeeded
+            ? (state.subtitles2.renderArtifactReady
+              ? 'Tu video ya está listo para descargar; podés seguir editando y renderizar de nuevo.'
+              : 'Render terminado, esperando disponibilidad del archivo final. Podés seguir editando mientras tanto.')
+            : 'Cuando la tabla esté lista, renderizá el video desde acá sin salir del editor.';
+    }
+    if (el.subtitle2ReadyBtn) {
+      el.subtitle2ReadyBtn.textContent = failed
+        ? 'Reintentar render'
+        : succeeded
+          ? 'Renderizar de nuevo'
+          : 'Renderizar video';
     }
   }
 
@@ -172,9 +197,10 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
     const current = state.subtitles2.machine.getPhase();
     const policy = getSubtitlesActionPolicy(current);
     const renderSucceeded = (state.subtitles2.renderStatus || '').toString().trim().toLowerCase() === 'succeeded';
+    const renderInFlight = ['queued', 'processing', 'running', 'rendering'].includes((state.subtitles2.renderStatus || '').toString().trim().toLowerCase());
     const hasDraft = hasDraftRows();
     if (el.subtitle2SaveBtn) el.subtitle2SaveBtn.disabled = !policy.canSave || !state.subtitles2.dirty || hasDraft;
-    if (el.subtitle2ReadyBtn) el.subtitle2ReadyBtn.disabled = !policy.canReady || !state.subtitles2.sessionId || state.subtitles2.snapshotVersion < 1 || hasDraft;
+    if (el.subtitle2ReadyBtn) el.subtitle2ReadyBtn.disabled = !policy.canReady || renderInFlight || !state.subtitles2.sessionId || state.subtitles2.snapshotVersion < 1 || hasDraft;
     if (el.subtitle2DownloadBtn) el.subtitle2DownloadBtn.disabled = !policy.canDownload || !state.subtitles2.sessionId || !renderSucceeded || !state.subtitles2.renderArtifactReady;
     if (el.subtitle2AnotherVideoBtn) el.subtitle2AnotherVideoBtn.disabled = current !== 'Terminado';
   }

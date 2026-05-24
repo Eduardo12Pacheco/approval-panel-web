@@ -10,7 +10,6 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
   const ensureRowsCoverDuration = callbacks.ensureRowsCoverDuration || (() => false);
   const refreshRemoteStatus = callbacks.refreshRemoteStatus || (() => {});
   const pollRenderStatus = callbacks.pollRenderStatus || (() => {});
-  const transitionPhase = callbacks.transitionPhase || (() => false);
   const renderDoneCard = callbacks.renderDoneCard || (() => {});
   const updateButtonsByPhase = callbacks.updateButtonsByPhase || (() => {});
 
@@ -81,10 +80,12 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
     if (state.subtitles2.dirty) {
       await enqueueSave('manual');
     }
-    transitionPhase('Procesando video');
     state.subtitles2.renderStatus = 'queued';
     state.subtitles2.renderProgressPct = 0;
     state.subtitles2.renderArtifactReady = false;
+    state.subtitles2.renderFailureReason = null;
+    renderDoneCard();
+    updateButtonsByPhase();
     try {
       const response = await ttsApi.startSubtitleRender(state.subtitles2.sessionId, {
         base_version: state.subtitles2.snapshotVersion,
@@ -100,8 +101,8 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
       state.subtitles2.renderStatus = 'failed';
       state.subtitles2.renderArtifactReady = false;
       state.subtitles2.renderFailureReason = getErrorMessage(error, 'El render remoto falló');
-      transitionPhase('Terminado');
       renderDoneCard();
+      updateButtonsByPhase();
     }
   }
 

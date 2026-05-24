@@ -60,15 +60,13 @@ export function createSubtitleSessionController(ctx, callbacks = {}) {
     state.subtitles2.renderArtifactReady = Boolean(payload?.download?.ready);
     if ((state.subtitles2.renderStatus || '').toLowerCase() === 'succeeded') {
       stopPolling();
-      transitionPhase('Terminado');
-      renderDoneCard();
+      renderWorkflow();
       return;
     }
     if ((state.subtitles2.renderStatus || '').toLowerCase() === 'failed') {
       stopPolling();
       state.subtitles2.renderFailureReason = 'El render remoto falló';
-      transitionPhase('Terminado');
-      renderDoneCard();
+      renderWorkflow();
       return;
     }
     stopPolling();

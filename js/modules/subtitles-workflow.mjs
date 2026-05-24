@@ -131,7 +131,7 @@ export function shouldRunStatusPolling({ phase, jobStatus }) {
 }
 
 export function shouldRunAutosave({ phase, dirty }) {
-  return phase === 'Edicion' && Boolean(dirty);
+  return (phase === 'Edicion' || phase === 'Terminado') && Boolean(dirty);
 }
 
 export function shouldFailRenderByWatchdog({
@@ -214,19 +214,21 @@ export function createSnapshotSaveQueue({ initialAckVersion = 0, persist }) {
 }
 
 export function getSubtitlesActionPolicy(phase) {
+  const canEdit = phase === 'Edicion' || phase === 'Procesando video' || phase === 'Terminado';
+  const canTriggerRender = phase === 'Edicion' || phase === 'Terminado';
   return {
-    canSave: phase === 'Edicion',
-    canReady: phase === 'Edicion',
-    canDownload: phase === 'Terminado',
+    canSave: canEdit,
+    canReady: canTriggerRender,
+    canDownload: canEdit,
   };
 }
 
 export function getSubtitlesPhaseSectionVisibility(phase) {
   return {
     showUpload: phase === 'Carga',
-    showProcessing: phase === 'Procesando audio' || phase === 'Procesando video',
-    showEdition: phase === 'Edicion',
-    showDone: phase === 'Terminado',
+    showProcessing: phase === 'Procesando audio',
+    showEdition: phase === 'Edicion' || phase === 'Procesando video' || phase === 'Terminado',
+    showDone: phase === 'Edicion' || phase === 'Procesando video' || phase === 'Terminado',
   };
 }
 

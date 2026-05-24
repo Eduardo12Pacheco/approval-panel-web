@@ -20,3 +20,22 @@
   border-radius: 0;
   background: #00E88F;
 }
+
+#viewSubtitulos2 .subtitle-render-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px 24px 20px;
+  border-top: 1px solid #262626;
+  background: #0A0A0A;
+}
+
+#viewSubtitulos2 .subtitle-render-card h3 {
+  margin: 4px 0 6px;
+}
+
+#viewSubtitulos2 .subtitle-render-card .subtitle-finish-actions {
+  margin-top: 0;
+  padding: 0;
+  border-top: 0;
+  background: transparent;
+}
