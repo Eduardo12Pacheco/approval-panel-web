@@ -196,8 +196,8 @@ export function createAppShellComposition({
     if (_subtitlesModules) return _subtitlesModules;
     const [ttsMod, stCtrlMod, stStateMod] = await Promise.all([
       import('../core/http/tts-api.js'),
-      import('../features/subtitles/controller.js'),
-      import('../features/subtitles/runtime/index.js'),
+      import('../features/subtitles/controller.js?v=20260524-subtitles-controls'),
+      import('../features/subtitles/runtime/index.js?v=20260524-subtitles-controls'),
     ]);
     // Ensure TTS API is available (may already be loaded by audio).
     if (!ttsApi._init) {

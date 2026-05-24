@@ -1,7 +1,7 @@
 import {
   createEmptySubtitleRow,
   createSubtitlesWorkflowMachine,
-} from '../../../subtitles-workflow.mjs';
+} from '../../../subtitles-workflow.mjs?v=20260524-subtitles-controls';
 
 export function createRemoteSubtitleSeedRows() {
   return [createEmptySubtitleRow({ id: 'row-1', start: '00:00.00', end: '00:02.00', phrase: '' })];

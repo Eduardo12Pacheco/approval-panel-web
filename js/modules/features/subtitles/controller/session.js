@@ -4,7 +4,7 @@ import {
   SUBTITLE_FONT_PRESETS,
   SUBTITLE_SIZE_PRESETS,
   createEmptySubtitleRow,
-} from '../../../subtitles-workflow.mjs';
+} from '../../../subtitles-workflow.mjs?v=20260524-subtitles-controls';
 import {
   buildSubtitlePreviewUrlRuntime,
   createRemoteSubtitlesState,
@@ -12,7 +12,7 @@ import {
   mapRemoteSubtitleSegmentsToRowsRuntime,
   resolveHydratedSubtitleRenderStateRuntime,
   resolveSubtitlePreviewDurationMsRuntime,
-} from '../runtime/index.js';
+} from '../runtime/index.js?v=20260524-subtitles-controls';
 
 const SUBTITLE_SOURCE_LANGUAGE_ALLOWED = new Set([
   'auto', 'es', 'en', 'fr', 'pt', 'de', 'it', 'nl', 'ca', 'pap', 'ko', 'ar', 'ber', 'cs', 'gd', 'tr', 'tzm', 'uz',
