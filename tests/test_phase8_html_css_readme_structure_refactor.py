@@ -86,6 +86,7 @@ def test_styles_entry_order_stays_locked_while_rules_move_to_layer_files():
         "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
         "@import './styles/features/radar.css';",
+        "@import './styles/features/ai-rescue.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",
@@ -213,9 +214,6 @@ def test_settings_presents_single_unified_config_and_hides_legacy_compatibility_
     for selector_id in [
         "apiProfileModeSelect",
         "apiOriginInput",
-        "sharedApiKeyInput",
-        "sharedBasicUserInput",
-        "sharedBasicPassInput",
         "advancedSettingsSection",
     ]:
         assert f'id="{selector_id}"' in source
@@ -223,6 +221,11 @@ def test_settings_presents_single_unified_config_and_hides_legacy_compatibility_
     visible_settings = source.split('<div class="settings-form">', 1)[1].split('<div class="settings-actions">', 1)[0]
     compatibility_markup = visible_settings.split('id="advancedSettingsSection"', 1)[1]
     assert "Endpoint del proyecto" in visible_settings
+    assert "Las API keys y Basic Auth ya no se configuran en el navegador" in visible_settings
+    assert "API Gateway" in visible_settings
+    assert "x-api-key compartida" not in visible_settings
+    assert "Usuario Basic Auth compartido" not in visible_settings
+    assert "Contraseña Basic Auth compartida" not in visible_settings
     assert "Configuración avanzada" not in visible_settings
     assert "Modo avanzado" not in visible_settings
     assert "Futuro gateway" not in visible_settings
@@ -259,7 +262,7 @@ import { getDomSelectors } from './js/modules/shared/dom/selectors.js';
 
 const requested = [];
 const selectors = getDomSelectors({ getElementById(id) { requested.push(id); return { id }; } });
-for (const name of ['apiProfileModeSelect', 'apiOriginInput', 'sharedApiKeyInput', 'sharedBasicUserInput', 'sharedBasicPassInput', 'advancedSettingsSection']) {
+for (const name of ['apiProfileModeSelect', 'apiOriginInput', 'advancedSettingsSection']) {
   if (selectors[name]?.id !== name) throw new Error(`missing selector ${name}`);
 }
 for (const legacy of ['baseUrlInput', 'ttsBaseUrlInput', 'subtitlesBaseUrlInput', 'approvalPipelineBaseUrlInput']) {
@@ -409,6 +412,7 @@ def test_styles_entry_order_reflects_current_feature_layer_stack():
         "@import './styles/features/video-projects/index.css';",
         "@import './styles/features/audio.css';",
         "@import './styles/features/radar.css';",
+        "@import './styles/features/ai-rescue.css';",
         "@import './styles/features/subtitles/index.css';",
         "@import './styles/features/auth.css';",
         "@import './styles/responsive.css';",

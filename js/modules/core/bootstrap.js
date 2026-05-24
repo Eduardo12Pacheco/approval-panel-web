@@ -90,9 +90,9 @@ export function bindCoreEvents({
     saveSettings({
       apiProfileMode: 'unified',
       apiOrigin: el.apiOriginInput?.value?.trim() || defaults.apiOrigin,
-      sharedApiKey: el.sharedApiKeyInput?.value?.trim() || '',
-      sharedBasicUser: el.sharedBasicUserInput?.value?.trim() || '',
-      sharedBasicPass: el.sharedBasicPassInput?.value || '',
+      sharedApiKey: '',
+      sharedBasicUser: '',
+      sharedBasicPass: '',
       serviceOverrides: {
         n8n: false,
         tts: false,

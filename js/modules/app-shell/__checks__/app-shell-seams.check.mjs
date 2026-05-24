@@ -79,7 +79,7 @@ test('settings controller hydrates and saves through existing storage wiring', (
   settings.hydrateSettingsForm();
   assert.equal(el.baseUrlInput.value, 'http://approval.local');
   assert.equal(el.transcriptServiceBaseUrlInput.value, 'http://radar.local');
-  assert.equal(el.sharedApiKeyInput.value, 'radar-key', 'legacy radar API keys hydrate through the shared API key form contract');
+  assert.equal(el.sharedApiKeyInput.value, '', 'service secrets must not hydrate into the browser settings form');
 
   settings.saveSettings({ baseUrl: 'http://next.local', transcriptServiceApiKey: 'next-key' });
   assert.equal(state.settings.baseUrl, 'http://next.local');

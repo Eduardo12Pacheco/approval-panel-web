@@ -330,15 +330,9 @@ export function hydrateSettingsFormValues({ el, settings }) {
   if (el.apiOriginInput) {
     el.apiOriginInput.value = normalized.apiOrigin;
   }
-  if (el.sharedApiKeyInput) {
-    el.sharedApiKeyInput.value = normalized.sharedApiKey;
-  }
-  if (el.sharedBasicUserInput) {
-    el.sharedBasicUserInput.value = normalized.sharedBasicUser;
-  }
-  if (el.sharedBasicPassInput) {
-    el.sharedBasicPassInput.value = normalized.sharedBasicPass;
-  }
+  if (el.sharedApiKeyInput) el.sharedApiKeyInput.value = '';
+  if (el.sharedBasicUserInput) el.sharedBasicUserInput.value = '';
+  if (el.sharedBasicPassInput) el.sharedBasicPassInput.value = '';
   if (el.advancedSettingsSection) {
     el.advancedSettingsSection.hidden = true;
     el.advancedSettingsSection.setAttribute?.('aria-hidden', 'true');

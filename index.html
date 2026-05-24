@@ -343,12 +343,12 @@
           <button id="closeSettings" class="secondary">Cerrar</button>
         </header>
 
-        <p class="meta settings-intro">Configurá conexiones y credenciales. Cada bloque incluye para qué se usa.</p>
+        <p class="meta settings-intro">Configurá el origen del Gateway. Las credenciales de servicios se administran en el servidor.</p>
 
         <div class="settings-form">
           <section class="settings-section">
             <h3>Configuración del proyecto</h3>
-            <p class="meta settings-help">Una sola configuración compartida para los servicios compatibles del panel.</p>
+            <p class="meta settings-help">Una sola configuración compartida para conectar el panel con el authenticated gateway.</p>
 
             <select id="apiProfileModeSelect" class="hidden" hidden aria-hidden="true" tabindex="-1">
               <option value="unified" selected>Unified</option>
@@ -357,23 +357,13 @@
             <label class="settings-field">
               API Origin / Endpoint del proyecto
               <input id="apiOriginInput" placeholder="https://api.automatizacionedun8n.me" />
-              <span class="meta">Se usa como origen compartido para n8n, Audio, Subtítulos, Radar y Remotion.</span>
+              <span class="meta">Se usa como origen compartido para n8n, Audio, Subtítulos, Radar, Remotion y Approval.</span>
             </label>
 
-            <label class="settings-field">
-              x-api-key compartida
-              <input id="sharedApiKeyInput" type="password" placeholder="Solo servicios compatibles" />
-            </label>
-
-            <label class="settings-field">
-              Usuario Basic Auth compartido
-              <input id="sharedBasicUserInput" placeholder="Solo servicios compatibles" />
-            </label>
-
-            <label class="settings-field">
-              Contraseña Basic Auth compartida
-              <input id="sharedBasicPassInput" type="password" placeholder="Solo servicios compatibles" />
-            </label>
+            <aside class="settings-server-credentials-note" aria-label="Credenciales administradas por el Gateway">
+              <strong>Credenciales de servicios</strong>
+              <span class="meta">Las API keys y Basic Auth ya no se configuran en el navegador. Se administran en el API Gateway para que todos usen la misma configuración segura.</span>
+            </aside>
           </section>
 
           <div id="advancedSettingsSection" class="settings-compatibility hidden" hidden aria-hidden="true">
