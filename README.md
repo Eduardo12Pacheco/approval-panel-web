@@ -70,6 +70,16 @@ cd C:\Users\pelot\Desktop\n8n\01-Control-Panel
 node .\services\approval-editor\server.js
 ```
 
+Para dejarlo como servicio permanente de Windows con NSSM:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+& "C:\Users\pelot\Desktop\n8n\01-Control-Panel\scripts\install-approval-editor-service.ps1"
+& "C:\Users\pelot\Desktop\n8n\01-Control-Panel\scripts\check-approval-editor-service.ps1" -IncludeGateway
+```
+
+Servicio esperado: `approval-editor-service`, inicio `Automatic`, puerto `3042`. Los logs se escriben en `01-Control-Panel/runtime-logs/`.
+
 Contratos importantes:
 
 | Contrato | Valor |

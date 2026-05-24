@@ -80,6 +80,16 @@ El viejo path `approval-editor-service/` solo puede aparecer como nota históric
 
 `services/approval-editor/projects/` contiene datos runtime locales y está ignorado por git. **No lo borres a ciegas.**
 
+Approval Editor puede quedar instalado como servicio NSSM `approval-editor-service` para arrancar automáticamente con Windows:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+& "C:\Users\pelot\Desktop\n8n\01-Control-Panel\scripts\install-approval-editor-service.ps1"
+& "C:\Users\pelot\Desktop\n8n\01-Control-Panel\scripts\check-approval-editor-service.ps1" -IncludeGateway
+```
+
+Logs: `01-Control-Panel/runtime-logs/`. No confundas este servicio local con el API Gateway `control-panel-api-gateway`.
+
 ## Assets y preview
 
 Los assets locales de `01-Control-Panel/assets/` son para preview del navegador, no necesariamente para render/export final.

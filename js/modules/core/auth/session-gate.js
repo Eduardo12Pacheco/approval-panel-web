@@ -1,7 +1,41 @@
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
 const DEFAULT_SESSION_ENDPOINT = '/panel/session';
 const DEFAULT_LOGIN_ENDPOINT = '/panel/login';
 const DEFAULT_LOGOUT_ENDPOINT = '/panel/logout';
+
+function trimTrailingSlash(value = '') {
+  return (value || '').toString().trim().replace(/\/+$/g, '');
+}
+
+function isAbsoluteUrl(value = '') {
+  return /^https?:\/\//i.test((value || '').toString().trim());
+}
+
+function bootstrapApiOrigin() {
+  return trimTrailingSlash(globalThis.__CONTROL_PANEL_BOOTSTRAP__?.api_origin || DEFAULT_API_ORIGIN);
+}
+
+function isRemoteBrowserContext(locationLike = globalThis.location) {
+  const hostname = (locationLike?.hostname || '').toString().toLowerCase();
+  if (!hostname) return false;
+  return !new Set(['localhost', '127.0.0.1', '::1']).has(hostname);
+}
+
+function shouldTrustLocalSessionFallback() {
+  const sessionStatus = globalThis.__CONTROL_PANEL_SESSION__?.status;
+  if (!['anonymous', 'failed'].includes(sessionStatus)) return true;
+  return !isRemoteBrowserContext();
+}
+
+function resolvePanelEndpoint(endpoint) {
+  const normalizedEndpoint = (endpoint || '').toString().trim();
+  if (!normalizedEndpoint || isAbsoluteUrl(normalizedEndpoint)) return normalizedEndpoint;
+  const origin = bootstrapApiOrigin();
+  if (!origin) return normalizedEndpoint;
+  const path = normalizedEndpoint.startsWith('/') ? normalizedEndpoint : `/${normalizedEndpoint}`;
+  return `${origin}${path}`;
+}
 
 function safeJsonParse(raw) {
   try {
@@ -18,6 +52,18 @@ function normalizeGatewaySession(data = {}) {
     user: data.user && typeof data.user === 'object' ? data.user : {},
     roles,
     session_id: String(data.session_id || ''),
+  };
+}
+
+function hasGatewaySessionPayload(data = {}) {
+  return data?.user && typeof data.user === 'object';
+}
+
+function anonymousGatewaySession({ endpoint, status, data, fallbackError }) {
+  globalThis.__CONTROL_PANEL_SESSION__ = { status: 'anonymous' };
+  return {
+    status: 'anonymous',
+    error: data?.error || data?.message || fallbackError || `GET ${endpoint} ${status}`,
   };
 }
 
@@ -42,6 +88,7 @@ function writeCookie({ cookieJar, sessionKey, value, maxAgeSeconds }) {
 
 export function readSessionStatus({ storage, cookieJar, sessionKey }) {
   if (globalThis.__CONTROL_PANEL_SESSION__?.status === 'ok') return 'ok';
+  if (!shouldTrustLocalSessionFallback()) return null;
   try {
     const storedSession = storage.getItem(sessionKey);
     if (storedSession) return storedSession;
@@ -74,12 +121,26 @@ export function isValidCredentials({ user, pass, authUser, authPass }) {
 }
 
 export async function hydrateGatewaySession({ fetchImpl = fetch, endpoint = DEFAULT_SESSION_ENDPOINT } = {}) {
-  const response = await fetchImpl(endpoint, { credentials: 'include' });
+  const resolvedEndpoint = resolvePanelEndpoint(endpoint);
+  let response;
+  try {
+    response = await fetchImpl(resolvedEndpoint, { credentials: 'include' });
+  } catch (err) {
+    globalThis.__CONTROL_PANEL_SESSION__ = { status: 'failed', error: err?.message || 'Gateway session unavailable' };
+    return { status: 'failed', error: err?.message || 'Gateway session unavailable' };
+  }
   const raw = await response.text();
   const data = safeJsonParse(raw);
   if (!response.ok) {
-    globalThis.__CONTROL_PANEL_SESSION__ = null;
-    return { status: 'anonymous', error: data?.error || data?.message || `GET ${endpoint} ${response.status}` };
+    return anonymousGatewaySession({ endpoint: resolvedEndpoint, status: response.status, data });
+  }
+  if (!hasGatewaySessionPayload(data)) {
+    return anonymousGatewaySession({
+      endpoint: resolvedEndpoint,
+      status: response.status,
+      data,
+      fallbackError: 'Invalid gateway session payload',
+    });
   }
   const session = normalizeGatewaySession(data);
   globalThis.__CONTROL_PANEL_SESSION__ = session;
@@ -87,7 +148,8 @@ export async function hydrateGatewaySession({ fetchImpl = fetch, endpoint = DEFA
 }
 
 export async function loginGatewaySession({ fetchImpl = fetch, endpoint = DEFAULT_LOGIN_ENDPOINT, user, pass } = {}) {
-  const response = await fetchImpl(endpoint, {
+  const resolvedEndpoint = resolvePanelEndpoint(endpoint);
+  const response = await fetchImpl(resolvedEndpoint, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -96,8 +158,8 @@ export async function loginGatewaySession({ fetchImpl = fetch, endpoint = DEFAUL
   const raw = await response.text();
   const data = safeJsonParse(raw);
   if (!response.ok) {
-    globalThis.__CONTROL_PANEL_SESSION__ = null;
-    throw new Error(data?.message || data?.error || `POST ${endpoint} ${response.status}`);
+    globalThis.__CONTROL_PANEL_SESSION__ = { status: 'anonymous' };
+    throw new Error(data?.message || data?.error || `POST ${resolvedEndpoint} ${response.status}`);
   }
   const session = normalizeGatewaySession(data);
   globalThis.__CONTROL_PANEL_SESSION__ = session;
@@ -105,12 +167,13 @@ export async function loginGatewaySession({ fetchImpl = fetch, endpoint = DEFAUL
 }
 
 export async function logoutGatewaySession({ fetchImpl = fetch, endpoint = DEFAULT_LOGOUT_ENDPOINT } = {}) {
-  const response = await fetchImpl(endpoint, { method: 'POST', credentials: 'include' });
+  const resolvedEndpoint = resolvePanelEndpoint(endpoint);
+  const response = await fetchImpl(resolvedEndpoint, { method: 'POST', credentials: 'include' });
   globalThis.__CONTROL_PANEL_SESSION__ = null;
   if (!response.ok) {
     const raw = await response.text();
     const data = safeJsonParse(raw);
-    throw new Error(data?.message || data?.error || `POST ${endpoint} ${response.status}`);
+    throw new Error(data?.message || data?.error || `POST ${resolvedEndpoint} ${response.status}`);
   }
   return { ok: true };
 }

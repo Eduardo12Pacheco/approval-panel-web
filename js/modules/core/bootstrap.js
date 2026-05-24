@@ -1,3 +1,14 @@
+function isRemoteBrowserContext(locationLike = globalThis.location) {
+  const hostname = (locationLike?.hostname || '').toString().toLowerCase();
+  if (!hostname) return false;
+  return !new Set(['localhost', '127.0.0.1', '::1']).has(hostname);
+}
+
+function shouldBlockRemoteOperatorFallback() {
+  const status = globalThis.__CONTROL_PANEL_SESSION__?.status;
+  return isRemoteBrowserContext() && ['anonymous', 'failed'].includes(status);
+}
+
 export function bindCoreEvents({
   el,
   authUser,
@@ -29,6 +40,10 @@ export function bindCoreEvents({
           try {
             await loginGatewaySession({ user, pass });
           } catch {
+            if (shouldBlockRemoteOperatorFallback()) {
+              toast('Usuario o contraseña incorrectos');
+              return;
+            }
             // Keep the existing operator login flow available during gateway rollout.
           }
         }

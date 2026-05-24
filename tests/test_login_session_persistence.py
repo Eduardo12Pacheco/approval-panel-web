@@ -150,7 +150,7 @@ import { hydrateGatewaySession, loginGatewaySession, logoutGatewaySession } from
 const calls = [];
 const fetchImpl = async (url, options = {}) => {
   calls.push({ url, options });
-  if (url === '/panel/session') {
+  if (url === 'https://api.automatizacionedun8n.me/panel/session') {
     return {
       ok: true,
       status: 200,
@@ -161,10 +161,10 @@ const fetchImpl = async (url, options = {}) => {
       }),
     };
   }
-  if (url === '/panel/login') {
+  if (url === 'https://api.automatizacionedun8n.me/panel/login') {
     return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
   }
-  if (url === '/panel/logout') {
+  if (url === 'https://api.automatizacionedun8n.me/panel/logout') {
     return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
   }
   throw new Error(`unexpected url ${url}`);
@@ -186,6 +186,209 @@ await logoutGatewaySession({ fetchImpl });
 if (calls[2].options.method !== 'POST' || calls[2].options.credentials !== 'include') {
   throw new Error(`logout request drift: ${JSON.stringify(calls[2])}`);
 }
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_session_gate_resolves_session_endpoints_against_bootstrap_api_origin():
+    script = r"""
+import { hydrateGatewaySession, loginGatewaySession, logoutGatewaySession } from './js/modules/core/auth/session-gate.js';
+
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { api_origin: 'https://api.automatizacionedun8n.me/' };
+
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  if (url === 'https://api.automatizacionedun8n.me/panel/session') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ user: { email: 'editor@example.test' } }) };
+  }
+  if (url === 'https://api.automatizacionedun8n.me/panel/login') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ user: { email: 'editor@example.test' } }) };
+  }
+  if (url === 'https://api.automatizacionedun8n.me/panel/logout') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+  }
+  throw new Error(`expected API-origin endpoint, got ${url}`);
+};
+
+await hydrateGatewaySession({ fetchImpl });
+await loginGatewaySession({ fetchImpl, user: 'paneladmin', pass: 'Guiones2026!' });
+await logoutGatewaySession({ fetchImpl });
+
+if (calls[0].url !== 'https://api.automatizacionedun8n.me/panel/session') throw new Error(`session endpoint drift: ${calls[0].url}`);
+if (calls[1].url !== 'https://api.automatizacionedun8n.me/panel/login') throw new Error(`login endpoint drift: ${calls[1].url}`);
+if (calls[2].url !== 'https://api.automatizacionedun8n.me/panel/logout') throw new Error(`logout endpoint drift: ${calls[2].url}`);
+if (calls[1].options.credentials !== 'include') throw new Error('login must include Gateway cookies');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_session_gate_rejects_pages_html_fallback_as_anonymous_gateway_session():
+    script = r"""
+import { hydrateGatewaySession } from './js/modules/core/auth/session-gate.js';
+
+const fetchImpl = async () => ({
+  ok: true,
+  status: 200,
+  text: async () => '<!doctype html><html><body>Cloudflare Pages fallback</body></html>',
+});
+
+const hydrated = await hydrateGatewaySession({ fetchImpl, endpoint: '/panel/session' });
+if (hydrated.status !== 'anonymous') {
+  throw new Error(`expected HTML fallback to be anonymous, got ${JSON.stringify(hydrated)}`);
+}
+if (globalThis.__CONTROL_PANEL_SESSION__?.status !== 'anonymous') {
+  throw new Error(`expected failed hydration to clear global session, got ${JSON.stringify(globalThis.__CONTROL_PANEL_SESSION__)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_remote_gateway_anonymous_session_ignores_stale_local_operator_marker():
+    script = r"""
+import { readSessionStatus } from './js/modules/core/auth/session-gate.js';
+
+globalThis.__CONTROL_PANEL_SESSION__ = { status: 'anonymous', error: 'unauthenticated' };
+globalThis.location = { hostname: 'approval-panel-web.pages.dev' };
+
+const storage = { getItem() { return 'ok'; } };
+const cookieJar = { cookie: 'approval-panel-session-v1=ok' };
+
+const session = readSessionStatus({ storage, cookieJar, sessionKey: 'approval-panel-session-v1' });
+if (session !== null) {
+  throw new Error(`expected remote anonymous gateway to ignore stale local session, got ${session}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_remote_login_does_not_use_local_operator_fallback_after_gateway_rejects():
+    script = r"""
+import { bindCoreEvents } from './js/modules/core/bootstrap.js';
+
+globalThis.location = { hostname: 'approval-panel-web.pages.dev' };
+const submitted = [];
+const classCalls = [];
+const toasts = [];
+
+const authForm = { addEventListener(_event, handler) { submitted.push(handler); } };
+const el = {
+  authForm,
+  authUser: { value: 'paneladmin' },
+  authPass: { value: 'Guiones2026!' },
+  authGate: { classList: { add(value) { classCalls.push(['auth-add', value]); }, remove(value) { classCalls.push(['auth-remove', value]); } } },
+  appShell: { classList: { add(value) { classCalls.push(['app-add', value]); }, remove(value) { classCalls.push(['app-remove', value]); } } },
+  sidebarNav: { addEventListener() {} },
+  settingsBtn: { addEventListener() {} },
+  settingsDialog: { showModal() {}, close() {} },
+  logoutBtn: { addEventListener() {} },
+  closeSettings: { addEventListener() {} },
+  closeDialog: { addEventListener() {} },
+  topicDialog: { close() {} },
+  saveSettingsBtn: { addEventListener() {} },
+  baseUrlInput: { value: '' },
+  secretInput: { value: '' },
+  ttsBaseUrlInput: { value: '' },
+  searchInput: { addEventListener() {} },
+  countryFilter: { addEventListener() {} },
+  sourcesFilter: { addEventListener() {} },
+};
+
+bindCoreEvents({
+  el,
+  authUser: 'paneladmin',
+  authPass: 'Guiones2026!',
+  isValidCredentials: () => true,
+  persistSessionStatus() { throw new Error('remote gateway rejection must not persist local session'); },
+  clearSessionStatus() {},
+  async loginGatewaySession() {
+    globalThis.__CONTROL_PANEL_SESSION__ = { status: 'anonymous' };
+    throw new Error('unauthenticated');
+  },
+  logoutGatewaySession() {},
+  setView() { throw new Error('remote gateway rejection must not open app'); },
+  refreshAll() { throw new Error('remote gateway rejection must not refresh app'); },
+  refreshQueue() {},
+  runQueue() {},
+  saveSettings() {},
+  defaultSettings: () => ({ baseUrl: '', ttsBaseUrl: '', brandChannel: 'pelotazo-ecuador' }),
+  toast(message) { toasts.push(message); },
+  renderCards() {},
+  reloadPage() {},
+});
+
+submitted[0]({ preventDefault() {} });
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+if (toasts.join('|') !== 'Usuario o contraseña incorrectos') throw new Error(`unexpected toast flow: ${JSON.stringify(toasts)}`);
+if (classCalls.length) throw new Error(`remote gateway rejection opened shell: ${JSON.stringify(classCalls)}`);
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_local_login_keeps_operator_fallback_when_gateway_is_unavailable():
+    script = r"""
+import { bindCoreEvents } from './js/modules/core/bootstrap.js';
+
+globalThis.location = { hostname: 'localhost' };
+const submitted = [];
+const events = [];
+
+const el = {
+  authForm: { addEventListener(_event, handler) { submitted.push(handler); } },
+  authUser: { value: 'paneladmin' },
+  authPass: { value: 'Guiones2026!' },
+  authGate: { classList: { add(value) { events.push(['auth-add', value]); }, remove() {} } },
+  appShell: { classList: { add() {}, remove(value) { events.push(['app-remove', value]); } } },
+  sidebarNav: { addEventListener() {} },
+  settingsBtn: { addEventListener() {} },
+  settingsDialog: { showModal() {}, close() {} },
+  logoutBtn: { addEventListener() {} },
+  closeSettings: { addEventListener() {} },
+  closeDialog: { addEventListener() {} },
+  topicDialog: { close() {} },
+  saveSettingsBtn: { addEventListener() {} },
+  baseUrlInput: { value: '' },
+  secretInput: { value: '' },
+  ttsBaseUrlInput: { value: '' },
+  searchInput: { addEventListener() {} },
+  countryFilter: { addEventListener() {} },
+  sourcesFilter: { addEventListener() {} },
+};
+
+bindCoreEvents({
+  el,
+  authUser: 'paneladmin',
+  authPass: 'Guiones2026!',
+  isValidCredentials: () => true,
+  persistSessionStatus() { events.push(['persist']); },
+  clearSessionStatus() {},
+  async loginGatewaySession() {
+    globalThis.__CONTROL_PANEL_SESSION__ = { status: 'failed' };
+    throw new Error('network unavailable');
+  },
+  logoutGatewaySession() {},
+  setView(view) { events.push(['view', view]); },
+  refreshAll(options) { events.push(['refresh', options.source]); },
+  refreshQueue() {},
+  runQueue() {},
+  saveSettings() {},
+  defaultSettings: () => ({ baseUrl: '', ttsBaseUrl: '', brandChannel: 'pelotazo-ecuador' }),
+  toast(message) { events.push(['toast', message]); },
+  renderCards() {},
+  reloadPage() {},
+});
+
+submitted[0]({ preventDefault() {} });
+await new Promise((resolve) => setTimeout(resolve, 0));
+
+if (!events.some((event) => event[0] === 'persist')) throw new Error(`local fallback did not persist: ${JSON.stringify(events)}`);
+if (!events.some((event) => event[0] === 'toast' && event[1] === 'Sesión iniciada')) throw new Error(`local fallback did not log in: ${JSON.stringify(events)}`);
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
