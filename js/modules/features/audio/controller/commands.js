@@ -1,4 +1,4 @@
-import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260521-settings-guard';
+import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 export function createAudioCommands({ context, callbacks }) {
   const { state, el, toast, getErrorMessage, ttsPost } = context;

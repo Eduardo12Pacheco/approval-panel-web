@@ -6,7 +6,7 @@ import {
   getSubtitlesActionPolicy,
   getSubtitlesPhaseSectionVisibility,
   resolveSubtitleFontWeight,
-} from '../../../subtitles-workflow.mjs?v=20260524-subtitles-controls';
+} from '../../../subtitles-workflow.mjs';
 import {
   buildSubtitleHealthRuntime,
   buildSubtitleProcessingMessageRuntime,
@@ -17,7 +17,7 @@ import {
   formatSubtitleDisplayTimeRuntime,
   normalizeSubtitleMetaValueRuntime,
   resolveSubtitleProgressPercentRuntime,
-} from '../runtime/index.js?v=20260524-subtitles-controls';
+} from '../runtime/index.js';
 
 const SUBTITLE_SOURCE_LANGUAGE_ALLOWED = new Set([
   'auto', 'es', 'en', 'fr', 'pt', 'de', 'it', 'nl', 'ca', 'pap', 'ko', 'ar', 'ber', 'cs', 'gd', 'tr', 'tzm', 'uz',

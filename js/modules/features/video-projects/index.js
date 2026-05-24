@@ -1,4 +1,4 @@
-import { createVideoProjectsController } from './controller/create-video-projects-controller.js?v=20260520-whip-bugfix';
+import { createVideoProjectsController } from './controller/create-video-projects-controller.js';
 
 export { resolveVideoProjectKey, resolveVideoProjectTitle } from './domain/project-identity.js';
 export { normalizeVideoProjectRows } from './data/video-project-rows.js';
@@ -7,8 +7,8 @@ export {
   mergeLocalEditorRowPatch,
   patchLocalEditorRows,
   shouldFallbackApprovalSnapshotOperationError,
-} from './controller/row-commands.js?v=20260520-whip-bugfix';
-export { buildCompositionPayloadForCheck } from './controller/create-video-projects-controller.js?v=20260520-whip-bugfix';
+} from './controller/row-commands.js';
+export { buildCompositionPayloadForCheck } from './controller/create-video-projects-controller.js';
 
 export function createVideoProjectsFeature({ api, store, ui, callbacks }) {
   return createVideoProjectsController({ api, store, ui, callbacks });

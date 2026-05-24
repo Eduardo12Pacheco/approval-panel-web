@@ -1,11 +1,12 @@
 import { createCustomDropdownController } from '../core/ui/custom-dropdowns.js';
-import { loadSettingsFromStorage } from '../core/state/app-store.js?v=20260521-settings-guard';
+import { loadSettingsFromStorage } from '../core/state/app-store.js';
 import { createSingleFlightRunner } from '../core/async/single-flight.js';
 import { createApprovalApiClient } from '../core/http/approval-api.js';
 import { createApprovalFeature } from '../features/approval/index.js';
 import { createScriptsFeature } from '../features/scripts/index.js';
 import { createVideoProjectsApiClient } from '../features/video-projects/api.js';
 import { getDomSelectors } from '../shared/dom/selectors.js';
+import { versionedModule } from '../core/versioning/asset-version.js';
 import { createShellState } from './state.js';
 
 // Video-projects (~60 modules), radar (~4 modules), audio (~25 modules),
@@ -114,7 +115,7 @@ export function createAppShellComposition({
   let _videoProjectsModules = null;
   async function _ensureVideoProjectsFeature() {
     if (_videoProjectsModules) return _videoProjectsModules;
-    const mod = await import('../features/video-projects/index.js?v=20260520-whip-bugfix');
+    const mod = await import(versionedModule('../features/video-projects/index.js', import.meta.url));
     const realFeature = mod.createVideoProjectsFeature({
       api: videoProjectsApi,
       store,
@@ -135,10 +136,10 @@ export function createAppShellComposition({
   async function _ensureAudioFeature() {
     if (_audioModules) return _audioModules;
     const [ttsMod, audioCtrlMod, audioRtMod, audioFeatMod] = await Promise.all([
-      import('../core/http/tts-api.js'),
-      import('../features/audio/controller.js'),
-      import('../features/audio/runtime/index.js'),
-      import('../features/audio/index.js'),
+      import(versionedModule('../core/http/tts-api.js', import.meta.url)),
+      import(versionedModule('../features/audio/controller.js', import.meta.url)),
+      import(versionedModule('../features/audio/runtime/index.js', import.meta.url)),
+      import(versionedModule('../features/audio/index.js', import.meta.url)),
     ]);
     // Replace the TTS stub with the real client so subtitles can share it.
     Object.assign(ttsApi, ttsMod.createTtsApiClient({
@@ -195,9 +196,9 @@ export function createAppShellComposition({
   async function _ensureSubtitlesFeature() {
     if (_subtitlesModules) return _subtitlesModules;
     const [ttsMod, stCtrlMod, stStateMod] = await Promise.all([
-      import('../core/http/tts-api.js'),
-      import('../features/subtitles/controller.js?v=20260524-subtitles-controls'),
-      import('../features/subtitles/runtime/index.js?v=20260524-subtitles-controls'),
+      import(versionedModule('../core/http/tts-api.js', import.meta.url)),
+      import(versionedModule('../features/subtitles/controller.js', import.meta.url)),
+      import(versionedModule('../features/subtitles/runtime/index.js', import.meta.url)),
     ]);
     // Ensure TTS API is available (may already be loaded by audio).
     if (!ttsApi._init) {
@@ -235,9 +236,9 @@ export function createAppShellComposition({
   async function _ensureRadarFeature() {
     if (_radarModules) return _radarModules;
     const [stateMod, apiMod, ctrlMod] = await Promise.all([
-      import('../features/radar/state.js'),
-      import('../features/radar/api-client.js'),
-      import('../features/radar/controller.js'),
+      import(versionedModule('../features/radar/state.js', import.meta.url)),
+      import(versionedModule('../features/radar/api-client.js', import.meta.url)),
+      import(versionedModule('../features/radar/controller.js', import.meta.url)),
     ]);
     const realState = stateMod.createRadarState();
     Object.assign(state.radar, realState);
@@ -265,9 +266,9 @@ export function createAppShellComposition({
   async function _ensureAiRescueFeature() {
     if (_aiRescueModules) return _aiRescueModules;
     const [stateMod, apiMod, ctrlMod] = await Promise.all([
-      import('../features/ai-rescue/state.js'),
-      import('../features/ai-rescue/api-client.js'),
-      import('../features/ai-rescue/controller.js'),
+      import(versionedModule('../features/ai-rescue/state.js', import.meta.url)),
+      import(versionedModule('../features/ai-rescue/api-client.js', import.meta.url)),
+      import(versionedModule('../features/ai-rescue/controller.js', import.meta.url)),
     ]);
     const realState = stateMod.createAiRescueState();
     Object.assign(state.aiRescue, realState);

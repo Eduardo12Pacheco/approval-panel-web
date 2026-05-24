@@ -1,7 +1,7 @@
 import { createApprovalPipelineClient as createApprovalPipelineClientBase } from './approval-pipeline-client.js';
 import { createRemotionClient as createRemotionClientBase } from './remotion-client.js';
 import { createSupabaseVideoProjectsClient } from './supabase-client.js';
-import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260521-settings-guard';
+import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 const MANUAL_VIDEO_PROJECT_ENDPOINT = '/webhook/video-projects/manual-create/v1';
 

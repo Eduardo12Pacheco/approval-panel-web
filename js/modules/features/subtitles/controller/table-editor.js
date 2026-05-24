@@ -1,7 +1,7 @@
 import {
   applySubtitleRowPatch,
   createEmptySubtitleRow,
-} from '../../../subtitles-workflow.mjs?v=20260524-subtitles-controls';
+} from '../../../subtitles-workflow.mjs';
 import {
   formatSubtitleDisplayTimeRuntime,
   getLastSubtitleNonDraftRowIndexRuntime,
@@ -9,7 +9,7 @@ import {
   parseSubtitleTimeToMsRuntime,
   resolveSubtitlePreviewDurationMsRuntime,
   validateSubtitleTimingPatchRuntime,
-} from '../runtime/index.js?v=20260524-subtitles-controls';
+} from '../runtime/index.js';
 
 // Cohesive exception: row patching, timing validation, and draft drag/drop stay
 // together so each edit path shares the same row identity and dirty-state rules.

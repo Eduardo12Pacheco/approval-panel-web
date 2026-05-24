@@ -1,5 +1,5 @@
-import { resolveSubtitleFontWeight } from '../../../subtitles-workflow.mjs?v=20260524-subtitles-controls';
-import { parseSubtitleTimeToMsRuntime } from '../runtime/index.js?v=20260524-subtitles-controls';
+import { resolveSubtitleFontWeight } from '../../../subtitles-workflow.mjs';
+import { parseSubtitleTimeToMsRuntime } from '../runtime/index.js';
 
 export function createSubtitleRenderCommands(ctx, callbacks = {}) {
   const { state, api: ttsApi, ui, helpers } = ctx;

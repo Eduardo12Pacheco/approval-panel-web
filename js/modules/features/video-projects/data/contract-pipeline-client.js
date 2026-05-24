@@ -1,6 +1,6 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
-import { resolveServiceConfig } from '../../../core/state/app-store.js?v=20260521-settings-guard';
+import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 function resolveVideoProjectKey(row = {}) {
   return (row.project_id || row.draft_id || row.id_noticia || row.cluster_id || '').toString();

@@ -9,6 +9,8 @@
  * without creating a duplicate.
  */
 
+import { versionedAsset } from '../versioning/asset-version.js';
+
 /**
  * Map of feature view names to their CSS file paths relative to styles/.
  * Cascade order MUST match the original styles.css feature import order.
@@ -46,7 +48,7 @@ export function injectFeatureCSS(featureName) {
 
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = `./styles/${cssPath}?v=20260519-project-card-polish`;
+  link.href = versionedAsset(`./styles/${cssPath}`);
   link.setAttribute("data-feature-css", featureName);
 
   document.head.appendChild(link);

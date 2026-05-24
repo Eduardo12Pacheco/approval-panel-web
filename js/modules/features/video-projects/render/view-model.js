@@ -2,11 +2,11 @@ import {
   isBlockedImageCandidate,
   orderCandidatesByQuality,
 } from '../domain/image-candidates.js';
-import { getStatusLabel } from '../domain/status-labels.js?v=20260519-project-card-polish';
+import { getStatusLabel } from '../domain/status-labels.js';
 import { resolveVideoProjectTitle } from '../domain/project-identity.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';
-import { mergeDerivedParagraphBoundaryMetadata } from '../controller/editor-state-persistence.js?v=20260521-whosh-sfx';
+import { mergeDerivedParagraphBoundaryMetadata } from '../controller/editor-state-persistence.js';
 
 const EDITOR_PHASES = ['preparing', 'preview_rendering', 'preview_ready', 'editing_dirty', 'final_rendering', 'final_ready', 'error'];
 const EDITOR_SHELL_PHASES = ['preview_ready', 'editing_dirty', 'final_ready', 'error'];

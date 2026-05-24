@@ -1,6 +1,6 @@
 import { findProjectVideoAsset } from '../domain/video-assets.js';
 import { resolveVideoSelectorOpenAction, resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
-import { syncVideoSelectorPreviewLayers } from './preview-lifecycle.js?v=20260520-whip-bugfix';
+import { syncVideoSelectorPreviewLayers } from './preview-lifecycle.js';
 
 function updateVideoSelectorPreviewToggle(button, playing) {
   if (!button) return;

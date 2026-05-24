@@ -1,9 +1,9 @@
-import { buildSubtitleControllerContext } from './controller/context.js?v=20260524-subtitles-controls';
-import { createSubtitlePreviewPlayer } from './controller/preview-player.js?v=20260524-subtitles-controls';
-import { createSubtitleRenderCommands } from './controller/render-commands.js?v=20260524-subtitles-controls';
-import { createSubtitleSessionController } from './controller/session.js?v=20260524-subtitles-controls';
-import { createSubtitleTableEditor } from './controller/table-editor.js?v=20260524-subtitles-controls';
-import { createSubtitleWorkflowRenderer } from './controller/render-workflow.js?v=20260524-subtitles-controls';
+import { buildSubtitleControllerContext } from './controller/context.js';
+import { createSubtitlePreviewPlayer } from './controller/preview-player.js';
+import { createSubtitleRenderCommands } from './controller/render-commands.js';
+import { createSubtitleSessionController } from './controller/session.js';
+import { createSubtitleTableEditor } from './controller/table-editor.js';
+import { createSubtitleWorkflowRenderer } from './controller/render-workflow.js';
 
 export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser = globalThis }) {
   const ctx = buildSubtitleControllerContext({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser });

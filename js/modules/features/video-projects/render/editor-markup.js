@@ -3,7 +3,7 @@ import {
   buildEditorDetailRailViewModel,
   buildEditorRowsTableViewModel,
   buildPreviewTimelineViewModel,
-} from './editor-view-model.js?v=20260520-whip-bugfix';
+} from './editor-view-model.js';
 import { buildEditorEffectTabs } from './editor-effect-tabs.js';
 
 export function buildPreviewTimeline(rows = [], selectedRowId = null, { totalDurationSeconds } = {}) {

@@ -1,4 +1,4 @@
-import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js?v=20260521-settings-guard';
+import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js';
 
 function trimTrailingSlash(value) {
   return (value || '').toString().trim().replace(/\/+$/, '');

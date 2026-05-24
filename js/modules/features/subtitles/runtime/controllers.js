@@ -19,7 +19,7 @@ import {
   resolveSubtitlesModeRuntime,
   resolveSubtitleProgressPercentRuntime,
   validateSubtitleTimingPatchRuntime,
-} from './services.js?v=20260524-subtitles-controls';
+} from './services.js';
 import {
   buildSubtitleSelectOptionsMarkupRuntime,
   buildSubtitleSessionHistoryMarkupRuntime,
@@ -31,7 +31,7 @@ import {
   normalizeSubtitleMetaValueRuntime,
   resolveSubtitleHistoryToneRuntime,
   resolveSubtitlePreviewDurationMsRuntime,
-} from './presentation.js?v=20260524-subtitles-controls';
+} from './presentation.js';
 
 export {
   buildSubtitleCueMarkersRuntime,

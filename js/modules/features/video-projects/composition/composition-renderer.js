@@ -25,9 +25,9 @@ import {
   resolveZoomRange,
   shouldChromaKeyLogo,
   syncManagedVideoElement,
-} from './renderer/index.js?v=20260520-newspaper-polish';
+} from './renderer/index.js';
 
-export { applyWhipOverlayLayers, buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, buildWhipPreviewEvents, clearManagedVideoElement, createWhipSfxScheduler, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, resolveWhipPreviewFrame, secondsToFrame, syncManagedVideoElement } from './renderer/index.js?v=20260520-newspaper-polish';
+export { applyWhipOverlayLayers, buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, buildWhipPreviewEvents, clearManagedVideoElement, createWhipSfxScheduler, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, resolveWhipPreviewFrame, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the

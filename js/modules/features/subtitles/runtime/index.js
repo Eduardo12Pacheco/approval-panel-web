@@ -1,4 +1,4 @@
-import { createSubtitlesRuntimeControllers } from './controllers.js?v=20260524-subtitles-controls';
+import { createSubtitlesRuntimeControllers } from './controllers.js';
 
 export {
   buildSubtitleCueMarkersRuntime,
@@ -30,13 +30,13 @@ export {
   resolveSubtitlesModeRuntime,
   resolveSubtitleProgressPercentRuntime,
   validateSubtitleTimingPatchRuntime,
-} from './controllers.js?v=20260524-subtitles-controls';
+} from './controllers.js';
 
 export {
   createEmptySubtitleAnalyzeMetadata,
   createRemoteSubtitleSeedRows,
   createRemoteSubtitlesState,
-} from './state.js?v=20260524-subtitles-controls';
+} from './state.js';
 
 export function createSubtitlesRuntime({ hooks }) {
   return createSubtitlesRuntimeControllers({ hooks });

@@ -1,4 +1,4 @@
-import { bootApp } from './app-shell.js?v=20260524-subtitles-controls';
+import { bootApp } from './app-shell.js';
 
 export const EVENT_BINDING_ROUTE_MAP = {
   approval: ['searchInput', 'countryFilter', 'sourcesFilter', 'cards', 'queueDialog'],

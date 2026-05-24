@@ -13,7 +13,7 @@ import { createEditorStatePersistence, setVideoProjectStep } from './editor-stat
 import { createGlobalAudioCommands } from './audio-commands.js';
 import { createPreviewExportCommands } from './preview-export-commands.js';
 import { createProjectLoadingCommands } from './project-loading.js';
-import { createRowCommands } from './row-commands.js?v=20260520-whip-bugfix';
+import { createRowCommands } from './row-commands.js';
 import { createEditorUndoManager } from './undo-manager.js';
 
 const SAVE_DEBOUNCE_MS = 400;

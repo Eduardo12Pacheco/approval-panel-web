@@ -21,4 +21,5 @@ def test_cloudflare_pages_headers_revalidate_html_and_app_code_without_global_ca
     assert "/\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
     assert "/js/main.js\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
     assert "/js/modules/**/*.js\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
+    assert "/styles/**/*.css\n  Cache-Control: no-cache, max-age=0, must-revalidate" in source
     assert "max-age=604800" not in source

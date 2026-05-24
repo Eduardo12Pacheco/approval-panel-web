@@ -4,7 +4,7 @@ import {
   formatSubtitleDisplayTimeRuntime,
   pickActiveSubtitleCueRuntime,
   resolveSubtitleTimelineSeekMsRuntime,
-} from '../runtime/index.js?v=20260524-subtitles-controls';
+} from '../runtime/index.js';
 
 export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
   const { state, el, api, URLImpl, windowRef } = ctx;

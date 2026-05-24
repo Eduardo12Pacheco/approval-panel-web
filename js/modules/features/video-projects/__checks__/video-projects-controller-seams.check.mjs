@@ -12,7 +12,7 @@ import { createProjectLoadingCommands } from '../controller/project-loading.js';
 import { createEditorStatePersistence, hydrateSelectedProjectState } from '../controller/editor-state-persistence.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { createPreviewExportCommands } from '../controller/preview-export-commands.js';
-import { mergeLocalEditorRowPatch as mergeRowPatchFromSplitModule } from '../controller/row-commands.js?v=20260520-newspaper-effect';
+import { mergeLocalEditorRowPatch as mergeRowPatchFromSplitModule } from '../controller/row-commands.js';
 import { hydrateProjectListCards } from '../events/project-list-events.js';
 
 const EXPECTED_FEATURE_API = [

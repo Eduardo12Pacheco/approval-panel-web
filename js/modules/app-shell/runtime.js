@@ -6,7 +6,8 @@ import {
   resolveServiceConfig,
   shouldSkipApprovalBackgroundRefresh,
   shouldSkipApprovalInitialBootRefresh,
-} from '../core/state/app-store.js?v=20260521-settings-guard';
+} from '../core/state/app-store.js';
+import { versionedModule } from '../core/versioning/asset-version.js';
 import {
   clearSessionStatus,
   isValidCredentials,
@@ -29,7 +30,7 @@ let _renderSelectedVideoProjectView = null;
 let _updateSelectedVideoProjectCompositionPreviewView = null;
 async function _ensureVideoProjectsRender() {
   if (_renderVideoProjectsListView) return;
-    const mod = await import('../features/video-projects/render.js?v=20260520-whip-bugfix');
+    const mod = await import(versionedModule('../features/video-projects/render.js', import.meta.url));
   _renderVideoProjectsListView = mod.renderVideoProjectsListView;
   _renderSelectedVideoProjectView = mod.renderSelectedVideoProjectView;
   _updateSelectedVideoProjectCompositionPreviewView = mod.updateSelectedVideoProjectCompositionPreview;
@@ -41,7 +42,7 @@ function updateSelectedVideoProjectCompositionPreviewView(...args) { return _upd
 let _audioRuntime = null;
 async function _ensureAudioRuntime() {
   if (_audioRuntime) return _audioRuntime;
-  _audioRuntime = await import('../features/audio/runtime/index.js');
+  _audioRuntime = await import(versionedModule('../features/audio/runtime/index.js', import.meta.url));
   return _audioRuntime;
 }
 function getAudioStatusClassRuntime(...args) { return _audioRuntime?.getAudioStatusClassRuntime?.(...args); }
@@ -49,11 +50,11 @@ function getAudioStatusLabelRuntime(...args) { return _audioRuntime?.getAudioSta
 function isTerminalAudioStatus(...args) { return _audioRuntime?.isTerminalAudioStatus?.(...args); }
 function normalizeAudioProgressPercent(...args) { return _audioRuntime?.normalizeAudioProgressPercent?.(...args); }
 // Parity guard tokens: ./features/subtitles/runtime/index.js resolveSubtitleProgressPercentRuntime
-import { createSettingsController } from './settings.js?v=20260521-settings-guard';
-import { createAppShellComposition } from './composition.js?v=20260521-settings-guard';
+import { createSettingsController } from './settings.js';
+import { createAppShellComposition } from './composition.js';
 import { createAppShellLifecycle } from './lifecycle.js';
 import { bindShellEvents } from './events/index.js';
-import { bindScriptEvents } from './events/scripts.js?v=20260519-project-card-polish';
+import { bindScriptEvents } from './events/scripts.js';
 import { bindAudioEvents } from './events/audio.js';
 import { bindSubtitlesEvents } from './events/subtitles.js';
 import { bindApprovalDialogEvents } from './events/approval-dialog.js';

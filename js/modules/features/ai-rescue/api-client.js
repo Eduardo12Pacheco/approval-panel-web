@@ -1,4 +1,4 @@
-import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js?v=20260521-settings-guard';
+import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js';
 
 const REMOTE_LOCAL_SERVICE_MESSAGE = 'AI Rescue local no está disponible desde este dominio. Configurá Channel Monitor URL en settings con una URL pública o usá el panel desde localhost.';
 

@@ -3,7 +3,7 @@ import {
   hydrateSettingsFormValues,
   mergeSettingsForSave,
   saveSettingsToStorage,
-} from '../core/state/app-store.js?v=20260521-settings-guard';
+} from '../core/state/app-store.js';
 
 export function createSettingsController({
   state,

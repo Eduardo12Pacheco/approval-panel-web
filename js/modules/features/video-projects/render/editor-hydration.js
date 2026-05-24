@@ -2,7 +2,7 @@ import { findMotionPreset } from '../domain/motion-presets.js';
 import { shouldHandleEditorUndoKey } from '../controller/undo-manager.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
-import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js?v=20260520-whip-bugfix';
+import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js';
 import { hydrateVideoSelectorControls } from './video-selector-hydration.js';
 
 const EDITOR_UNDO_CLEANUP_KEY = '__videoProjectsEditorUndoCleanup';

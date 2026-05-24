@@ -16,6 +16,9 @@
 /styles/*.css
   Cache-Control: no-cache, max-age=0, must-revalidate
 
+/styles/**/*.css
+  Cache-Control: no-cache, max-age=0, must-revalidate
+
 /js/main.js
   Cache-Control: no-cache, max-age=0, must-revalidate
 

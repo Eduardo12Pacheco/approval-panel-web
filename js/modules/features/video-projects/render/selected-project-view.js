@@ -1,9 +1,9 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
-import { buildSelectedVideoProjectViewModel } from './view-model.js?v=20260520-whip-bugfix';
+import { buildSelectedVideoProjectViewModel } from './view-model.js';
 import { buildProjectPhaseText, buildSetupPhaseContent, hydrateSetupPhaseInteractions } from './setup-view.js';
-import { buildEditorPhaseContent } from './editor-shell-view.js?v=20260520-whip-bugfix';
-import { captureCompositionPreviewSeekTime, destroyCompositionRenderer } from './preview-lifecycle.js?v=20260520-whip-bugfix';
-import { hydrateEditorPhaseInteractions } from './editor-hydration.js?v=20260520-whip-bugfix';
+import { buildEditorPhaseContent } from './editor-shell-view.js';
+import { captureCompositionPreviewSeekTime, destroyCompositionRenderer } from './preview-lifecycle.js';
+import { hydrateEditorPhaseInteractions } from './editor-hydration.js';
 
 export function renderSelectedVideoProjectView({
   state,
