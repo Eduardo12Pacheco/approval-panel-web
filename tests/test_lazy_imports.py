@@ -207,6 +207,13 @@ class TestNavigationGuards:
         assert "injectViewTemplate" in source, \
             "navigation.js must call injectViewTemplate for DOM on-demand"
 
+    def test_lazy_view_templates_are_not_static_boot_imports(self):
+        """Non-approval view templates must stay out of the boot request chain."""
+        source = _read_source(APP_SHELL_DIR / "views" / "navigation.js")
+
+        assert "from './templates/" not in source
+        assert "await import(versionedModule(template.module" in source
+
     def test_dom_selectors_refreshed_after_template_injection(self):
         """Lazy templates must refresh cached selectors after inserting DOM.
 

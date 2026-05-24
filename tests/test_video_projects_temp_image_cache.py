@@ -190,6 +190,13 @@ def test_video_project_list_rpc_includes_detail_for_card_thumbnails():
     assert "listVideoProjects: ({ limit = 50 } = {}) => callVideoProjectsRpc({ limit, includeDetail: true })" in source
 
 
+def test_composition_preview_image_cache_has_real_eviction_limit():
+    source = (ROOT / "js" / "modules" / "features" / "video-projects" / "composition" / "composition-renderer.js").read_text(encoding="utf-8")
+
+    assert "const IMAGE_CACHE_MAX_SIZE" in source
+    assert "while (this.#imageCacheOrder.length > IMAGE_CACHE_MAX_SIZE)" in source
+
+
 def test_video_project_card_delete_and_hero_actions_keep_intended_visual_contract():
     scripts_css = (ROOT / "styles" / "features" / "scripts.css").read_text(encoding="utf-8")
     index_css = (ROOT / "styles" / "features" / "video-projects" / "index.css").read_text(encoding="utf-8")

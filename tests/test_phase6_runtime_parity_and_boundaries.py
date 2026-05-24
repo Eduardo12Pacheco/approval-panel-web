@@ -489,6 +489,55 @@ if (toasts[0].length > 100) throw new Error('toast should stay compact');
     assert result.returncode == 0, result.stderr
 
 
+def test_audio_queue_sync_skips_terminal_and_actively_tracked_jobs():
+    script = r"""
+import { createAudioController } from './js/modules/features/audio/controller.js';
+
+const requested = [];
+const state = {
+  settings: { ttsBaseUrl: 'http://localhost:8088' },
+  audioJobId: 'job-active',
+  audioStreamController: { active: true },
+  audioPollingTimer: null,
+  audioJobs: {
+    'job-done': { job_id: 'job-done', status: 'done' },
+    'job-error': { job_id: 'job-error', status: 'error' },
+    'job-active': { job_id: 'job-active', status: 'processing' },
+    'job-processing': { job_id: 'job-processing', status: 'processing' },
+  },
+  audioJobOrder: ['job-done', 'job-error', 'job-active', 'job-processing'],
+  dismissedAudioJobs: new Set(),
+};
+
+const controller = createAudioController({
+  state,
+  el: { audioQueueMeta: { textContent: '' }, audioQueueList: { innerHTML: '', classList: { add() {}, remove() {} } } },
+  api: { post() { throw new Error('not used'); } },
+  ui: { toast() {} },
+  helpers: {
+    escapeHtml(value) { return String(value); },
+    getErrorMessage(err, fallback) { return err?.message || fallback; },
+    resolveTtsGet() {
+      return async (path) => {
+        requested.push(path);
+        return { job_id: path.split('/').pop(), status: 'processing' };
+      };
+    },
+    getBlob() { throw new Error('not used'); },
+  },
+  browser: { clearInterval() {} },
+});
+
+await controller.syncAudioQueueStatuses();
+
+if (JSON.stringify(requested) !== JSON.stringify(['/api/tts/jobs/job-processing'])) {
+  throw new Error(`queue sync requested unnecessary jobs: ${JSON.stringify(requested)}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve_without_false_negative_toast():
     script = r"""
 import { createApprovalFeature, orderApprovalItemsByLowestAvg } from './js/modules/features/approval/index.js';

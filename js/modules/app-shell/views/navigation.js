@@ -1,23 +1,19 @@
 import { normalizeShellView } from '../navigation.js';
 import { injectFeatureCSS, isFeatureCSSInjected } from '../../core/ui/css-loader.js';
 import { injectViewTemplate } from '../../core/ui/dom-injector.js';
+import { versionedModule } from '../../core/versioning/asset-version.js';
 import { getDomSelectors } from '../../shared/dom/selectors.js';
-import { scriptsViewHTML } from './templates/scripts-view.js';
-import { audioViewHTML } from './templates/audio-view.js';
-import { radarViewHTML } from './templates/radar-view.js';
-import { aiRescueViewHTML } from './templates/ai-rescue-view.js';
-import { subtitlesViewHTML } from './templates/subtitles-view.js';
 
 /**
  * Map of normalized view names to their container element IDs and template HTML.
  * These are the views whose DOM was extracted from index.html in Phase 1.
  */
 const VIEW_TO_TEMPLATE = Object.freeze({
-  scripts: { containerId: 'viewScripts', html: scriptsViewHTML },
-  audio: { containerId: 'viewAudio', html: audioViewHTML },
-  radar: { containerId: 'viewRadar', html: radarViewHTML },
-  'ai-rescue': { containerId: 'viewAiRescue', html: aiRescueViewHTML },
-  subtitulos2: { containerId: 'viewSubtitulos2', html: subtitlesViewHTML },
+  scripts: { containerId: 'viewScripts', module: './templates/scripts-view.js', exportName: 'scriptsViewHTML' },
+  audio: { containerId: 'viewAudio', module: './templates/audio-view.js', exportName: 'audioViewHTML' },
+  radar: { containerId: 'viewRadar', module: './templates/radar-view.js', exportName: 'radarViewHTML' },
+  'ai-rescue': { containerId: 'viewAiRescue', module: './templates/ai-rescue-view.js', exportName: 'aiRescueViewHTML' },
+  subtitulos2: { containerId: 'viewSubtitulos2', module: './templates/subtitles-view.js', exportName: 'subtitlesViewHTML' },
 });
 
 /**
@@ -96,7 +92,8 @@ export function createShellNavigationController({
     // 3. Inject DOM template if applicable (approval view DOM stays in index.html)
     const template = VIEW_TO_TEMPLATE[nextView];
     if (template && !_domInjected.has(nextView)) {
-      injectViewTemplate(template.containerId, template.html);
+      const templateModule = await import(versionedModule(template.module, import.meta.url));
+      injectViewTemplate(template.containerId, templateModule[template.exportName]);
       Object.assign(el, getDomSelectors(documentRef));
       _domInjected.add(nextView);
     }

@@ -64,8 +64,17 @@ export function createAudioQueueRenderer({ context, callbacks }) {
     }).join('');
   }
 
+  function shouldPollQueueJob(jobId) {
+    if (state.dismissedAudioJobs.has(jobId)) return false;
+    const job = state.audioJobs[jobId];
+    const status = (job?.status || '').toString().toLowerCase();
+    if (isTerminalAudioStatus(status)) return false;
+    if (state.audioJobId === jobId && (state.audioStreamController || state.audioPollingTimer)) return false;
+    return true;
+  }
+
   async function syncAudioQueueStatuses() {
-    const targetJobIds = state.audioJobOrder.filter((jobId) => !state.dismissedAudioJobs.has(jobId));
+    const targetJobIds = state.audioJobOrder.filter(shouldPollQueueJob);
     if (!targetJobIds.length) return;
 
     const checks = await Promise.all(targetJobIds.map(async (jobId) => {

@@ -33,6 +33,8 @@ export { applyWhipOverlayLayers, buildCompositionDOM, buildVideoSegmentPreviewLa
 // Pure helper modules live under composition/renderer/; this file keeps the
 // public CompositionRenderer lifecycle and playback/audio sequencing stable.
 
+const IMAGE_CACHE_MAX_SIZE = Math.max(PRELOAD_IMAGE_WINDOW_SIZE * 3, 24);
+
 export class CompositionRenderer {
   #container; #fps; #currentTime; #isPlaying; #assetsReady; #rows;
   #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #whipSfx; #rafId; #audioStartToken;
