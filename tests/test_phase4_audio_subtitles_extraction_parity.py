@@ -21,12 +21,14 @@ def test_phase4_modules_exist_for_audio_subtitles_and_tts_api_boundary():
     assert not missing, f"Missing Phase-4 modules: {missing}"
 
 
-def test_tts_api_contract_preserves_headers_and_audio_subtitles_routes():
+def test_tts_api_contract_preserves_gateway_read_headers_and_audio_subtitles_routes():
     source = TTS_API_PATH.read_text(encoding="utf-8")
     assert "createTtsApiClient" in source
 
+    for token in ["resolveTtsSharedReadPath", "resolveSubtitlesSharedReadPath", "buildGatewayReadHeaders"]:
+        assert token in source, f"Missing shared read adapter token: {token}"
     for token in ["x-api-key", "Authorization"]:
-        assert token in source, f"Missing TTS header contract token: {token}"
+        assert token not in source, f"TTS client must not send browser service secret header: {token}"
     assert "x-user-email" not in source
 
     for endpoint in [

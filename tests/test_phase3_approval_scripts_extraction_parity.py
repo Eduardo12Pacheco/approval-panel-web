@@ -22,10 +22,12 @@ def test_phase3_modules_exist_for_approval_scripts_and_selector_facade():
     assert not missing, f"Missing Phase-3 modules: {missing}"
 
 
-def test_approval_api_contract_preserves_secret_header_and_webhook_routes():
+def test_approval_api_contract_preserves_gateway_read_headers_and_webhook_routes():
     source = APPROVAL_API_PATH.read_text(encoding="utf-8")
 
-    assert "x-approval-secret" in source
+    assert "x-approval-secret" not in source
+    assert "resolveApprovalSharedReadPath" in source
+    assert "buildGatewayReadHeaders" in source
     assert "createApprovalApiClient" in source
     assert "get(" in source
     assert "post(" in source

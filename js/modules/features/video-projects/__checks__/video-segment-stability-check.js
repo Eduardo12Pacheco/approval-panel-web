@@ -60,32 +60,18 @@ function createApprovalProject({ rows = [] } = {}) {
   };
 }
 
-async function testStaleSnapshotRetryRefreshesAndReplaysOperation() {
+async function testStaleSnapshotConflictPreservesLocalEditsWithoutRetry() {
   const rows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'old-image.jpg' }];
   const project = createApprovalProject({ rows });
   const calls = [];
   const savedStates = [];
-  const latestSnapshot = {
-    contractVersion: 'approval-editor-service-v1',
-    projectId: 'approval-project-1',
-    snapshotHash: 'hash-latest',
-    rows,
-    audio: {},
-  };
-  const updatedSnapshot = {
-    ...latestSnapshot,
-    snapshotHash: 'hash-video',
-    rows: [{ ...rows[0], selectedAssetId: null, media: { kind: 'video-segment', sourceInSeconds: 2, durationSeconds: 3, sourceVideoSrc: 'clip.mp4' } }],
-  };
   const client = {
-    async snapshot(projectId) {
-      assertEqual(projectId, 'approval-project-1', 'Expected stale recovery to fetch the same project snapshot');
-      return { snapshot: latestSnapshot };
-    },
     async updateSnapshot(projectId, payload) {
       calls.push({ projectId, payload });
-      if (calls.length === 1) throw new Error('stale baseSnapshotHash');
-      return { snapshot: updatedSnapshot };
+      const error = new Error('version conflict');
+      error.code = 'version_conflict';
+      error.details = { expected_version: 2, received_version: 1 };
+      throw error;
     },
   };
   const operations = createApprovalSnapshotOperations({
@@ -96,14 +82,21 @@ async function testStaleSnapshotRetryRefreshesAndReplaysOperation() {
     renderSelectedVideoProject() {},
   });
 
-  await operations.commitApprovalSnapshotOperations(project, [{ type: 'setRowVideoSegment', rowId: 'seg-002', sourceVideoSrc: 'clip.mp4', sourceInSeconds: 2, durationSeconds: 3 }]);
+  let rejected = null;
+  try {
+    await operations.commitApprovalSnapshotOperations(project, [{ type: 'setRowVideoSegment', rowId: 'seg-002', sourceVideoSrc: 'clip.mp4', sourceInSeconds: 2, durationSeconds: 3 }]);
+  } catch (error) {
+    rejected = error;
+  }
 
-  assertEqual(calls.length, 2, 'Expected stale base hash to retry the operation once');
+  assertEqual(rejected?.code, 'version_conflict', 'Expected version conflict to surface to caller');
+  assertEqual(calls.length, 1, 'Expected stale base hash not to auto-retry over newer state');
   assertEqual(calls[0].payload.baseSnapshotHash, 'hash-stale', 'Expected first write to use local stale hash');
-  assertEqual(calls[1].payload.baseSnapshotHash, 'hash-latest', 'Expected retry to use refreshed canonical hash');
-  assertEqual(project.editor_state.snapshot_hash, 'hash-video', 'Expected project canonical hash to update after retry success');
-  assertEqual(project._editorRows[0].media?.kind, 'video-segment', 'Expected canonical editor rows to use video-segment after retry success');
-  assertEqual(savedStates.length, 1, 'Expected one persisted editor state after retry succeeds');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-stale', 'Expected local canonical hash to remain unchanged after conflict');
+  assertEqual(project.editor_state.conflict.code, 'version_conflict', 'Expected conflict state to be exposed on editor_state');
+  assertEqual(project.editor_state.conflict.local_edits_preserved, true, 'Expected conflict state to preserve local edits');
+  assertEqual(project._editorRows[0].selectedAssetId, 'old-image.jpg', 'Expected local editor rows not to be replaced by latest server state');
+  assertEqual(savedStates.length, 0, 'Expected no persisted editor state after conflict');
 }
 
 async function testRejectedVideoSegmentDoesNotToastSuccess() {
@@ -183,7 +176,7 @@ function testSelectorPreviewDoesNotReseekPlayingDecorativeEffects() {
 }
 
 export async function runVideoSegmentStabilityCheck() {
-  await testStaleSnapshotRetryRefreshesAndReplaysOperation();
+  await testStaleSnapshotConflictPreservesLocalEditsWithoutRetry();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
   testSelectorPreviewKeepsDecorativeEffectsAtLocalStart();

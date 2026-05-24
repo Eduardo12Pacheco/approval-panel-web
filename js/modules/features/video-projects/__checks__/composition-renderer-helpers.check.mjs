@@ -132,13 +132,13 @@ test('renderer helper facade exposes newspaper image layout parity semantics', (
   assert.equal(firstFrame.background.objectPosition, 'center top');
   assert.equal(firstFrame.background.filter, 'blur(15px)');
   assert.equal(firstFrame.foreground.objectFit, 'contain');
-  assert.equal(firstFrame.foreground.objectPosition, 'center top');
+  assert.equal(firstFrame.foreground.objectPosition, 'center center', 'newspaper foreground remains vertically centered while the blurred background stays top anchored');
   assert.equal(firstFrame.foreground.height, '100%');
   assert.equal(firstFrame.foreground.transform, 'scale(1)');
-  assert.equal(lastFrame.foreground.transform, 'scale(1.25)');
+  assert.equal(lastFrame.foreground.transform, 'scale(1.5)');
   assert.equal(firstFrame.label.lines.join('\n'), 'RECREACIÓN\nARTÍSTICA');
-  assert.equal(firstFrame.label.fontFamily, 'Versa, VERSA, Inter, Arial, sans-serif');
-  assert.equal(firstFrame.label.fontSize, '30px');
+  assert.equal(firstFrame.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif');
+  assert.equal(firstFrame.label.fontSize, '18px');
 });
 
 test('renderer helper facade preserves video layer planning and managed video sync behavior', () => {
@@ -194,6 +194,8 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
     'composition-layer composition-layer--newspaper-foreground',
     'composition-layer composition-layer--newspaper-label',
     'composition-layer composition-layer--image',
+    'composition-layer composition-layer--whip-previous',
+    'composition-layer composition-layer--whip-next',
     'composition-layer composition-layer--dust',
     'composition-layer composition-layer--dust-fallback',
     'composition-layer composition-layer--logo',
@@ -204,8 +206,8 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
   assert.equal(layers.videoEffect2.src, './assets/effect-layer-02.webm');
   assert.equal(layers.videoEffect1.src, './assets/effect-layer-01.webm');
   assert.match(layers.newspaperBackground.style.cssText, /filter:blur\(15px\)/);
-  assert.match(layers.newspaperLabel.style.cssText, /font-family:Versa, VERSA, Inter, Arial, sans-serif/);
-  assert.match(layers.newspaperLabel.style.cssText, /font-size:30px/);
+  assert.match(layers.newspaperLabel.style.cssText, /font-family:"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif/);
+  assert.match(layers.newspaperLabel.style.cssText, /font-size:18px/);
   assert.equal(layers.outroText.textContent, 'Gracias por mirar');
 });
 

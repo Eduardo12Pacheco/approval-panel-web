@@ -410,6 +410,89 @@ try {
     assert result.returncode == 0, result.stderr
 
 
+def test_server_bootstrap_hydrates_routes_and_preserves_local_ui_preferences():
+    script = r"""
+import { hydrateSettingsFromServerBootstrap } from './js/modules/core/state/app-store.js';
+
+const current = {
+  apiProfileMode: 'legacy',
+  apiOrigin: 'https://stale-api.example.test',
+  serviceOverrides: { n8n: true, tts: true, subtitles: true, radar: true, monitor: true, remotion: true, approvalPipeline: true },
+  baseUrl: 'http://localhost:5678',
+  ttsBaseUrl: 'http://127.0.0.1:8088',
+  subtitlesBaseUrl: 'http://127.0.0.1:8092',
+  transcriptServiceBaseUrl: 'http://127.0.0.1:8765',
+  channelMonitorBaseUrl: 'http://127.0.0.1:8775',
+  remotionApiUrl: 'http://127.0.0.1:3037',
+  approvalPipelineBaseUrl: 'http://127.0.0.1:3042',
+  brandChannel: 'pelotazo-colombia',
+};
+
+const hydrated = hydrateSettingsFromServerBootstrap(current, {
+  api_origin: 'https://gateway.example.test/',
+  settings_version: 'server-v2',
+  routes: {
+    n8n: '/n8n',
+    tts: '/tts',
+    subtitles: '/subtitles',
+    radar: '/radar',
+    monitor: '/monitor',
+    remotion: '/remotion',
+    approval: '/approval',
+  },
+}, { locationLike: { hostname: 'approval-panel-web.pages.dev' } });
+
+if (hydrated.apiProfileMode !== 'unified') throw new Error(`expected unified mode, got ${hydrated.apiProfileMode}`);
+if (hydrated.apiOrigin !== 'https://gateway.example.test') throw new Error(`expected server api origin, got ${hydrated.apiOrigin}`);
+for (const service of ['n8n', 'tts', 'subtitles', 'radar', 'monitor', 'remotion']) {
+  if (hydrated.serviceOverrides[service] !== false) throw new Error(`${service} should be server-routed`);
+}
+if (hydrated.approvalPipelineBaseUrl !== 'https://gateway.example.test/approval') {
+  throw new Error(`approval route drift: ${hydrated.approvalPipelineBaseUrl}`);
+}
+if (hydrated.brandChannel !== 'pelotazo-colombia') throw new Error('local brand channel preference must be preserved');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_server_bootstrap_ignores_dangerous_remote_local_origins_but_keeps_local_dev_origins():
+    script = r"""
+import { hydrateSettingsFromServerBootstrap, resolveServiceConfig } from './js/modules/core/state/app-store.js';
+
+const current = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://stale-api.example.test',
+  serviceOverrides: { n8n: true, tts: true, subtitles: true, radar: true, monitor: true, remotion: true, approvalPipeline: true },
+  baseUrl: 'http://localhost:5678',
+  ttsBaseUrl: 'http://127.0.0.1:8088',
+  subtitlesBaseUrl: 'http://127.0.0.1:8092',
+  transcriptServiceBaseUrl: 'http://127.0.0.1:8765',
+  channelMonitorBaseUrl: 'http://127.0.0.1:8775',
+  remotionApiUrl: 'http://127.0.0.1:3037',
+};
+
+const bootstrap = { api_origin: 'https://api.automatizacionedun8n.me' };
+const remote = hydrateSettingsFromServerBootstrap(current, bootstrap, { locationLike: { hostname: 'approval-panel-web.pages.dev' } });
+const local = hydrateSettingsFromServerBootstrap(current, bootstrap, { locationLike: { hostname: 'localhost' } });
+
+if (resolveServiceConfig(remote, 'tts').baseUrl !== 'https://api.automatizacionedun8n.me/tts') {
+  throw new Error(`remote stale local tts origin should be ignored, got ${resolveServiceConfig(remote, 'tts').baseUrl}`);
+}
+if (resolveServiceConfig(remote, 'monitor').baseUrl !== 'https://api.automatizacionedun8n.me/monitor') {
+  throw new Error(`remote stale local monitor origin should be ignored, got ${resolveServiceConfig(remote, 'monitor').baseUrl}`);
+}
+if (resolveServiceConfig(local, 'tts').baseUrl !== 'http://127.0.0.1:8088') {
+  throw new Error(`local operator tts origin should be preserved, got ${resolveServiceConfig(local, 'tts').baseUrl}`);
+}
+if (resolveServiceConfig(local, 'monitor').baseUrl !== 'http://127.0.0.1:8775') {
+  throw new Error(`local operator monitor origin should be preserved, got ${resolveServiceConfig(local, 'monitor').baseUrl}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_saving_simple_profile_preserves_existing_service_overrides():
     script = r"""
 import { defaultSettingsFactory, mergeSettingsForSave } from './js/modules/core/state/app-store.js';

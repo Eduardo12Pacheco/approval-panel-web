@@ -10,7 +10,10 @@ import {
 import { versionedModule } from '../core/versioning/asset-version.js';
 import {
   clearSessionStatus,
+  hydrateGatewaySession,
   isValidCredentials,
+  loginGatewaySession,
+  logoutGatewaySession,
   persistSessionStatus,
   readSessionStatus,
 } from '../core/auth/session-gate.js';
@@ -244,11 +247,13 @@ const lifecycle = createAppShellLifecycle({
   _visited,
 });
 
-export function bootApp() {
+export async function bootApp() {
+  await hydrateGatewaySession().catch(() => null);
   lifecycle.bootApp();
 }
 
-export function bootCompatibilityShell() {
+export async function bootCompatibilityShell() {
+  await hydrateGatewaySession().catch(() => null);
   lifecycle.bootCompatibilityShell();
 }
 
@@ -263,7 +268,9 @@ function bindEvents() {
       authUser: AUTH_USER,
       authPass: AUTH_PASS,
       isValidCredentials,
+      loginGatewaySession,
       persistSessionStatus: () => persistSessionStatus({ storage: localStorage, cookieJar: document, sessionKey }),
+      logoutGatewaySession,
       clearSessionStatus: () => clearSessionStatus({ storage: localStorage, cookieJar: document, sessionKey }),
       setView,
       refreshAll,
@@ -345,7 +352,9 @@ function legacyBindEvents() {
     authUser: AUTH_USER,
     authPass: AUTH_PASS,
     isValidCredentials,
+    loginGatewaySession,
     persistSessionStatus: () => persistSessionStatus({ storage: localStorage, cookieJar: document, sessionKey }),
+    logoutGatewaySession,
     clearSessionStatus: () => clearSessionStatus({ storage: localStorage, cookieJar: document, sessionKey }),
     setView,
     refreshAll,

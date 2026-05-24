@@ -1,9 +1,20 @@
+import { getShellVersion } from '../../../core/http/shared-read-models.js';
+
 export function createApprovalPipelineClient({ fetchImpl = fetch, resolveBaseUrl } = {}) {
   const ensureBaseUrl = () => {
     const base = (typeof resolveBaseUrl === 'function' ? resolveBaseUrl() : '').toString().trim();
     if (!base) throw new Error('Approval pipeline URL no configurada');
     return base.replace(/\/+$/, '');
   };
+
+  function createApprovalPipelineError(payload = {}, response) {
+    const errorPayload = payload?.error && typeof payload.error === 'object' ? payload.error : payload;
+    const error = new Error(errorPayload?.message || payload?.message || `Approval Pipeline ${response.status}`);
+    error.code = errorPayload?.code || payload?.code || '';
+    error.details = errorPayload?.details || payload?.details || null;
+    error.status = response.status;
+    return error;
+  }
 
   const jsonFetch = async (endpoint, { method = 'GET', body } = {}) => {
     const baseUrl = ensureBaseUrl();
@@ -12,7 +23,11 @@ export function createApprovalPipelineClient({ fetchImpl = fetch, resolveBaseUrl
     try {
       response = await fetchImpl(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(getShellVersion() ? { 'x-control-panel-shell-version': getShellVersion() } : {}),
+        },
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch (error) {
@@ -21,7 +36,7 @@ export function createApprovalPipelineClient({ fetchImpl = fetch, resolveBaseUrl
     }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || payload?.ok === false) {
-      throw new Error(payload?.error?.message || payload?.message || `Approval Pipeline ${response.status}`);
+      throw createApprovalPipelineError(payload, response);
     }
     return payload?.data || payload;
   };

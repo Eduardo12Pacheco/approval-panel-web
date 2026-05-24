@@ -13,6 +13,11 @@ import {
   encodeStoragePath,
   md5ProjectStorageKey,
 } from './storage-paths.js';
+import {
+  buildGatewayReadHeaders,
+  resolveSharedReadModelUrl,
+  resolveVideoProjectsSharedReadPath,
+} from '../../../core/http/shared-read-models.js';
 
 const VIDEO_PROJECTS_RPC = '/rest/v1/rpc/get_video_edit_projects';
 const SAVE_AUDIO_RPC = '/rest/v1/rpc/save_video_project_audio';
@@ -52,20 +57,24 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
   };
 
   async function callVideoProjectsRpc(payload = {}) {
-    const response = await fetchImpl(`${SUPABASE_URL}${VIDEO_PROJECTS_RPC}`, {
-      method: 'POST',
-      headers: rpcHeaders,
-      body: JSON.stringify(normalizeRpcPayload(payload)),
+    const sharedReadPath = resolveVideoProjectsSharedReadPath({
+      draftId: payload.draftId,
+      limit: payload.limit,
+    });
+    const sharedResponse = await fetchImpl(resolveSharedReadModelUrl(sharedReadPath), {
+      method: 'GET',
+      headers: buildGatewayReadHeaders(),
+      credentials: 'include',
     });
 
-    const data = await parseResponseBody(response);
+    const sharedData = await parseResponseBody(sharedResponse);
 
-    if (!response.ok) {
-      const message = responseErrorMessage(data, `Video projects RPC ${response.status}`);
+    if (!sharedResponse.ok) {
+      const message = responseErrorMessage(sharedData, `Video projects read model ${sharedResponse.status}`);
       throw new Error(message);
     }
 
-    return data;
+    return sharedData;
   }
 
   async function saveVideoProjectSelections({ draftId, selectedImageIds = [] } = {}) {

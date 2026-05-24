@@ -54,6 +54,8 @@ def test_approval_api_runtime_contract_headers_payload_and_error_paths():
     script = r"""
 import { createApprovalApiClient } from './js/modules/core/http/approval-api.js';
 
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { app_version: '2026.05.24.1' };
+
 const calls = [];
 const api = createApprovalApiClient({
   getSettings: () => ({ baseUrl: 'http://localhost:5678', secret: 's3cr3t' }),
@@ -94,15 +96,18 @@ const api = createApprovalApiClient({
 
 await api.get('/webhook/approval/queue/supabase/v2');
 const getCall = calls[0];
-if (getCall.url !== 'http://localhost:5678/webhook/approval/queue/supabase/v2') throw new Error('get url drift');
-if (getCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('get secret header drift');
+if (getCall.url !== '/panel/read-models/approval/queue') throw new Error(`get shared read url drift: ${getCall.url}`);
+if ('x-approval-secret' in getCall.options.headers) throw new Error('get must not send browser approval secret');
+if (getCall.options.credentials !== 'include') throw new Error('get must include gateway session credentials');
+if (getCall.options.headers['x-control-panel-shell-version'] !== '2026.05.24.1') throw new Error('get shell version header drift');
 
 await api.post('/webhook/approval/decision/v2', { cluster_id: 'c-1', action: 'approve' });
 const postCall = calls[1];
 if (postCall.url !== 'http://localhost:5678/webhook/approval/decision/v2') throw new Error('url drift');
 if (postCall.options.method !== 'POST') throw new Error('method drift');
 if (postCall.options.headers['Content-Type'] !== 'application/json') throw new Error('content-type drift');
-if (postCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('secret header drift');
+if ('x-approval-secret' in postCall.options.headers) throw new Error('post must not send browser approval secret');
+if (postCall.options.credentials !== 'include') throw new Error('post must include gateway session credentials');
 
 const body = JSON.parse(postCall.options.body);
 if (body.cluster_id !== 'c-1' || body.action !== 'approve') throw new Error('payload drift');
@@ -110,7 +115,8 @@ if (body.cluster_id !== 'c-1' || body.action !== 'approve') throw new Error('pay
 const blobResult = await api.postBlob('/download-docx', { draft_id: 'draft-1' });
 const blobCall = calls[2];
 if (blobCall.options.method !== 'POST') throw new Error('postBlob method drift');
-if (blobCall.options.headers['x-approval-secret'] !== 's3cr3t') throw new Error('postBlob secret header drift');
+if ('x-approval-secret' in blobCall.options.headers) throw new Error('postBlob must not send browser approval secret');
+if (blobCall.options.credentials !== 'include') throw new Error('postBlob must include gateway session credentials');
 if (blobResult.blob.kind !== 'docx-blob') throw new Error('postBlob blob drift');
 if (blobResult.filename !== '') throw new Error('postBlob should tolerate missing Content-Disposition');
 
@@ -138,6 +144,8 @@ def test_tts_api_runtime_contract_headers_and_negative_auth_paths():
     script = r"""
 import { createTtsApiClient } from './js/modules/core/http/tts-api.js';
 
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { app_version: '2026.05.24.1' };
+
 const calls = [];
 const api = createTtsApiClient({
   getSettings: () => ({
@@ -157,15 +165,18 @@ const api = createTtsApiClient({
 await api.post('/api/tts/jobs', { text: 'hola', voice_profile: 'balanced_default' });
 const postCall = calls[0];
 if (postCall.url !== 'http://localhost:8088/api/tts/jobs') throw new Error('tts url drift');
-if (postCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('x-api-key drift');
-if (!String(postCall.options.headers['Authorization'] || '').startsWith('Basic ')) throw new Error('basic auth drift');
+if ('x-api-key' in postCall.options.headers) throw new Error('tts must not send browser x-api-key');
+if ('Authorization' in postCall.options.headers) throw new Error('tts must not send browser basic auth');
 if ('x-user-email' in postCall.options.headers) throw new Error('x-user-email should not be sent');
+if (postCall.options.credentials !== 'include') throw new Error('tts must include gateway session credentials');
+if (postCall.options.headers['x-control-panel-shell-version'] !== '2026.05.24.1') throw new Error('tts shell version header drift');
 
 await api.deleteSubtitleSession('session-1');
 const deleteCall = calls[1];
 if (deleteCall.url !== 'http://127.0.0.1:8092/api/subtitles/sessions/session-1') throw new Error('subtitle delete url drift');
 if (deleteCall.options.method !== 'DELETE') throw new Error('subtitle delete method drift');
-if (deleteCall.options.headers['x-api-key'] !== 'api-key-1') throw new Error('subtitle universal auth drift');
+if ('x-api-key' in deleteCall.options.headers) throw new Error('subtitle must not send browser x-api-key');
+if (deleteCall.options.credentials !== 'include') throw new Error('subtitle must include gateway session credentials');
 
 const apiMissingCreds = createTtsApiClient({
   getSettings: () => ({ ttsBaseUrl: 'http://localhost:8088', sharedApiKey: 'k', sharedBasicUser: '', sharedBasicPass: '' }),
@@ -176,9 +187,9 @@ let missingCredsCaught = false;
 try {
   await apiMissingCreds.get('/api/tts/jobs/x');
 } catch (err) {
-  missingCredsCaught = String(err?.message || '').includes('Configurá usuario y contraseña de Audio API');
+  missingCredsCaught = String(err?.message || '').includes('Configuración de Audio API incompleta');
 }
-if (!missingCredsCaught) throw new Error('missing creds path not enforced');
+if (missingCredsCaught) throw new Error('gateway-authenticated TTS must not require browser basic credentials');
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
@@ -190,6 +201,8 @@ import { createApprovalApiClient } from './js/modules/core/http/approval-api.js'
 import { createTtsApiClient } from './js/modules/core/http/tts-api.js';
 import { createRadarApiClient } from './js/modules/features/radar/api-client.js';
 import { createVideoProjectsApiClient } from './js/modules/features/video-projects/data/api.js';
+
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { app_version: '2026.05.24.1' };
 
 const settings = {
   apiProfileMode: 'unified',
@@ -222,17 +235,19 @@ const fetchImpl = async (url, options = {}) => {
 const approval = createApprovalApiClient({ getSettings: () => settings, fetchImpl });
 await approval.post('/webhook/approval/decision/supabase/v2', { cluster_id: 'c-1' });
 if (calls[0].url !== 'https://api.example.test/n8n/webhook/approval/decision/supabase/v2') throw new Error(`approval URL drift: ${calls[0].url}`);
-if (calls[0].options.headers['x-approval-secret'] !== 'approval-secret') throw new Error('approval secret header drift');
+if ('x-approval-secret' in calls[0].options.headers) throw new Error('approval browser secret header drift');
+if (calls[0].options.credentials !== 'include') throw new Error('approval credentials drift');
 
 const tts = createTtsApiClient({ getSettings: () => settings, fetchImpl, btoaImpl: (value) => Buffer.from(value).toString('base64') });
 await tts.post('/api/tts/jobs', { text: 'hola' });
 if (calls[1].url !== 'https://api.example.test/tts/api/tts/jobs') throw new Error(`tts URL drift: ${calls[1].url}`);
-if (calls[1].options.headers['x-api-key'] !== 'shared-key') throw new Error('tts shared api key drift');
-if (!String(calls[1].options.headers.Authorization || '').startsWith('Basic ')) throw new Error('tts shared basic auth drift');
+if ('x-api-key' in calls[1].options.headers) throw new Error('tts browser api key drift');
+if ('Authorization' in calls[1].options.headers) throw new Error('tts browser basic auth drift');
+if (calls[1].options.credentials !== 'include') throw new Error('tts credentials drift');
 
 await tts.deleteSubtitleSession('session-1');
 if (calls[2].url !== 'https://api.example.test/subtitles/api/subtitles/sessions/session-1') throw new Error(`subtitles URL drift: ${calls[2].url}`);
-if (calls[2].options.headers['x-api-key'] !== 'shared-key') throw new Error('subtitles shared api key drift');
+if ('x-api-key' in calls[2].options.headers) throw new Error('subtitles browser api key drift');
 
 const radar = createRadarApiClient({ getSettings: () => settings, fetchImpl, locationLike: { hostname: 'approval-panel-web.pages.dev' } });
 await radar.health();
@@ -243,6 +258,94 @@ const videoApi = createVideoProjectsApiClient({ fetchImpl });
 await videoApi.createManualVideoProject({ settings, payload: { title: 'T' } });
 if (calls[4].url !== 'https://api.example.test/n8n/webhook/video-projects/manual-create/v1') throw new Error(`manual video project URL drift: ${calls[4].url}`);
 if (calls[4].options.headers['x-approval-secret'] !== 'approval-secret') throw new Error('manual video project secret drift');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_shared_read_model_adapters_hydrate_approval_scripts_audio_and_subtitles_from_bff():
+    script = r"""
+import { createApprovalApiClient } from './js/modules/core/http/approval-api.js';
+import { createTtsApiClient } from './js/modules/core/http/tts-api.js';
+
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { app_version: '2026.05.24.3' };
+
+const settings = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test',
+  serviceOverrides: { n8n: false, tts: false, subtitles: false },
+};
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  if (url.endsWith('/panel/read-models/approval/queue')) return { ok: true, status: 200, text: async () => JSON.stringify({ items: [{ queue_id: 'queue-shared-1', estado_queue: 'processing' }] }) };
+  if (url.endsWith('/panel/read-models/scripts/drafts')) return { ok: true, status: 200, text: async () => JSON.stringify({ items: [{ draft_id: 'draft-shared-1' }] }) };
+  if (url.endsWith('/panel/read-models/audio/jobs')) return { ok: true, status: 200, text: async () => JSON.stringify({ items: [{ job_id: 'audio-shared-1', status: 'queued' }] }) };
+  if (url.endsWith('/panel/read-models/audio/jobs/audio-shared-1')) return { ok: true, status: 200, text: async () => JSON.stringify({ job_id: 'audio-shared-1', status: 'done' }) };
+  if (url.endsWith('/panel/read-models/subtitles/sessions?limit=20')) return { ok: true, status: 200, text: async () => JSON.stringify({ items: [{ id: 'sub-shared-1', status: 'editing' }] }) };
+  if (url.endsWith('/panel/read-models/subtitles/sessions/sub-shared-1')) return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub-shared-1', status: 'editing', preview: { duration_ms: 1000 } }) };
+  if (url.endsWith('/panel/read-models/subtitles/sessions/sub-shared-1/segments')) return { ok: true, status: 200, text: async () => JSON.stringify({ version: 2, segments: [{ id: 'seg-1', start_ms: 0, end_ms: 1000, text: 'Hola' }] }) };
+  throw new Error(`unexpected shared read URL ${url}`);
+};
+
+const approval = createApprovalApiClient({ getSettings: () => settings, fetchImpl });
+const queue = await approval.get('/webhook/approval/queue/supabase/v2');
+const drafts = await approval.get('/webhook/mvp-script-drafts-pending/supabase/v2');
+const tts = createTtsApiClient({ getSettings: () => settings, fetchImpl, btoaImpl: (value) => Buffer.from(value).toString('base64') });
+const audioJobs = await tts.get('/api/tts/jobs');
+const audioJob = await tts.get('/api/tts/jobs/audio-shared-1');
+const sessions = await tts.listSubtitleSessions(20);
+const session = await tts.getSubtitleSession('sub-shared-1');
+const segments = await tts.getSubtitleSegments('sub-shared-1');
+
+if (queue.items[0].queue_id !== 'queue-shared-1') throw new Error('approval queue read model drift');
+if (drafts.items[0].draft_id !== 'draft-shared-1') throw new Error('script drafts read model drift');
+if (audioJobs.items[0].job_id !== 'audio-shared-1') throw new Error('audio jobs read model drift');
+if (audioJob.status !== 'done') throw new Error('audio job status read model drift');
+if (sessions.items[0].id !== 'sub-shared-1') throw new Error('subtitle sessions read model drift');
+if (session.preview.duration_ms !== 1000) throw new Error('subtitle detail read model drift');
+if (segments.version !== 2 || segments.segments[0].text !== 'Hola') throw new Error('subtitle segments read model drift');
+
+for (const call of calls) {
+  if (!call.url.startsWith('https://api.example.test/')) throw new Error(`shared read did not use API origin: ${call.url}`);
+  if (call.options.credentials !== 'include') throw new Error(`shared read missing credentials for ${call.url}`);
+  if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error(`shared read missing shell version for ${call.url}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_video_projects_read_model_hydrates_list_and_detail_from_bff_without_supabase_read_secret_headers():
+    script = r"""
+import { createVideoProjectsApiClient } from './js/modules/features/video-projects/data/api.js';
+
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { app_version: '2026.05.24.3' };
+
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  if (url === '/panel/read-models/video-projects?limit=50') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ projects: [{ draft_id: 'video-shared-1', title: 'Shared video' }] }) };
+  }
+  if (url === '/panel/read-models/video-projects/video-shared-1') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ projects: [{ draft_id: 'video-shared-1', editor_state: { brandChannel: 'pelotazo-ecuador' } }] }) };
+  }
+  throw new Error(`unexpected video read URL ${url}`);
+};
+
+const api = createVideoProjectsApiClient({ fetchImpl });
+const list = await api.listVideoProjects({ limit: 50 });
+const detail = await api.getVideoProject('video-shared-1');
+
+if (list.projects[0].draft_id !== 'video-shared-1') throw new Error('video project list read model drift');
+if (detail.projects[0].editor_state.brandChannel !== 'pelotazo-ecuador') throw new Error('video project detail read model drift');
+for (const call of calls) {
+  if (call.options.method !== 'GET') throw new Error(`video read should be GET: ${call.options.method}`);
+  if (call.options.credentials !== 'include') throw new Error('video read missing gateway credentials');
+  if (call.options.headers.apikey || call.options.headers.Authorization) throw new Error('video read must not send Supabase browser headers');
+  if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error('video read missing shell version');
+}
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr

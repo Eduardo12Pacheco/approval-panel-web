@@ -18,6 +18,7 @@ function createContractStore({ projectsRoot }) {
   ensureDir(projectsRoot);
   const projectDir = (projectId) => path.join(projectsRoot, safeProjectId(projectId));
   const snapshotsPath = (projectId) => path.join(projectDir(projectId), "snapshots.json");
+  const leasePath = (projectId) => path.join(projectDir(projectId), "lease.json");
 
   function readSnapshots(projectId) {
     const file = snapshotsPath(projectId);
@@ -33,11 +34,24 @@ function createContractStore({ projectsRoot }) {
   function saveSnapshot(snapshot, extra = {}) {
     const projectId = safeProjectId(snapshot.projectId);
     const snapshots = readSnapshots(projectId);
-    const record = { snapshot, snapshotHash: snapshot.snapshotHash, snapshotId: snapshot.snapshotId, updatedAt: new Date().toISOString(), render: extra.render || snapshot.render || {} };
+    const version = snapshots.length + 1;
+    const record = { snapshot, snapshotHash: snapshot.snapshotHash, snapshotId: snapshot.snapshotId, version, updatedAt: new Date().toISOString(), render: extra.render || snapshot.render || {}, audit: extra.audit || null };
     snapshots.push(record);
     writeSnapshots(projectId, snapshots);
     fs.writeFileSync(path.join(projectDir(projectId), "latest-snapshot.json"), JSON.stringify(record, null, 2));
     return record;
+  }
+
+  function readLease(projectId) {
+    const file = leasePath(projectId);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  }
+
+  function writeLease(projectId, lease) {
+    ensureDir(projectDir(projectId));
+    fs.writeFileSync(leasePath(projectId), JSON.stringify(lease, null, 2));
+    return lease;
   }
 
   function latest(projectId) {
@@ -45,7 +59,7 @@ function createContractStore({ projectsRoot }) {
     return snapshots[snapshots.length - 1] || null;
   }
 
-  return { safeProjectId, projectDir, saveSnapshot, latest, readSnapshots, writeSnapshots };
+  return { safeProjectId, projectDir, saveSnapshot, latest, readSnapshots, writeSnapshots, readLease, writeLease };
 }
 
 module.exports = { createContractStore, safeProjectId };

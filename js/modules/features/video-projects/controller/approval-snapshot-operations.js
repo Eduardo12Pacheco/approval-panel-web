@@ -58,7 +58,25 @@ export function createApprovalSnapshotOperations({
 
   function isStaleBaseSnapshotHashError(error) {
     const message = (error?.message || error?.error?.message || '').toString();
-    return /stale\s+baseSnapshotHash/i.test(message) || (/baseSnapshotHash/i.test(message) && /stale|conflict|409/i.test(message));
+    return error?.code === 'version_conflict' || error?.status === 409 || /stale\s+baseSnapshotHash/i.test(message) || (/baseSnapshotHash/i.test(message) && /stale|conflict|409/i.test(message));
+  }
+
+  function isLeaseHeldError(error) {
+    return error?.code === 'lease_held' || error?.status === 423;
+  }
+
+  function toConflictState(error, localBaseSnapshotHash) {
+    const details = error?.details && typeof error.details === 'object' ? error.details : {};
+    return {
+      code: error?.code || (isLeaseHeldError(error) ? 'lease_held' : 'version_conflict'),
+      message: error?.message || 'Approval editor conflict',
+      local_base_snapshot_hash: localBaseSnapshotHash || '',
+      expected_version: details.expected_version ?? null,
+      received_version: details.received_version ?? null,
+      owner: details.owner || null,
+      expires_at: details.expires_at || '',
+      local_edits_preserved: true,
+    };
   }
 
   function extractSnapshot(payload) {
@@ -82,11 +100,14 @@ export function createApprovalSnapshotOperations({
     try {
       result = await updateWithHash(baseSnapshotHash);
     } catch (err) {
-      if (!isStaleBaseSnapshotHashError(err)) throw err;
-      const latestSnapshot = await fetchLatestApprovalSnapshot(client, projectId);
-      if (!latestSnapshot?.snapshotHash) throw err;
-      applyCanonicalSnapshot(project, latestSnapshot, { dirty: true, phase });
-      result = await updateWithHash(latestSnapshot.snapshotHash);
+      if (!isStaleBaseSnapshotHashError(err) && !isLeaseHeldError(err)) throw err;
+      project.editor_state = normalizeEditorState({
+        ...project.editor_state,
+        phase: 'conflict',
+        dirty: true,
+        conflict: toConflictState(err, baseSnapshotHash),
+      });
+      throw err;
     }
     const snapshot = extractSnapshot(result);
     if (!snapshot) throw new Error('Approval editor service no devolvió snapshot');

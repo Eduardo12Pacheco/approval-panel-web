@@ -44,7 +44,8 @@ function markRenderStatus(store, projectId, latest, renderPatch) {
 function errorStatus(error) {
   if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "invalid_boundary_transition", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
-  if (["stale_snapshot"].includes(error.code)) return 409;
+  if (["stale_snapshot", "version_conflict"].includes(error.code)) return 409;
+  if (["lease_held"].includes(error.code)) return 423;
   return 500;
 }
 
@@ -336,8 +337,77 @@ async function tryPrepareAudioPreview(prepareAudioPreview, options) {
   }
 }
 
+function readActor(request) {
+  const roles = String(request.headers["x-panel-actor-roles"] || "")
+    .split(",")
+    .map((role) => role.trim())
+    .filter(Boolean);
+  const bodyActor = request.bodyActor && typeof request.bodyActor === "object" ? request.bodyActor : {};
+  return {
+    id: String(request.headers["x-panel-actor-id"] || bodyActor.actor || bodyActor.id || ""),
+    email: String(request.headers["x-panel-actor-email"] || bodyActor.email || ""),
+    displayName: String(request.headers["x-panel-actor-display-name"] || bodyActor.display_name || bodyActor.displayName || ""),
+    roles: roles.length ? roles : (Array.isArray(bodyActor.roles) ? bodyActor.roles.map(String) : []),
+    sessionId: String(request.headers["x-panel-session-id"] || bodyActor.session_id || bodyActor.sessionId || ""),
+  };
+}
+
+function buildAudit({ request, action, targetId, targetType = "approval_snapshot", baseSnapshotHash = "", baseVersion = null, newVersion = null, leaseId = "" }) {
+  const actor = readActor(request);
+  return {
+    actor,
+    role: actor.roles[0] || "",
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    base_snapshot_hash: baseSnapshotHash || "",
+    base_version: baseVersion,
+    new_version: newVersion,
+    lease_id: leaseId || "",
+    timestamp: new Date().toISOString(),
+  };
+}
+
 function toResponseSnapshot(record) {
-  return { snapshot: record.snapshot, snapshotId: record.snapshotId, snapshotHash: record.snapshotHash };
+  return { snapshot: record.snapshot, snapshotId: record.snapshotId, snapshotHash: record.snapshotHash, version: record.version || 1, audit: record.audit || null };
+}
+
+function createVersionConflict({ latest, receivedHash }) {
+  const error = new Error("version conflict");
+  error.code = "version_conflict";
+  error.details = {
+    expected_version: latest.version || 1,
+    received_version: Math.max(1, (latest.version || 1) - 1),
+    expected_snapshot_hash: latest.snapshotHash,
+    received_snapshot_hash: receivedHash || "",
+    latest: toResponseSnapshot(latest),
+  };
+  return error;
+}
+
+const DEFAULT_LEASE_TTL_MS = 2 * 60 * 1000;
+
+function isLeaseExpired(lease) {
+  return !lease?.expires_at || Date.parse(lease.expires_at) <= Date.now();
+}
+
+function assertLeaseAvailable(store, projectId, leaseId, actor) {
+  if (!leaseId) return null;
+  const current = store.readLease(projectId);
+  if (current && !isLeaseExpired(current) && current.lease_id !== leaseId && current.owner?.id !== actor.id) {
+    const error = new Error("lease held by another editor");
+    error.code = "lease_held";
+    error.details = { lease_id: current.lease_id, owner: current.owner, expires_at: current.expires_at };
+    throw error;
+  }
+  const lease = {
+    lease_id: leaseId,
+    owner: actor,
+    acquired_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + DEFAULT_LEASE_TTL_MS).toISOString(),
+  };
+  store.writeLease(projectId, lease);
+  return lease;
 }
 
 function createMissingRenderAdapterError() {
@@ -413,6 +483,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
 
       if (request.method === "POST" && url.pathname === "/api/projects/create-from-approval") {
         const body = await readBody(request);
+        request.bodyActor = body.audit_actor;
         if (!body?.voice_audio?.public_url || !body?.background_audio?.public_url) throw Object.assign(new Error("approval payload requires voice and background audio"), { code: "missing_audio" });
         const projectId = safeProjectId(body.project_id || body.draft_id || body.title);
         const allowEstimatedTimings = String(env.ALLOW_ESTIMATED_TIMINGS || body.allowEstimatedTimings || "").toLowerCase() === "true";
@@ -471,7 +542,8 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           brandChannel: body.brandChannel || body.brand_channel,
         });
         applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl });
-        const record = store.saveSnapshot(pipeline.contract);
+        const audit = buildAudit({ request, action: "snapshot.create", targetId: projectId, newVersion: store.readSnapshots(projectId).length + 1 });
+        const record = store.saveSnapshot(pipeline.contract, { audit });
         return ok(response, { projectId, ...toResponseSnapshot(record), previewAssets: pipeline.manifest, manifest: pipeline.manifest, alignmentStatus: pipeline.alignmentStatus }, alignmentStatus.status === "ready" ? 201 : 202);
       }
 
@@ -490,14 +562,20 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         }
         if (request.method === "PATCH" && parts[3] === "snapshot") {
           const body = await readBody(request);
-          if (body.baseSnapshotHash !== latest.snapshotHash) throw Object.assign(new Error("stale baseSnapshotHash"), { code: "stale_snapshot", details: { expected: latest.snapshotHash, received: body.baseSnapshotHash } });
+          request.bodyActor = body.audit_actor;
+          const baseSnapshotHash = body.baseSnapshotHash || body.base_snapshot_hash;
+          if (baseSnapshotHash !== latest.snapshotHash) throw createVersionConflict({ latest, receivedHash: baseSnapshotHash });
+          const actor = readActor(request);
+          assertLeaseAvailable(store, projectId, body.lease_id || body.leaseId, actor);
           const nextSnapshot = applyContractOperations(latest.snapshot, Array.isArray(body.operations) ? body.operations : []);
-          const record = store.saveSnapshot(nextSnapshot);
+          const audit = buildAudit({ request, action: "snapshot.update", targetId: projectId, baseSnapshotHash, baseVersion: latest.version || 1, newVersion: (latest.version || 1) + 1, leaseId: body.lease_id || body.leaseId || "" });
+          const record = store.saveSnapshot(nextSnapshot, { audit });
           return ok(response, toResponseSnapshot(record));
         }
         if (request.method === "POST" && parts[3] === "render-final") {
           const body = await readBody(request);
-          if (body.snapshotHash !== latest.snapshotHash) throw Object.assign(new Error("stale snapshotHash for final render"), { code: "stale_snapshot", details: { expected: latest.snapshotHash, received: body.snapshotHash } });
+          request.bodyActor = body.audit_actor;
+          if (body.snapshotHash !== latest.snapshotHash) throw createVersionConflict({ latest, receivedHash: body.snapshotHash });
           if (body.async === true) {
             const currentRender = latest.snapshot.render || {};
             if (currentRender.status === "rendering" && currentRender.lastRenderedSnapshotHash === latest.snapshotHash) {

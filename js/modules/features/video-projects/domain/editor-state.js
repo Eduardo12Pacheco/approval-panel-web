@@ -34,6 +34,7 @@ export function normalizeEditorState(editorState = {}) {
     dirty: Boolean(editorState.dirty),
     export_status: editorState.export_status || 'idle',
     error: editorState.error || '',
+    conflict: editorState.conflict && typeof editorState.conflict === 'object' ? editorState.conflict : null,
     timed_rows: Array.isArray(editorState.timed_rows) ? editorState.timed_rows : [],
     video_assets: Array.isArray(editorState.video_assets) ? editorState.video_assets : [],
     preview_assets: editorState.preview_assets && typeof editorState.preview_assets === 'object' ? editorState.preview_assets : null,

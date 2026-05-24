@@ -29,6 +29,18 @@ https://api.automatizacionedun8n.me/monitor -> Channel Monitor
 
 El campo visible `Base URL Channel Monitor` ya no forma parte de la configuración normal. El estado conserva `channelMonitorBaseUrl` solo como fallback interno/migración para operación legacy explícita; en modo unificado Monitor resuelve desde `apiOrigin + /monitor` y usa la key compartida.
 
+## Collaboration boundary rollout
+
+La operación colaborativa debe pasar por el authenticated gateway. No uses orígenes locales privados, service tokens ni headers secretos desde el navegador como fuente de verdad.
+
+Checklist de rollout:
+
+```text
+docs/collaboration-boundary-rollout-checklist.md
+```
+
+Antes de promover Cloudflare Pages o Cloudflare Tunnel, verificá los valores desplegados reales. Do not guess deployed settings desde el repo: confirmá `/panel/bootstrap`, `/panel/session`, el API origin público y el tunnel ingress en el entorno activo.
+
 ## Cómo abrir el panel
 
 Desde la raíz del workspace:

@@ -5,6 +5,8 @@ export function bindCoreEvents({
   isValidCredentials,
   persistSessionStatus,
   clearSessionStatus,
+  loginGatewaySession,
+  logoutGatewaySession,
   setView,
   refreshAll,
   refreshQueue,
@@ -17,21 +19,31 @@ export function bindCoreEvents({
 }) {
   el.authForm.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    const user = el.authUser.value.trim();
-    const pass = el.authPass.value;
+    void (async () => {
+      const user = el.authUser.value.trim();
+      const pass = el.authPass.value;
 
-    if (isValidCredentials({ user, pass, authUser, authPass })) {
-      persistSessionStatus();
-      el.authGate.classList.add('hidden');
-      el.appShell.classList.remove('hidden');
-      el.authPass.value = '';
-      setView('approval');
-      toast('Sesión iniciada');
-      refreshAll({ silent: true, source: 'login' });
-      return;
-    }
+      const validLocalCredentials = isValidCredentials({ user, pass, authUser, authPass });
+      if (validLocalCredentials) {
+        if (typeof loginGatewaySession === 'function') {
+          try {
+            await loginGatewaySession({ user, pass });
+          } catch {
+            // Keep the existing operator login flow available during gateway rollout.
+          }
+        }
+        persistSessionStatus();
+        el.authGate.classList.add('hidden');
+        el.appShell.classList.remove('hidden');
+        el.authPass.value = '';
+        setView('approval');
+        toast('Sesión iniciada');
+        refreshAll({ silent: true, source: 'login' });
+        return;
+      }
 
-    toast('Usuario o contraseña incorrectos');
+      toast('Usuario o contraseña incorrectos');
+    })();
   });
 
   el.sidebarNav.addEventListener('click', (ev) => {
@@ -49,6 +61,9 @@ export function bindCoreEvents({
   el.runQueueBtn?.addEventListener('click', runQueue);
   el.settingsBtn.addEventListener('click', () => el.settingsDialog.showModal());
   el.logoutBtn.addEventListener('click', () => {
+    if (typeof logoutGatewaySession === 'function') {
+      void logoutGatewaySession().catch(() => {});
+    }
     clearSessionStatus();
     reloadPage();
   });

@@ -141,3 +141,51 @@ for (const token of [
 """
     result = _run_node(script)
     assert result.returncode == 0, result.stderr
+
+
+def test_session_gate_hydrates_gateway_session_and_posts_login_with_credentials():
+    script = r"""
+import { hydrateGatewaySession, loginGatewaySession, logoutGatewaySession } from './js/modules/core/auth/session-gate.js';
+
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  if (url === '/panel/session') {
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        user: { user_id: 'user-editor', email: 'editor@example.test', display_name: 'Editor Test' },
+        roles: ['editor'],
+        session_id: 'session-editor',
+      }),
+    };
+  }
+  if (url === '/panel/login') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+  }
+  if (url === '/panel/logout') {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) };
+  }
+  throw new Error(`unexpected url ${url}`);
+};
+
+const hydrated = await hydrateGatewaySession({ fetchImpl });
+if (hydrated.status !== 'ok' || hydrated.user.email !== 'editor@example.test' || hydrated.roles[0] !== 'editor') {
+  throw new Error(`gateway session hydration drift: ${JSON.stringify(hydrated)}`);
+}
+if (calls[0].options.credentials !== 'include') throw new Error('session hydration must include cookies');
+
+await loginGatewaySession({ fetchImpl, user: 'paneladmin', pass: 'Guiones2026!' });
+if (calls[1].options.method !== 'POST') throw new Error('login must POST');
+if (calls[1].options.credentials !== 'include') throw new Error('login must include cookies');
+if (calls[1].options.headers['Content-Type'] !== 'application/json') throw new Error('login content-type drift');
+if (JSON.parse(calls[1].options.body).pass !== 'Guiones2026!') throw new Error('login payload drift');
+
+await logoutGatewaySession({ fetchImpl });
+if (calls[2].options.method !== 'POST' || calls[2].options.credentials !== 'include') {
+  throw new Error(`logout request drift: ${JSON.stringify(calls[2])}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr

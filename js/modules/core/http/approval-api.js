@@ -1,4 +1,11 @@
 import { resolveServiceConfig } from '../state/app-store.js';
+import {
+  buildGatewayReadHeaders,
+  getShellVersion,
+  resolveApprovalSharedReadPath,
+  resolveGatewayBaseUrl,
+  resolveSharedReadModelUrl,
+} from './shared-read-models.js';
 
 export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/approval/pending/supabase/v2',
@@ -15,6 +22,13 @@ export const APPROVAL_PARITY_ENDPOINTS = [
   '/webhook/mvp-script-download-doc/supabase/v1',
 ];
 
+function buildGatewayHeaders(extra = {}) {
+  const headers = { ...extra };
+  const shellVersion = getShellVersion();
+  if (shellVersion) headers['x-control-panel-shell-version'] = shellVersion;
+  return headers;
+}
+
 function parseFilenameFromContentDisposition(header = '') {
   const value = (header || '').toString();
   const utfMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
@@ -26,12 +40,18 @@ function parseFilenameFromContentDisposition(header = '') {
 export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
   async function get(path) {
     const settings = getSettings();
-    const config = resolveServiceConfig(settings, 'n8n');
-    const headers = {};
-    if (config.secret) headers['x-approval-secret'] = config.secret;
+    const sharedReadPath = resolveApprovalSharedReadPath(path);
+    const config = sharedReadPath
+      ? { baseUrl: resolveGatewayBaseUrl(settings) }
+      : resolveServiceConfig(settings, 'n8n');
+    const headers = sharedReadPath ? buildGatewayReadHeaders() : buildGatewayHeaders();
+    const url = sharedReadPath
+      ? resolveSharedReadModelUrl(sharedReadPath, settings)
+      : `${config.baseUrl}${path}`;
 
-    const res = await fetchImpl(`${config.baseUrl}${path}`, {
+    const res = await fetchImpl(url, {
       headers,
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
     const raw = await res.text();
@@ -46,14 +66,14 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
   async function post(path, payload) {
     const settings = getSettings();
     const config = resolveServiceConfig(settings, 'n8n');
-    const headers = {
+    const headers = buildGatewayHeaders({
       'Content-Type': 'application/json',
-    };
-    if (config.secret) headers['x-approval-secret'] = config.secret;
+    });
 
     const res = await fetchImpl(`${config.baseUrl}${path}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const raw = await res.text();
@@ -80,14 +100,14 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
   async function postBlob(path, payload) {
     const settings = getSettings();
     const config = resolveServiceConfig(settings, 'n8n');
-    const headers = {
+    const headers = buildGatewayHeaders({
       'Content-Type': 'application/json',
-    };
-    if (config.secret) headers['x-approval-secret'] = config.secret;
+    });
 
     const res = await fetchImpl(`${config.baseUrl}${path}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 

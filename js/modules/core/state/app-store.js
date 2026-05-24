@@ -22,6 +22,14 @@ const UNIFIED_SERVICE_PREFIX = Object.freeze({
   monitor: 'monitor',
   remotion: 'remotion',
 });
+const BOOTSTRAP_ROUTE_TO_SERVICE = Object.freeze({
+  n8n: 'n8n',
+  tts: 'tts',
+  subtitles: 'subtitles',
+  radar: 'radar',
+  monitor: 'monitor',
+  remotion: 'remotion',
+});
 const LEGACY_LOCAL_REMOTION_URLS = new Set([
   'http://127.0.0.1:3037',
   'http://127.0.0.1:3037/',
@@ -73,6 +81,10 @@ function trimTrailingSlash(rawValue) {
   return (rawValue || '').toString().trim().replace(/\/+$/, '');
 }
 
+function trimSlashes(rawValue) {
+  return (rawValue || '').toString().trim().replace(/^\/+|\/+$/g, '');
+}
+
 function normalizeApiProfileMode(rawValue) {
   return rawValue === 'legacy' ? 'legacy' : 'unified';
 }
@@ -82,6 +94,23 @@ function normalizeServiceOverrides(rawValue = {}) {
     ...DEFAULT_SERVICE_OVERRIDES,
     ...(rawValue && typeof rawValue === 'object' ? rawValue : {}),
   };
+}
+
+function deriveBootstrapRouteBaseUrl(apiOrigin, routePrefix) {
+  const origin = trimTrailingSlash(apiOrigin);
+  const prefix = trimSlashes(routePrefix);
+  if (!origin || !prefix) return '';
+  return `${origin}/${prefix}`;
+}
+
+function shouldPreserveLocalServiceOverride(settings, service, locationLike) {
+  const field = SERVICE_BASE_FIELD[service];
+  if (!field || isRemoteBrowserContext(locationLike)) return false;
+  return settings.serviceOverrides?.[service] === true && isLocalServiceUrl(settings[field]);
+}
+
+function bootstrapApprovalRoute(bootstrap = {}) {
+  return bootstrap?.routes?.approval || bootstrap?.routes?.approvalPipeline || '';
 }
 
 function isLegacyStoredSettings(rawValue = {}) {
@@ -141,6 +170,29 @@ export function normalizeSettings(settings = {}, { defaultsFactory = defaultSett
 
 export function mergeSettingsForSave(currentSettings = {}, nextSettings = {}) {
   return normalizeSettings({ ...(currentSettings || {}), ...(nextSettings || {}) });
+}
+
+export function hydrateSettingsFromServerBootstrap(currentSettings = {}, bootstrap = {}, { locationLike = globalThis?.location } = {}) {
+  const normalized = normalizeSettings(currentSettings);
+  const apiOrigin = trimTrailingSlash(bootstrap?.api_origin || normalized.apiOrigin || DEFAULT_API_ORIGIN);
+  const nextServiceOverrides = { ...normalized.serviceOverrides };
+
+  for (const [routeName, service] of Object.entries(BOOTSTRAP_ROUTE_TO_SERVICE)) {
+    const serverControlsService = Boolean(bootstrap?.routes?.[routeName] || apiOrigin);
+    if (serverControlsService && !shouldPreserveLocalServiceOverride(normalized, service, locationLike)) {
+      nextServiceOverrides[service] = false;
+    }
+  }
+
+  const approvalRouteBaseUrl = deriveBootstrapRouteBaseUrl(apiOrigin, bootstrapApprovalRoute(bootstrap));
+
+  return normalizeSettings({
+    ...normalized,
+    apiProfileMode: 'unified',
+    apiOrigin,
+    serviceOverrides: nextServiceOverrides,
+    ...(approvalRouteBaseUrl ? { approvalPipelineBaseUrl: approvalRouteBaseUrl } : {}),
+  });
 }
 
 export function loadSettingsFromStorage({ storage, storageKey, defaultsFactory = defaultSettingsFactory }) {

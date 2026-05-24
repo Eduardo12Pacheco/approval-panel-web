@@ -46,8 +46,8 @@ test('settings controller hydrates and saves through existing storage wiring', (
     settings: {
       baseUrl: 'http://approval.local',
       secret: 's1',
-      transcriptServiceBaseUrl: 'http://radar.local',
-      transcriptServiceApiKey: 'radar-key',
+    transcriptServiceBaseUrl: 'http://radar.local',
+    transcriptServiceApiKey: 'radar-key',
     },
   };
   const el = {
@@ -57,11 +57,11 @@ test('settings controller hydrates and saves through existing storage wiring', (
     ttsApiKeyInput: { value: '' },
     ttsBasicUserInput: { value: '' },
     ttsBasicPassInput: { value: '' },
+    sharedApiKeyInput: { value: '' },
     remotionApiUrlInput: { value: '' },
     approvalPipelineBaseUrlInput: { value: '' },
     brandChannelSelect: { value: '' },
     transcriptServiceBaseUrlInput: { value: '' },
-    transcriptServiceApiKeyInput: { value: '' },
   };
 
   const settings = createSettingsController({
@@ -79,7 +79,7 @@ test('settings controller hydrates and saves through existing storage wiring', (
   settings.hydrateSettingsForm();
   assert.equal(el.baseUrlInput.value, 'http://approval.local');
   assert.equal(el.transcriptServiceBaseUrlInput.value, 'http://radar.local');
-  assert.equal(el.transcriptServiceApiKeyInput.value, 'radar-key');
+  assert.equal(el.sharedApiKeyInput.value, 'radar-key', 'legacy radar API keys hydrate through the shared API key form contract');
 
   settings.saveSettings({ baseUrl: 'http://next.local', transcriptServiceApiKey: 'next-key' });
   assert.equal(state.settings.baseUrl, 'http://next.local');

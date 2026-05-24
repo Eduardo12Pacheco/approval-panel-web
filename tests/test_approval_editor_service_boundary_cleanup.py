@@ -32,7 +32,7 @@ def test_active_import_consumers_resolve_approval_editor_from_new_boundary():
         "02-Video-Engine/tests/approval-editor-service-v1.test.js": [
             "../../01-Control-Panel/services/approval-editor/server",
         ],
-        "02-Video-Engine/scripts/approval-pipeline-local-service.js": [
+        "02-Video-Engine/scripts/services/approval-pipeline-local-service.js": [
             "../../01-Control-Panel/services/approval-editor/lib/contract-updates",
         ],
     }

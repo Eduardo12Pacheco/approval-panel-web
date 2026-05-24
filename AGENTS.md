@@ -54,6 +54,10 @@ index.html
 
 ## Servicios locales
 
+Los accesos colaborativos a servicios locales protegidos deben pasar por el authenticated gateway. Do not guess Cloudflare Pages o Cloudflare Tunnel deployed settings: verificá el entorno desplegado, `/panel/bootstrap`, `/panel/session` y el ingress público antes de afirmar que la ruta está saludable.
+
+Do not change Voice TTS behavior, presets, refs, segmentation, sample rate, artifacts, runtime paths, or model generation while documenting or validating this boundary.
+
 ### Approval Editor service
 
 Ruta activa:

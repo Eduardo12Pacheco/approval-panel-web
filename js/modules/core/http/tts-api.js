@@ -1,4 +1,12 @@
 import { resolveServiceConfig } from '../state/app-store.js';
+import {
+  buildGatewayReadHeaders,
+  getShellVersion,
+  resolveGatewayBaseUrl,
+  resolveSharedReadModelUrl,
+  resolveSubtitlesSharedReadPath,
+  resolveTtsSharedReadPath,
+} from './shared-read-models.js';
 
 export const TTS_PARITY_ENDPOINTS = [
   '/api/tts/jobs',
@@ -13,6 +21,14 @@ export const TTS_PARITY_ENDPOINTS = [
   '/api/subtitles/review/approve',
   '/api/subtitles/render',
 ];
+
+function buildGatewayHeaders(contentType = null) {
+  const headers = {};
+  const shellVersion = getShellVersion();
+  if (shellVersion) headers['x-control-panel-shell-version'] = shellVersion;
+  if (contentType) headers['Content-Type'] = contentType;
+  return headers;
+}
 
 export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = btoa }) {
   function getBasicAuthHeader({ user, pass, label }) {
@@ -44,30 +60,14 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     });
   }
 
-  function buildAuthHeaders({ apiKey, basicAuthHeader, label, contentType = null }) {
-    const key = (apiKey || '').trim();
-    if (!key) {
-      throw new Error(`Configuración de ${label} incompleta`);
-    }
-
-    const headers = {
-      'x-api-key': key,
-      Authorization: basicAuthHeader,
-    };
-
-    if (contentType) {
-      headers['Content-Type'] = contentType;
-    }
-
-    return headers;
+  function buildAuthHeaders({ contentType = null }) {
+    return buildGatewayHeaders(contentType);
   }
 
   function buildTtsHeaders(contentType = null) {
     const settings = getSettings();
     const config = resolveServiceConfig(settings, 'tts');
     return buildAuthHeaders({
-      apiKey: config.apiKey,
-      basicAuthHeader: getTtsBasicAuthHeader(),
       label: 'Audio API',
       contentType,
     });
@@ -77,8 +77,6 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const settings = getSettings();
     const config = resolveServiceConfig(settings, 'subtitles');
     return buildAuthHeaders({
-      apiKey: config.apiKey,
-      basicAuthHeader: getSubtitlesBasicAuthHeader(),
       label: 'Subtítulos',
       contentType,
     });
@@ -103,9 +101,12 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   }
 
   async function get(path) {
-    const baseUrl = resolveBaseUrl();
-    const headers = buildTtsHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    const settings = getSettings();
+    const sharedReadPath = resolveTtsSharedReadPath(path);
+    const baseUrl = sharedReadPath ? resolveGatewayBaseUrl(settings) : resolveBaseUrl();
+    const headers = sharedReadPath ? buildGatewayReadHeaders() : buildTtsHeaders();
+    const url = sharedReadPath ? resolveSharedReadModelUrl(sharedReadPath, settings) : `${baseUrl}${path}`;
+    const res = await fetchImpl(url, { headers, credentials: 'include' });
     const raw = await res.text();
     let data = {};
     try {
@@ -134,6 +135,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
@@ -165,6 +167,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'PUT',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
@@ -196,6 +199,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'PATCH',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
 
@@ -221,6 +225,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'DELETE',
       headers,
+      credentials: 'include',
     });
 
     const raw = await res.text();
@@ -245,6 +250,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: formData,
     });
 
@@ -273,7 +279,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   async function getBlob(path) {
     const baseUrl = resolveBaseUrl();
     const headers = buildTtsHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    const res = await fetchImpl(`${baseUrl}${path}`, { headers, credentials: 'include' });
     if (!res.ok) {
       let data = null;
       try {
@@ -288,9 +294,12 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   }
 
   async function subtitlesGet(path) {
-    const baseUrl = resolveSubtitlesBaseUrl();
-    const headers = buildSubtitlesHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    const settings = getSettings();
+    const sharedReadPath = resolveSubtitlesSharedReadPath(path);
+    const baseUrl = sharedReadPath ? resolveGatewayBaseUrl(settings) : resolveSubtitlesBaseUrl();
+    const headers = sharedReadPath ? buildGatewayReadHeaders() : buildSubtitlesHeaders();
+    const url = sharedReadPath ? resolveSharedReadModelUrl(sharedReadPath, settings) : `${baseUrl}${path}`;
+    const res = await fetchImpl(url, { headers, credentials: 'include' });
     const raw = await res.text();
     let data = {};
     try {
@@ -311,6 +320,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const raw = await res.text();
@@ -333,6 +343,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'PUT',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const raw = await res.text();
@@ -355,6 +366,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const res = await fetchImpl(`${baseUrl}${path}`, {
       method: 'PATCH',
       headers,
+      credentials: 'include',
       body: JSON.stringify(payload),
     });
     const raw = await res.text();
@@ -374,7 +386,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   async function subtitlesDelete(path) {
     const baseUrl = resolveSubtitlesBaseUrl();
     const headers = buildSubtitlesHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'DELETE', headers });
+    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'DELETE', headers, credentials: 'include' });
     const raw = await res.text();
     let data = {};
     try {
@@ -392,7 +404,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   async function subtitlesPostForm(path, formData) {
     const baseUrl = resolveSubtitlesBaseUrl();
     const headers = buildSubtitlesHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'POST', headers, body: formData });
+    const res = await fetchImpl(`${baseUrl}${path}`, { method: 'POST', headers, credentials: 'include', body: formData });
     const raw = await res.text();
     let data = {};
     try {
@@ -410,7 +422,7 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
   async function subtitlesGetBlob(path) {
     const baseUrl = resolveSubtitlesBaseUrl();
     const headers = buildSubtitlesHeaders();
-    const res = await fetchImpl(`${baseUrl}${path}`, { headers });
+    const res = await fetchImpl(`${baseUrl}${path}`, { headers, credentials: 'include' });
     if (!res.ok) {
       let data = null;
       try {
