@@ -132,37 +132,78 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     if (ev.button != null && ev.button !== 0) return;
     ev.preventDefault();
     button.dataset.pointerHandled = 'true';
-    startNumberHold(button);
+    startNumberHold(button, ev);
   }
 
-  function startNumberHold(button) {
+  function startNumberHold(button, ev = {}) {
     stopNumberHold();
     const rowId = button.dataset.rowId;
     const field = button.dataset.field;
     const direction = button.dataset.direction;
     if (!rowId || !field || !direction) return;
+    const holdState = {
+      active: true,
+      button,
+      listeners: [],
+      pointerId: ev.pointerId,
+      timer: null,
+    };
+    state.subtitles2.numberHoldState = holdState;
     button.classList.add('is-holding');
+    try {
+      if (holdState.pointerId != null) button.setPointerCapture?.(holdState.pointerId);
+    } catch {
+      // Pointer capture is best-effort; global listeners still stop the hold.
+    }
     stepNumberField(rowId, field, direction);
 
+    const scheduleRepeat = (delayMs) => {
+      holdState.timer = timers.setTimeout(runRepeat, delayMs);
+      state.subtitles2.numberHoldTimer = holdState.timer;
+    };
     const runRepeat = () => {
+      if (!holdState.active || state.subtitles2.numberHoldState !== holdState) return;
       stepNumberField(rowId, field, direction);
-      state.subtitles2.numberHoldTimer = timers.setTimeout(runRepeat, SUBTITLE_NUMBER_HOLD_INTERVAL_MS);
+      scheduleRepeat(SUBTITLE_NUMBER_HOLD_INTERVAL_MS);
     };
 
-    state.subtitles2.numberHoldTimer = timers.setTimeout(runRepeat, SUBTITLE_NUMBER_HOLD_DELAY_MS);
-    const stop = () => {
-      button.classList.remove('is-holding');
-      stopNumberHold();
-      windowRef.removeEventListener?.('pointerup', stop);
-      windowRef.removeEventListener?.('pointercancel', stop);
-      windowRef.removeEventListener?.('blur', stop);
+    const stop = () => stopNumberHold(holdState);
+    const addStopListener = (target, eventName) => {
+      if (typeof target?.addEventListener !== 'function') return;
+      target.addEventListener(eventName, stop);
+      holdState.listeners.push([target, eventName, stop]);
     };
-    windowRef.addEventListener?.('pointerup', stop);
-    windowRef.addEventListener?.('pointercancel', stop);
-    windowRef.addEventListener?.('blur', stop);
+    addStopListener(windowRef, 'pointerup');
+    addStopListener(windowRef, 'pointercancel');
+    addStopListener(windowRef, 'mouseup');
+    addStopListener(windowRef, 'blur');
+    addStopListener(button, 'pointerup');
+    addStopListener(button, 'pointercancel');
+    addStopListener(button, 'mouseleave');
+    addStopListener(button, 'lostpointercapture');
+
+    scheduleRepeat(SUBTITLE_NUMBER_HOLD_DELAY_MS);
   }
 
-  function stopNumberHold() {
+  function stopNumberHold(expectedHoldState) {
+    const holdState = state.subtitles2.numberHoldState;
+    if (expectedHoldState && holdState && holdState !== expectedHoldState) return;
+    if (holdState) {
+      holdState.active = false;
+      if (holdState.timer) timers.clearTimeout(holdState.timer);
+      holdState.button?.classList?.remove('is-holding');
+      for (const [target, eventName, listener] of holdState.listeners) {
+        target.removeEventListener?.(eventName, listener);
+      }
+      try {
+        if (holdState.pointerId != null) holdState.button?.releasePointerCapture?.(holdState.pointerId);
+      } catch {
+        // Ignore release failures; the hold is already stopped locally.
+      }
+      state.subtitles2.numberHoldTimer = null;
+      state.subtitles2.numberHoldState = null;
+      return;
+    }
     if (!state.subtitles2.numberHoldTimer) return;
     timers.clearTimeout(state.subtitles2.numberHoldTimer);
     state.subtitles2.numberHoldTimer = null;

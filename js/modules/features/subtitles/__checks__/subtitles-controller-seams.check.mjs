@@ -304,7 +304,9 @@ test('root subtitles controller forwards preview video events so playhead follow
 
 test('table editor max-width stepper handles nested arrow targets and repeat hold', () => {
   const timers = [];
+  const clearedTimers = [];
   const windowListeners = new Map();
+  const buttonListeners = new Map();
   const input = { value: '1080', step: '10', min: '1', dataset: { rowId: 'row-1', field: 'maxWidthPx' } };
   const buttonClassList = createClassList();
   const button = {
@@ -312,6 +314,10 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
     dataset: { rowId: 'row-1', field: 'maxWidthPx', direction: 'up' },
     classList: buttonClassList,
     closest(selector) { return selector === 'button[data-action="step-subtitle-number"]' ? this : null; },
+    addEventListener(name, callback) { buttonListeners.set(name, callback); },
+    removeEventListener(name) { buttonListeners.delete(name); },
+    setPointerCapture(pointerId) { this.capturedPointerId = pointerId; },
+    releasePointerCapture(pointerId) { this.releasedPointerId = pointerId; },
   };
   const textNodeTarget = { parentElement: button };
   const ctx = buildSubtitleControllerContext({
@@ -332,7 +338,7 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
         removeEventListener(name) { windowListeners.delete(name); },
       },
       setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
-      clearTimeout() {},
+      clearTimeout(id) { clearedTimers.push(id); },
       clearInterval() {},
     },
   });
@@ -341,13 +347,22 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
     updateButtonsByPhase() {},
   });
 
-  editor.onTablePointerDown({ target: textNodeTarget, button: 0, preventDefault() {} });
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
   timers[0].callback();
+  timers[1].callback();
   windowListeners.get('pointerup')();
+  timers[2].callback();
 
-  assert.equal(input.value, '1100');
-  assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1100);
+  assert.equal(input.value, '1110');
+  assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1110);
   assert.equal(buttonClassList.contains('is-holding'), false);
+  assert.equal(ctx.state.subtitles2.numberHoldTimer, null);
+  assert.equal(ctx.state.subtitles2.numberHoldState, null);
+  assert.equal(button.capturedPointerId, 17);
+  assert.equal(button.releasedPointerId, 17);
+  assert.ok(clearedTimers.includes('timer-3'));
+  assert.equal(windowListeners.has('pointerup'), false);
+  assert.equal(buttonListeners.has('mouseleave'), false);
 });
 
 test('root subtitles controller wires renderer and preview player collaborators', async () => {
