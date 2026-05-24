@@ -410,6 +410,28 @@ try {
     assert result.returncode == 0, result.stderr
 
 
+def test_deployed_shared_reads_ignore_stale_browser_api_origin():
+    script = r"""
+import { resolveSharedReadModelUrl } from './js/modules/core/http/shared-read-models.js';
+
+Object.defineProperty(globalThis, 'location', {
+  value: { hostname: 'approval-panel-web.pages.dev' },
+  configurable: true,
+});
+globalThis.__CONTROL_PANEL_BOOTSTRAP__ = { api_origin: 'https://gateway.example.test' };
+
+const url = resolveSharedReadModelUrl('/panel/read-models/approval/pending', {
+  apiOrigin: 'https://stale-local-browser.example.test',
+});
+
+if (url !== 'https://gateway.example.test/panel/read-models/approval/pending') {
+  throw new Error(`deployed read model used stale browser origin: ${url}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_server_bootstrap_hydrates_routes_and_preserves_local_ui_preferences():
     script = r"""
 import { hydrateSettingsFromServerBootstrap } from './js/modules/core/state/app-store.js';

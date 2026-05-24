@@ -2,11 +2,23 @@ function trimSlashes(value = '') {
   return (value || '').toString().replace(/^\/+|\/+$/g, '');
 }
 
+const DEFAULT_API_ORIGIN = 'https://api.automatizacionedun8n.me';
+
+function isRemoteBrowserContext(locationLike = globalThis.location) {
+  const hostname = (locationLike?.hostname || '').toString().toLowerCase();
+  if (!hostname) return false;
+  return !new Set(['localhost', '127.0.0.1', '::1']).has(hostname);
+}
+
 export function getShellVersion() {
   return (globalThis.__CONTROL_PANEL_BOOTSTRAP__?.app_version || '').toString().trim();
 }
 
 export function resolveGatewayBaseUrl(settings = {}) {
+  if (isRemoteBrowserContext()) {
+    return (globalThis.__CONTROL_PANEL_BOOTSTRAP__?.api_origin || DEFAULT_API_ORIGIN).toString().trim().replace(/\/+$/, '');
+  }
+
   return (
     settings?.apiOrigin
     || globalThis.__CONTROL_PANEL_BOOTSTRAP__?.api_origin
