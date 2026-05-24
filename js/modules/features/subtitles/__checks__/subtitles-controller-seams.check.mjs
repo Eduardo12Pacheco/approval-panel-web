@@ -142,9 +142,9 @@ test('subtitles controller context centralizes browser adapters and render callb
   const browser = {
     URL: { createObjectURL() { return 'blob:ctx'; }, revokeObjectURL() {} },
     window: { addEventListener() {}, removeEventListener() {} },
-    setTimeout() { return 'timeout-id'; },
-    clearTimeout() {},
-    clearInterval() {},
+    setTimeout() { return this === browser ? 'timeout-id' : 'illegal-invocation'; },
+    clearTimeout() { return this === browser ? 'cleared-timeout' : 'illegal-invocation'; },
+    clearInterval() { return this === browser ? 'cleared-interval' : 'illegal-invocation'; },
   };
   const renderCallbacks = {
     renderWorkflow() { return 'workflow-rendered'; },
@@ -160,6 +160,8 @@ test('subtitles controller context centralizes browser adapters and render callb
   assert.equal(ctx.URLImpl, browser.URL);
   assert.equal(ctx.windowRef, browser.window);
   assert.equal(ctx.timers.setTimeout(), 'timeout-id');
+  assert.equal(ctx.timers.clearTimeout(), 'cleared-timeout');
+  assert.equal(ctx.timers.clearInterval(), 'cleared-interval');
   assert.equal(ctx.renderCallbacks.renderWorkflow(), 'workflow-rendered');
   assert.equal(ctx.renderCallbacks.renderTable(), 'table-rendered');
 });
