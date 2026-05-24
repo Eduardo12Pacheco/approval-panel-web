@@ -4,7 +4,6 @@ import { createSingleFlightRunner } from '../core/async/single-flight.js';
 import { createApprovalApiClient } from '../core/http/approval-api.js';
 import { createApprovalFeature } from '../features/approval/index.js';
 import { createScriptsFeature } from '../features/scripts/index.js';
-import { createVideoProjectsApiClient } from '../features/video-projects/api.js';
 import { getDomSelectors } from '../shared/dom/selectors.js';
 import { versionedModule } from '../core/versioning/asset-version.js';
 import { createShellState } from './state.js';
@@ -84,7 +83,7 @@ export function createAppShellComposition({
     },
   });
 
-  const videoProjectsApi = createVideoProjectsApiClient({ fetchImpl });
+  let videoProjectsApi = null;
   const videoProjectsFeature = createVideoProjectsStub();
 
   state.radar = { _stub: true };
@@ -114,8 +113,12 @@ export function createAppShellComposition({
   let _videoProjectsModules = null;
   async function _ensureVideoProjectsFeature() {
     if (_videoProjectsModules) return _videoProjectsModules;
-    const mod = await import(versionedModule('../features/video-projects/index.js', import.meta.url));
-    const realFeature = mod.createVideoProjectsFeature({
+    const [apiMod, featureMod] = await Promise.all([
+      import(versionedModule('../features/video-projects/api.js', import.meta.url)),
+      import(versionedModule('../features/video-projects/index.js', import.meta.url)),
+    ]);
+    videoProjectsApi = apiMod.createVideoProjectsApiClient({ fetchImpl });
+    const realFeature = featureMod.createVideoProjectsFeature({
       api: videoProjectsApi,
       store,
       ui,

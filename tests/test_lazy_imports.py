@@ -126,6 +126,12 @@ class TestFactoryCaching:
         assert "async function _ensureVideoProjectsFeature" in source, \
             "VideoProjects factory must be async function"
 
+    def test_video_projects_api_stays_out_of_boot_imports(self):
+        source = _read_source(APP_SHELL_DIR / "composition.js")
+
+        assert "from '../features/video-projects/api.js'" not in source
+        assert "import(versionedModule('../features/video-projects/api.js'" in source
+
     def test_audio_factory_exists(self):
         source = _read_source(APP_SHELL_DIR / "composition.js")
         assert "async function _ensureAudioFeature" in source, \
