@@ -50,7 +50,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
 
   const loadSubtitle2PreviewVideoBlob = (sessionId) => previewPlayer.loadPreviewVideoBlob(sessionId);
   const applySubtitle2VideoDuration = () => previewPlayer.applyVideoDuration();
-  const onSubtitle2PreviewLoadedMetadata = () => previewPlayer.onLoadedMetadata();
+  const onSubtitle2PreviewLoadedMetadata = (ev) => previewPlayer.onLoadedMetadata(ev);
   const ensureSubtitle2RowsCoverDuration = (durationMs) => tableEditor.ensureRowsCoverDuration(durationMs);
   const deleteSubtitle2Row = (rowId) => tableEditor.deleteRow(rowId);
   const nudgeSubtitle2TimingBoundary = (rowId, field, direction) => tableEditor.nudgeTimingBoundary(rowId, field, direction);
@@ -100,7 +100,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     onDraftDragLeave: (ev) => tableEditor.onDraftDragLeave(ev),
     onDraftDrop: (ev) => tableEditor.onDraftDrop(ev),
     onDraftDragEnd: () => tableEditor.onDraftDragEnd(),
-    onPreviewTimeUpdate: () => previewPlayer.onTimeUpdate(),
+    onPreviewTimeUpdate: (ev) => previewPlayer.onTimeUpdate(ev),
     onPreviewLoadedMetadata: onSubtitle2PreviewLoadedMetadata,
     onPreviewToggleClicked: () => previewPlayer.onToggleClicked(),
     onPreviewTimelineClick: (ev) => previewPlayer.onTimelineClick(ev),

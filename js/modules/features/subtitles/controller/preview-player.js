@@ -133,14 +133,16 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
   }
 
   function onLoadedMetadata(ev) {
-    const adjusted = applyVideoDuration(ev.target?.duration);
+    const video = ev?.target || el.subtitle2PreviewVideo;
+    const adjusted = applyVideoDuration(video?.duration);
     if (adjusted) renderTable();
     renderPreviewOverlay();
   }
 
   function onTimeUpdate(ev) {
-    state.subtitles2.previewCurrentMs = Math.round((ev.target?.currentTime || 0) * 1000);
-    const adjusted = applyVideoDuration(ev.target?.duration);
+    const video = ev?.target || el.subtitle2PreviewVideo;
+    state.subtitles2.previewCurrentMs = Math.round((video?.currentTime || 0) * 1000);
+    const adjusted = applyVideoDuration(video?.duration);
     if (adjusted) renderTable();
     renderPreviewOverlay();
   }
@@ -158,7 +160,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
   }
 
   function onToggleClicked() {
-    if (!el.subtitle2PreviewVideo || !(state.subtitles2.previewVideoUrl || '').trim()) return;
+    if (!el.subtitle2PreviewVideo || !((state.subtitles2.previewVideoObjectUrl || state.subtitles2.previewVideoUrl || '').trim())) return;
     if (el.subtitle2PreviewVideo.paused) {
       void el.subtitle2PreviewVideo.play().catch(() => undefined);
       return;

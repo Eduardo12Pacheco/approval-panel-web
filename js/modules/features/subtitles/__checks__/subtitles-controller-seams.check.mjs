@@ -270,6 +270,86 @@ test('preview player seam preserves object URL replacement and latest seek behav
   assert.deepEqual(renderCalls, ['overlay']);
 });
 
+test('root subtitles controller forwards preview video events so playhead follows playback', () => {
+  const timelineTrack = { getBoundingClientRect: () => ({ left: 0, width: 400 }), innerHTML: '' };
+  const controller = createSubtitlesController({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoUrl: 'preview.mp4',
+        previewVideoObjectUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: true,
+        audioDurationMs: 10000,
+        rows: [{ id: 'row-1', start: '00:00.00', end: '00:10.00', phrase: 'hola' }],
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+    el: {
+      subtitle2PreviewTimelineTrack: timelineTrack,
+      subtitle2PreviewTimecode: { textContent: '' },
+      subtitle2RowsBody: { querySelectorAll: () => [] },
+      subtitle2PreviewStage: { getBoundingClientRect: () => ({ width: 960, height: 540 }) },
+      subtitle2PreviewOverlay: { style: {} },
+      subtitle2PreviewCue: { textContent: '', style: {}, classList: createClassList(), removeAttribute() {} },
+      subtitle2PreviewPlayBtn: { textContent: '', setAttribute() {} },
+    },
+  });
+
+  controller.onPreviewTimeUpdate({ target: { currentTime: 2.37, duration: 10 } });
+
+  assert.equal(timelineTrack.innerHTML.includes('left:23.7%'), true);
+});
+
+test('table editor max-width stepper handles nested arrow targets and repeat hold', () => {
+  const timers = [];
+  const windowListeners = new Map();
+  const input = { value: '1080', step: '10', min: '1', dataset: { rowId: 'row-1', field: 'maxWidthPx' } };
+  const buttonClassList = createClassList();
+  const button = {
+    disabled: false,
+    dataset: { rowId: 'row-1', field: 'maxWidthPx', direction: 'up' },
+    classList: buttonClassList,
+    closest(selector) { return selector === 'button[data-action="step-subtitle-number"]' ? this : null; },
+  };
+  const textNodeTarget = { parentElement: button };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [{ id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 }],
+        changeVersion: 0,
+        dirty: false,
+        numberHoldTimer: null,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [input] } },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: {
+        addEventListener(name, callback) { windowListeners.set(name, callback); },
+        removeEventListener(name) { windowListeners.delete(name); },
+      },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      clearTimeout() {},
+      clearInterval() {},
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderPreviewOverlay() {},
+    updateButtonsByPhase() {},
+  });
+
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, preventDefault() {} });
+  timers[0].callback();
+  windowListeners.get('pointerup')();
+
+  assert.equal(input.value, '1100');
+  assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1100);
+  assert.equal(buttonClassList.contains('is-holding'), false);
+});
+
 test('root subtitles controller wires renderer and preview player collaborators', async () => {
   const controllerSource = await readModule('features/subtitles/controller.js');
 

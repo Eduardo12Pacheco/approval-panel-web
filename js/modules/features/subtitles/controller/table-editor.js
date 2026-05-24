@@ -98,12 +98,12 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   }
 
   function onTableClick(ev) {
-    const nudgeButton = ev.target.closest('button[data-action="nudge-subtitle-time"]');
+    const nudgeButton = closestFromEventTarget(ev.target, 'button[data-action="nudge-subtitle-time"]');
     if (nudgeButton) {
       nudgeTimingBoundary(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
       return;
     }
-    const numberStepButton = ev.target.closest('button[data-action="step-subtitle-number"]');
+    const numberStepButton = closestFromEventTarget(ev.target, 'button[data-action="step-subtitle-number"]');
     if (numberStepButton) {
       if (numberStepButton.dataset.pointerHandled === 'true') {
         delete numberStepButton.dataset.pointerHandled;
@@ -112,13 +112,13 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       stepNumberField(numberStepButton.dataset.rowId, numberStepButton.dataset.field, numberStepButton.dataset.direction);
       return;
     }
-    const deleteButton = ev.target.closest('button[data-action="delete-subtitle-row"]');
+    const deleteButton = closestFromEventTarget(ev.target, 'button[data-action="delete-subtitle-row"]');
     if (deleteButton) {
       const rowId = deleteButton.dataset.rowId;
       if (rowId) deleteRow(rowId);
       return;
     }
-    const button = ev.target.closest('button[data-field="align"]');
+    const button = closestFromEventTarget(ev.target, 'button[data-field="align"]');
     if (!button) return;
     const rowId = button.dataset.rowId;
     const align = button.dataset.align;
@@ -127,7 +127,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   }
 
   function onTablePointerDown(ev) {
-    const button = ev.target.closest('button[data-action="step-subtitle-number"]');
+    const button = closestFromEventTarget(ev.target, 'button[data-action="step-subtitle-number"]');
     if (!button || button.disabled) return;
     if (ev.button != null && ev.button !== 0) return;
     ev.preventDefault();
@@ -407,6 +407,11 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   function markRowsChanged() {
     state.subtitles2.changeVersion += 1;
     state.subtitles2.dirty = true;
+  }
+
+  function closestFromEventTarget(target, selector) {
+    if (typeof target?.closest === 'function') return target.closest(selector);
+    return target?.parentElement?.closest?.(selector) || null;
   }
 
   return {
