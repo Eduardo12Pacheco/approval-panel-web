@@ -538,6 +538,17 @@ if (JSON.stringify(requested) !== JSON.stringify(['/api/tts/jobs/job-processing'
     assert result.returncode == 0, result.stderr
 
 
+def test_approval_cards_use_delegated_interaction_handlers():
+    source = (ROOT / "js" / "modules" / "app-shell" / "runtime.js").read_text(encoding="utf-8")
+    render_cards = source.split("function renderCards()", 1)[1].split("function bindCardsInteractionEvents()", 1)[0]
+    delegated = source.split("function bindCardsInteractionEvents()", 1)[1].split("function renderScriptStats()", 1)[0]
+
+    assert "querySelectorAll('.card').forEach" not in render_cards
+    assert "delegatedCardEvents" in delegated
+    assert "el.cards.addEventListener('click'" in delegated
+    assert "el.cards.addEventListener('keydown'" in delegated
+
+
 def test_approval_feature_runtime_uses_v2_workflows_and_refreshes_scripts_after_approve_without_false_negative_toast():
     script = r"""
 import { createApprovalFeature, orderApprovalItemsByLowestAvg } from './js/modules/features/approval/index.js';

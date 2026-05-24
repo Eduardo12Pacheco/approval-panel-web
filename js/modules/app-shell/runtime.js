@@ -795,6 +795,7 @@ function renderCards() {
   const list = filteredItems();
   el.cardsMeta.textContent = `${list.length} resultado${list.length === 1 ? '' : 's'}`;
   renderLastNewsSearchMeta();
+  bindCardsInteractionEvents();
 
   if (!list.length) {
     el.cards.innerHTML = '<p class="meta">No hay temas para mostrar con esos filtros.</p>';
@@ -802,21 +803,28 @@ function renderCards() {
   }
 
   el.cards.innerHTML = list.map((item) => buildApprovalNewsCardMarkup(item)).join('');
+}
 
-  el.cards.querySelectorAll('.card').forEach((card) => {
-    card.addEventListener('click', async (ev) => {
-      const interactive = ev.target.closest('button, a');
-      if (interactive) return;
-      const id = decodeURIComponent(card.dataset.cardId);
-      await openDetail(id);
-    });
+function bindCardsInteractionEvents() {
+  if (!el.cards || el.cards.dataset.delegatedCardEvents === 'true') return;
+  el.cards.dataset.delegatedCardEvents = 'true';
 
-    card.addEventListener('keydown', async (ev) => {
-      if (ev.key !== 'Enter' && ev.key !== ' ') return;
-      ev.preventDefault();
-      const id = decodeURIComponent(card.dataset.cardId);
-      await openDetail(id);
-    });
+  el.cards.addEventListener('click', async (ev) => {
+    const card = ev.target.closest?.('.card');
+    if (!card || !el.cards.contains(card)) return;
+    const interactive = ev.target.closest?.('button, a');
+    if (interactive) return;
+    const id = decodeURIComponent(card.dataset.cardId || '');
+    if (id) await openDetail(id);
+  });
+
+  el.cards.addEventListener('keydown', async (ev) => {
+    if (ev.key !== 'Enter' && ev.key !== ' ') return;
+    const card = ev.target.closest?.('.card');
+    if (!card || !el.cards.contains(card)) return;
+    ev.preventDefault();
+    const id = decodeURIComponent(card.dataset.cardId || '');
+    if (id) await openDetail(id);
   });
 }
 
