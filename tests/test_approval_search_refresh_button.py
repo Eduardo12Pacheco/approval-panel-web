@@ -98,11 +98,18 @@ if (JSON.stringify(calls[1].payload) !== JSON.stringify({ run_id: 'run-1' })) {
     assert result.returncode == 0, result.stderr
 
 
-def test_last_news_search_meta_is_visible_with_fallback_copy():
+def test_last_news_search_meta_uses_shared_item_timestamp_instead_of_local_timestamp():
     script = r"""
 import { createApprovalSearchController } from './js/modules/app-shell/views/approval-search.js';
 
-const state = { searchRefreshRunning: false, lastNewsSearchAt: null };
+const state = {
+  searchRefreshRunning: false,
+  lastNewsSearchAt: '2026-05-22T10:15:00.000Z',
+  items: [
+    { cluster_id: 'old', fecha_creacion_cluster: '2026-05-23T20:40:00.000Z' },
+    { cluster_id: 'new', fecha_creacion_cluster: '2026-05-23T21:52:00.000Z' },
+  ],
+};
 const el = {
   searchRefreshBtn: { disabled: false, textContent: '' },
   searchRefreshWindow: { value: '24h', disabled: false },
@@ -124,17 +131,57 @@ const controller = createApprovalSearchController({
 
 controller.renderLastNewsSearchMeta();
 if (el.lastNewsSearchMeta.hidden !== false) throw new Error('expected last refresh meta to be visible');
-if (el.lastNewsSearchMeta.textContent !== 'Última actualización del panel: pendiente') {
-  throw new Error(`unexpected empty-state copy: ${el.lastNewsSearchMeta.textContent}`);
-}
-
-state.lastNewsSearchAt = '2026-05-23T20:40:00.000Z';
-controller.renderLastNewsSearchMeta();
 if (!el.lastNewsSearchMeta.textContent.includes('Última actualización del panel:')) {
   throw new Error(`missing label: ${el.lastNewsSearchMeta.textContent}`);
 }
-if (!el.lastNewsSearchMeta.textContent.includes('2026')) {
-  throw new Error(`missing year: ${el.lastNewsSearchMeta.textContent}`);
+if (!el.lastNewsSearchMeta.textContent.includes('23/05/2026')) {
+  throw new Error(`missing shared date: ${el.lastNewsSearchMeta.textContent}`);
+}
+if (el.lastNewsSearchMeta.textContent.includes('22/05/2026')) {
+  throw new Error(`local timestamp leaked into shared meta: ${el.lastNewsSearchMeta.textContent}`);
+}
+"""
+
+    result = _run_node(script)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_last_news_search_meta_stays_pending_when_only_local_timestamp_exists():
+    script = r"""
+import { createApprovalSearchController } from './js/modules/app-shell/views/approval-search.js';
+
+const state = {
+  searchRefreshRunning: false,
+  lastNewsSearchAt: '2026-05-23T20:40:00.000Z',
+  items: [
+    { cluster_id: 'missing-date' },
+    { cluster_id: 'bad-date', fecha_creacion_cluster: 'not-a-date' },
+  ],
+};
+const el = {
+  searchRefreshBtn: { disabled: false, textContent: '' },
+  searchRefreshWindow: { value: '24h', disabled: false },
+  searchRefreshStatus: { textContent: '', classList: { toggle() {} } },
+  lastNewsSearchMeta: { hidden: true, textContent: '' },
+};
+
+const controller = createApprovalSearchController({
+  state,
+  el,
+  customDropdowns: { refreshAll() {} },
+  approvalApi: { async post() { return {}; } },
+  refreshAll: async () => {},
+  renderCards: () => {},
+  saveLastNewsSearchAt: () => { throw new Error('must not persist shared panel timestamp locally'); },
+  toast: () => {},
+  getErrorMessage: (err) => err?.message || 'error',
+});
+
+controller.renderLastNewsSearchMeta();
+if (el.lastNewsSearchMeta.hidden !== false) throw new Error('expected last refresh meta to be visible');
+if (el.lastNewsSearchMeta.textContent !== 'Última actualización del panel: pendiente') {
+  throw new Error(`unexpected local-only copy: ${el.lastNewsSearchMeta.textContent}`);
 }
 """
 

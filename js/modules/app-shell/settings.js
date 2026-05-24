@@ -10,7 +10,6 @@ export function createSettingsController({
   el,
   storage,
   storageKey,
-  lastNewsSearchKey,
   defaultsFactory = defaultSettingsFactory,
 }) {
   function hydrateSettingsForm() {
@@ -27,21 +26,12 @@ export function createSettingsController({
   }
 
   function loadLastNewsSearchAt() {
-    try {
-      return storage.getItem(lastNewsSearchKey) || null;
-    } catch {
-      return null;
-    }
+    return null;
   }
 
-  function saveLastNewsSearchAt(value) {
-    try {
-      if (value) {
-        storage.setItem(lastNewsSearchKey, value);
-      } else {
-        storage.removeItem(lastNewsSearchKey);
-      }
-    } catch {}
+  function saveLastNewsSearchAt() {
+    // Deprecated no-op: shared-looking panel update metadata is derived from
+    // read-model items, not per-browser localStorage.
   }
 
   return {

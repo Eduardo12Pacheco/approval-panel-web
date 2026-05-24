@@ -28,7 +28,6 @@ export function createAppShellComposition({
   windowRef,
   storage,
   storageKey,
-  lastNewsSearchKey,
   fetchImpl,
   btoaImpl,
   defaultsFactory,
@@ -44,7 +43,7 @@ export function createAppShellComposition({
   });
   const state = createShellState({
     settings,
-    lastNewsSearchAt: loadLastNewsSearchAt({ storage, lastNewsSearchKey }),
+    lastNewsSearchAt: null,
     subtitles2: { previewPlaying: false },
   });
   const el = getDomSelectors(documentRef);
@@ -406,12 +405,4 @@ function createAudioFeatureStub() {
     runAudioGenerationFromText() { return Promise.reject(new Error('Audio feature not loaded yet')); },
   };
   return stub;
-}
-
-function loadLastNewsSearchAt({ storage, lastNewsSearchKey }) {
-  try {
-    return storage.getItem(lastNewsSearchKey) || null;
-  } catch {
-    return null;
-  }
 }

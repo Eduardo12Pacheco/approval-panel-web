@@ -62,7 +62,11 @@ import { bindAudioEvents } from './events/audio.js';
 import { bindSubtitlesEvents } from './events/subtitles.js';
 import { bindApprovalDialogEvents } from './events/approval-dialog.js';
 import { createShellNavigationController } from './views/navigation.js';
-import { createApprovalSearchController } from './views/approval-search.js';
+import {
+  createApprovalSearchController,
+  formatNewsSearchTimestamp,
+  resolveLatestSharedPanelTimestamp,
+} from './views/approval-search.js';
 import { createShellRenderers } from './views/renderers.js';
 import { createScriptToAudioVoiceController } from './voice/script-to-audio.js';
 
@@ -174,7 +178,6 @@ const approvalSearch = createApprovalSearchController({
   approvalApi,
   refreshAll,
   renderCards,
-  saveLastNewsSearchAt: settingsController.saveLastNewsSearchAt,
   toast,
   getErrorMessage,
 });
@@ -703,14 +706,6 @@ function getSearchRefreshWindowLabel(value) {
   return value === '1h' ? 'Última hora' : 'Últimas 24 horas';
 }
 
-function formatNewsSearchTimestamp(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (input) => String(input).padStart(2, '0');
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function assertSearchRefreshSucceeded(result) {
   const status = (result?.status || '').toString().trim().toLowerCase();
   const promoteStatus = (result?.promote?.status || '').toString().trim().toLowerCase();
@@ -827,7 +822,7 @@ function renderCards() {
 
 function renderLastNewsSearchMeta() {
   if (!el.lastNewsSearchMeta) return;
-  const formatted = formatNewsSearchTimestamp(state.lastNewsSearchAt);
+  const formatted = formatNewsSearchTimestamp(resolveLatestSharedPanelTimestamp(state.items));
   el.lastNewsSearchMeta.hidden = false;
   el.lastNewsSearchMeta.textContent = formatted
     ? `Última actualización del panel: ${formatted}`

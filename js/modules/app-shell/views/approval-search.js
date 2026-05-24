@@ -1,3 +1,33 @@
+const SHARED_PANEL_TIMESTAMP_FIELDS = ['fecha_creacion_cluster'];
+
+export function formatNewsSearchTimestamp(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const pad = (input) => String(input).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+export function resolveLatestSharedPanelTimestamp(items = []) {
+  if (!Array.isArray(items)) return null;
+
+  let latest = null;
+  for (const item of items) {
+    for (const field of SHARED_PANEL_TIMESTAMP_FIELDS) {
+      const value = item?.[field];
+      if (!value) continue;
+      const date = new Date(value);
+      const time = date.getTime();
+      if (Number.isNaN(time)) continue;
+      if (!latest || time > latest.time) {
+        latest = { time, value: date.toISOString() };
+      }
+    }
+  }
+
+  return latest?.value || null;
+}
+
 export function createApprovalSearchController({
   state,
   el,
@@ -5,7 +35,6 @@ export function createApprovalSearchController({
   approvalApi,
   refreshAll,
   renderCards,
-  saveLastNewsSearchAt,
   toast,
   getErrorMessage,
 }) {
@@ -25,14 +54,6 @@ export function createApprovalSearchController({
 
   function getSearchRefreshWindowLabel(value) {
     return value === '1h' ? 'Última hora' : 'Últimas 24 horas';
-  }
-
-  function formatNewsSearchTimestamp(value) {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const pad = (input) => String(input).padStart(2, '0');
-    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   function assertSearchRefreshSucceeded(result) {
@@ -78,7 +99,7 @@ export function createApprovalSearchController({
 
   function renderLastNewsSearchMeta() {
     if (!el.lastNewsSearchMeta) return;
-    const formatted = formatNewsSearchTimestamp(state.lastNewsSearchAt);
+    const formatted = formatNewsSearchTimestamp(resolveLatestSharedPanelTimestamp(state.items));
     el.lastNewsSearchMeta.hidden = false;
     el.lastNewsSearchMeta.textContent = formatted
       ? `Última actualización del panel: ${formatted}`
@@ -188,8 +209,6 @@ export function createApprovalSearchController({
       renderSearchRefreshState();
       toast('Búsqueda completada. Actualizando noticias...');
       await refreshAll();
-      state.lastNewsSearchAt = finalResult?.promoted_at || finalResult?.completed_at || new Date().toISOString();
-      saveLastNewsSearchAt(state.lastNewsSearchAt);
       renderLastNewsSearchMeta();
       renderCards();
       state.searchRefreshStatus = isAsyncRun
