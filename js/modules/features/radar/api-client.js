@@ -58,6 +58,7 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationL
       response = await fetchImpl(`${resolveBaseUrl(service)}${path}`, {
         method,
         headers,
+        credentials: 'include',
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
     } catch (error) {

@@ -47,6 +47,7 @@ export function createAiRescueApiClient({ getSettings, fetchImpl = fetch, locati
       response = await fetchImpl(`${resolveBaseUrl()}${path}`, {
         method,
         headers,
+        credentials: 'include',
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       });
     } catch (error) {

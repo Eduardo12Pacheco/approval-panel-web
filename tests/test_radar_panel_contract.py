@@ -22,6 +22,15 @@ def _run_node_file(path: Path):
     )
 
 
+def _run_node(script: str):
+    return subprocess.run(
+        ["node", "--experimental-default-type=module", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors():
     index_source = INDEX_HTML_PATH.read_text(encoding="utf-8") + "\n" + RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
     selectors_source = SELECTORS_PATH.read_text(encoding="utf-8")
@@ -111,6 +120,42 @@ def test_radar_static_shell_contract_adds_view_navigation_settings_and_selectors
 
 def test_radar_runtime_contract_uses_injected_fetch_clipboard_and_thin_client_modules():
     result = _run_node_file(RADAR_CHECK_PATH)
+    assert result.returncode == 0, result.stderr
+
+
+def test_radar_and_ai_rescue_gateway_requests_include_session_credentials():
+    script = r"""
+import { createRadarApiClient } from './js/modules/features/radar/api-client.js';
+import { createAiRescueApiClient } from './js/modules/features/ai-rescue/api-client.js';
+
+const settings = {
+  apiProfileMode: 'unified',
+  apiOrigin: 'https://api.example.test',
+  sharedApiKey: '',
+  serviceOverrides: { radar: false, monitor: false },
+  transcriptServiceBaseUrl: 'https://direct-radar.example.test',
+  channelMonitorBaseUrl: 'https://direct-monitor.example.test',
+};
+const calls = [];
+const fetchImpl = async (url, options = {}) => {
+  calls.push({ url, options });
+  return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true, items: [] }) };
+};
+
+const radar = createRadarApiClient({ getSettings: () => settings, fetchImpl, locationLike: { hostname: 'approval-panel-web.pages.dev' } });
+await radar.monitorCards();
+await radar.health();
+
+const ai = createAiRescueApiClient({ getSettings: () => settings, fetchImpl, locationLike: { hostname: 'approval-panel-web.pages.dev' } });
+await ai.preflight();
+
+for (const call of calls) {
+  if (call.options.credentials !== 'include') {
+    throw new Error(`missing session credentials for ${call.url}: ${JSON.stringify(call.options)}`);
+  }
+}
+"""
+    result = _run_node(script)
     assert result.returncode == 0, result.stderr
 
 
