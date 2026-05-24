@@ -19,4 +19,8 @@
   #viewSubtitulos2 .subtitle-phase-bar {
     grid-template-columns: 1fr;
   }
+
+  #viewSubtitulos2 .subtitle-table-scroll {
+    max-height: min(430px, 58vh);
+  }
 }

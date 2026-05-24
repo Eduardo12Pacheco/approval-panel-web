@@ -13,6 +13,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
   const ensureRowsCoverDuration = collaborators.ensureRowsCoverDuration || (() => false);
   const resolvePreviewDurationMs = collaborators.resolvePreviewDurationMs || (() => 0);
   let subtitle2PreviewDragCleanup = null;
+  let activeTableRowId = '';
 
   function revokePreviewObjectUrl() {
     const objectUrl = state.subtitles2?.previewVideoObjectUrl;
@@ -57,6 +58,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
 
   function renderPreviewOverlay() {
     const activeCue = pickActiveSubtitleCueRuntime(state.subtitles2.rows, state.subtitles2.previewCurrentMs);
+    syncActiveTableRow(activeCue?.id || '');
     if (!el.subtitle2PreviewCue) {
       renderPreviewTimeline();
       renderPreviewOverlayCallback();
@@ -87,6 +89,25 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
       el.subtitle2PreviewCue.style.width = `${presentation.cueWidthPx}px`;
     }
     renderPreviewTimeline();
+  }
+
+  function syncActiveTableRow(rowId) {
+    const nextRowId = (rowId || '').toString();
+    if (activeTableRowId === nextRowId && state.subtitles2.activeRowId === nextRowId) return;
+    const previousRowId = activeTableRowId;
+    activeTableRowId = nextRowId;
+    state.subtitles2.activeRowId = nextRowId;
+    if (!el.subtitle2RowsBody?.querySelector) return;
+    for (const id of [previousRowId, nextRowId]) {
+      if (!id) continue;
+      const row = findTableRowById(id);
+      row?.classList.toggle('subtitle-row--active', id === nextRowId);
+    }
+  }
+
+  function findTableRowById(rowId) {
+    if (!el.subtitle2RowsBody?.querySelectorAll) return null;
+    return Array.from(el.subtitle2RowsBody.querySelectorAll('tr[data-row-id]')).find((row) => row.dataset.rowId === rowId) || null;
   }
 
   function renderPreviewTimeline() {
@@ -197,6 +218,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     renderPreviewPlayer,
     renderPreviewOverlay,
     renderPreviewTimeline,
+    syncActiveTableRow,
     renderPreviewPlaybackState,
     applyVideoDuration,
     onLoadedMetadata,

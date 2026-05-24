@@ -158,6 +158,7 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
       sizeOptions,
       fontOptions,
       colorOptions,
+      activeRowId: state.subtitles2.activeRowId || '',
       lastNonDraftRowIndex: getLastNonDraftRowIndex(),
       escapeHtml,
       formatDisplayTime: formatSubtitleDisplayTimeRuntime,

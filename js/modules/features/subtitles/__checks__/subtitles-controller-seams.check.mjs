@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 
+import { SUBTITLE_SIZE_PRESETS } from '../../../subtitles-workflow.mjs';
 import { buildSubtitleControllerContext } from '../controller/context.js';
 import { createSubtitlePreviewPlayer } from '../controller/preview-player.js';
 import { createSubtitleRenderCommands } from '../controller/render-commands.js';
@@ -10,6 +11,7 @@ import { createSubtitleTableEditor } from '../controller/table-editor.js';
 import { createSubtitleWorkflowRenderer } from '../controller/render-workflow.js';
 import { createSubtitlesController } from '../controller.js';
 import { createSubtitlesFeature } from '../index.js';
+import { buildSubtitlesTableRowsMarkupRuntime } from '../runtime/presentation.js';
 
 const EXPECTED_CONTROLLER_API = [
   'pollRemoteSubtitleSessionStatus',
@@ -17,6 +19,7 @@ const EXPECTED_CONTROLLER_API = [
   'stopPolling',
   'resetRunState',
   'renderWorkflow',
+  'renderPreviewPlaybackState',
   'renderSessionHistory',
   'renderDoneCard',
   'refreshRemoteStatus',
@@ -31,6 +34,7 @@ const EXPECTED_CONTROLLER_API = [
   'onAddRowClicked',
   'onTableInput',
   'onTableClick',
+  'onTablePointerDown',
   'onDraftDragStart',
   'onDraftDragOver',
   'onDraftDragLeave',
@@ -43,6 +47,7 @@ const EXPECTED_CONTROLLER_API = [
   'onPreviewTimelineDragStart',
   'renameHistorySession',
   'deleteHistorySession',
+  'activate',
 ];
 
 const EXPECTED_SUPPORT_MODULES = [
@@ -319,6 +324,32 @@ test('table editor seam preserves row patching, timing validation, and draft pla
   assert.ok(ctx.state.subtitles2.changeVersion >= 2);
   assert.ok(renderCalls.includes('overlay'));
   assert.ok(renderCalls.includes('workflow'));
+});
+
+test('subtitles table markup supports extended size presets, compact dropdown, active row, and hold stepper controls', () => {
+  const markup = buildSubtitlesTableRowsMarkupRuntime({
+    rows: [{ id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', size: '200', maxWidthPx: 1080, fontFamily: 'Khand', color: '#FFFFFF', align: 'center' }],
+    activeRowId: 'row-1',
+    sizeOptions: SUBTITLE_SIZE_PRESETS,
+    fontOptions: ['Khand'],
+    colorOptions: ['#FFFFFF'],
+    lastNonDraftRowIndex: 0,
+    escapeHtml(value) { return (value ?? '').toString(); },
+    formatDisplayTime(value) { return value; },
+    getAlignmentButtonState: () => ({
+      left: { className: '', selected: false },
+      center: { className: 'selected-green', selected: true },
+      right: { className: '', selected: false },
+    }),
+    resolveFontWeight: () => 'Bold',
+  });
+
+  assert.ok(SUBTITLE_SIZE_PRESETS.includes('200'));
+  assert.match(markup, /<option value="200" selected>200<\/option>/);
+  assert.match(markup, /class="subtitle-row--active"/);
+  assert.match(markup, /class="subtitle-size-select" data-custom-dropdown/);
+  assert.match(markup, /data-action="step-subtitle-number"/);
+  assert.match(markup, /aria-label="Subir ancho máximo"/);
 });
 
 test('session seam preserves polling cadence, hydration, terminal cleanup, and stale guards', async () => {

@@ -47,6 +47,7 @@ export function buildSubtitleSessionHistoryMarkupRuntime({ items = [], activeSes
 export function buildSubtitleTableRowMarkupRuntime({
   row,
   index = 0,
+  activeRowId = '',
   sizeOptions = [],
   fontOptions = [],
   colorOptions = [],
@@ -68,40 +69,51 @@ export function buildSubtitleTableRowMarkupRuntime({
     };
   const canDelete = index > 0;
   const isDraft = Boolean(row?.isDraft);
+  const isActive = !isDraft && row?.id && row.id === activeRowId;
   const isLastTimedRow = index === lastNonDraftRowIndex;
+  const rowClassName = [isDraft ? 'subtitle-row--draft' : '', isActive ? 'subtitle-row--active' : ''].filter(Boolean).join(' ');
+  const escapedRowId = escape(row?.id || '');
   return `
-      <tr data-row-id="${row.id}" data-draft="${isDraft ? 'true' : 'false'}" class="${isDraft ? 'subtitle-row--draft' : ''}" ${isDraft ? 'draggable="true"' : ''}>
+      <tr data-row-id="${escapedRowId}" data-draft="${isDraft ? 'true' : 'false'}" class="${rowClassName}" ${isDraft ? 'draggable="true"' : ''}>
         <td>
           <div class="subtitle-time-range" aria-label="Rango de tiempo">
             <div class="subtitle-time-row">
-              <input type="text" data-row-id="${row.id}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escape(formatTime(row.start))}" ${isDraft ? 'disabled' : ''} />
+              <input type="text" data-row-id="${escapedRowId}" data-field="start" aria-label="Start" placeholder="sin tiempo" value="${isDraft ? '' : escape(formatTime(row.start))}" ${isDraft ? 'disabled' : ''} />
               <div class="subtitle-time-nudge" aria-label="Ajustar Start">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="start" data-direction="up" aria-label="Subir Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌃</button>
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${escapedRowId}" data-field="start" data-direction="up" aria-label="Subir Start 00:00.10" ${isDraft || index === 0 ? 'disabled' : ''}>⌃</button>
               </div>
             </div>
             <span class="subtitle-time-range__line" aria-hidden="true"></span>
             <div class="subtitle-time-row">
-              <input type="text" data-row-id="${row.id}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escape(formatTime(row.end))}" ${isDraft ? 'disabled' : ''} />
+              <input type="text" data-row-id="${escapedRowId}" data-field="end" aria-label="End" placeholder="arrastrá" value="${isDraft ? '' : escape(formatTime(row.end))}" ${isDraft ? 'disabled' : ''} />
               <div class="subtitle-time-nudge" aria-label="Ajustar End">
-                <button type="button" data-action="nudge-subtitle-time" data-row-id="${row.id}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft || isLastTimedRow ? 'disabled' : ''}>⌄</button>
+                <button type="button" data-action="nudge-subtitle-time" data-row-id="${escapedRowId}" data-field="end" data-direction="down" aria-label="Bajar End 00:00.10" ${isDraft || isLastTimedRow ? 'disabled' : ''}>⌄</button>
               </div>
             </div>
           </div>
         </td>
-        <td><textarea data-row-id="${row.id}" data-field="phrase" style="font-family:${escape(row.fontFamily)};font-weight:${escape(row.fontWeight || resolveWeight(row.fontFamily))};">${escape(row.phrase)}</textarea></td>
-        <td><select data-row-id="${row.id}" data-field="size">${buildSubtitleSelectOptionsMarkupRuntime(sizeOptions, row.size, { escapeHtml: escape })}</select></td>
-        <td><input type="number" min="1" step="10" data-row-id="${row.id}" data-field="maxWidthPx" value="${escape(String(row.maxWidthPx || 1080))}" /></td>
-        <td><select data-row-id="${row.id}" data-field="fontFamily">${buildSubtitleSelectOptionsMarkupRuntime(fontOptions, row.fontFamily, { escapeHtml: escape })}</select></td>
-        <td><select data-row-id="${row.id}" data-field="color">${buildSubtitleSelectOptionsMarkupRuntime(colorOptions, row.color, { escapeHtml: escape })}</select></td>
+        <td><textarea data-row-id="${escapedRowId}" data-field="phrase" style="font-family:${escape(row.fontFamily)};font-weight:${escape(row.fontWeight || resolveWeight(row.fontFamily))};">${escape(row.phrase)}</textarea></td>
+        <td><select data-row-id="${escapedRowId}" data-field="size" name="subtitle-size-${escapedRowId}" class="subtitle-size-select" data-custom-dropdown data-dropdown-label="Tamaño" data-dropdown-placeholder="Tamaño">${buildSubtitleSelectOptionsMarkupRuntime(sizeOptions, row.size, { escapeHtml: escape })}</select></td>
+        <td>
+          <div class="subtitle-number-stepper">
+            <input type="number" min="1" step="10" inputmode="numeric" data-row-id="${escapedRowId}" data-field="maxWidthPx" value="${escape(String(row.maxWidthPx || 1080))}" aria-label="Ancho máximo" />
+            <div class="subtitle-number-stepper__buttons" aria-label="Ajustar ancho máximo">
+              <button type="button" data-action="step-subtitle-number" data-row-id="${escapedRowId}" data-field="maxWidthPx" data-direction="up" aria-label="Subir ancho máximo" title="Subir ancho máximo">⌃</button>
+              <button type="button" data-action="step-subtitle-number" data-row-id="${escapedRowId}" data-field="maxWidthPx" data-direction="down" aria-label="Bajar ancho máximo" title="Bajar ancho máximo">⌄</button>
+            </div>
+          </div>
+        </td>
+        <td><select data-row-id="${escapedRowId}" data-field="fontFamily">${buildSubtitleSelectOptionsMarkupRuntime(fontOptions, row.fontFamily, { escapeHtml: escape })}</select></td>
+        <td><select data-row-id="${escapedRowId}" data-field="color">${buildSubtitleSelectOptionsMarkupRuntime(colorOptions, row.color, { escapeHtml: escape })}</select></td>
         <td>
           <div class="subtitle-align-group subtitle-align-group--compact">
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda" aria-pressed="${alignment.left.selected}">I</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro" aria-pressed="${alignment.center.selected}">C</button>
-            <button type="button" data-row-id="${row.id}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
+            <button type="button" data-row-id="${escapedRowId}" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda" aria-pressed="${alignment.left.selected}">I</button>
+            <button type="button" data-row-id="${escapedRowId}" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro" aria-pressed="${alignment.center.selected}">C</button>
+            <button type="button" data-row-id="${escapedRowId}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
           </div>
         </td>
         <td>
-          <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${row.id}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
+          <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
         </td>
       </tr>
     `;

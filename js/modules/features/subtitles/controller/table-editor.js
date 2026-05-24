@@ -17,9 +17,11 @@ import {
 const SUBTITLE_TIME_NUDGE_MS = 100;
 const SUBTITLE_TIMING_GAP_MS = 60;
 const SUBTITLE_DRAFT_INSERT_DURATION_MS = 1000;
+const SUBTITLE_NUMBER_HOLD_DELAY_MS = 320;
+const SUBTITLE_NUMBER_HOLD_INTERVAL_MS = 75;
 
 export function createSubtitleTableEditor(ctx, callbacks = {}) {
-  const { state, el, ui } = ctx;
+  const { state, el, ui, timers, windowRef } = ctx;
   const toast = ui.toast;
   const renderWorkflow = callbacks.renderWorkflow || (() => ctx.renderCallbacks.renderWorkflow?.());
   const renderTable = callbacks.renderTable || (() => ctx.renderCallbacks.renderTable?.());
@@ -101,6 +103,15 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       nudgeTimingBoundary(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
       return;
     }
+    const numberStepButton = ev.target.closest('button[data-action="step-subtitle-number"]');
+    if (numberStepButton) {
+      if (numberStepButton.dataset.pointerHandled === 'true') {
+        delete numberStepButton.dataset.pointerHandled;
+        return;
+      }
+      stepNumberField(numberStepButton.dataset.rowId, numberStepButton.dataset.field, numberStepButton.dataset.direction);
+      return;
+    }
     const deleteButton = ev.target.closest('button[data-action="delete-subtitle-row"]');
     if (deleteButton) {
       const rowId = deleteButton.dataset.rowId;
@@ -113,6 +124,69 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const align = button.dataset.align;
     if (!rowId || !align) return;
     patchRow(rowId, { align });
+  }
+
+  function onTablePointerDown(ev) {
+    const button = ev.target.closest('button[data-action="step-subtitle-number"]');
+    if (!button || button.disabled) return;
+    if (ev.button != null && ev.button !== 0) return;
+    ev.preventDefault();
+    button.dataset.pointerHandled = 'true';
+    startNumberHold(button);
+  }
+
+  function startNumberHold(button) {
+    stopNumberHold();
+    const rowId = button.dataset.rowId;
+    const field = button.dataset.field;
+    const direction = button.dataset.direction;
+    if (!rowId || !field || !direction) return;
+    button.classList.add('is-holding');
+    stepNumberField(rowId, field, direction);
+
+    const runRepeat = () => {
+      stepNumberField(rowId, field, direction);
+      state.subtitles2.numberHoldTimer = timers.setTimeout(runRepeat, SUBTITLE_NUMBER_HOLD_INTERVAL_MS);
+    };
+
+    state.subtitles2.numberHoldTimer = timers.setTimeout(runRepeat, SUBTITLE_NUMBER_HOLD_DELAY_MS);
+    const stop = () => {
+      button.classList.remove('is-holding');
+      stopNumberHold();
+      windowRef.removeEventListener?.('pointerup', stop);
+      windowRef.removeEventListener?.('pointercancel', stop);
+      windowRef.removeEventListener?.('blur', stop);
+    };
+    windowRef.addEventListener?.('pointerup', stop);
+    windowRef.addEventListener?.('pointercancel', stop);
+    windowRef.addEventListener?.('blur', stop);
+  }
+
+  function stopNumberHold() {
+    if (!state.subtitles2.numberHoldTimer) return;
+    timers.clearTimeout(state.subtitles2.numberHoldTimer);
+    state.subtitles2.numberHoldTimer = null;
+  }
+
+  function stepNumberField(rowId, field, direction) {
+    if (field !== 'maxWidthPx') return;
+    const row = state.subtitles2.rows.find((item) => item.id === rowId);
+    if (!row) return;
+    const input = findRowInput(rowId, field);
+    const step = Math.max(1, Number(input?.step || 10) || 10);
+    const min = Number(input?.min || 1) || 1;
+    const current = Number(input?.value || row.maxWidthPx || 1080);
+    const base = Number.isFinite(current) ? current : Number(row.maxWidthPx || 1080);
+    const next = Math.max(min, Math.round(base + (direction === 'down' ? -step : step)));
+    if (input) input.value = String(next);
+    patchRow(rowId, { [field]: next }, { rerender: false });
+  }
+
+  function findRowInput(rowId, field) {
+    if (!el.subtitle2RowsBody?.querySelectorAll) return null;
+    return Array.from(el.subtitle2RowsBody.querySelectorAll('input[data-row-id][data-field]')).find((input) => (
+      input.dataset.rowId === rowId && input.dataset.field === field
+    )) || null;
   }
 
   function nudgeTimingBoundary(rowId, field, direction) {
@@ -341,6 +415,8 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     onTableInput,
     applyTimingInput,
     onTableClick,
+    onTablePointerDown,
+    stopNumberHold,
     nudgeTimingBoundary,
     deleteRow,
     onAddRowClicked,

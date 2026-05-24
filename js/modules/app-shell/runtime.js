@@ -438,6 +438,7 @@ function legacyBindEvents() {
   el.subtitle2RowsBody?.addEventListener('input', subtitlesController.onTableInput);
   el.subtitle2RowsBody?.addEventListener('change', subtitlesController.onTableInput);
   el.subtitle2RowsBody?.addEventListener('click', subtitlesController.onTableClick);
+  el.subtitle2RowsBody?.addEventListener('pointerdown', subtitlesController.onTablePointerDown);
   el.subtitle2RowsBody?.addEventListener('dragstart', subtitlesController.onDraftDragStart);
   el.subtitle2RowsBody?.addEventListener('dragover', subtitlesController.onDraftDragOver);
   el.subtitle2RowsBody?.addEventListener('dragleave', subtitlesController.onDraftDragLeave);

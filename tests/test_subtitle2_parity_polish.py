@@ -278,7 +278,7 @@ def test_subtitle2_remote_style_presets_match_backend_contracts():
     controller = _read_subtitle_controller_sources()
     presentation = SUBTITLE_RUNTIME_PRESENTATION_PATH.read_text(encoding="utf-8")
 
-    assert "Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140'])" in workflow
+    assert "Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140', '150', '160', '170', '180', '190', '200'])" in workflow
     assert "Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald'])" in workflow
     assert "Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2'])" in workflow
     assert "Object.freeze(['Khand Bold'" not in workflow
