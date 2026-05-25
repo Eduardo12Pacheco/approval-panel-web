@@ -5,7 +5,21 @@ import {
   resolveStoragePublicUrl,
 } from '../domain/image-candidates.js';
 import { resolveVideoProjectKey, resolveVideoProjectTitle } from '../domain/project-identity.js';
-import { getProjectPhaseLabel } from '../domain/status-labels.js';
+
+function getProjectCardPhaseLabel(project = {}) {
+  const status = (project.status || '').toString().trim().toLowerCase();
+  const editorPhase = (project.editor_state?.phase || '').toString().trim().toLowerCase();
+  const exportStatus = (project.editor_state?.export_status || '').toString().trim().toLowerCase();
+  const currentStep = (project._videoProjectStep || '').toString().trim().toLowerCase();
+
+  if (editorPhase === 'final_rendering' || exportStatus === 'rendering') return 'Renderizado';
+  if (editorPhase === 'final_ready' || exportStatus === 'ready') return 'Renderizado';
+  if (['preparing', 'preview_rendering', 'preview_ready', 'editing_dirty', 'error'].includes(editorPhase)) return 'Edición';
+  if (currentStep === 'audio' || project.voice_audio?.public_url || project.background_audio?.public_url) return 'Audio';
+  if (status === 'image_search_error') return 'Imágenes · error';
+  if (status === 'no_candidates') return 'Imágenes · sin resultados';
+  return 'Imágenes';
+}
 
 function resolveProjectThumbnailUrl(project = {}) {
   const firstImageUrl = (project.first_image_url || '').toString().trim();
@@ -26,7 +40,7 @@ export function buildProjectCard(project = {}) {
   const player = escapeHtmlCore((project.jugador || 'Sin jugador').toString());
   const country = escapeHtmlCore((project.seleccion || 'Sin selección').toString());
   const imageUrl = resolveProjectThumbnailUrl(project);
-  const phase = escapeHtmlCore(getProjectPhaseLabel(project));
+  const phase = escapeHtmlCore(getProjectCardPhaseLabel(project));
   const statusName = escapeHtmlCore((project.status || 'unknown').toString());
   const createdAt = project.published_at || project.created_at || project.updated_at;
 
