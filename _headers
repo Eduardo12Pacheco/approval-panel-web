@@ -6,7 +6,7 @@
 
 # HTML — always revalidate so the shell picks up new module URLs/contracts.
 /
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 # Static assets with content-addressed URLs — cache aggressively.
 /assets/*.webm
@@ -14,19 +14,19 @@
 
 # JS and CSS — never serve stale app code; this panel has no bundler/content hashes.
 /styles/*.css
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 /styles/**/*.css
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 /js/main.js
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 /js/modules/*.js
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 /js/modules/**/*.js
-  Cache-Control: no-cache, max-age=0, must-revalidate
+  Cache-Control: no-store, max-age=0
 
 /favicon.svg
   Cache-Control: public, max-age=31536000, immutable
