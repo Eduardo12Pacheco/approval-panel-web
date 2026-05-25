@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260525-video-duration-v8';
+export const APP_CACHE_VERSION = '20260525-video-undo-v9';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);

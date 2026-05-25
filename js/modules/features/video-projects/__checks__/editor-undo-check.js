@@ -539,6 +539,87 @@ async function runUploadAssignmentCaptureCheck() {
   }
 }
 
+async function runApprovalVideoUndoSyncCheck() {
+  const savedStates = [];
+  const updateSnapshotCalls = [];
+  const imageRow = {
+    id: 'row-1',
+    rowId: 'row-1',
+    startTime: 0,
+    endTime: 4,
+    selectedAssetId: 'img-original',
+    media: { kind: 'image', assetId: 'img-original', url: './uploads/original.jpg' },
+  };
+  const project = makeProject({
+    _editorRows: [JSON.parse(JSON.stringify(imageRow))],
+    editor_state: {
+      ...makeProject().editor_state,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://approval.local',
+      remotion_project_id: 'approval-project-undo',
+      snapshot_hash: 'hash-original',
+      timed_rows: [JSON.parse(JSON.stringify(imageRow))],
+      approval_contract_snapshot: {
+        contractVersion: 'approval-editor-service-v1',
+        projectId: 'approval-project-undo',
+        snapshotId: 'snapshot-original',
+        snapshotHash: 'hash-original',
+        rows: [JSON.parse(JSON.stringify(imageRow))],
+        assets: {
+          'img-original': { assetId: 'img-original', previewUrl: './uploads/original.jpg', renderPath: './uploads/original.jpg' },
+        },
+      },
+    },
+  });
+  const videoRow = {
+    ...imageRow,
+    media: { kind: 'video-segment', sourceVideoAssetId: 'video-1', sourceVideoSrc: './uploads/video.mp4', sourceInSeconds: 1, durationSeconds: 4 },
+  };
+  const restoredImageRow = JSON.parse(JSON.stringify(imageRow));
+  const controller = createVideoProjectsController({
+    api: {
+      createApprovalPipelineClient() {
+        return {
+          async updateSnapshot(_projectId, payload) {
+            updateSnapshotCalls.push(payload);
+            const operation = payload.operations[0];
+            if (operation.type === 'setRowVideoSegment') {
+              return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotId: 'snapshot-video', snapshotHash: 'hash-video', rows: [JSON.parse(JSON.stringify(videoRow))] } };
+            }
+            if (operation.type === 'setRowImage') {
+              return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotId: 'snapshot-restored', snapshotHash: 'hash-restored', rows: [JSON.parse(JSON.stringify(restoredImageRow))] } };
+            }
+            throw new Error(`unexpected operation ${operation.type}`);
+          },
+        };
+      },
+      async saveVideoProjectEditorState(payload) {
+        savedStates.push(payload.editorState);
+      },
+    },
+    store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'http://approval.local' }, selectedVideoProject: project }) },
+    ui: { toast() {} },
+    callbacks: {
+      renderVideoProjects() {},
+      renderSelectedVideoProject() {},
+      updateSelectedVideoProjectCompositionPreview() { return true; },
+    },
+  });
+
+  await controller.updateRow('row-1', { media: videoRow.media });
+  assertEqual(project._editorRows[0].media.kind, 'video-segment', 'Expected Approval row update to apply canonical video snapshot before undo');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-video', 'Expected video assignment to advance canonical snapshot hash');
+
+  assertEqual(await controller.undoEditorChange(), true, 'Expected Approval video assignment to be undoable');
+
+  assertEqual(updateSnapshotCalls.length, 2, 'Expected undo to send one inverse Approval snapshot update after video assignment');
+  assertEqual(updateSnapshotCalls[1].baseSnapshotHash, 'hash-video', 'Expected inverse undo write to use current server snapshot hash, not restored stale hash');
+  assertEqual(updateSnapshotCalls[1].operations[0].type, 'setRowImage', 'Expected video undo to restore row image in Approval snapshot');
+  assertEqual(project._editorRows[0].media.kind, 'image', 'Expected undo to restore local row image media');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-restored', 'Expected undo to apply canonical restored snapshot hash');
+  assertEqual(savedStates.length >= 2, true, 'Expected video assignment and undo to persist editor state');
+}
+
 async function runKeyboardShortcutHydrationCheck() {
   const listeners = new Map();
   const root = {
@@ -582,6 +663,7 @@ await runUndoRestoreCancelsStaleSaveAndPersistsOnceCheck();
 await runApprovalDraftInvalidationCheck();
 await runCommandMutationCaptureCheck();
 await runUploadAssignmentCaptureCheck();
+await runApprovalVideoUndoSyncCheck();
 await runKeyboardShortcutHydrationCheck();
 
 console.log('editor undo manager checks passed');

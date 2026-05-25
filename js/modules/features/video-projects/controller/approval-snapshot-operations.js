@@ -95,12 +95,12 @@ export function createApprovalSnapshotOperations({
     return extractSnapshot(latest);
   }
 
-  async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready' } = {}) {
+  async function commitApprovalSnapshotOperations(project, operations = [], { phase = 'preview_ready', baseSnapshotHashOverride = '' } = {}) {
     const client = createApprovalServiceClient(project);
     if (!client) throw new Error('Approval editor service no configurado');
     const projectId = resolveApprovalSnapshotProjectId(project);
     if (!projectId) throw new Error('Approval editor service no tiene projectId de snapshot');
-    const baseSnapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
+    const baseSnapshotHash = baseSnapshotHashOverride || project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
     const updateWithHash = (hash) => client.updateSnapshot(projectId, { baseSnapshotHash: hash, operations });
     let result;
     try {

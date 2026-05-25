@@ -18,6 +18,54 @@ import { createEditorUndoManager } from './undo-manager.js';
 
 const SAVE_DEBOUNCE_MS = 400;
 
+function resolveEditorRowId(row = {}) {
+  return (row?.id || row?.rowId || '').toString().trim();
+}
+
+function stableJson(value) {
+  return JSON.stringify(value ?? null);
+}
+
+function resolveApprovalImageAsset(project, row = {}) {
+  const assetId = (row.selectedAssetId || row.media?.assetId || row.media?.id || '').toString().trim();
+  if (!assetId) return null;
+  const snapshotAsset = project?.editor_state?.approval_contract_snapshot?.assets?.[assetId];
+  if (snapshotAsset) return { ...snapshotAsset, assetId: snapshotAsset.assetId || assetId, id: snapshotAsset.id || snapshotAsset.assetId || assetId };
+  const mediaUrl = (row.media?.url || row.media?.previewUrl || row.media?.publicUrl || assetId).toString();
+  return { assetId, id: assetId, previewUrl: mediaUrl, renderPath: mediaUrl };
+}
+
+function buildApprovalUndoOperations(project, beforeRows = [], restoredRows = []) {
+  const beforeById = new Map((Array.isArray(beforeRows) ? beforeRows : []).map((row) => [resolveEditorRowId(row), row]).filter(([rowId]) => rowId));
+  const operations = [];
+  for (const row of Array.isArray(restoredRows) ? restoredRows : []) {
+    const rowId = resolveEditorRowId(row);
+    if (!rowId) continue;
+    const before = beforeById.get(rowId) || {};
+    const beforeMedia = before.media?.kind === 'video-segment' ? before.media : { kind: 'image' };
+    const restoredMedia = row.media?.kind === 'video-segment' ? row.media : { kind: 'image' };
+    const mediaChanged = stableJson(beforeMedia) !== stableJson(restoredMedia);
+    const imageChanged = (before.selectedAssetId || '') !== (row.selectedAssetId || '');
+    const mediaModeChanged = (before.mediaMode || 'image') !== (row.mediaMode || 'image');
+    if (!mediaChanged && !imageChanged && !mediaModeChanged) continue;
+
+    if (restoredMedia.kind === 'video-segment') {
+      operations.push({
+        type: 'setRowVideoSegment',
+        rowId,
+        sourceVideoAssetId: restoredMedia.sourceVideoAssetId,
+        sourceVideoSrc: restoredMedia.sourceVideoSrc,
+        sourceInSeconds: restoredMedia.sourceInSeconds,
+        durationSeconds: restoredMedia.durationSeconds,
+      });
+    } else {
+      const asset = resolveApprovalImageAsset(project, row);
+      if (asset) operations.push({ type: 'setRowImage', rowId, asset, mediaMode: row.mediaMode === 'newspaper' ? 'newspaper' : 'image' });
+    }
+  }
+  return operations;
+}
+
 export function buildCompositionPayloadForCheck(project) {
   return buildCompositionPayload(project);
 }
@@ -81,9 +129,19 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
   async function undoEditorChange() {
     const project = store.getState().selectedVideoProject;
     if (!project || !undoManager.canUndo(project)) return false;
+    const wasApprovalServiceMode = approval.isApprovalServiceMode(project);
+    const beforeSnapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash || '';
+    const beforeRows = Array.isArray(project._editorRows) ? project._editorRows.map((row) => ({ ...row, media: row.media ? { ...row.media } : row.media })) : [];
     prepareEditorUndoRestore({ neutralizeApprovalQueue: true });
     const restored = undoManager.undo({ project });
     if (!restored) return false;
+
+    if (wasApprovalServiceMode && beforeSnapshotHash) {
+      const undoOperations = buildApprovalUndoOperations(project, beforeRows, project._editorRows);
+      if (undoOperations.length) {
+        await approval.commitApprovalSnapshotOperations(project, undoOperations, { phase: 'editing_dirty', baseSnapshotHashOverride: beforeSnapshotHash });
+      }
+    }
 
     await persistEditorState(project, {
       ...(project.editor_state || {}),
