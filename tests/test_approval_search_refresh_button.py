@@ -147,6 +147,54 @@ if (el.lastNewsSearchMeta.textContent.includes('22/05/2026')) {
     assert result.returncode == 0, result.stderr
 
 
+def test_async_search_refresh_surfaces_run_error_field():
+    script = r"""
+import { createApprovalSearchController } from './js/modules/app-shell/views/approval-search.js';
+
+const toasts = [];
+const state = { searchRefreshRunning: false };
+const el = {
+  searchRefreshBtn: { disabled: false, textContent: '' },
+  searchRefreshWindow: { value: '24h', disabled: false },
+  searchRefreshStatus: { textContent: '', classList: { toggle() {} } },
+};
+
+const controller = createApprovalSearchController({
+  state,
+  el,
+  customDropdowns: { refreshAll() {} },
+  approvalApi: {
+    async post(path, payload) {
+      if (path === '/webhook/approval/search-refresh/supabase/v2') {
+        return { status: 'accepted', run_id: 'run-failed' };
+      }
+      if (path === '/webhook/approval/search-refresh/status/supabase/v1') {
+        return { status: 'failed', run_id: payload.run_id, error: 'OpenCode quota exceeded' };
+      }
+      throw new Error(`unexpected path ${path}`);
+    },
+  },
+  refreshAll: async () => {},
+  renderCards: () => {},
+  toast: (message) => { toasts.push(message); },
+  getErrorMessage: (err) => err?.message || 'error',
+});
+
+await controller.runSearchRefresh();
+
+if (!el.searchRefreshStatus.textContent.includes('OpenCode quota exceeded')) {
+  throw new Error(`expected run.error in status, got: ${el.searchRefreshStatus.textContent}`);
+}
+if (toasts[0] !== 'OpenCode quota exceeded') {
+  throw new Error(`expected run.error toast, got: ${JSON.stringify(toasts)}`);
+}
+"""
+
+    result = _run_node(script)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_last_news_search_meta_stays_pending_when_only_local_timestamp_exists():
     script = r"""
 import { createApprovalSearchController } from './js/modules/app-shell/views/approval-search.js';

@@ -110,6 +110,17 @@ export function createApprovalSearchController({
     return String(result?.run_id || result?.created_run?.run_id || '').trim();
   }
 
+  function getSearchRefreshErrorMessage(run) {
+    return String(
+      run?.error_message
+      || run?.error
+      || run?.message
+      || run?.details?.error
+      || run?.details?.message
+      || '',
+    ).trim();
+  }
+
   function getSearchRefreshStatusCopy(run, windowLabel) {
     const status = String(run?.status || '').trim().toLowerCase();
     const stats = run?.stats && typeof run.stats === 'object' ? run.stats : {};
@@ -165,7 +176,7 @@ export function createApprovalSearchController({
       renderSearchRefreshState();
 
       if (SEARCH_REFRESH_FAILURE_STATUSES.has(status)) {
-        throw new Error(run?.error_message || run?.message || 'La búsqueda falló en n8n. El panel actual se mantiene sin cambios.');
+        throw new Error(getSearchRefreshErrorMessage(run) || 'La búsqueda falló en n8n. El panel actual se mantiene sin cambios.');
       }
 
       if (SEARCH_REFRESH_SUCCESS_STATUSES.has(status)) return run;
