@@ -101,6 +101,51 @@ async function testStaleVideoSegmentRetriesAgainstLatestSnapshot() {
   assertEqual(savedStates.length, 1, 'Expected successful retry to persist editor state once');
 }
 
+async function testStaleBoundaryTransitionRetriesAgainstLatestSnapshot() {
+  const rows = [
+    { id: 'seg-005', rowId: 'seg-005', startTime: 20, endTime: 23, selectedAssetId: 'image-a.jpg', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'seg-006' },
+    { id: 'seg-006', rowId: 'seg-006', startTime: 24, endTime: 30, selectedAssetId: 'image-b.jpg', media: { kind: 'image' } },
+  ];
+  const latestRows = rows.map((row) => ({ ...row }));
+  const glitchRows = rows.map((row) => (row.id === 'seg-005'
+    ? { ...row, transition: 'glitch-1', transitionConfig: { type: 'overlay-video', assetId: 'glitch-1' } }
+    : row));
+  const project = createApprovalProject({ rows });
+  const calls = [];
+  const savedStates = [];
+  const client = {
+    async snapshot() {
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-latest', rows: latestRows } };
+    },
+    async updateSnapshot(projectId, payload) {
+      calls.push({ projectId, payload });
+      if (payload.baseSnapshotHash === 'hash-latest') {
+        return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-glitch', rows: glitchRows } };
+      }
+      const error = new Error('version conflict');
+      error.code = 'version_conflict';
+      error.details = { expected_version: 44, received_version: 43 };
+      throw error;
+    },
+  };
+  const operations = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'http://approval.local' } }) },
+    ui: { toast() {} },
+    persistEditorState: async (_project, patch) => savedStates.push(patch),
+    renderSelectedVideoProject() {},
+  });
+
+  await operations.commitApprovalSnapshotOperations(project, [{ type: 'setBoundaryTransition', rowId: 'seg-005', nextRowId: 'seg-006', paragraphBoundaryAfter: true, transition: 'glitch-1' }]);
+
+  assertEqual(calls.length, 2, 'Expected stale boundary transition update to retry once over latest snapshot');
+  assertEqual(calls[0].payload.baseSnapshotHash, 'hash-stale', 'Expected first boundary write to use local stale hash');
+  assertEqual(calls[1].payload.baseSnapshotHash, 'hash-latest', 'Expected boundary retry to use latest canonical hash');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-glitch', 'Expected retried boundary transition to apply returned canonical snapshot hash');
+  assertEqual(project._editorRows[0].transition, 'glitch-1', 'Expected retried boundary transition to apply canonical glitch state');
+  assertEqual(savedStates.length, 1, 'Expected successful boundary retry to persist editor state once');
+}
+
 async function testRejectedVideoSegmentDoesNotToastSuccess() {
   const toasts = [];
   const project = createApprovalProject({ rows: [{ id: 'seg-002', startTime: 0, endTime: 2, selectedAssetId: 'image.jpg' }] });
@@ -217,6 +262,7 @@ async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
 
 export async function runVideoSegmentStabilityCheck() {
   await testStaleVideoSegmentRetriesAgainstLatestSnapshot();
+  await testStaleBoundaryTransitionRetriesAgainstLatestSnapshot();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
   testSelectorPreviewKeepsDecorativeEffectsAtLocalStart();
