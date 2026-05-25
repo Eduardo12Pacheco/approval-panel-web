@@ -61,14 +61,22 @@ function createApprovalProject({ rows = [] } = {}) {
   };
 }
 
-async function testStaleSnapshotConflictPreservesLocalEditsWithoutRetry() {
-  const rows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'old-image.jpg' }];
+async function testStaleVideoSegmentRetriesAgainstLatestSnapshot() {
+  const rows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'old-image.jpg', media: { kind: 'image' } }];
+  const latestRows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'newer-image.jpg', media: { kind: 'image' } }];
+  const videoRows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'newer-image.jpg', media: { kind: 'video-segment', sourceVideoAssetId: 'clip.mp4', sourceVideoSrc: 'clip.mp4', sourceInSeconds: 2, durationSeconds: 3 } }];
   const project = createApprovalProject({ rows });
   const calls = [];
   const savedStates = [];
   const client = {
+    async snapshot() {
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-latest', rows: latestRows } };
+    },
     async updateSnapshot(projectId, payload) {
       calls.push({ projectId, payload });
+      if (payload.baseSnapshotHash === 'hash-latest') {
+        return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-video', rows: videoRows } };
+      }
       const error = new Error('version conflict');
       error.code = 'version_conflict';
       error.details = { expected_version: 2, received_version: 1 };
@@ -83,21 +91,14 @@ async function testStaleSnapshotConflictPreservesLocalEditsWithoutRetry() {
     renderSelectedVideoProject() {},
   });
 
-  let rejected = null;
-  try {
-    await operations.commitApprovalSnapshotOperations(project, [{ type: 'setRowVideoSegment', rowId: 'seg-002', sourceVideoSrc: 'clip.mp4', sourceInSeconds: 2, durationSeconds: 3 }]);
-  } catch (error) {
-    rejected = error;
-  }
+  await operations.commitApprovalSnapshotOperations(project, [{ type: 'setRowVideoSegment', rowId: 'seg-002', sourceVideoAssetId: 'clip.mp4', sourceVideoSrc: 'clip.mp4', sourceInSeconds: 2, durationSeconds: 3 }]);
 
-  assertEqual(rejected?.code, 'version_conflict', 'Expected version conflict to surface to caller');
-  assertEqual(calls.length, 1, 'Expected stale base hash not to auto-retry over newer state');
+  assertEqual(calls.length, 2, 'Expected stale video segment update to retry once over latest snapshot');
   assertEqual(calls[0].payload.baseSnapshotHash, 'hash-stale', 'Expected first write to use local stale hash');
-  assertEqual(project.editor_state.snapshot_hash, 'hash-stale', 'Expected local canonical hash to remain unchanged after conflict');
-  assertEqual(project.editor_state.conflict.code, 'version_conflict', 'Expected conflict state to be exposed on editor_state');
-  assertEqual(project.editor_state.conflict.local_edits_preserved, true, 'Expected conflict state to preserve local edits');
-  assertEqual(project._editorRows[0].selectedAssetId, 'old-image.jpg', 'Expected local editor rows not to be replaced by latest server state');
-  assertEqual(savedStates.length, 0, 'Expected no persisted editor state after conflict');
+  assertEqual(calls[1].payload.baseSnapshotHash, 'hash-latest', 'Expected retry to use latest canonical hash');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-video', 'Expected retried video update to apply returned canonical snapshot hash');
+  assertEqual(project._editorRows[0].media?.kind, 'video-segment', 'Expected retried video update to apply canonical video row');
+  assertEqual(savedStates.length, 1, 'Expected successful retry to persist editor state once');
 }
 
 async function testRejectedVideoSegmentDoesNotToastSuccess() {
@@ -215,7 +216,7 @@ async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
 }
 
 export async function runVideoSegmentStabilityCheck() {
-  await testStaleSnapshotConflictPreservesLocalEditsWithoutRetry();
+  await testStaleVideoSegmentRetriesAgainstLatestSnapshot();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
   testSelectorPreviewKeepsDecorativeEffectsAtLocalStart();

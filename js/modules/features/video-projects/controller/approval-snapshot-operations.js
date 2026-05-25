@@ -68,7 +68,7 @@ export function createApprovalSnapshotOperations({
   function canAutoRetryStaleSnapshotOperations(operations = []) {
     return Array.isArray(operations)
       && operations.length > 0
-      && operations.every((operation) => operation?.type === 'setRowImage' || operation?.type === 'setRowMotion');
+      && operations.every((operation) => operation?.type === 'setRowImage' || operation?.type === 'setRowMotion' || operation?.type === 'setRowVideoSegment');
   }
 
   function toConflictState(error, localBaseSnapshotHash) {
