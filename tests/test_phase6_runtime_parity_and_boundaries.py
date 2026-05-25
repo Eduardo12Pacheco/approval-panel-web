@@ -354,6 +354,34 @@ for (const call of calls) {
     assert result.returncode == 0, result.stderr
 
 
+def test_remotion_client_uses_gateway_session_credentials_for_editor_requests():
+    script = r"""
+import { createRemotionClient } from './js/modules/features/video-projects/data/remotion-client.js';
+
+const calls = [];
+const client = createRemotionClient({
+  resolveBaseUrl: () => 'https://api.example.test/remotion',
+  fetchImpl: async (url, options = {}) => {
+    calls.push({ url, options });
+    return { ok: true, status: 200, json: async () => ({ ok: true, data: { project_id: 'editor-1' } }) };
+  },
+});
+
+await client.createFromApproval({ draft_id: 'draft-1' });
+const createCall = calls[0];
+if (createCall.url !== 'https://api.example.test/remotion/api/projects/create-from-approval') throw new Error(`create url drift: ${createCall.url}`);
+if (createCall.options.method !== 'POST') throw new Error('create method drift');
+if (createCall.options.credentials !== 'include') throw new Error('Remotion editor requests must include Gateway session credentials');
+if (createCall.options.headers['Content-Type'] !== 'application/json') throw new Error('create content type drift');
+
+await client.renderPreview('editor-1');
+const previewCall = calls[1];
+if (previewCall.options.credentials !== 'include') throw new Error('Remotion render requests must include Gateway session credentials');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_audio_controller_can_create_named_job_from_canonical_script_text():
     script = r"""
 import { createAudioController } from './js/modules/features/audio/controller.js';

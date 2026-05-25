@@ -12,6 +12,7 @@ export function createRemotionClient({ fetchImpl = fetch, resolveBaseUrl } = {})
     try {
       response = await fetchImpl(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
       });

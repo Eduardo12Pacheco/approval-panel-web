@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260525-video-projects-module-v3';
+export const APP_CACHE_VERSION = '20260525-remotion-credentials-v4';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);
