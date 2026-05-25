@@ -328,6 +328,69 @@ if (result.providerMetadata?.health?.ok !== false) {
     assert result.returncode == 0, result.stderr
 
 
+def test_approval_pipeline_create_network_failure_falls_back_to_remotion():
+    script = r"""
+import { prepareVideoCompositionContract } from './js/modules/features/video-projects/contract-pipeline-client.js';
+
+const calls = [];
+const api = {
+  createApprovalPipelineClient() {
+    return {
+      async health() {
+        calls.push('approval-health');
+        return { ok: true, status: 'ready' };
+      },
+      async createFromApproval() {
+        calls.push('approval-create');
+        throw new Error('No se pudo conectar con Approval Pipeline. Failed to fetch');
+      },
+    };
+  },
+  createRemotionClient() {
+    return {
+      async createFromApproval() {
+        calls.push('remotion-create');
+        return {
+          alignmentStatus: { status: 'ready' },
+          projectId: 'remotion-123',
+          snapshot: { project: { rows: [{ id: 'row-1', phrase: 'fallback', startTime: 0, endTime: 2 }] } },
+        };
+      },
+      async status() {
+        calls.push('remotion-status');
+        return { project: { rows: [{ id: 'row-1', phrase: 'fallback', startTime: 0, endTime: 2 }] } };
+      },
+    };
+  },
+};
+
+const result = await prepareVideoCompositionContract({
+  project: {
+    draft_id: 'draft-1',
+    title: 'Proyecto de fallback',
+    guion_piped: 'una|dos',
+    selected_images: [],
+    voice_audio: { public_url: 'https://cdn.example.com/voice.mp3' },
+    background_audio: { public_url: 'https://cdn.example.com/music.mp3' },
+  },
+  settings: { remotionApiUrl: 'https://remotion.local', approvalPipelineBaseUrl: 'https://approval.local' },
+  api,
+});
+
+if (result.provider !== 'remotion') {
+  throw new Error(`expected remotion fallback, got ${result.provider}`);
+}
+if (result.providerMetadata?.fallbackFrom !== 'approval') {
+  throw new Error('expected fallback metadata to preserve approval origin');
+}
+for (const expected of ['approval-health', 'approval-create', 'remotion-create', 'remotion-status']) {
+  if (!calls.includes(expected)) throw new Error(`missing call ${expected}`);
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 @pytest.mark.parametrize(
     "approval_base_url",
     [None, '   '],

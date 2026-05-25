@@ -214,14 +214,28 @@ export async function prepareVideoCompositionContract({ project, settings, api }
     });
   }
 
-  return executePreparation({
-    client: approvalClient,
-    providerId: 'approval',
-    providerMetadata: {
-      id: 'approval',
-      baseUrl: approvalBaseUrl,
-      fallbackFrom: '',
-      health: sanitizedApprovalHealth,
-    },
-  });
+  try {
+    return await executePreparation({
+      client: approvalClient,
+      providerId: 'approval',
+      providerMetadata: {
+        id: 'approval',
+        baseUrl: approvalBaseUrl,
+        fallbackFrom: '',
+        health: sanitizedApprovalHealth,
+      },
+    });
+  } catch (error) {
+    const message = (error?.message || '').toString();
+    const shouldFallbackToRemotion = /failed to fetch|no se pudo conectar|cors|network/i.test(message);
+    if (!shouldFallbackToRemotion) throw error;
+    return executePreparation({
+      ...remotionProvider,
+      providerMetadata: {
+        ...remotionProvider.providerMetadata,
+        fallbackFrom: 'approval',
+        health: sanitizedApprovalHealth,
+      },
+    });
+  }
 }
