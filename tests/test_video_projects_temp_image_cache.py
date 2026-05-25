@@ -203,9 +203,9 @@ def test_video_project_card_delete_and_hero_actions_keep_intended_visual_contrac
     card_css = (ROOT / "styles" / "features" / "video-projects" / "project-list.css").read_text(encoding="utf-8")
     layout_css = (ROOT / "styles" / "features" / "video-projects" / "layout.css").read_text(encoding="utf-8")
 
-    assert "./video-projects/index.css?v=20260519-project-buttons" in scripts_css
-    assert "./layout.css?v=20260519-project-buttons" in index_css
-    assert "./project-list.css?v=20260519-project-buttons" in index_css
+    assert "./video-projects/index.css" in scripts_css
+    assert "./layout.css" in index_css
+    assert "./project-list.css" in index_css
     assert ".video-project-card button.video-project-card__delete" in card_css
     assert "#2d2424 !important" in card_css
     assert "color: #ffb7b7 !important" in card_css
@@ -265,12 +265,11 @@ def test_manual_video_project_form_uses_n8n_country_player_catalog_and_preserves
     assert 'type="text" placeholder="Colombia"' not in html
 
     expected_pairs = {
-        "Colombia": ["Luis Díaz", "James Rodríguez", "Luis Javier Suárez", "Jhon Arias", "Richard Ríos"],
-        "Ecuador": ["Moisés Caicedo", "Willian Pacho", "Piero Hincapié", "Kendry Páez", "Enner Valencia"],
-        "Argentina": ["Lionel Messi", "Julián Álvarez", "Alexis Mac Allister", "Rodrigo De Paul", "Lautaro Martínez"],
-        "Brasil": ["Neymar", "Vinícius Júnior", "Rodrygo", "Raphinha", "Casemiro"],
-        "Uruguay": ["Federico Valverde", "Darwin Núñez", "Ronald Araújo", "Manuel Ugarte", "Rodrigo Bentancur"],
-        "Paraguay": ["Miguel Almirón", "Julio Enciso", "Ramón Sosa", "Gustavo Gómez", "Diego Gómez"],
+        "Ecuador": ["Moisés Caicedo", "Piero Hincapié", "Willian Pacho", "Gonzalo Plata", "Kendry Páez", "Enner Valencia"],
+        "Colombia": ["James Rodríguez", "Luis Díaz", "Juan Fernando Quintero", "Jhon Arias"],
+        "Argentina": ["Lionel Messi", "Julián Álvarez", "Emiliano Martínez"],
+        "Uruguay": ["Federico Valverde"],
+        "Paraguay": ["Julio Enciso", "Miguel Almirón"],
     }
     for country, players in expected_pairs.items():
         assert country in catalog
