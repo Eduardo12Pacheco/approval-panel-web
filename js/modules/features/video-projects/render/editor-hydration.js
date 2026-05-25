@@ -93,7 +93,7 @@ export function hydrateBoundaryTransitionControls({ root, updateRow, renderSelec
     button.addEventListener('click', async () => {
       const rowId = button.dataset.rowId || '';
       const nextRowId = button.dataset.nextRowId || '';
-      const transition = button.dataset.transition === 'whip' ? 'whip' : 'none';
+      const transition = ['whip', 'glitch-1', 'glitch-2'].includes(button.dataset.transition) ? button.dataset.transition : 'none';
       if (!rowId || !nextRowId) return;
       await updateRow?.(rowId, { boundaryTransition: transition, nextRowId });
       renderSelectedVideoProject?.();

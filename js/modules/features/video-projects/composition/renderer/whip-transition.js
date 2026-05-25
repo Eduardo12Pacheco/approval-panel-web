@@ -2,6 +2,7 @@ export const WHIP_TRANSITION_DURATION_SECONDS = 0.43;
 export const WHIP_BROWSER_SFX_URL = './assets/sfx/sound-whosh.wav';
 export const WHIP_PREVIEW_SFX_VOLUME = 0.85;
 export const WHIP_SMEAR_SAMPLE_COUNT = 7;
+const GLITCH_TRANSITIONS = new Set(['glitch-1', 'glitch-2']);
 
 function toFiniteNumber(value, fallback = 0) {
   const number = Number(value);
@@ -27,6 +28,16 @@ function isActiveWhipBoundary(row = {}, nextRow = null) {
   if (!row || !nextRow) return false;
   if (row.paragraphBoundaryAfter !== true) return false;
   if (String(row.transition || '').trim().toLowerCase() !== 'whip') return false;
+  const expectedNextRowId = (row.nextRowId || '').toString();
+  if (expectedNextRowId && expectedNextRowId !== resolveRowId(nextRow)) return false;
+  return true;
+}
+
+function isActiveOverlayVideoBoundary(row = {}, nextRow = null) {
+  if (!row || !nextRow) return false;
+  if (row.paragraphBoundaryAfter !== true) return false;
+  if (!GLITCH_TRANSITIONS.has(String(row.transition || '').trim().toLowerCase())) return false;
+  if (row.transitionConfig?.type !== 'overlay-video') return false;
   const expectedNextRowId = (row.nextRowId || '').toString();
   if (expectedNextRowId && expectedNextRowId !== resolveRowId(nextRow)) return false;
   return true;
@@ -67,6 +78,42 @@ export function buildWhipPreviewEvents(rows = [], { sfxUrl = WHIP_BROWSER_SFX_UR
       sfx: row.sfx === 'whip' || row.sfx?.type === 'whip' ? 'whip' : null,
       sfxUrl,
       direction: row.transitionConfig?.direction || 'left-to-right',
+    });
+  }
+  return events;
+}
+
+export function buildBoundaryVideoPreviewEvents(rows = []) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const events = [];
+  for (let index = 0; index < sourceRows.length - 1; index += 1) {
+    const row = sourceRows[index] || {};
+    const nextRow = sourceRows[index + 1] || null;
+    if (!isActiveOverlayVideoBoundary(row, nextRow)) continue;
+    const transitionConfig = row.transitionConfig || {};
+    const durationSeconds = toFiniteNumber(transitionConfig.durationSeconds, 0);
+    if (durationSeconds <= 0) continue;
+    const src = (transitionConfig.previewUrl || transitionConfig.src || '').toString();
+    if (!src) continue;
+    const cutTime = resolveBoundaryCutTime(row, nextRow);
+    const startTime = Math.max(0, Number((cutTime - durationSeconds / 2).toFixed(6)));
+    const endTime = Number((startTime + durationSeconds).toFixed(6));
+    const rowId = resolveRowId(row);
+    const nextRowId = resolveRowId(nextRow);
+    events.push({
+      id: `${rowId || index}->${nextRowId || index + 1}:${row.transition}:${cutTime}`,
+      type: 'overlay-video',
+      transition: row.transition,
+      rowId,
+      nextRowId,
+      cutTime,
+      startTime,
+      endTime,
+      durationSeconds,
+      src,
+      audio: transitionConfig.audio === true,
+      audioUrl: src,
+      blendMode: transitionConfig.blendMode || 'screen',
     });
   }
   return events;
@@ -144,6 +191,19 @@ export function resolveWhipPreviewFrame(time, events = []) {
   };
 }
 
+export function resolveBoundaryVideoPreviewFrame(time, events = []) {
+  const currentTime = Number(time);
+  if (!Number.isFinite(currentTime)) return null;
+  const event = (Array.isArray(events) ? events : []).find((item) => currentTime >= item.startTime && currentTime <= item.endTime);
+  if (!event) return null;
+  return {
+    event,
+    src: event.src,
+    localTime: Math.max(0, Number((currentTime - event.startTime).toFixed(6))),
+    blendMode: event.blendMode || 'screen',
+  };
+}
+
 function applyLayerState(layer, state) {
   if (!layer) return;
   layer.draggable = false;
@@ -182,6 +242,28 @@ export function applyWhipOverlayLayers(layers = {}, frame = null) {
   applyLayerState(layers.whipNext, frame?.next || null);
 }
 
+export function applyBoundaryVideoOverlayLayer(layers = {}, frame = null, { playing = false } = {}) {
+  const video = layers.boundaryTransitionVideo;
+  if (!video) return;
+  if (!frame?.src) {
+    video.style.visibility = 'hidden';
+    try { video.pause?.(); } catch {}
+    return;
+  }
+  if (video.getAttribute('src') !== frame.src) {
+    video.src = frame.src;
+    video.load?.();
+  }
+  video.style.visibility = 'visible';
+  video.style.mixBlendMode = frame.blendMode || 'screen';
+  const localTime = Number(frame.localTime || 0);
+  if (Number.isFinite(localTime) && Math.abs((video.currentTime || 0) - localTime) > 0.08) {
+    try { video.currentTime = localTime; } catch {}
+  }
+  if (playing && video.paused) void video.play?.().catch?.(() => {});
+  if (!playing && !video.paused) video.pause?.();
+}
+
 export function createWhipSfxScheduler({ audioFactory } = {}) {
   const played = new Set();
   let lastTime = null;
@@ -205,6 +287,41 @@ export function createWhipSfxScheduler({ audioFactory } = {}) {
         if (!audio) return false;
         audio.currentTime = 0;
         audio.volume = WHIP_PREVIEW_SFX_VOLUME;
+        void audio.play?.().catch?.(() => {});
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    reset() {
+      played.clear();
+      lastTime = null;
+    },
+  };
+}
+
+export function createBoundaryVideoAudioScheduler({ audioFactory } = {}) {
+  const played = new Set();
+  let lastTime = null;
+  const createAudio = typeof audioFactory === 'function'
+    ? audioFactory
+    : (src) => (typeof Audio === 'function' ? new Audio(src) : null);
+  return {
+    schedule({ event = null, currentTime = 0, playing = false } = {}) {
+      const time = Number(currentTime);
+      if (!Number.isFinite(time)) return false;
+      if (lastTime !== null && time < lastTime) played.clear();
+      lastTime = time;
+      if (!playing || !event?.audio || !event.audioUrl) return false;
+      if (time < event.startTime || time > event.endTime) return false;
+      const key = `${event.id}:audio`;
+      if (played.has(key)) return false;
+      played.add(key);
+      try {
+        const audio = createAudio(event.audioUrl);
+        if (!audio) return false;
+        audio.currentTime = 0;
+        audio.volume = 0.9;
         void audio.play?.().catch?.(() => {});
         return true;
       } catch {

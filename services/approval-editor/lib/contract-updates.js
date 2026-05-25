@@ -5,6 +5,10 @@ const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords
 
 const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
 const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/sound-whosh.wav" };
+const BOUNDARY_TRANSITION_CONFIGS = {
+  "glitch-1": { type: "overlay-video", assetId: "glitch-1", src: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", renderPath: "overlays/GLITCH 1 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", blendMode: "screen", durationSeconds: 0.833333, audio: true },
+  "glitch-2": { type: "overlay-video", assetId: "glitch-2", src: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", renderPath: "overlays/GLITCH 2 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", blendMode: "screen", durationSeconds: 1.4, audio: true },
+};
 
 function defaultZoom150Motion() {
   const { category, name, ...motion } = findMotionPreset("Zoom 150") || {};
@@ -83,8 +87,8 @@ function applyBoundaryTransition(next, op = {}) {
       paragraphBoundaryAfter: boundaryEligible,
     });
   }
-  if (transition !== "none" && transition !== "whip") {
-    throw createInvalidBoundaryTransitionError("boundary transition must be none or whip", { transition });
+  if (transition !== "none" && transition !== "whip" && !BOUNDARY_TRANSITION_CONFIGS[transition]) {
+    throw createInvalidBoundaryTransitionError("boundary transition must be none, whip, glitch-1, or glitch-2", { transition });
   }
 
   if (transition === "none") {
@@ -98,7 +102,13 @@ function applyBoundaryTransition(next, op = {}) {
 
   row.paragraphBoundaryAfter = true;
   row.nextRowId = expectedNextRowId;
-  row.transition = "whip";
+  row.transition = transition;
+  if (BOUNDARY_TRANSITION_CONFIGS[transition]) {
+    row.transitionConfig = { ...BOUNDARY_TRANSITION_CONFIGS[transition] };
+    row.sfx = null;
+    next.assets[transition] = next.assets[transition] || { assetId: transition, id: transition, type: "video", role: "boundary-transition", renderPath: row.transitionConfig.renderPath, previewUrl: row.transitionConfig.previewUrl, durationSeconds: row.transitionConfig.durationSeconds, status: "ready" };
+    return;
+  }
   row.transitionConfig = { ...WHIP_TRANSITION_CONFIG, direction: op.direction || WHIP_TRANSITION_CONFIG.direction };
   row.sfx = { ...WHIP_SFX };
 }

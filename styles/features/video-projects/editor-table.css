@@ -60,6 +60,12 @@
   background: rgba(110, 162, 255, 0.055);
 }
 
+.video-editor-boundary-connector-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .video-editor-boundary-connector {
   display: inline-flex;
   align-items: center;
@@ -102,6 +108,11 @@
   border-style: solid;
   background: rgba(0, 232, 143, 0.14);
   color: #fff;
+}
+
+.video-editor-boundary-connector--remove {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .video-editor-boundary-empty {

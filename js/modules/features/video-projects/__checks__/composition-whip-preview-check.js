@@ -3,9 +3,13 @@ import {
   WHIP_BROWSER_SFX_URL,
   WHIP_SMEAR_SAMPLE_COUNT,
   WHIP_TRANSITION_DURATION_SECONDS,
+  applyBoundaryVideoOverlayLayer,
   applyWhipOverlayLayers,
+  buildBoundaryVideoPreviewEvents,
   buildWhipPreviewEvents,
+  createBoundaryVideoAudioScheduler,
   createWhipSfxScheduler,
+  resolveBoundaryVideoPreviewFrame,
   resolveWhipPreviewFrame,
 } from '../composition/renderer/whip-transition.js';
 
@@ -161,12 +165,74 @@ function testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind() {
   assertEqual(calls[3].currentTime, 0, 'Expected replayed SFX playback to restart from the beginning');
 }
 
+function testGlitchPreviewEventAndVideoLayerWiring() {
+  const [event] = buildBoundaryVideoPreviewEvents([
+    { id: 'row-a', startTime: 0, endTime: 1, image: 'previous.jpg', paragraphBoundaryAfter: true, nextRowId: 'row-b', transition: 'glitch-1', transitionConfig: { type: 'overlay-video', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true } },
+    { id: 'row-b', startTime: 1, endTime: 2, image: 'next.jpg' },
+  ]);
+  const video = {
+    _src: '',
+    currentTime: 0,
+    paused: true,
+    style: { visibility: '', mixBlendMode: '' },
+    getAttribute(name) { return name === 'src' ? this._src : ''; },
+    set src(value) { this._src = value; },
+    get src() { return this._src; },
+    load() { this.loaded = true; },
+    play() { this.paused = false; return Promise.resolve(); },
+    pause() { this.paused = true; },
+  };
+
+  assertEqual(event.startTime, 0.583333, 'Expected Glitch 1 video to be centered on the boundary cut');
+  assertEqual(event.endTime, 1.416666, 'Expected Glitch 1 video to keep its full asset duration');
+  const frame = resolveBoundaryVideoPreviewFrame(1, [event]);
+  applyBoundaryVideoOverlayLayer({ boundaryTransitionVideo: video }, frame, { playing: false });
+  assertEqual(video.style.visibility, 'visible', 'Expected Glitch preview video layer to become visible');
+  assertEqual(video.src, './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', 'Expected Glitch preview video to use the browser asset');
+  assertEqual(video.style.mixBlendMode, 'screen', 'Expected Glitch preview video to use screen blend mode');
+  assertEqual(video.paused, true, 'Expected paused preview to avoid free-running the transition video');
+  applyBoundaryVideoOverlayLayer({ boundaryTransitionVideo: video }, frame, { playing: true });
+  assertEqual(video.paused, false, 'Expected playing preview to play the transition video');
+  applyBoundaryVideoOverlayLayer({ boundaryTransitionVideo: video }, null);
+  assertEqual(video.style.visibility, 'hidden', 'Expected Glitch preview video layer to hide after event');
+}
+
+function testGlitchAudioSchedulerStartsWithOverlay() {
+  const calls = [];
+  const scheduler = createBoundaryVideoAudioScheduler({
+    audioFactory(src) {
+      calls.push({ type: 'create', src });
+      return {
+        currentTime: 99,
+        volume: 0,
+        play() {
+          calls.push({ type: 'play', currentTime: this.currentTime, volume: this.volume });
+          return Promise.resolve();
+        },
+      };
+    },
+  });
+  const [event] = buildBoundaryVideoPreviewEvents([
+    { id: 'row-a', startTime: 0, endTime: 1, paragraphBoundaryAfter: true, nextRowId: 'row-b', transition: 'glitch-2', transitionConfig: { type: 'overlay-video', previewUrl: './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', blendMode: 'screen', durationSeconds: 1.4, audio: true } },
+    { id: 'row-b', startTime: 1, endTime: 2 },
+  ]);
+
+  assertEqual(scheduler.schedule({ event, currentTime: event.startTime - 0.01, playing: true }), false, 'Expected Glitch audio not to play before the transition starts');
+  assertEqual(scheduler.schedule({ event, currentTime: event.startTime, playing: true }), true, 'Expected Glitch audio to play at transition start');
+  assertEqual(scheduler.schedule({ event, currentTime: event.startTime + 0.2, playing: true }), false, 'Expected Glitch audio not to replay in the same forward pass');
+  assertEqual(calls[0].src, './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', 'Expected Glitch audio scheduler to use the MP4 audio source');
+  assertEqual(calls[1].currentTime, 0, 'Expected Glitch audio to start from the beginning');
+  assertEqual(calls[1].volume, 0.9, 'Expected Glitch audio to use safe preview volume');
+}
+
 export async function runCompositionWhipPreviewCheck() {
   testWhipEventMathKeepsSegmentTimingUntouched();
   testWhipEventMathIgnoresInactiveAndIneligibleRows();
   testWhipFrameStylesMoveOutgoingRightAndIncomingSettles();
   testWhipOverlayDomWiringAppliesAndHidesLayers();
   testWhipSfxSchedulerStartsWithOverlayAndReplaysAfterRewind();
+  testGlitchPreviewEventAndVideoLayerWiring();
+  testGlitchAudioSchedulerStartsWithOverlay();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

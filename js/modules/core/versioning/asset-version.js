@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260525-manual-motion-v11';
+export const APP_CACHE_VERSION = '20260525-boundary-glitch-v12';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);

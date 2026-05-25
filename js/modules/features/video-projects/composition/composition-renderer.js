@@ -5,11 +5,14 @@ import {
   DUST_VIDEO_OPACITY,
   OUTRO_DURATION_SECONDS,
   PRELOAD_IMAGE_WINDOW_SIZE,
+  applyBoundaryVideoOverlayLayer,
   buildCompositionDOM,
+  buildBoundaryVideoPreviewEvents,
   applyWhipOverlayLayers,
   buildVideoSegmentPreviewLayerPlan,
   buildWhipPreviewEvents,
   clearManagedVideoElement,
+  createBoundaryVideoAudioScheduler,
   createWhipSfxScheduler,
   drawChromaKeyVideoFrame,
   finitePositive,
@@ -17,6 +20,7 @@ import {
   isVideoSource,
   resolveActiveImageDimensions,
   resolveActiveSegment,
+  resolveBoundaryVideoPreviewFrame,
   resolveCoverPanImageStyle,
   resolveCoverPanLayer,
   resolveMediaMode,
@@ -27,7 +31,7 @@ import {
   syncManagedVideoElement,
 } from './renderer/index.js';
 
-export { applyWhipOverlayLayers, buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, buildWhipPreviewEvents, clearManagedVideoElement, createWhipSfxScheduler, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, resolveWhipPreviewFrame, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
+export { applyBoundaryVideoOverlayLayer, applyWhipOverlayLayers, buildBoundaryVideoPreviewEvents, buildCompositionDOM, buildVideoSegmentPreviewLayerPlan, buildWhipPreviewEvents, clearManagedVideoElement, createBoundaryVideoAudioScheduler, createWhipSfxScheduler, frameToSeconds, interpolateLinear, isVideoSource, resolveActiveImageDimensions, resolveActiveSegment, resolveBoundaryVideoPreviewFrame, resolveCoverPanImageStyle, resolveCoverPanLayer, resolveMediaMode, resolveNewspaperImageStyles, resolveWhipPreviewFrame, secondsToFrame, syncManagedVideoElement } from './renderer/index.js';
 
 // composition-renderer.js — Browser-local real-time composition preview facade.
 // Pure helper modules live under composition/renderer/; this file keeps the
@@ -37,7 +41,7 @@ const IMAGE_CACHE_MAX_SIZE = Math.max(PRELOAD_IMAGE_WINDOW_SIZE * 3, 24);
 
 export class CompositionRenderer {
   #container; #fps; #currentTime; #isPlaying; #assetsReady; #rows;
-  #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #whipSfx; #rafId; #audioStartToken;
+  #dom; #imageCache; #imageCacheOrder; #videoPreloadCache; #activeSegmentKey; #audio; #whipSfx; #boundaryVideoAudio; #rafId; #audioStartToken;
   #viewportWidth; #viewportHeight; #frameCount;
 
   constructor({ container, fps = DEFAULT_FPS }) {
@@ -53,6 +57,7 @@ export class CompositionRenderer {
     this.#activeSegmentKey = null;
     this.#audio = new AudioManager();
     this.#whipSfx = createWhipSfxScheduler();
+    this.#boundaryVideoAudio = createBoundaryVideoAudioScheduler();
     this.#rafId = null;
     this.#audioStartToken = 0;
     this.#frameCount = 0;
@@ -178,6 +183,7 @@ export class CompositionRenderer {
   update({ rows } = {}) {
     this.#rows = Array.isArray(rows) ? rows : [];
     this.#whipSfx?.reset?.();
+    this.#boundaryVideoAudio?.reset?.();
     this.#renderFrame();
   }
 
@@ -276,7 +282,9 @@ export class CompositionRenderer {
     this.#audio.destroy();
     this.#audio = null;
     this.#whipSfx?.reset?.();
+    this.#boundaryVideoAudio?.reset?.();
     this.#whipSfx = null;
+    this.#boundaryVideoAudio = null;
 
     if (this.#dom?.stage?.parentNode) {
       this.#dom.stage.parentNode.removeChild(this.#dom.stage);
@@ -406,6 +414,7 @@ export class CompositionRenderer {
       layers.outro.style.visibility = 'hidden';
       layers.outroVideo.style.visibility = 'hidden';
       applyWhipOverlayLayers(layers, null);
+      applyBoundaryVideoOverlayLayer(layers, null);
       this.#activeSegmentKey = null;
       return;
     }
@@ -423,6 +432,7 @@ export class CompositionRenderer {
       layers.logoCanvas.style.visibility = 'hidden';
       layers.outro.style.visibility = 'visible';
       applyWhipOverlayLayers(layers, null);
+      applyBoundaryVideoOverlayLayer(layers, null);
       if (this._outroUrl) {
         layers.outroVideo.style.visibility = 'visible';
         layers.outroText.style.visibility = 'hidden';
@@ -441,8 +451,12 @@ export class CompositionRenderer {
     const { segment, localProgress, localTime } = resolved;
     const whipEvents = buildWhipPreviewEvents(this.#rows);
     const whipFrame = resolveWhipPreviewFrame(this.#currentTime, whipEvents);
+    const boundaryVideoEvents = buildBoundaryVideoPreviewEvents(this.#rows);
+    const boundaryVideoFrame = resolveBoundaryVideoPreviewFrame(this.#currentTime, boundaryVideoEvents);
     applyWhipOverlayLayers(layers, whipFrame);
+    applyBoundaryVideoOverlayLayer(layers, boundaryVideoFrame, { playing: this.#isPlaying });
     this.#whipSfx?.schedule?.({ event: whipFrame?.event, currentTime: this.#currentTime, playing: this.#isPlaying });
+    this.#boundaryVideoAudio?.schedule?.({ event: boundaryVideoFrame?.event, currentTime: this.#currentTime, playing: this.#isPlaying });
     const segmentKey = segment.image || '';
 
     layers.outro.style.visibility = 'hidden';

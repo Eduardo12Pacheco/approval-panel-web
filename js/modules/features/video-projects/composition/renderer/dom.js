@@ -120,6 +120,14 @@ export function buildCompositionDOM(container) {
   }
   stage.appendChild(whipNext);
 
+  const boundaryTransitionVideo = document.createElement('video');
+  boundaryTransitionVideo.className = 'composition-layer composition-layer--boundary-transition-video';
+  boundaryTransitionVideo.style.cssText = 'position:absolute;inset:0;z-index:6;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;pointer-events:none;visibility:hidden;';
+  boundaryTransitionVideo.muted = true;
+  boundaryTransitionVideo.playsInline = true;
+  boundaryTransitionVideo.preload = 'auto';
+  stage.appendChild(boundaryTransitionVideo);
+
   const dust = document.createElement('video');
   dust.className = 'composition-layer composition-layer--dust';
   dust.style.cssText = `position:absolute;inset:0;width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;opacity:${DUST_VIDEO_OPACITY};pointer-events:none;visibility:hidden;`;
@@ -172,6 +180,6 @@ export function buildCompositionDOM(container) {
 
   return {
     stage,
-    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, newspaperBackground, newspaperForeground, newspaperLabel, image, whipPrevious, whipNext, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
+    layers: { bg, videoBackground, videoColorOverlay, videoEffect1, videoEffect2, videoForeground, newspaperBackground, newspaperForeground, newspaperLabel, image, whipPrevious, whipNext, boundaryTransitionVideo, dust, dustFallback, logo, logoVideo, logoCanvas, outro, outroVideo, outroText },
   };
 }

@@ -24,16 +24,16 @@ function runPreparedRowsPreserveBoundaryTransitionMetadataCheck() {
     id: 'row-1',
     paragraphBoundaryAfter: true,
     nextRowId: 'row-2',
-    transition: 'whip',
-    transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' },
-    sfx: { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' },
+    transition: 'glitch-1',
+    transitionConfig: { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true },
+    sfx: null,
   }]);
 
   assertEqual(row.paragraphBoundaryAfter, true, 'Expected client row normalizer to preserve boundary eligibility');
   assertEqual(row.nextRowId, 'row-2', 'Expected client row normalizer to preserve next row target');
-  assertEqual(row.transition, 'whip', 'Expected client row normalizer to preserve active transition');
-  assertDeepEqual(row.transitionConfig, { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, 'Expected client row normalizer to preserve Whip config');
-  assertDeepEqual(row.sfx, { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' }, 'Expected client row normalizer to preserve SFX reference');
+  assertEqual(row.transition, 'glitch-1', 'Expected client row normalizer to preserve active transition');
+  assertDeepEqual(row.transitionConfig, { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true }, 'Expected client row normalizer to preserve Glitch config');
+  assertDeepEqual(row.sfx, null, 'Expected client row normalizer to preserve disabled SFX reference');
 }
 
 function runBoundaryConnectorMarkupCheck() {
@@ -44,15 +44,16 @@ function runBoundaryConnectorMarkupCheck() {
   ];
   const markup = buildEditorRowsTable(rows, { selectedRowId: 'row-1', project: {} });
 
-  assertEqual((markup.match(/data-action="set-boundary-transition"/g) || []).length, 1, 'Expected connector action only for eligible row with nextRowId');
+  assertEqual((markup.match(/data-action="set-boundary-transition"/g) || []).length, 2, 'Expected Glitch connector actions only for eligible row with nextRowId');
   assert(markup.includes('data-row-id="row-1"'), 'Expected connector to target the eligible outgoing row');
   assert(markup.includes('data-next-row-id="row-2"'), 'Expected connector to target the next row boundary');
-  assert(markup.includes('Activar Whip'), 'Expected inactive eligible connector to offer Whip activation');
+  assert(markup.includes('Glitch 1'), 'Expected inactive eligible connector to offer Glitch 1 activation');
+  assert(markup.includes('Glitch 2'), 'Expected inactive eligible connector to offer Glitch 2 activation');
   assert(!markup.includes('data-row-id="row-2" data-next-row-id="row-3"'), 'Expected ineligible row not to render connector');
   assert(!markup.includes('data-row-id="row-3" data-next-row-id'), 'Expected missing nextRowId not to render connector');
 
-  const activeMarkup = buildEditorRowsTable([{ ...rows[0], transition: 'whip' }, rows[1]], { selectedRowId: 'row-1', project: {} });
-  assert(activeMarkup.includes('Desactivar Whip'), 'Expected active connector to offer Whip deactivation');
+  const activeMarkup = buildEditorRowsTable([{ ...rows[0], transition: 'glitch-1' }, rows[1]], { selectedRowId: 'row-1', project: {} });
+  assert(activeMarkup.includes('Quitar'), 'Expected active connector to offer Glitch deactivation');
   assert(activeMarkup.includes('aria-pressed="true"'), 'Expected active connector to expose pressed state');
 }
 
@@ -73,14 +74,14 @@ function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
 
   assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected hydration to derive paragraph boundary eligibility from guion_piped');
   assertEqual(project._editorRows[0].nextRowId, 'persisted-2', 'Expected derived boundary to target the next hydrated row id');
-  assertEqual(project._editorRows[0].transition, 'none', 'Expected derived eligibility not to auto-enable Whip');
+  assertEqual(project._editorRows[0].transition, 'none', 'Expected derived eligibility not to auto-enable a boundary transition');
   assertEqual(project._editorRows[1].paragraphBoundaryAfter, undefined, 'Expected rows without paragraph break to stay ineligible');
 }
 
 async function runBoundaryConnectorHydrationCheck() {
   const listeners = new Map();
   const button = {
-    dataset: { rowId: 'row-1', nextRowId: 'row-2', transition: 'whip' },
+    dataset: { rowId: 'row-1', nextRowId: 'row-2', transition: 'glitch-1' },
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
   const patches = [];
@@ -108,7 +109,7 @@ async function runBoundaryConnectorHydrationCheck() {
   assertEqual(patches[0].rowId, 'row-1', 'Expected connector patch to target outgoing row only');
   assertDeepEqual(
     patches[0].patch,
-    { boundaryTransition: 'whip', nextRowId: 'row-2' },
+    { boundaryTransition: 'glitch-1', nextRowId: 'row-2' },
     'Expected connector patch to use scoped boundary transition fields only',
   );
   assertEqual(renderCount, 1, 'Expected connector click to rerender editor controls after scoped update');
@@ -156,7 +157,7 @@ async function runApprovalBoundaryTransitionOperationCheck() {
                 snapshotId: 'snapshot-2',
                 snapshotHash: 'hash-2',
                 rows: [
-                  { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'whip', transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, sfx: { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' } },
+                  { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'glitch-1', transitionConfig: { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true }, sfx: null },
                   { id: 'row-2', rowId: 'row-2', selectedAssetId: 'asset-b', media: { kind: 'image' }, transition: 'none' },
                 ],
               },
@@ -171,15 +172,15 @@ async function runApprovalBoundaryTransitionOperationCheck() {
     callbacks: { renderSelectedVideoProject() {}, updateSelectedVideoProjectCompositionPreview() { return true; }, renderVideoProjects() {} },
   });
 
-  await feature.updateRow('row-1', { boundaryTransition: 'whip', nextRowId: 'row-2' });
+  await feature.updateRow('row-1', { boundaryTransition: 'glitch-1', nextRowId: 'row-2' });
 
   assertEqual(updateSnapshotCalls.length, 1, 'Expected boundary activation to persist immediately with one snapshot update');
   assertDeepEqual(
     updateSnapshotCalls[0].payload.operations,
-    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'whip', direction: 'left-to-right' }],
+    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'glitch-1' }],
     'Expected boundary activation to use the scoped setBoundaryTransition operation only',
   );
-  assertEqual(state.selectedVideoProject._editorRows[0].transition, 'whip', 'Expected canonical response to activate Whip locally');
+  assertEqual(state.selectedVideoProject._editorRows[0].transition, 'glitch-1', 'Expected canonical response to activate Glitch locally');
   assertEqual(state.selectedVideoProject._editorRows[0].selectedAssetId, 'asset-a', 'Expected unrelated selected image to remain unchanged');
   assertEqual(state.selectedVideoProject._editorRows[0].media.kind, 'image', 'Expected unrelated media settings to remain unchanged');
   assertEqual(savedEditorStates.at(-1).snapshot_hash, 'hash-2', 'Expected persisted editor state to use updated snapshot hash');

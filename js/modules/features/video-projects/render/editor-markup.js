@@ -57,11 +57,21 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
         <tbody>
           ${tableRows.map(({ row, index, isSelected, selectedClass, imageUrl, imageSwapAssetId, startTimeValue, startTimeLabel, endTimeLabel, phrase, thumbAlt, uploadLabel, mediaKind, videoSrc, boundaryConnector }) => {
             const connectorMarkup = boundaryConnector ? `
-              <button class="video-editor-boundary-connector ${boundaryConnector.active ? 'is-active' : ''}" type="button" data-action="set-boundary-transition" data-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}" data-transition="${boundaryConnector.active ? 'none' : 'whip'}" aria-pressed="${boundaryConnector.active ? 'true' : 'false'}" title="${boundaryConnector.active ? 'Quitar Whip entre párrafos' : 'Activar Whip entre párrafos'}">
-                <span class="video-editor-boundary-connector__dot" aria-hidden="true"></span>
-                <span>${boundaryConnector.active ? 'Desactivar Whip' : 'Activar Whip'}</span>
-                <span class="video-editor-boundary-connector__dot" aria-hidden="true"></span>
-              </button>
+              <div class="video-editor-boundary-connector-group" aria-label="Transición entre párrafos">
+                ${[
+                  ['glitch-1', 'Glitch 1'],
+                  ['glitch-2', 'Glitch 2'],
+                ].map(([transition, label]) => `
+                  <button class="video-editor-boundary-connector ${boundaryConnector.activeTransition === transition ? 'is-active' : ''}" type="button" data-action="set-boundary-transition" data-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}" data-transition="${escapeHtmlCore(transition)}" aria-pressed="${boundaryConnector.activeTransition === transition ? 'true' : 'false'}" title="Activar ${escapeHtmlCore(label)} entre párrafos">
+                    <span>${escapeHtmlCore(label)}</span>
+                  </button>
+                `).join('')}
+                ${boundaryConnector.activeTransition ? `
+                  <button class="video-editor-boundary-connector video-editor-boundary-connector--remove" type="button" data-action="set-boundary-transition" data-row-id="${escapeHtmlCore(boundaryConnector.rowId)}" data-next-row-id="${escapeHtmlCore(boundaryConnector.nextRowId)}" data-transition="none" aria-pressed="false" title="Quitar transición entre párrafos">
+                    <span>Quitar</span>
+                  </button>
+                ` : ''}
+              </div>
             ` : '<span class="video-editor-boundary-empty" aria-hidden="true">—</span>';
             return `
               <tr class="video-editor-row ${selectedClass}" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-index="${index}" role="button" tabindex="0" aria-selected="${isSelected}">

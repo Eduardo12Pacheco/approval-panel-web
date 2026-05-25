@@ -8,6 +8,10 @@ function hasOwnPatchValue(patch, key) {
   return Object.prototype.hasOwnProperty.call(patch || {}, key);
 }
 
+const BOUNDARY_TRANSITION_CONFIGS = {
+  'glitch-1': { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true },
+  'glitch-2': { type: 'overlay-video', assetId: 'glitch-2', src: './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', renderPath: 'overlays/GLITCH 2 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', blendMode: 'screen', durationSeconds: 1.4, audio: true },
+};
 const WHIP_TRANSITION_CONFIG = { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' };
 const WHIP_SFX = { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' };
 
@@ -17,8 +21,10 @@ function defaultZoom150Motion() {
 }
 
 function resolveBoundaryTransitionPatch(value) {
-  const transition = value === 'whip' ? 'whip' : 'none';
+  const requested = (value || '').toString();
+  const transition = requested === 'whip' || BOUNDARY_TRANSITION_CONFIGS[requested] ? requested : 'none';
   if (transition === 'none') return { transition: 'none', transitionConfig: undefined, sfx: null };
+  if (BOUNDARY_TRANSITION_CONFIGS[transition]) return { transition, transitionConfig: { ...BOUNDARY_TRANSITION_CONFIGS[transition] }, sfx: null };
   return { transition: 'whip', transitionConfig: { ...WHIP_TRANSITION_CONFIG }, sfx: { ...WHIP_SFX } };
 }
 
@@ -199,8 +205,8 @@ export function createRowCommands({
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
       }
       if (isBoundaryTransitionPatch(patch)) {
-        const transition = patch.boundaryTransition === 'whip' ? 'whip' : 'none';
-        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, direction: WHIP_TRANSITION_CONFIG.direction });
+        const transition = ['whip', 'glitch-1', 'glitch-2'].includes(patch.boundaryTransition) ? patch.boundaryTransition : 'none';
+        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, ...(transition === 'whip' ? { direction: WHIP_TRANSITION_CONFIG.direction } : {}) });
       }
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
         const resolvedMotion = patch.motionPresetId
