@@ -1,7 +1,7 @@
 import { buildCompositionPayload, computeCompositionHash } from '../composition/composition-payload.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState } from '../domain/editor-state.js';
-import { findMotionPreset } from '../domain/motion-presets.js';
+import { findMotionPreset, normalizeRowMotionForPreview } from '../domain/motion-presets.js';
 import { mergeDerivedParagraphBoundaryMetadata } from './editor-state-persistence.js';
 
 function hasOwnPatchValue(patch, key) {
@@ -128,6 +128,19 @@ function resolveMotionPatchForApprovalService(motion) {
     return { motionPresetId: 'pan-right', motion: { fromScale: 1.1, toScale: 1.1, fromX: -72, fromY: 0, toX: 72, toY: 0 } };
   }
   return { motionPresetId: normalized || 'custom', motion: typeof motion === 'object' ? motion : undefined };
+}
+
+function cloneMotionValue(motion) {
+  return motion && typeof motion === 'object' ? { ...motion } : motion;
+}
+
+function resolveVisualSwapPatch(row = {}, nextAssetId = '') {
+  const motion = normalizeRowMotionForPreview(row);
+  return {
+    selectedAssetId: nextAssetId,
+    motionPresetId: motion.motionPresetId,
+    motion: cloneMotionValue(motion.motion),
+  };
 }
 
 export function createRowCommands({
@@ -284,9 +297,13 @@ export function createRowCommands({
     notifyBeforeMutate('swap-row-images', project, { sourceRowId, targetRowId });
 
     if (isApprovalServiceMode(project)) {
+      const sourceMotion = normalizeRowMotionForPreview(sourceRow);
+      const targetMotion = normalizeRowMotionForPreview(targetRow);
       const operations = [
         { type: 'setRowImage', rowId: sourceRowId, asset: resolveApprovalRowImageAsset(project, targetAssetId) },
         { type: 'setRowImage', rowId: targetRowId, asset: resolveApprovalRowImageAsset(project, sourceAssetId) },
+        { type: 'setRowMotion', rowId: sourceRowId, motionPresetId: targetMotion.motionPresetId, motion: cloneMotionValue(targetMotion.motion) },
+        { type: 'setRowMotion', rowId: targetRowId, motionPresetId: sourceMotion.motionPresetId, motion: cloneMotionValue(sourceMotion.motion) },
       ];
       try {
         await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
@@ -301,7 +318,11 @@ export function createRowCommands({
       return;
     }
 
-    project._editorRows = patchLocalEditorRows(patchLocalEditorRows(rows, sourceRowId, { selectedAssetId: targetAssetId }), targetRowId, { selectedAssetId: sourceAssetId });
+    project._editorRows = patchLocalEditorRows(
+      patchLocalEditorRows(rows, sourceRowId, resolveVisualSwapPatch(targetRow, targetAssetId)),
+      targetRowId,
+      resolveVisualSwapPatch(sourceRow, sourceAssetId),
+    );
     const compositionHash = computeCompositionHash(project);
     const lastRenderedHash = project.editor_state?.last_rendered_hash || project.editor_state?.last_preview_hash || project.editor_state?.composition_hash || '';
     const isDirty = compositionHash !== lastRenderedHash;

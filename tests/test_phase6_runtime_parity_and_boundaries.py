@@ -468,6 +468,97 @@ if (savedStates.at(-1)?.snapshot_hash !== 'hash-final') throw new Error('final s
     assert result.returncode == 0, result.stderr
 
 
+def test_video_project_image_swap_moves_motion_with_image_assignment():
+    script = r"""
+import { createRowCommands } from './js/modules/features/video-projects/controller/row-commands.js';
+
+const project = {
+  editor_state: { phase: 'preview_ready', composition_hash: 'old-hash' },
+  _editorRows: [
+    { id: 'row-1', selectedAssetId: 'asset-1', motionPresetId: 'Movimiento-Derecha-Izquierda', motion: { fromX: -120, toX: 120, fromY: 0, toY: 0, fromScale: 1.25, toScale: 1.25 } },
+    { id: 'row-2', selectedAssetId: 'asset-2', motionPresetId: 'Zoom 150', motion: { fromX: 0, toX: 0, fromY: 0, toY: 0, fromScale: 1, toScale: 1.5 } },
+  ],
+};
+const saved = [];
+const commands = createRowCommands({
+  store: { getState: () => ({ selectedVideoProject: project }) },
+  ui: { toast() {} },
+  persistEditorState: async (_project, patch) => saved.push(patch),
+  isApprovalServiceMode: () => false,
+  queueApprovalSnapshotOperations: async () => {},
+  scheduleApprovalMotionPersistence() {},
+  createMotionDraft() {},
+  updateSelectedVideoProjectCompositionPreview() {},
+  renderSelectedVideoProject() {},
+  getSaveTimer: () => null,
+  setSaveTimer(timer) { clearTimeout(timer); },
+  cancelPendingEditorSave() {},
+  beforeMutate() {},
+  debounceMs: 1,
+});
+
+await commands.swapRowImages('row-1', 'row-2');
+
+if (project._editorRows[0].selectedAssetId !== 'asset-2') throw new Error('row 1 should receive asset 2');
+if (project._editorRows[0].motionPresetId !== 'Zoom 150') throw new Error('row 1 should receive asset 2 motion');
+if (project._editorRows[1].selectedAssetId !== 'asset-1') throw new Error('row 2 should receive asset 1');
+if (project._editorRows[1].motionPresetId !== 'Movimiento-Derecha-Izquierda') throw new Error('row 2 should receive asset 1 motion');
+if (project._editorRows[1].motion.fromX !== -120 || project._editorRows[1].motion.toX !== 120) throw new Error('row 2 should keep moved image motion values');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_approval_image_swap_sends_motion_operations_with_image_operations():
+    script = r"""
+import { createRowCommands } from './js/modules/features/video-projects/controller/row-commands.js';
+
+let capturedOperations = null;
+const project = {
+  editor_state: {
+    phase: 'preview_ready',
+    approval_contract_snapshot: {
+      assets: {
+        'asset-1': { assetId: 'asset-1', previewUrl: '1.jpg' },
+        'asset-2': { assetId: 'asset-2', previewUrl: '2.jpg' },
+      },
+    },
+  },
+  _editorRows: [
+    { id: 'row-1', selectedAssetId: 'asset-1', motionPresetId: 'Movimiento-Derecha-Izquierda', motion: { fromX: -120, toX: 120, fromY: 0, toY: 0, fromScale: 1.25, toScale: 1.25 } },
+    { id: 'row-2', selectedAssetId: 'asset-2', motionPresetId: 'Zoom 150', motion: { fromX: 0, toX: 0, fromY: 0, toY: 0, fromScale: 1, toScale: 1.5 } },
+  ],
+};
+const commands = createRowCommands({
+  store: { getState: () => ({ selectedVideoProject: project }) },
+  ui: { toast() {} },
+  persistEditorState: async () => {},
+  isApprovalServiceMode: () => true,
+  queueApprovalSnapshotOperations: async (_project, operations) => { capturedOperations = operations; },
+  scheduleApprovalMotionPersistence() {},
+  createMotionDraft() {},
+  updateSelectedVideoProjectCompositionPreview() {},
+  renderSelectedVideoProject() {},
+  getSaveTimer: () => null,
+  setSaveTimer() {},
+  cancelPendingEditorSave() {},
+  beforeMutate() {},
+  debounceMs: 1,
+});
+
+await commands.swapRowImages('row-1', 'row-2');
+
+if (!Array.isArray(capturedOperations) || capturedOperations.length !== 4) throw new Error(`expected 4 operations, got ${capturedOperations?.length}`);
+const [sourceImage, targetImage, sourceMotion, targetMotion] = capturedOperations;
+if (sourceImage.type !== 'setRowImage' || sourceImage.rowId !== 'row-1' || sourceImage.asset.assetId !== 'asset-2') throw new Error('source image op drift');
+if (targetImage.type !== 'setRowImage' || targetImage.rowId !== 'row-2' || targetImage.asset.assetId !== 'asset-1') throw new Error('target image op drift');
+if (sourceMotion.type !== 'setRowMotion' || sourceMotion.rowId !== 'row-1' || sourceMotion.motionPresetId !== 'Zoom 150') throw new Error('source motion op should follow target image');
+if (targetMotion.type !== 'setRowMotion' || targetMotion.rowId !== 'row-2' || targetMotion.motionPresetId !== 'Movimiento-Derecha-Izquierda') throw new Error('target motion op should follow source image');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_audio_controller_can_create_named_job_from_canonical_script_text():
     script = r"""
 import { createAudioController } from './js/modules/features/audio/controller.js';
