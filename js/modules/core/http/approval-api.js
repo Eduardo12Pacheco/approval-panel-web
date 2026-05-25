@@ -52,6 +52,7 @@ export function createApprovalApiClient({ getSettings, fetchImpl = fetch }) {
     const res = await fetchImpl(url, {
       headers,
       credentials: 'include',
+      ...(sharedReadPath ? { cache: 'no-store' } : {}),
     });
     if (!res.ok) throw new Error(`GET ${path} ${res.status}`);
     const raw = await res.text();

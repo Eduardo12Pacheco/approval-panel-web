@@ -65,6 +65,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
       method: 'GET',
       headers: buildGatewayReadHeaders(),
       credentials: 'include',
+      cache: 'no-store',
     });
 
     const sharedData = await parseResponseBody(sharedResponse);

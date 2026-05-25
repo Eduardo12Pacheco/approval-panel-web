@@ -99,6 +99,7 @@ const getCall = calls[0];
 if (getCall.url !== '/panel/read-models/approval/queue') throw new Error(`get shared read url drift: ${getCall.url}`);
 if ('x-approval-secret' in getCall.options.headers) throw new Error('get must not send browser approval secret');
 if (getCall.options.credentials !== 'include') throw new Error('get must include gateway session credentials');
+if (getCall.options.cache !== 'no-store') throw new Error('approval shared read must bypass browser cache');
 if (getCall.options.headers['x-control-panel-shell-version'] !== '2026.05.24.1') throw new Error('get shell version header drift');
 
 await api.post('/webhook/approval/decision/v2', { cluster_id: 'c-1', action: 'approve' });
@@ -309,6 +310,7 @@ if (segments.version !== 2 || segments.segments[0].text !== 'Hola') throw new Er
 for (const call of calls) {
   if (!call.url.startsWith('https://api.example.test/')) throw new Error(`shared read did not use API origin: ${call.url}`);
   if (call.options.credentials !== 'include') throw new Error(`shared read missing credentials for ${call.url}`);
+  if (call.options.cache !== 'no-store') throw new Error(`shared read must bypass browser cache for ${call.url}`);
   if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error(`shared read missing shell version for ${call.url}`);
 }
 """
@@ -343,6 +345,7 @@ if (detail.projects[0].editor_state.brandChannel !== 'pelotazo-ecuador') throw n
 for (const call of calls) {
   if (call.options.method !== 'GET') throw new Error(`video read should be GET: ${call.options.method}`);
   if (call.options.credentials !== 'include') throw new Error('video read missing gateway credentials');
+  if (call.options.cache !== 'no-store') throw new Error('video read must bypass browser cache');
   if (call.options.headers.apikey || call.options.headers.Authorization) throw new Error('video read must not send Supabase browser headers');
   if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error('video read missing shell version');
 }

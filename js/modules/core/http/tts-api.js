@@ -106,7 +106,11 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const baseUrl = sharedReadPath ? resolveGatewayBaseUrl(settings) : resolveBaseUrl();
     const headers = sharedReadPath ? buildGatewayReadHeaders() : buildTtsHeaders();
     const url = sharedReadPath ? resolveSharedReadModelUrl(sharedReadPath, settings) : `${baseUrl}${path}`;
-    const res = await fetchImpl(url, { headers, credentials: 'include' });
+    const res = await fetchImpl(url, {
+      headers,
+      credentials: 'include',
+      ...(sharedReadPath ? { cache: 'no-store' } : {}),
+    });
     const raw = await res.text();
     let data = {};
     try {
@@ -299,7 +303,11 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     const baseUrl = sharedReadPath ? resolveGatewayBaseUrl(settings) : resolveSubtitlesBaseUrl();
     const headers = sharedReadPath ? buildGatewayReadHeaders() : buildSubtitlesHeaders();
     const url = sharedReadPath ? resolveSharedReadModelUrl(sharedReadPath, settings) : `${baseUrl}${path}`;
-    const res = await fetchImpl(url, { headers, credentials: 'include' });
+    const res = await fetchImpl(url, {
+      headers,
+      credentials: 'include',
+      ...(sharedReadPath ? { cache: 'no-store' } : {}),
+    });
     const raw = await res.text();
     let data = {};
     try {
