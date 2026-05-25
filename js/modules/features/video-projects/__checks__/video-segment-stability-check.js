@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { createVideoProjectsFeature } from '../index.js';
 import { buildVideoSegmentPreviewLayerPlan } from '../composition/renderer/video-layers.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
+import { createRowVideoCommands, resolveVideoSegmentDurationSeconds } from '../data/row-video-commands.js';
 import { syncVideoSelectorPreviewLayers } from '../render/preview-lifecycle.js';
 
 function assertEqual(actual, expected, message) {
@@ -175,12 +176,52 @@ function testSelectorPreviewDoesNotReseekPlayingDecorativeEffects() {
   assertEqual(effect.paused, false, 'Expected playing decorative effect to keep playing');
 }
 
+function testVideoSegmentDurationUsesCanonicalApprovalSnapshotRow() {
+  const project = createApprovalProject({
+    rows: [
+      { id: 'seg-007', rowId: 'seg-007', startTime: 30.2, effectiveEndTime: 34.76, endTime: 34.76 },
+    ],
+  });
+  const staleLocalRow = { id: 'seg-007', rowId: 'seg-007', startTime: 30.2, effectiveEndTime: 34.68, endTime: 34.68 };
+
+  assertEqual(
+    resolveVideoSegmentDurationSeconds(project, staleLocalRow),
+    4.56,
+    'Expected video segment duration to use canonical Approval snapshot row duration',
+  );
+}
+
+async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
+  const project = createApprovalProject({
+    rows: [
+      { id: 'seg-007', rowId: 'seg-007', startTime: 30.2, effectiveEndTime: 34.76, endTime: 34.76 },
+    ],
+  });
+  project._editorRows = [{ id: 'seg-007', rowId: 'seg-007', startTime: 30.2, effectiveEndTime: 34.68, endTime: 34.68 }];
+  const patches = [];
+  const commands = createRowVideoCommands({
+    api: {},
+    ui: { toast() {} },
+    getProject: () => project,
+    resolveProjectKey: () => 'draft-1',
+    renderSelectedVideoProject() {},
+    updateRow: async (_rowId, patch) => patches.push(patch),
+  });
+
+  const assigned = await commands.assignVideoSegmentToRow('seg-007', { id: 'video-1', src: 'clip.mp4' }, 2.084);
+
+  assertEqual(assigned, true, 'Expected video segment assignment to succeed');
+  assertEqual(patches[0]?.media?.durationSeconds, 4.56, 'Expected assigned video segment to send canonical Approval duration');
+}
+
 export async function runVideoSegmentStabilityCheck() {
   await testStaleSnapshotConflictPreservesLocalEditsWithoutRetry();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
   testSelectorPreviewKeepsDecorativeEffectsAtLocalStart();
   testSelectorPreviewDoesNotReseekPlayingDecorativeEffects();
+  testVideoSegmentDurationUsesCanonicalApprovalSnapshotRow();
+  await testAssignVideoSegmentSendsCanonicalApprovalDuration();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260525-image-motion-swap-v7';
+export const APP_CACHE_VERSION = '20260525-video-duration-v8';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);

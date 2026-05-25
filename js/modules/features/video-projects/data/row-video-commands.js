@@ -42,6 +42,30 @@ export function readVideoDuration(file) {
   });
 }
 
+function resolveRowId(row = {}) {
+  return (row.id || row.rowId || '').toString();
+}
+
+function computePhraseDuration(row = {}) {
+  const startTime = Number(row?.startTime || 0);
+  const endTime = Number.isFinite(Number(row?.effectiveEndTime)) ? Number(row.effectiveEndTime) : Number(row?.endTime);
+  const durationSeconds = Number((endTime - startTime).toFixed(6));
+  return Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0;
+}
+
+function findApprovalSnapshotRow(project, rowId) {
+  const rows = project?.editor_state?.approval_contract_snapshot?.rows;
+  if (!Array.isArray(rows)) return null;
+  const cleanRowId = (rowId || '').toString();
+  return rows.find((row) => resolveRowId(row) === cleanRowId) || null;
+}
+
+export function resolveVideoSegmentDurationSeconds(project, row = {}) {
+  const snapshotDuration = computePhraseDuration(findApprovalSnapshotRow(project, resolveRowId(row)) || {});
+  if (snapshotDuration > 0) return snapshotDuration;
+  return computePhraseDuration(row);
+}
+
 export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, mergeCachedProjectEditorState = () => {}, beforeMutate }) {
   function notifyBeforeMutate(label, project, details = {}) {
     if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
@@ -107,7 +131,7 @@ export function createRowVideoCommands({ api, ui, getProject, resolveProjectKey,
     const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
     const row = rows.find((item) => item?.id === rowId || item?.rowId === rowId);
     if (!project || !row) return false;
-    const durationSeconds = Math.max(0, Number(row?.effectiveEndTime ?? row?.endTime ?? 0) - Number(row?.startTime || 0));
+    const durationSeconds = resolveVideoSegmentDurationSeconds(project, row);
     try {
       await updateRow(rowId, {
         media: {
