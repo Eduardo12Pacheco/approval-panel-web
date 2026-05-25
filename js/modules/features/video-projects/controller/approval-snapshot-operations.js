@@ -65,6 +65,12 @@ export function createApprovalSnapshotOperations({
     return error?.code === 'lease_held' || error?.status === 423;
   }
 
+  function canAutoRetryStaleSnapshotOperations(operations = []) {
+    return Array.isArray(operations)
+      && operations.length > 0
+      && operations.every((operation) => operation?.type === 'setRowImage');
+  }
+
   function toConflictState(error, localBaseSnapshotHash) {
     const details = error?.details && typeof error.details === 'object' ? error.details : {};
     return {
@@ -100,14 +106,31 @@ export function createApprovalSnapshotOperations({
     try {
       result = await updateWithHash(baseSnapshotHash);
     } catch (err) {
-      if (!isStaleBaseSnapshotHashError(err) && !isLeaseHeldError(err)) throw err;
-      project.editor_state = normalizeEditorState({
-        ...project.editor_state,
-        phase: 'conflict',
-        dirty: true,
-        conflict: toConflictState(err, baseSnapshotHash),
-      });
-      throw err;
+      if (isStaleBaseSnapshotHashError(err) && canAutoRetryStaleSnapshotOperations(operations)) {
+        const latestSnapshot = await fetchLatestApprovalSnapshot(client, projectId).catch(() => null);
+        const latestHash = latestSnapshot?.snapshotHash || '';
+        if (latestHash && latestHash !== baseSnapshotHash) {
+          applyCanonicalSnapshot(project, latestSnapshot, { dirty: true, phase });
+          try {
+            result = await updateWithHash(latestHash);
+          } catch (retryError) {
+            err = retryError;
+          }
+        }
+      }
+      if (result) {
+        // Continue with normal canonical snapshot application below.
+      } else if (!isStaleBaseSnapshotHashError(err) && !isLeaseHeldError(err)) {
+        throw err;
+      } else {
+        project.editor_state = normalizeEditorState({
+          ...project.editor_state,
+          phase: 'conflict',
+          dirty: true,
+          conflict: toConflictState(err, baseSnapshotHash),
+        });
+        throw err;
+      }
     }
     const snapshot = extractSnapshot(result);
     if (!snapshot) throw new Error('Approval editor service no devolvió snapshot');

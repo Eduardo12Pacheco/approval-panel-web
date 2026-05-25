@@ -382,6 +382,92 @@ if (previewCall.options.credentials !== 'include') throw new Error('Remotion ren
     assert result.returncode == 0, result.stderr
 
 
+def test_approval_snapshot_image_swaps_retry_once_on_stale_snapshot_hash():
+    script = r"""
+import { createApprovalSnapshotOperations } from './js/modules/features/video-projects/controller/approval-snapshot-operations.js';
+
+const calls = [];
+const savedStates = [];
+const latestSnapshot = {
+  contractVersion: 'approval-editor-service-v1',
+  projectId: 'approval-project-1',
+  snapshotId: 'snap-2',
+  snapshotHash: 'hash-fresh',
+  rows: [
+    { id: 'row-1', selectedAssetId: 'asset-old-1' },
+    { id: 'row-2', selectedAssetId: 'asset-old-2' },
+  ],
+  assets: {
+    'asset-a': { assetId: 'asset-a', previewUrl: 'a.jpg' },
+    'asset-b': { assetId: 'asset-b', previewUrl: 'b.jpg' },
+  },
+};
+const finalSnapshot = {
+  ...latestSnapshot,
+  snapshotId: 'snap-3',
+  snapshotHash: 'hash-final',
+  rows: [
+    { id: 'row-1', selectedAssetId: 'asset-b' },
+    { id: 'row-2', selectedAssetId: 'asset-a' },
+  ],
+};
+const client = {
+  async updateSnapshot(projectId, payload) {
+    calls.push({ type: 'update', projectId, payload });
+    if (payload.baseSnapshotHash === 'hash-stale') {
+      const error = new Error('version conflict');
+      error.code = 'version_conflict';
+      error.status = 409;
+      throw error;
+    }
+    if (payload.baseSnapshotHash !== 'hash-fresh') throw new Error(`unexpected retry hash ${payload.baseSnapshotHash}`);
+    return { snapshot: finalSnapshot };
+  },
+  async snapshot(projectId) {
+    calls.push({ type: 'snapshot', projectId });
+    return { snapshot: latestSnapshot };
+  },
+};
+const project = {
+  editor_state: {
+    pipeline_provider: 'approval',
+    pipeline_base_url: 'https://approval.local',
+    remotion_project_id: 'approval-project-1',
+    snapshot_hash: 'hash-stale',
+    approval_contract_snapshot: {
+      contractVersion: 'approval-editor-service-v1',
+      projectId: 'approval-project-1',
+      snapshotHash: 'hash-stale',
+      rows: latestSnapshot.rows,
+      assets: latestSnapshot.assets,
+    },
+  },
+  _editorRows: latestSnapshot.rows,
+};
+const operations = createApprovalSnapshotOperations({
+  api: { createApprovalPipelineClient: () => client },
+  store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'https://approval.local' } }) },
+  ui: { toast() {} },
+  persistEditorState: async (_project, patch) => savedStates.push(patch),
+  renderSelectedVideoProject() {},
+});
+
+await operations.commitApprovalSnapshotOperations(project, [
+  { type: 'setRowImage', rowId: 'row-1', asset: { assetId: 'asset-b', previewUrl: 'b.jpg' } },
+  { type: 'setRowImage', rowId: 'row-2', asset: { assetId: 'asset-a', previewUrl: 'a.jpg' } },
+]);
+
+if (calls.length !== 3) throw new Error(`expected update, snapshot, retry update calls; got ${calls.length}`);
+if (calls[0].payload.baseSnapshotHash !== 'hash-stale') throw new Error('first update should use local hash');
+if (calls[2].payload.baseSnapshotHash !== 'hash-fresh') throw new Error('retry should use freshly fetched hash');
+if (project.editor_state.snapshot_hash !== 'hash-final') throw new Error('project should adopt final snapshot hash');
+if (project.editor_state.conflict) throw new Error('image swap retry should not leave conflict state');
+if (savedStates.at(-1)?.snapshot_hash !== 'hash-final') throw new Error('final snapshot should be persisted');
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
+
+
 def test_audio_controller_can_create_named_job_from_canonical_script_text():
     script = r"""
 import { createAudioController } from './js/modules/features/audio/controller.js';
