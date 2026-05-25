@@ -63,6 +63,10 @@ import { bindSubtitlesEvents } from './events/subtitles.js';
 import { bindApprovalDialogEvents } from './events/approval-dialog.js';
 import { createShellNavigationController } from './views/navigation.js';
 import {
+  approvalItemMatchesSearch,
+  tokenizeApprovalSearchQuery,
+} from './search-filter.js';
+import {
   createApprovalSearchController,
   formatNewsSearchTimestamp,
   resolveLatestSharedPanelTimestamp,
@@ -777,12 +781,12 @@ function renderCountryFilter() {
 }
 
 function filteredItems() {
-  const query = el.searchInput.value.trim().toLowerCase();
+  const queryTokens = tokenizeApprovalSearchQuery(el.searchInput.value);
   const country = el.countryFilter.value;
   const minSources = Number(el.sourcesFilter.value || 0);
 
   const filtered = state.items.filter((item) => {
-    const searchMatch = !query || `${item.jugador} ${item.tema_principal}`.toLowerCase().includes(query);
+    const searchMatch = approvalItemMatchesSearch(item, queryTokens);
     const countryMatch = !country || item.seleccion === country;
     const sourcesMatch = Number(item.cantidad_fuentes || 0) >= minSources;
     return searchMatch && countryMatch && sourcesMatch;
