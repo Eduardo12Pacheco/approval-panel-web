@@ -60,11 +60,16 @@ function hasGatewaySessionPayload(data = {}) {
 }
 
 function anonymousGatewaySession({ endpoint, status, data, fallbackError }) {
-  globalThis.__CONTROL_PANEL_SESSION__ = { status: 'anonymous' };
-  return {
+  const failure = {
     status: 'anonymous',
+    kind: 'gateway_auth',
+    code: data?.code || data?.error || '',
+    http_status: Number(status) || 0,
+    endpoint,
     error: data?.error || data?.message || fallbackError || `GET ${endpoint} ${status}`,
   };
+  globalThis.__CONTROL_PANEL_SESSION__ = failure;
+  return failure;
 }
 
 function readCookieValue({ cookieJar, sessionKey }) {
