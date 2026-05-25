@@ -75,6 +75,6 @@ export function resolveSubtitlesSharedReadPath(path = '') {
 
 export function resolveVideoProjectsSharedReadPath({ draftId = '', limit = 50 } = {}) {
   const id = (draftId || '').toString().trim();
-  if (id) return `/panel/read-models/video-projects/${encodeURIComponent(id)}`;
+  if (id) return `/panel/read-models/video-projects?draft_id=${encodeURIComponent(id)}`;
   return `/panel/read-models/video-projects?limit=${encodeURIComponent(limit)}`;
 }

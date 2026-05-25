@@ -328,7 +328,7 @@ const fetchImpl = async (url, options = {}) => {
   if (url === '/panel/read-models/video-projects?limit=50') {
     return { ok: true, status: 200, text: async () => JSON.stringify({ projects: [{ draft_id: 'video-shared-1', title: 'Shared video' }] }) };
   }
-  if (url === '/panel/read-models/video-projects/video-shared-1') {
+  if (url === '/panel/read-models/video-projects?draft_id=video-shared-1') {
     return { ok: true, status: 200, text: async () => JSON.stringify({ projects: [{ draft_id: 'video-shared-1', editor_state: { brandChannel: 'pelotazo-ecuador' } }] }) };
   }
   throw new Error(`unexpected video read URL ${url}`);
