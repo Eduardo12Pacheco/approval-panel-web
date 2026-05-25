@@ -206,11 +206,18 @@ function runDefaultZoom150PreviewNormalizationCheck() {
     motionPresetId: 'Zoom 125',
     motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
   }]).rows[0];
+  const manualZoom150Row = buildPreviewCompositionContract({}, [{
+    id: 'row-manual-150',
+    motionPresetId: 'Zoom 150',
+    motion: { name: 'Zoom 150', presetName: 'Zoom 150', fromX: 79, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.5, easing: 'linear' },
+  }]).rows[0];
 
   assertEqual(customRow.motionPresetId, 'custom', 'Expected explicit custom motion to keep its preset id');
   assertEqual(customRow.motion.toScale, 1.08, 'Expected explicit custom/manual 108% motion to remain respected');
   assertEqual(zoom125Row.motionPresetId, 'Zoom 125', 'Expected explicit Zoom 125 selection not to normalize to Zoom 150');
   assertEqual(zoom125Row.motion.toScale, 1.25, 'Expected explicit Zoom 125 motion to remain respected');
+  assertEqual(manualZoom150Row.motionPresetId, 'Zoom 150', 'Expected manual Zoom 150 adjustment to keep its selected preset label');
+  assertEqual(manualZoom150Row.motion.fromX, 79, 'Expected manual Zoom 150 keyframe adjustment to affect preview/render motion');
 }
 
 export function runEditorMotionPresetsCheck() {

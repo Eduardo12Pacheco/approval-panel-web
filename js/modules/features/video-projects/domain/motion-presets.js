@@ -13,6 +13,29 @@ function isLegacyDefaultZoomAlias(value, { defaultEmpty = false } = {}) {
   return normalized === 'slow-zoom' || normalized === 'slow-zoom-in' || normalized === 'zoom-110';
 }
 
+function numbersEqual(left, right) {
+  return Math.abs(Number(left) - Number(right)) < 0.0001;
+}
+
+function isDefaultZoom150MotionObject(motion = {}) {
+  const defaultMotion = defaultMotionPresetMotion();
+  return numbersEqual(motion.fromX ?? 0, defaultMotion.fromX)
+    && numbersEqual(motion.fromY ?? 0, defaultMotion.fromY)
+    && numbersEqual(motion.toX ?? 0, defaultMotion.toX)
+    && numbersEqual(motion.toY ?? 0, defaultMotion.toY)
+    && numbersEqual(motion.fromScale ?? 1, defaultMotion.fromScale)
+    && numbersEqual(motion.toScale ?? 1, defaultMotion.toScale);
+}
+
+function isLegacyStaleDefaultMotionObject(motion = {}) {
+  return numbersEqual(motion.fromX ?? 0, 0)
+    && numbersEqual(motion.fromY ?? 0, 0)
+    && numbersEqual(motion.toX ?? 0, 0)
+    && numbersEqual(motion.toY ?? 0, 0)
+    && numbersEqual(motion.fromScale ?? 1, 1)
+    && numbersEqual(motion.toScale ?? 1, 1.08);
+}
+
 export const MOTION_PRESETS = [
   { category: 'ZOOMS', name: 'Zoom 125', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.25, easing: 'linear' },
   { category: 'ZOOMS', name: 'Zoom 110', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1.1, easing: 'linear' },
@@ -63,7 +86,10 @@ export function normalizeLegacyDefaultMotionPresetName(value, options = {}) {
 
 export function shouldUseDefaultMotionPresetForRow(row = {}) {
   const explicitPreset = row?.motionPresetId || row?.motion_preset_id || row?.motionPreset;
-  if (findMotionPreset(explicitPreset)?.name === DEFAULT_MOTION_PRESET_NAME) return true;
+  if (findMotionPreset(explicitPreset)?.name === DEFAULT_MOTION_PRESET_NAME) {
+    if (!row?.motion || typeof row.motion !== 'object') return true;
+    return isDefaultZoom150MotionObject(row.motion) || isLegacyStaleDefaultMotionObject(row.motion);
+  }
   if (isLegacyDefaultZoomAlias(explicitPreset, { defaultEmpty: false })) return true;
   if (typeof row?.motion === 'string') return isLegacyDefaultZoomAlias(row.motion, { defaultEmpty: !explicitPreset });
   if (row?.motion && typeof row.motion === 'object') {
