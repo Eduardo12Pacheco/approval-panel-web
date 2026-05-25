@@ -27,10 +27,7 @@ export function resolveGatewayBaseUrl(settings = {}) {
 }
 
 export function buildGatewayReadHeaders(extra = {}) {
-  const headers = { ...extra };
-  const shellVersion = getShellVersion();
-  if (shellVersion) headers['x-control-panel-shell-version'] = shellVersion;
-  return headers;
+  return { ...extra };
 }
 
 export function resolveSharedReadModelUrl(path, settings = {}) {

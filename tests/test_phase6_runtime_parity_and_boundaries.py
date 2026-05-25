@@ -100,7 +100,7 @@ if (getCall.url !== '/panel/read-models/approval/queue') throw new Error(`get sh
 if ('x-approval-secret' in getCall.options.headers) throw new Error('get must not send browser approval secret');
 if (getCall.options.credentials !== 'include') throw new Error('get must include gateway session credentials');
 if (getCall.options.cache !== 'no-store') throw new Error('approval shared read must bypass browser cache');
-if (getCall.options.headers['x-control-panel-shell-version'] !== '2026.05.24.1') throw new Error('get shell version header drift');
+if ('x-control-panel-shell-version' in getCall.options.headers) throw new Error('shared reads must avoid custom cache/version headers that trigger CORS preflight');
 
 await api.post('/webhook/approval/decision/v2', { cluster_id: 'c-1', action: 'approve' });
 const postCall = calls[1];
@@ -311,7 +311,7 @@ for (const call of calls) {
   if (!call.url.startsWith('https://api.example.test/')) throw new Error(`shared read did not use API origin: ${call.url}`);
   if (call.options.credentials !== 'include') throw new Error(`shared read missing credentials for ${call.url}`);
   if (call.options.cache !== 'no-store') throw new Error(`shared read must bypass browser cache for ${call.url}`);
-  if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error(`shared read missing shell version for ${call.url}`);
+  if ('x-control-panel-shell-version' in call.options.headers) throw new Error(`shared read should avoid preflight headers for ${call.url}`);
 }
 """
     result = _run_node(script)
@@ -347,7 +347,7 @@ for (const call of calls) {
   if (call.options.credentials !== 'include') throw new Error('video read missing gateway credentials');
   if (call.options.cache !== 'no-store') throw new Error('video read must bypass browser cache');
   if (call.options.headers.apikey || call.options.headers.Authorization) throw new Error('video read must not send Supabase browser headers');
-  if (call.options.headers['x-control-panel-shell-version'] !== '2026.05.24.3') throw new Error('video read missing shell version');
+  if ('x-control-panel-shell-version' in call.options.headers) throw new Error('video read should avoid preflight headers');
 }
 """
     result = _run_node(script)
