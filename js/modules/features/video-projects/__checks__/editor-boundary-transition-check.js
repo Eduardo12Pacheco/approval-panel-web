@@ -3,6 +3,7 @@ import { buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions } from '../render/editor-hydration.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { hydrateSelectedProjectState } from '../controller/editor-state-persistence.js';
+import { applyAlternatingBoundaryTransitionDefaults } from '../domain/boundary-transitions.js';
 import { createVideoProjectsFeature } from '../index.js';
 
 function assert(condition, message) {
@@ -25,6 +26,7 @@ function runPreparedRowsPreserveBoundaryTransitionMetadataCheck() {
     paragraphBoundaryAfter: true,
     nextRowId: 'row-2',
     transition: 'glitch-1',
+    transitionSource: 'manual',
     transitionConfig: { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true },
     sfx: null,
   }]);
@@ -32,6 +34,7 @@ function runPreparedRowsPreserveBoundaryTransitionMetadataCheck() {
   assertEqual(row.paragraphBoundaryAfter, true, 'Expected client row normalizer to preserve boundary eligibility');
   assertEqual(row.nextRowId, 'row-2', 'Expected client row normalizer to preserve next row target');
   assertEqual(row.transition, 'glitch-1', 'Expected client row normalizer to preserve active transition');
+  assertEqual(row.transitionSource, 'manual', 'Expected client row normalizer to preserve transition provenance');
   assertDeepEqual(row.transitionConfig, { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true }, 'Expected client row normalizer to preserve Glitch config');
   assertDeepEqual(row.sfx, null, 'Expected client row normalizer to preserve disabled SFX reference');
 }
@@ -57,6 +60,49 @@ function runBoundaryConnectorMarkupCheck() {
   assert(activeMarkup.includes('aria-pressed="true"'), 'Expected active connector to expose pressed state');
 }
 
+function runAutomaticBoundaryTransitionDefaultsCheck() {
+  const rows = applyAlternatingBoundaryTransitionDefaults([
+    { id: 'row-1', paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'none' },
+    { id: 'row-2', paragraphBoundaryAfter: true, nextRowId: 'row-3', transition: '' },
+    { id: 'row-3', paragraphBoundaryAfter: true, nextRowId: 'row-4' },
+    { id: 'row-4', paragraphBoundaryAfter: true, nextRowId: 'row-5', transition: 'fade' },
+    { id: 'row-5', paragraphBoundaryAfter: true, nextRowId: 'row-6', transition: 'none', transitionSource: 'manual' },
+    { id: 'row-6', paragraphBoundaryAfter: false, nextRowId: 'row-7', transition: 'none' },
+    { id: 'row-7', paragraphBoundaryAfter: true, transition: 'none' },
+  ]);
+
+  assertEqual(rows[0].transition, 'glitch-1', 'Expected first eligible boundary to default to Glitch 1');
+  assertEqual(rows[0].transitionConfig.assetId, 'glitch-1', 'Expected first eligible boundary to receive Glitch 1 config');
+  assertEqual(rows[1].transition, 'glitch-2', 'Expected second eligible boundary to default to Glitch 2');
+  assertEqual(rows[1].transitionConfig.assetId, 'glitch-2', 'Expected second eligible boundary to receive Glitch 2 config');
+  assertEqual(rows[2].transition, 'glitch-1', 'Expected third eligible boundary to default back to Glitch 1');
+  assertEqual(rows[3].transition, 'glitch-2', 'Expected unsupported default transition to receive the next alternating Glitch default');
+  assertEqual(rows[0].transitionSource, 'auto', 'Expected automatic Glitch 1 default to carry auto provenance');
+  assertEqual(rows[1].transitionSource, 'auto', 'Expected automatic Glitch 2 default to carry auto provenance');
+  assertEqual(rows[4].transition, 'none', 'Expected explicit manual none to remain untouched');
+  assertEqual(rows[4].transitionSource, 'manual', 'Expected explicit manual none provenance to be preserved');
+  assertEqual(rows[5].transition, 'none', 'Expected non-boundary row to remain untouched');
+  assertEqual(rows[6].transition, 'none', 'Expected boundary without nextRowId to remain untouched');
+}
+
+function runManualBoundaryTransitionPreservationCheck() {
+  const rows = applyAlternatingBoundaryTransitionDefaults([
+    { id: 'row-1', paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'glitch-2', transitionConfig: { type: 'overlay-video', assetId: 'custom-glitch-2' } },
+    { id: 'row-2', paragraphBoundaryAfter: true, nextRowId: 'row-3', transition: 'whip', transitionConfig: { type: 'whip', durationSeconds: 0.5 }, sfx: 'whip' },
+    { id: 'row-3', paragraphBoundaryAfter: true, nextRowId: 'row-4', transition: 'glitch-1', transitionConfig: { type: 'overlay-video', assetId: 'custom-glitch-1' } },
+    { id: 'row-4', paragraphBoundaryAfter: true, nextRowId: 'row-5', transition: 'none', transitionSource: 'manual' },
+  ]);
+
+  assertEqual(rows[0].transition, 'glitch-2', 'Expected explicit Glitch 2 to be preserved');
+  assertEqual(rows[0].transitionConfig.assetId, 'custom-glitch-2', 'Expected explicit Glitch 2 config to be preserved');
+  assertEqual(rows[1].transition, 'whip', 'Expected explicit Whip compatibility transition to be preserved');
+  assertEqual(rows[1].sfx, 'whip', 'Expected explicit Whip SFX to be preserved');
+  assertEqual(rows[2].transition, 'glitch-1', 'Expected explicit Glitch 1 to be preserved');
+  assertEqual(rows[2].transitionConfig.assetId, 'custom-glitch-1', 'Expected explicit Glitch 1 config to be preserved');
+  assertEqual(rows[3].transition, 'none', 'Expected explicit user-selected none to be preserved');
+  assertEqual(rows[3].transitionSource, 'manual', 'Expected explicit user-selected none provenance to be preserved');
+}
+
 function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
   const project = {
     guion_piped: 'Intro con pausa\n\n|Cuerpo sin pausa|Cierre',
@@ -74,7 +120,7 @@ function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
 
   assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected hydration to derive paragraph boundary eligibility from guion_piped');
   assertEqual(project._editorRows[0].nextRowId, 'persisted-2', 'Expected derived boundary to target the next hydrated row id');
-  assertEqual(project._editorRows[0].transition, 'none', 'Expected derived eligibility not to auto-enable a boundary transition');
+  assertEqual(project._editorRows[0].transition, 'glitch-1', 'Expected derived eligibility to receive the first automatic boundary transition');
   assertEqual(project._editorRows[1].paragraphBoundaryAfter, undefined, 'Expected rows without paragraph break to stay ineligible');
 }
 
@@ -157,7 +203,7 @@ async function runApprovalBoundaryTransitionOperationCheck() {
                 snapshotId: 'snapshot-2',
                 snapshotHash: 'hash-2',
                 rows: [
-                  { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'glitch-1', transitionConfig: { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true }, sfx: null },
+            { id: 'row-1', rowId: 'row-1', selectedAssetId: 'asset-a', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'none', transitionSource: 'manual', sfx: null },
                   { id: 'row-2', rowId: 'row-2', selectedAssetId: 'asset-b', media: { kind: 'image' }, transition: 'none' },
                 ],
               },
@@ -172,15 +218,16 @@ async function runApprovalBoundaryTransitionOperationCheck() {
     callbacks: { renderSelectedVideoProject() {}, updateSelectedVideoProjectCompositionPreview() { return true; }, renderVideoProjects() {} },
   });
 
-  await feature.updateRow('row-1', { boundaryTransition: 'glitch-1', nextRowId: 'row-2' });
+  await feature.updateRow('row-1', { boundaryTransition: 'none', nextRowId: 'row-2' });
 
   assertEqual(updateSnapshotCalls.length, 1, 'Expected boundary activation to persist immediately with one snapshot update');
   assertDeepEqual(
     updateSnapshotCalls[0].payload.operations,
-    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'glitch-1' }],
-    'Expected boundary activation to use the scoped setBoundaryTransition operation only',
+    [{ type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'none', transitionSource: 'manual' }],
+    'Expected boundary removal to use the scoped setBoundaryTransition operation with manual provenance',
   );
-  assertEqual(state.selectedVideoProject._editorRows[0].transition, 'glitch-1', 'Expected canonical response to activate Glitch locally');
+  assertEqual(state.selectedVideoProject._editorRows[0].transition, 'none', 'Expected canonical response to preserve removed boundary transition locally');
+  assertEqual(state.selectedVideoProject._editorRows[0].transitionSource, 'manual', 'Expected canonical response to preserve manual none provenance locally');
   assertEqual(state.selectedVideoProject._editorRows[0].selectedAssetId, 'asset-a', 'Expected unrelated selected image to remain unchanged');
   assertEqual(state.selectedVideoProject._editorRows[0].media.kind, 'image', 'Expected unrelated media settings to remain unchanged');
   assertEqual(savedEditorStates.at(-1).snapshot_hash, 'hash-2', 'Expected persisted editor state to use updated snapshot hash');
@@ -189,6 +236,8 @@ async function runApprovalBoundaryTransitionOperationCheck() {
 export async function runEditorBoundaryTransitionCheck() {
   runPreparedRowsPreserveBoundaryTransitionMetadataCheck();
   runBoundaryConnectorMarkupCheck();
+  runAutomaticBoundaryTransitionDefaultsCheck();
+  runManualBoundaryTransitionPreservationCheck();
   runHydratedRowsDeriveBoundaryMetadataFromGuionCheck();
   await runBoundaryConnectorHydrationCheck();
   await runApprovalBoundaryTransitionOperationCheck();

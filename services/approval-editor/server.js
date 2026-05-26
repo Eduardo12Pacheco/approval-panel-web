@@ -9,6 +9,7 @@ const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
 const { createVideoEngineRenderAdapter } = require("./lib/video-engine-render-adapter");
+const { applyAlternatingBoundaryTransitionDefaults, addBoundaryTransitionAssets } = require("./lib/boundary-transitions");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
@@ -221,7 +222,7 @@ async function resolveRemoteWavDurationSeconds(url) {
 }
 
 function buildRowSeeds(segments = []) {
-  return segments.map((segment, index) => ({
+  const seeds = segments.map((segment, index) => ({
     id: segment.id,
     index,
     phrase: segment.phrase,
@@ -234,6 +235,14 @@ function buildRowSeeds(segments = []) {
     transition: "none",
     sfx: null,
     ...(segment.paragraphBoundaryAfter === true ? { paragraphBoundaryAfter: true } : {}),
+    ...(segment.transition ? { transition: segment.transition } : {}),
+    ...(segment.transitionSource === "auto" || segment.transitionSource === "manual" ? { transitionSource: segment.transitionSource } : {}),
+    ...(segment.transitionConfig ? { transitionConfig: { ...segment.transitionConfig } } : {}),
+    ...(Object.prototype.hasOwnProperty.call(segment, "sfx") ? { sfx: segment.sfx } : {}),
+  }));
+  return applyAlternatingBoundaryTransitionDefaults(seeds.map((row, index) => {
+    if (row.paragraphBoundaryAfter !== true || !segments[index + 1]) return row;
+    return { ...row, nextRowId: String(segments[index + 1].id || `row-${index + 2}`) };
   }));
 }
 
@@ -542,6 +551,11 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           brandChannel: body.brandChannel || body.brand_channel,
         });
         applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl });
+        pipeline.contract = addBoundaryTransitionAssets(pipeline.contract);
+        pipeline.contract.snapshotHash = computeApprovalSnapshotHash(pipeline.contract);
+        for (const [assetId, asset] of Object.entries(pipeline.contract.assets || {})) {
+          if (asset?.role === "boundary-transition") pipeline.manifest.assets[assetId] = asset;
+        }
         const audit = buildAudit({ request, action: "snapshot.create", targetId: projectId, newVersion: store.readSnapshots(projectId).length + 1 });
         const record = store.saveSnapshot(pipeline.contract, { audit });
         return ok(response, { projectId, ...toResponseSnapshot(record), previewAssets: pipeline.manifest, manifest: pipeline.manifest, alignmentStatus: pipeline.alignmentStatus }, alignmentStatus.status === "ready" ? 201 : 202);

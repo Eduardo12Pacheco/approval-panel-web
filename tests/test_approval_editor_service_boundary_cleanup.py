@@ -119,3 +119,143 @@ const { createApprovalEditorService } = require('./services/approval-editor/serv
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_approval_editor_creation_canonically_defaults_boundary_transitions():
+    script = r"""
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createApprovalEditorService } = require('./services/approval-editor/server.js');
+
+(async () => {
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'approval-editor-boundary-defaults-'));
+  const server = createApprovalEditorService({
+    projectsRoot,
+    alignVoiceAudio: async ({ segments }) => ({
+      segments: segments.map((segment, index) => ({ ...segment, startTime: index, endTime: index + 1 })),
+      alignedTimings: { phrases: segments.map((_segment, index) => ({ startTime: index, endTime: index + 1 })) },
+      alignmentStatus: { status: 'ready', source: 'test', generatedAt: '2026-05-25T00:00:00.000Z' },
+      paths: null,
+    }),
+    prepareAudioPreview: async () => null,
+  });
+  try {
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/projects/create-from-approval`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        project_id: 'boundary-defaults-project',
+        title: 'Boundary Defaults Project',
+        voice_audio: { public_url: 'https://example.test/voice.wav' },
+        background_audio: { public_url: 'https://example.test/music.wav' },
+        selected_images: ['https://example.test/1.jpg', 'https://example.test/2.jpg', 'https://example.test/3.jpg', 'https://example.test/4.jpg', 'https://example.test/5.jpg'],
+        segments: [
+          { id: 'row-1', phrase: 'Intro', paragraphBoundaryAfter: true },
+          { id: 'row-2', phrase: 'Middle', paragraphBoundaryAfter: true, transition: 'fade' },
+          { id: 'row-3', phrase: 'Manual whip', paragraphBoundaryAfter: true, transition: 'whip', transitionConfig: { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' }, sfx: 'whip' },
+          { id: 'row-4', phrase: 'Manual glitch', paragraphBoundaryAfter: true, transition: 'glitch-1', transitionConfig: { type: 'overlay-video', assetId: 'custom-glitch-1' } },
+          { id: 'row-5', phrase: 'Manual none', paragraphBoundaryAfter: true, transition: 'none', transitionSource: 'manual' },
+          { id: 'row-6', phrase: 'Close' },
+        ],
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(`expected create success, got ${response.status}: ${JSON.stringify(payload)}`);
+    const snapshot = payload.data.snapshot;
+    if (snapshot.rows[0].transition !== 'glitch-1') throw new Error(`expected first eligible boundary to default glitch-1, got ${snapshot.rows[0].transition}`);
+    if (snapshot.rows[0].transitionSource !== 'auto') throw new Error(`expected first default provenance auto, got ${snapshot.rows[0].transitionSource}`);
+    if (snapshot.rows[0].transitionConfig?.assetId !== 'glitch-1') throw new Error(`expected glitch-1 config, got ${JSON.stringify(snapshot.rows[0].transitionConfig)}`);
+    if (snapshot.rows[1].transition !== 'glitch-2') throw new Error(`expected second eligible boundary to default glitch-2, got ${snapshot.rows[1].transition}`);
+    if (snapshot.rows[1].transitionSource !== 'auto') throw new Error(`expected second default provenance auto, got ${snapshot.rows[1].transitionSource}`);
+    if (snapshot.rows[1].transitionConfig?.assetId !== 'glitch-2') throw new Error(`expected glitch-2 config, got ${JSON.stringify(snapshot.rows[1].transitionConfig)}`);
+    if (snapshot.rows[2].transition !== 'whip') throw new Error(`expected explicit whip preserved, got ${snapshot.rows[2].transition}`);
+    if (snapshot.rows[3].transition !== 'glitch-1') throw new Error(`expected explicit glitch-1 preserved, got ${snapshot.rows[3].transition}`);
+    if (snapshot.rows[3].transitionConfig?.assetId !== 'custom-glitch-1') throw new Error(`expected explicit transitionConfig preserved, got ${JSON.stringify(snapshot.rows[3].transitionConfig)}`);
+    if (snapshot.rows[4].transition !== 'none') throw new Error(`expected explicit manual none preserved, got ${snapshot.rows[4].transition}`);
+    if (snapshot.rows[4].transitionSource !== 'manual') throw new Error(`expected manual none provenance preserved, got ${snapshot.rows[4].transitionSource}`);
+    if (snapshot.rows[4].transitionConfig) throw new Error(`expected manual none to clear transitionConfig, got ${JSON.stringify(snapshot.rows[4].transitionConfig)}`);
+    if (!snapshot.assets?.['glitch-1'] || !snapshot.assets?.['glitch-2']) throw new Error(`expected canonical glitch assets, got ${JSON.stringify(snapshot.assets)}`);
+    if (payload.data.snapshotHash !== snapshot.snapshotHash) throw new Error('expected response snapshotHash to match canonical snapshot hash');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    fs.rmSync(projectsRoot, { recursive: true, force: true });
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_video_engine_render_scaffold_preserves_boundary_transition_metadata():
+    script = r"""
+const { buildMinimalRenderScaffold } = require('./services/approval-editor/lib/video-engine-render-adapter.js');
+
+const scaffold = buildMinimalRenderScaffold({
+  projectId: 'render-boundary-project',
+  title: 'Render Boundary Project',
+  snapshot: {
+    rows: [
+      { id: 'row-1', phrase: 'Intro', paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'glitch-1', transitionSource: 'auto', transitionConfig: { type: 'overlay-video', assetId: 'glitch-1', renderPath: 'overlays/GLITCH 1 NUEVO.mp4' }, sfx: null },
+      { id: 'row-2', phrase: 'Close' },
+    ],
+  },
+});
+
+const row = scaffold.rows[0];
+if (row.paragraphBoundaryAfter !== true || row.nextRowId !== 'row-2') throw new Error(`expected boundary metadata preserved, got ${JSON.stringify(row)}`);
+if (row.transition !== 'glitch-1') throw new Error(`expected transition preserved, got ${row.transition}`);
+if (row.transitionSource !== 'auto') throw new Error(`expected transition provenance preserved, got ${row.transitionSource}`);
+if (row.transitionConfig?.assetId !== 'glitch-1') throw new Error(`expected transitionConfig preserved, got ${JSON.stringify(row.transitionConfig)}`);
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_approval_editor_set_boundary_transition_none_preserves_manual_removal():
+    script = r"""
+const { applyContractOperations } = require('./services/approval-editor/lib/contract-updates.js');
+
+const snapshot = {
+  projectId: 'boundary-none-project',
+  snapshotId: 's1',
+  snapshotHash: 'h1',
+  rows: [
+    { id: 'row-1', rowId: 'row-1', startTime: 0, endTime: 1, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'glitch-1', transitionSource: 'auto', transitionConfig: { type: 'overlay-video', assetId: 'glitch-1' }, sfx: null },
+    { id: 'row-2', rowId: 'row-2', startTime: 1, endTime: 2, transition: 'none' },
+  ],
+  assets: { 'glitch-1': { assetId: 'glitch-1', type: 'video' } },
+};
+
+const next = applyContractOperations(snapshot, [
+  { type: 'setBoundaryTransition', rowId: 'row-1', nextRowId: 'row-2', paragraphBoundaryAfter: true, transition: 'none' },
+]);
+const row = next.rows[0];
+if (row.transition !== 'none') throw new Error(`expected manual none, got ${row.transition}`);
+if (row.transitionSource !== 'manual') throw new Error(`expected manual provenance, got ${row.transitionSource}`);
+if (row.transitionConfig) throw new Error(`expected transitionConfig removed, got ${JSON.stringify(row.transitionConfig)}`);
+if (row.sfx !== null) throw new Error(`expected sfx null, got ${JSON.stringify(row.sfx)}`);
+if (next.snapshotHash === 'h1') throw new Error('expected snapshot hash to change after manual removal');
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

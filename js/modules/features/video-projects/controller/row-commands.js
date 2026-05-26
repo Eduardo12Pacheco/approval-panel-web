@@ -1,5 +1,6 @@
 import { buildCompositionPayload, computeCompositionHash } from '../composition/composition-payload.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
+import { WHIP_TRANSITION_CONFIG, applyAlternatingBoundaryTransitionDefaults, resolveBoundaryTransitionPatch } from '../domain/boundary-transitions.js';
 import { normalizeEditorState } from '../domain/editor-state.js';
 import { findMotionPreset, normalizeRowMotionForPreview } from '../domain/motion-presets.js';
 import { mergeDerivedParagraphBoundaryMetadata } from './editor-state-persistence.js';
@@ -8,24 +9,9 @@ function hasOwnPatchValue(patch, key) {
   return Object.prototype.hasOwnProperty.call(patch || {}, key);
 }
 
-const BOUNDARY_TRANSITION_CONFIGS = {
-  'glitch-1': { type: 'overlay-video', assetId: 'glitch-1', src: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', renderPath: 'overlays/GLITCH 1 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 1 NUEVO.mp4', blendMode: 'screen', durationSeconds: 0.833333, audio: true },
-  'glitch-2': { type: 'overlay-video', assetId: 'glitch-2', src: './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', renderPath: 'overlays/GLITCH 2 NUEVO.mp4', previewUrl: './assets/boundary-transitions/GLITCH 2 NUEVO.mp4', blendMode: 'screen', durationSeconds: 1.4, audio: true },
-};
-const WHIP_TRANSITION_CONFIG = { type: 'whip', durationSeconds: 0.5, direction: 'left-to-right' };
-const WHIP_SFX = { type: 'whip', assetId: 'whip', src: 'sfx/sound-whosh.wav' };
-
 function defaultZoom150Motion() {
   const { category, name, ...motion } = findMotionPreset('Zoom 150') || {};
   return Object.keys(motion).length ? motion : { fromScale: 1, toScale: 1.5, fromX: 0, fromY: 0, toX: 0, toY: 0, easing: 'linear' };
-}
-
-function resolveBoundaryTransitionPatch(value) {
-  const requested = (value || '').toString();
-  const transition = requested === 'whip' || BOUNDARY_TRANSITION_CONFIGS[requested] ? requested : 'none';
-  if (transition === 'none') return { transition: 'none', transitionConfig: undefined, sfx: null };
-  if (BOUNDARY_TRANSITION_CONFIGS[transition]) return { transition, transitionConfig: { ...BOUNDARY_TRANSITION_CONFIGS[transition] }, sfx: null };
-  return { transition: 'whip', transitionConfig: { ...WHIP_TRANSITION_CONFIG }, sfx: { ...WHIP_SFX } };
 }
 
 export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
@@ -36,6 +22,7 @@ export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
     ...(hasOwnPatchValue(patch, 'dust') ? { dust: { ...(current.dust || {}), ...(patch.dust || {}), enabled: Boolean(patch.dust?.enabled) } } : {}),
     ...(hasOwnPatchValue(patch, 'logo') ? { logo: { ...(current.logo || {}), ...(patch.logo || {}), enabled: patch.logo?.enabled !== false } } : {}),
     ...(hasOwnPatchValue(patch, 'transition') ? { transition: patch.transition } : {}),
+    ...(hasOwnPatchValue(patch, 'transitionSource') ? { transitionSource: patch.transitionSource === 'auto' ? 'auto' : patch.transitionSource === 'manual' ? 'manual' : undefined } : {}),
     ...(hasOwnPatchValue(patch, 'transitionConfig') ? (patch.transitionConfig ? { transitionConfig: { ...patch.transitionConfig } } : { transitionConfig: undefined }) : {}),
     ...(hasOwnPatchValue(patch, 'sfx') ? { sfx: patch.sfx } : {}),
     ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
@@ -99,7 +86,7 @@ function rowsWouldChange(rows = [], rowId, patch = {}) {
   const index = Array.isArray(rows) ? rows.findIndex((row) => row?.id === rowId) : -1;
   if (index === -1) return false;
   const localPatch = isBoundaryTransitionPatch(patch)
-    ? resolveBoundaryTransitionPatch(patch.boundaryTransition)
+    ? resolveBoundaryTransitionPatch(patch.boundaryTransition, { source: 'manual' })
     : patch;
   const nextRows = hasOwnPatchValue(localPatch, 'logo')
     ? rows.map((row) => mergeLocalEditorRowPatch(row, localPatch))
@@ -182,9 +169,11 @@ export function createRowCommands({
     const project = state.selectedVideoProject;
     if (!project || !rowId) return;
 
-    const rows = mergeDerivedParagraphBoundaryMetadata(
-      Array.isArray(project._editorRows) ? project._editorRows : [],
-      project.guion_piped || project.editor_state?.guion_piped || '',
+    const rows = applyAlternatingBoundaryTransitionDefaults(
+      mergeDerivedParagraphBoundaryMetadata(
+        Array.isArray(project._editorRows) ? project._editorRows : [],
+        project.guion_piped || project.editor_state?.guion_piped || '',
+      ),
     );
     project._editorRows = rows;
     const index = rows.findIndex((r) => r.id === rowId);
@@ -206,7 +195,7 @@ export function createRowCommands({
       }
       if (isBoundaryTransitionPatch(patch)) {
         const transition = ['whip', 'glitch-1', 'glitch-2'].includes(patch.boundaryTransition) ? patch.boundaryTransition : 'none';
-        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, ...(transition === 'whip' ? { direction: WHIP_TRANSITION_CONFIG.direction } : {}) });
+        operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, transitionSource: 'manual', ...(transition === 'whip' ? { direction: WHIP_TRANSITION_CONFIG.direction } : {}) });
       }
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {
         const resolvedMotion = patch.motionPresetId
@@ -269,7 +258,7 @@ export function createRowCommands({
     }
 
     const localPatch = isBoundaryTransitionPatch(patch)
-      ? resolveBoundaryTransitionPatch(patch.boundaryTransition)
+      ? resolveBoundaryTransitionPatch(patch.boundaryTransition, { source: 'manual' })
       : patch;
     project._editorRows = patchLocalEditorRows(rows, rowId, localPatch);
     const compositionHash = computeCompositionHash(project);

@@ -1,4 +1,4 @@
-export const APP_CACHE_VERSION = '20260525-boundary-glitch-retry-v13';
+export const APP_CACHE_VERSION = '20260525-boundary-glitch-defaults-v14';
 
 function withAppVersion(url) {
   const resolved = new URL(url, globalThis.location?.href || import.meta.url);

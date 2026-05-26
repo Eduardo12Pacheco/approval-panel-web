@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const { stableId, normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
+const { addBoundaryTransitionAssets, normalizeBoundaryTransitionRows } = require("./boundary-transitions");
 
 const AUTHORITATIVE_DUST_ASSETS = {
   "dust-1": {
@@ -277,7 +278,7 @@ function upsertProjectIndex(projectsRoot, { projectId, title }) {
 }
 
 function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
-  const rows = (Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row, index) => {
+  const rows = normalizeBoundaryTransitionRows(Array.isArray(snapshot.rows) ? snapshot.rows : []).map((row, index) => {
     const isVideoSegment = row?.media?.kind === "video-segment";
     const dustType = row?.dust?.type || "dust-1";
     const dustEnabled = isVideoSegment ? false : (row?.dust?.enabled !== undefined ? Boolean(row.dust.enabled) : true);
@@ -295,6 +296,9 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
       dust: { ...(row?.dust || {}), enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: Number(row?.dust?.opacity ?? 0.36), blendMode: row?.dust?.blendMode || "screen" },
       filter: row?.filter || { enabled: true, mode: "cover" },
       transition: row?.transition || "none",
+      ...(row?.transitionSource === "auto" || row?.transitionSource === "manual" ? { transitionSource: row.transitionSource } : {}),
+      ...(row?.transitionConfig ? { transitionConfig: row.transitionConfig } : {}),
+      ...(row?.paragraphBoundaryAfter === true ? { paragraphBoundaryAfter: true, nextRowId: row.nextRowId || null } : {}),
       sfx: row?.sfx || null,
       caption: String(row?.caption || row?.phrase || row?.text || "").trim(),
       lockedPhrase: true,
@@ -345,8 +349,9 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
 
   const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
   const authoritativeBrandAssets = buildBrandAssetRecords(channelAssets);
-  const snapshotWithAuthoritativeBrandAssets = {
+  const snapshotWithAuthoritativeBrandAssets = addBoundaryTransitionAssets({
     ...(snapshot || {}),
+    rows: normalizeBoundaryTransitionRows(Array.isArray(snapshot?.rows) ? snapshot.rows : []),
     assets: {
       ...(snapshot?.assets || {}),
       ...AUTHORITATIVE_DUST_ASSETS,
@@ -376,7 +381,7 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
       durationSeconds: channelAssets.outro.durationSeconds,
       label: channelAssets.outro.label,
     },
-  };
+  });
   const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot: snapshotWithAuthoritativeBrandAssets, fetchImpl });
   const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {

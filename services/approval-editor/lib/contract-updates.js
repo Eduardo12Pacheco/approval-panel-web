@@ -2,13 +2,7 @@ const { computeApprovalSnapshotHash } = require("./hash");
 const { normalizeAsset } = require("./asset-resolver");
 const { findMotionPreset } = require("./motion-presets");
 const { normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
-
-const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
-const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/sound-whosh.wav" };
-const BOUNDARY_TRANSITION_CONFIGS = {
-  "glitch-1": { type: "overlay-video", assetId: "glitch-1", src: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", renderPath: "overlays/GLITCH 1 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", blendMode: "screen", durationSeconds: 0.833333, audio: true },
-  "glitch-2": { type: "overlay-video", assetId: "glitch-2", src: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", renderPath: "overlays/GLITCH 2 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", blendMode: "screen", durationSeconds: 1.4, audio: true },
-};
+const { BOUNDARY_TRANSITION_CONFIGS, WHIP_TRANSITION_CONFIG, WHIP_SFX, buildBoundaryTransitionAssetRecord } = require("./boundary-transitions");
 
 function defaultZoom150Motion() {
   const { category, name, ...motion } = findMotionPreset("Zoom 150") || {};
@@ -95,6 +89,7 @@ function applyBoundaryTransition(next, op = {}) {
     row.paragraphBoundaryAfter = true;
     row.nextRowId = expectedNextRowId;
     row.transition = "none";
+    row.transitionSource = "manual";
     delete row.transitionConfig;
     row.sfx = null;
     return;
@@ -103,10 +98,11 @@ function applyBoundaryTransition(next, op = {}) {
   row.paragraphBoundaryAfter = true;
   row.nextRowId = expectedNextRowId;
   row.transition = transition;
+  row.transitionSource = op.transitionSource === "auto" ? "auto" : "manual";
   if (BOUNDARY_TRANSITION_CONFIGS[transition]) {
     row.transitionConfig = { ...BOUNDARY_TRANSITION_CONFIGS[transition] };
     row.sfx = null;
-    next.assets[transition] = next.assets[transition] || { assetId: transition, id: transition, type: "video", role: "boundary-transition", renderPath: row.transitionConfig.renderPath, previewUrl: row.transitionConfig.previewUrl, durationSeconds: row.transitionConfig.durationSeconds, status: "ready" };
+    next.assets[transition] = next.assets[transition] || buildBoundaryTransitionAssetRecord(transition);
     return;
   }
   row.transitionConfig = { ...WHIP_TRANSITION_CONFIG, direction: op.direction || WHIP_TRANSITION_CONFIG.direction };

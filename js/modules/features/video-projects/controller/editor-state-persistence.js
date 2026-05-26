@@ -1,4 +1,5 @@
 import { normalizeEditorState, normalizeGlobalAudioState } from '../domain/editor-state.js';
+import { applyAlternatingBoundaryTransitionDefaults } from '../domain/boundary-transitions.js';
 import { normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 
 export function setVideoProjectStep(project, step) {
@@ -70,7 +71,9 @@ export function hydrateSelectedProjectState(project) {
   if (contractRows.length) project._editorRows = mergeHydratedEditorRows(contractRows, timedRows);
   else if (timedRows.length) project._editorRows = timedRows;
   if (Array.isArray(project._editorRows) && project._editorRows.length) {
-    project._editorRows = mergeDerivedParagraphBoundaryMetadata(project._editorRows, project.guion_piped || editorState.guion_piped || '');
+    project._editorRows = applyAlternatingBoundaryTransitionDefaults(
+      mergeDerivedParagraphBoundaryMetadata(project._editorRows, project.guion_piped || editorState.guion_piped || ''),
+    );
   }
   project._previewAssets = editorState.preview_assets || null;
   if (Array.isArray(editorState.video_assets)) {

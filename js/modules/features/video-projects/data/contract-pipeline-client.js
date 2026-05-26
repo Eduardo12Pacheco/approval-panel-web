@@ -1,5 +1,6 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
+import { applyAlternatingBoundaryTransitionDefaults } from '../domain/boundary-transitions.js';
 import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 function resolveVideoProjectKey(row = {}) {
@@ -14,7 +15,7 @@ function resolveVideoProjectTitle(row = {}, fallback = 'Proyecto sin título') {
 
 export function normalizePreparedContractRows(rows = []) {
   if (!Array.isArray(rows)) return [];
-  return rows.map((row, index) => {
+  const normalizedRows = rows.map((row, index) => {
     const isVideoSegment = row?.media?.kind === 'video-segment';
     const mediaMode = !isVideoSegment && row?.mediaMode === 'newspaper' ? 'newspaper' : 'image';
     const dustType = row?.dust?.type || 'dust-1';
@@ -37,12 +38,14 @@ export function normalizePreparedContractRows(rows = []) {
       logo: { enabled: row?.logo?.enabled !== false, source: row?.logo?.source || 'logo-alpha.webm' },
       filter: { enabled: Boolean(row?.filter?.enabled), mode: row?.filter?.mode || 'cover' },
       transition: row?.transition || 'none',
+      ...(row?.transitionSource === 'auto' || row?.transitionSource === 'manual' ? { transitionSource: row.transitionSource } : {}),
       ...(row?.paragraphBoundaryAfter === true ? { paragraphBoundaryAfter: true } : {}),
       ...(row?.nextRowId ? { nextRowId: row.nextRowId.toString() } : {}),
       ...(row?.transitionConfig ? { transitionConfig: { ...row.transitionConfig } } : {}),
       ...(Object.prototype.hasOwnProperty.call(row || {}, 'sfx') ? { sfx: row.sfx } : {}),
     };
   }).filter((row) => row.id);
+  return applyAlternatingBoundaryTransitionDefaults(normalizedRows);
 }
 
 function applyPreparedEditorDustDefaults(rows = []) {
