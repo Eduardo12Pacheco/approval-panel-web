@@ -259,3 +259,57 @@ if (next.snapshotHash === 'h1') throw new Error('expected snapshot hash to chang
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_approval_editor_set_row_video_segment_uses_http_asset_id_as_renderable_source():
+    script = r"""
+const { applyContractOperations } = require('./services/approval-editor/lib/contract-updates.js');
+
+const sourceUrl = 'https://cdn.test/projects/demo/videos/source.mp4';
+const snapshot = {
+  projectId: 'video-url-project',
+  snapshotId: 's1',
+  snapshotHash: 'h1',
+  rows: [
+    { id: 'row-1', rowId: 'row-1', phrase: 'Video row', startTime: 0, endTime: 2, effectiveEndTime: 2, selectedAssetId: 'image-1', media: { kind: 'image' } },
+  ],
+  assets: { 'image-1': { assetId: 'image-1', type: 'image', renderPath: 'generated/images/one.jpg', status: 'ready' } },
+};
+
+const next = applyContractOperations(snapshot, [
+  { type: 'setRowVideoSegment', rowId: 'row-1', sourceVideoAssetId: sourceUrl, sourceInSeconds: 3, durationSeconds: 2 },
+]);
+
+const asset = next.assets[sourceUrl];
+if (!asset) throw new Error(`expected URL-keyed asset, got ${JSON.stringify(next.assets)}`);
+if (asset.publicUrl !== sourceUrl) throw new Error(`expected publicUrl fallback, got ${asset.publicUrl}`);
+if (asset.previewUrl !== sourceUrl) throw new Error(`expected previewUrl fallback, got ${asset.previewUrl}`);
+if (asset.renderPath !== sourceUrl) throw new Error(`expected renderPath fallback, got ${asset.renderPath}`);
+if (asset.publicPath !== sourceUrl) throw new Error(`expected publicPath fallback, got ${asset.publicPath}`);
+if (asset.localPath !== sourceUrl) throw new Error(`expected localPath fallback, got ${asset.localPath}`);
+if (next.rows[0].media.sourceVideoAssetId !== sourceUrl) throw new Error(`expected row media URL id preserved, got ${next.rows[0].media.sourceVideoAssetId}`);
+if (next.snapshotHash === 'h1') throw new Error('expected snapshot hash to change after video segment update');
+
+const assetObjectUrl = 'https://cdn.test/projects/demo/videos/source-from-asset-object.mp4';
+const nextFromAssetObject = applyContractOperations(snapshot, [
+  {
+    type: 'setRowVideoSegment',
+    rowId: 'row-1',
+    sourceVideoAssetId: assetObjectUrl,
+    sourceInSeconds: 0,
+    durationSeconds: 2,
+    asset: { assetId: assetObjectUrl, type: 'video', publicUrl: null, previewUrl: null, renderPath: null },
+  },
+]);
+const repairedAssetObject = nextFromAssetObject.assets[assetObjectUrl];
+if (repairedAssetObject.publicUrl !== assetObjectUrl) throw new Error(`expected asset object publicUrl fallback, got ${repairedAssetObject.publicUrl}`);
+if (repairedAssetObject.previewUrl !== assetObjectUrl) throw new Error(`expected asset object previewUrl fallback, got ${repairedAssetObject.previewUrl}`);
+if (repairedAssetObject.renderPath !== assetObjectUrl) throw new Error(`expected asset object renderPath fallback, got ${repairedAssetObject.renderPath}`);
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

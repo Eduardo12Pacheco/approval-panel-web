@@ -166,6 +166,53 @@ function firstRenderableSource(asset = {}) {
     .find((entry) => typeof entry === "string" && entry.trim());
 }
 
+function resolveVideoSegmentAssetSource(media = {}) {
+  const explicitSource = [media.sourceVideoSrc, media.previewUrl, media.renderPath, media.publicUrl, media.publicPath, media.localPath]
+    .find((entry) => typeof entry === "string" && entry.trim());
+  if (explicitSource) return explicitSource.trim();
+  const assetId = String(media.sourceVideoAssetId || "").trim();
+  return isHttpUrl(assetId) ? assetId : "";
+}
+
+function withRenderableVideoSource(asset = {}, assetId, source) {
+  return {
+    ...asset,
+    assetId: asset.assetId || asset.id || assetId,
+    id: asset.id || asset.assetId || assetId,
+    type: asset.type || "video",
+    role: asset.role || "video",
+    source: asset.source || { kind: "approval-editor-service" },
+    publicUrl: asset.publicUrl || asset.public_url || source,
+    previewUrl: asset.previewUrl || source,
+    renderPath: asset.renderPath || asset.localPath || source,
+    publicPath: asset.publicPath || source,
+    localPath: asset.localPath || source,
+    url: asset.url || source,
+    status: asset.status || "ready",
+  };
+}
+
+function repairVideoSegmentAssets(snapshot = {}) {
+  const rows = Array.isArray(snapshot?.rows) ? snapshot.rows : [];
+  const assets = { ...(snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {}) };
+  let changed = false;
+  const repairedRows = rows.map((row) => {
+    const media = row?.media;
+    if (media?.kind !== "video-segment") return row;
+    const assetId = String(media.sourceVideoAssetId || "").trim();
+    if (!assetId) return row;
+    const source = resolveVideoSegmentAssetSource(media);
+    if (!source) return row;
+    const current = assets[assetId] && typeof assets[assetId] === "object" ? assets[assetId] : {};
+    if (firstRenderableSource(current)) return row;
+    assets[assetId] = withRenderableVideoSource(current, assetId, source);
+    changed = true;
+    const { sourceVideoSrc, previewUrl, renderPath, publicUrl, publicPath, localPath, ...mediaWithoutDirectSource } = media;
+    return { ...row, media: mediaWithoutDirectSource };
+  });
+  return changed ? { ...snapshot, rows: repairedRows, assets } : snapshot;
+}
+
 async function materializeAsset({ source, outputPath, fetchImpl }) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   if (isHttpUrl(source)) {
@@ -340,57 +387,58 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
   fs.mkdirSync(path.join(projectRoot, "guion"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "output"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "public", "generated"), { recursive: true });
-  const scriptLines = (Array.isArray(snapshot?.rows) ? snapshot.rows : [])
+  const repairedSnapshot = repairVideoSegmentAssets(snapshot || {});
+  const scriptLines = (Array.isArray(repairedSnapshot?.rows) ? repairedSnapshot.rows : [])
     .map((row) => String(row?.phrase || row?.caption || row?.text || "").trim())
     .filter(Boolean);
   fs.writeFileSync(path.join(projectRoot, "guion", "guion.txt"), `${scriptLines.join("\n") || snapshot.title || projectId}\n`, "utf8");
 
-  writeJson(path.join(projectRoot, "editor-project.json"), buildMinimalRenderScaffold({ projectId, title: snapshot.title || projectId, snapshot }));
+  writeJson(path.join(projectRoot, "editor-project.json"), buildMinimalRenderScaffold({ projectId, title: repairedSnapshot.title || projectId, snapshot: repairedSnapshot }));
 
-  const channelAssets = resolveBrandChannelAssets(inferBrandChannel(snapshot));
+  const channelAssets = resolveBrandChannelAssets(inferBrandChannel(repairedSnapshot));
   const authoritativeBrandAssets = buildBrandAssetRecords(channelAssets);
   const snapshotWithAuthoritativeBrandAssets = addBoundaryTransitionAssets({
-    ...(snapshot || {}),
-    rows: normalizeBoundaryTransitionRows(Array.isArray(snapshot?.rows) ? snapshot.rows : []),
+    ...(repairedSnapshot || {}),
+    rows: normalizeBoundaryTransitionRows(Array.isArray(repairedSnapshot?.rows) ? repairedSnapshot.rows : []),
     assets: {
-      ...(snapshot?.assets || {}),
+      ...(repairedSnapshot?.assets || {}),
       ...AUTHORITATIVE_DUST_ASSETS,
       ...authoritativeBrandAssets,
     },
     globalLayers: {
-      ...(snapshot?.globalLayers || {}),
+      ...(repairedSnapshot?.globalLayers || {}),
       logoAssetId: channelAssets.logo.assetId,
       outroAssetId: channelAssets.outro.assetId,
       logo: {
-        ...(snapshot?.globalLayers?.logo || {}),
-        enabled: snapshot?.globalLayers?.logo?.enabled !== false,
+        ...(repairedSnapshot?.globalLayers?.logo || {}),
+        enabled: repairedSnapshot?.globalLayers?.logo?.enabled !== false,
         assetId: channelAssets.logo.assetId,
         source: channelAssets.logo.source,
         preferredSource: channelAssets.logo.source,
       },
       outro: {
-        ...(snapshot?.globalLayers?.outro || {}),
-        enabled: snapshot?.globalLayers?.outro?.enabled !== false,
+        ...(repairedSnapshot?.globalLayers?.outro || {}),
+        enabled: repairedSnapshot?.globalLayers?.outro?.enabled !== false,
         assetId: channelAssets.outro.assetId,
       },
     },
     outro: {
-      ...(snapshot?.outro || {}),
-      enabled: snapshot?.outro?.enabled !== false,
+      ...(repairedSnapshot?.outro || {}),
+      enabled: repairedSnapshot?.outro?.enabled !== false,
       assetId: channelAssets.outro.assetId,
       durationSeconds: channelAssets.outro.durationSeconds,
       label: channelAssets.outro.label,
     },
   });
   const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot: snapshotWithAuthoritativeBrandAssets, fetchImpl });
-  const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || snapshot.snapshotHash };
+  const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || repairedSnapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {
     version: 1,
     savedAt: nowIso(),
     contract,
     manifest: { assets: contract.assets || {} },
   });
-  upsertProjectIndex(projectsRoot, { projectId, title: snapshot.title });
+  upsertProjectIndex(projectsRoot, { projectId, title: repairedSnapshot.title });
   return projectRoot;
 }
 

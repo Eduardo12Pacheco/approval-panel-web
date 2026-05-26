@@ -57,6 +57,36 @@ function normalizeVideoSegmentOperation(row, op = {}) {
   };
 }
 
+function isHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
+
+function resolveVideoSegmentSourceUrl(op = {}) {
+  const explicitSource = [op.sourceVideoSrc, op.previewUrl, op.renderPath, op.publicUrl, op.publicPath, op.localPath]
+    .find((entry) => typeof entry === "string" && entry.trim());
+  if (explicitSource) return explicitSource.trim();
+  const assetId = String(op.sourceVideoAssetId || op.assetId || op.asset?.assetId || op.asset?.id || "").trim();
+  return isHttpUrl(assetId) ? assetId : "";
+}
+
+function normalizeVideoSegmentAssetInput(op = {}) {
+  const sourceUrl = resolveVideoSegmentSourceUrl(op);
+  const assetInput = op.asset && Object.keys(op.asset).length ? { ...op.asset } : {
+    assetId: op.assetId || op.sourceVideoAssetId,
+    previewUrl: op.previewUrl || op.sourceVideoSrc,
+    renderPath: op.renderPath || op.sourceVideoSrc,
+  };
+  if (sourceUrl) {
+    assetInput.publicUrl = assetInput.publicUrl || assetInput.public_url || sourceUrl;
+    assetInput.previewUrl = assetInput.previewUrl || sourceUrl;
+    assetInput.renderPath = assetInput.renderPath || assetInput.localPath || sourceUrl;
+    assetInput.publicPath = assetInput.publicPath || sourceUrl;
+    assetInput.localPath = assetInput.localPath || sourceUrl;
+    assetInput.url = assetInput.url || sourceUrl;
+  }
+  return assetInput;
+}
+
 function rowIdOf(row = {}) {
   return (row.rowId || row.id || "").toString();
 }
@@ -162,13 +192,9 @@ function applyContractOperations(snapshot, operations = []) {
       }
     } else if (op.type === "setRowVideoSegment") {
       const row = findRow(next, op.rowId);
-      const assetInput = op.asset && Object.keys(op.asset).length ? op.asset : {
-        assetId: op.assetId || op.sourceVideoAssetId,
-        previewUrl: op.previewUrl || op.sourceVideoSrc,
-        renderPath: op.renderPath || op.sourceVideoSrc,
-      };
+      const assetInput = normalizeVideoSegmentAssetInput(op);
       const asset = normalizeAsset(assetInput, { type: "video", role: "video" });
-      next.assets[asset.assetId] = { ...asset, type: "video", role: "video" };
+      next.assets[asset.assetId] = { ...assetInput, ...asset, type: "video", role: "video" };
       next.assets["effect-layer-01"] = next.assets["effect-layer-01"] || { assetId: "effect-layer-01", id: "effect-layer-01", type: "video", role: "effect", renderPath: "overlays/effect-layer-01.mp4", previewUrl: "./assets/effect-layer-01.webm", status: "ready" };
       next.assets["effect-layer-02"] = next.assets["effect-layer-02"] || { assetId: "effect-layer-02", id: "effect-layer-02", type: "video", role: "effect", renderPath: "overlays/effect-layer-02.mp4", previewUrl: "./assets/effect-layer-02.webm", status: "ready" };
       row.media = {
