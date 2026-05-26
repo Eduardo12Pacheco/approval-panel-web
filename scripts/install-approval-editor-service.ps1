@@ -51,6 +51,7 @@ if (-not $ExistingService) {
 Invoke-Nssm set $ServiceName Application $NodePath
 Invoke-Nssm set $ServiceName AppParameters "services/approval-editor/server.js"
 Invoke-Nssm set $ServiceName AppDirectory $PanelRoot
+Invoke-Nssm set $ServiceName AppEnvironmentExtra "APPROVAL_EDITOR_RENDER_ADAPTER=02-video-engine"
 Invoke-Nssm set $ServiceName DisplayName "Approval Editor Service"
 Invoke-Nssm set $ServiceName Description "Local Approval Editor runtime service for Control Panel snapshots, contracts, renders, and downloads."
 Invoke-Nssm set $ServiceName Start SERVICE_AUTO_START
