@@ -21,21 +21,26 @@ def _js_and_html_sources():
     yield from (ROOT / "styles").rglob("*.css")
 
 
-def test_cache_busting_has_one_version_helper_with_one_token_source():
+def test_cache_busting_version_helper_is_no_op_without_query_versioning():
     source = _read(VERSION_HELPER)
 
     assert "export const APP_CACHE_VERSION" in source
     assert "export function versionedModule" in source
     assert "export function versionedAsset" in source
-    assert "searchParams.set('v', APP_CACHE_VERSION)" in source
     assert "new URL" in source
+    assert "searchParams.set('v'" not in source, (
+        "versionedModule/versionedAsset must not append ?v= query versioning; "
+        "Cloudflare Pages _headers is the primary freshness mechanism"
+    )
+    assert "function withAppVersion" not in source, (
+        "withAppVersion() wrapper must be removed; functions resolve URLs directly"
+    )
 
 
 def test_no_scattered_manual_version_query_params_remain_in_app_modules_or_html():
     offenders = []
     for path in _js_and_html_sources():
-        if path == VERSION_HELPER:
-            continue
+        # The version helper is now a no-op; include it in the scan.
         source = _read(path)
         for line_number, line in enumerate(source.splitlines(), start=1):
             if "?v=" not in line:
