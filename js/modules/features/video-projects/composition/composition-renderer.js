@@ -520,7 +520,7 @@ export class CompositionRenderer {
     }
 
     if (isNewspaperMode) {
-      const newspaperStyles = resolveNewspaperImageStyles({ progress: localProgress });
+      const newspaperStyles = resolveNewspaperImageStyles({ progress: localProgress, motion: segment.motion });
       layers.newspaperBackground.style.objectFit = newspaperStyles.background.objectFit;
       layers.newspaperBackground.style.objectPosition = newspaperStyles.background.objectPosition;
       layers.newspaperBackground.style.filter = newspaperStyles.background.filter;

@@ -1,5 +1,5 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.25 };
-const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.5 };
+const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
 const NEWSPAPER_LABEL_FONT_FAMILY = '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif';
 const NEWSPAPER_LABEL_FONT_SIZE = 18;
@@ -141,8 +141,9 @@ export function resolveNewspaperMotion() {
   return { from: NEWSPAPER_FOREGROUND_ZOOM.from, to: NEWSPAPER_FOREGROUND_ZOOM.to, fromX: 0, fromY: 0, toX: 0, toY: 0 };
 }
 
-export function resolveNewspaperImageStyles({ progress = 0 } = {}) {
-  const scale = interpolateLinear(NEWSPAPER_FOREGROUND_ZOOM.from, NEWSPAPER_FOREGROUND_ZOOM.to, progress);
+export function resolveNewspaperImageStyles({ progress = 0, motion } = {}) {
+  const motionRange = motion ? resolveZoomRange(motion) : resolveNewspaperMotion();
+  const scale = interpolateLinear(motionRange.from, motionRange.to, progress);
   return {
     background: {
       objectFit: 'cover',

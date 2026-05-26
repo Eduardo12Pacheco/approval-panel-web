@@ -110,7 +110,9 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.foreground.objectPosition, 'center center', 'Expected newspaper foreground zoom to stay vertically centered');
   assertEqual(newspaperStart.foreground.transformOrigin, 'center center', 'Expected newspaper foreground zoom origin to stay centered');
   assertEqual(newspaperStart.foreground.transform, 'scale(1)', 'Expected newspaper foreground to start at 100%');
-  assertEqual(newspaperEnd.foreground.transform, 'scale(1.5)', 'Expected newspaper foreground to end at Zoom 150');
+  assertEqual(newspaperEnd.foreground.transform, 'scale(1.25)', 'Expected newspaper foreground default motion to match final render');
+  const newspaperZoom150 = resolveNewspaperImageStyles({ progress: 1, motion: { fromScale: 1, toScale: 1.5 } });
+  assertEqual(newspaperZoom150.foreground.transform, 'scale(1.5)', 'Expected newspaper foreground to honor explicit Zoom 150 motion');
   assertEqual(newspaperStart.label.textAlign, 'center', 'Expected newspaper label text to be centered');
   assertEqual(newspaperStart.label.left, 'auto', 'Expected newspaper label to avoid global horizontal centering');
   assertEqual(newspaperStart.label.right, '40px', 'Expected newspaper label block to sit in the upper-right area');
