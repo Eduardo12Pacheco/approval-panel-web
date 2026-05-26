@@ -8,7 +8,7 @@ HEADERS_PATH = ROOT / "_headers"
 def test_cloudflare_pages_headers_cache_static_webm_preview_assets_without_changing_global_security_headers():
     source = HEADERS_PATH.read_text(encoding="utf-8")
 
-    assert "/*\n  X-Frame-Options: DENY" in source
+    assert "/*\n  X-Frame-Options: DENY" in source  # Cloudflare glob, NOT a comment
     assert (
         "/assets/*.webm\n  Cache-Control: public, max-age=31536000, immutable" in source
     )
@@ -29,11 +29,8 @@ def test_cloudflare_pages_headers_revalidate_html_and_app_code_without_global_ca
     assert f"/\n  {app_code_policy}" in source
     assert f"/index.html\n  {app_code_policy}" in source
     assert f"/js/main.js\n  {app_code_policy}" in source
-    assert f"/js/modules/*.js\n  {app_code_policy}" in source
     assert f"/js/modules/**/*.js\n  {app_code_policy}" in source
-    assert f"/js/modules/*.mjs\n  {app_code_policy}" in source
     assert f"/js/modules/**/*.mjs\n  {app_code_policy}" in source
     assert f"/styles.css\n  {app_code_policy}" in source
-    assert f"/styles/*.css\n  {app_code_policy}" in source
     assert f"/styles/**/*.css\n  {app_code_policy}" in source
     assert "max-age=604800" not in source

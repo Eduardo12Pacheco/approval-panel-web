@@ -1,3 +1,4 @@
+# Security headers for single-segment root paths (/* is a Cloudflare glob, NOT a comment).
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
@@ -19,22 +20,13 @@
 /styles.css
   Cache-Control: no-store, max-age=0
 
-/styles/*.css
-  Cache-Control: no-store, max-age=0
-
 /styles/**/*.css
   Cache-Control: no-store, max-age=0
 
 /js/main.js
   Cache-Control: no-store, max-age=0
 
-/js/modules/*.js
-  Cache-Control: no-store, max-age=0
-
 /js/modules/**/*.js
-  Cache-Control: no-store, max-age=0
-
-/js/modules/*.mjs
   Cache-Control: no-store, max-age=0
 
 /js/modules/**/*.mjs

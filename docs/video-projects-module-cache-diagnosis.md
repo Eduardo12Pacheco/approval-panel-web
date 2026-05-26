@@ -1,5 +1,15 @@
 # Video Projects module/cache failure diagnosis
 
+> **⚠️ HISTORICAL CONTEXT — Phase 6 transition (2026-05-26)**
+>
+> This document describes a diagnosis methodology from **before** Phase 6 of
+> `control-panel-cache-unification`. As of Phase 6:
+> - `versionedModule()` and `versionedAsset()` are **no-ops** — they return clean URLs with no `?v=` appended.
+> - Cloudflare Pages `_headers` is the **sole** freshness mechanism (`Cache-Control: no-store, max-age=0`).
+> - `APP_CACHE_VERSION` is retained for traceability only and does **NOT** affect any URL.
+> - The "bump", "`?v=`", and manual versioning guidance in this document is **historical**.
+> - **Do NOT reintroduce query-versioning or manual `APP_CACHE_VERSION` bumps.** See `AGENTS.md#cache-strategy` for the current policy.
+
 This document records the exact production failure where **Video Projects showed `0 PROYECTOS` even though the API returned one ready project**. Use this as the first checklist if the same symptom returns.
 
 ## Quick path
@@ -30,7 +40,7 @@ This document records the exact production failure where **Video Projects showed
 
 ## Why it happened
 
-The panel is a no-bundler browser ESM app. Some lazy entrypoints are versioned with `APP_CACHE_VERSION`, but their **static child imports are not rewritten by a bundler**.
+The panel is a no-bundler browser ESM app. At the time of this incident, some lazy entrypoints were versioned with `APP_CACHE_VERSION` (now neutralized — see Phase 6 note above). The root cause was that **static child imports were not rewritten by a bundler**.
 
 That means this can happen after deploys:
 
@@ -83,7 +93,7 @@ Files changed during that historical incident:
 | File | Change |
 |------|--------|
 | `js/modules/features/video-projects/render/project-list-markup.js` | Removed the fragile named import from `../domain/status-labels.js` and made the project-card phase label helper local to the list markup module. |
-| `js/modules/core/versioning/asset-version.js` | Bumped `APP_CACHE_VERSION` to `20260525-video-projects-module-v3`. |
+| `js/modules/core/versioning/asset-version.js` | Bumped `APP_CACHE_VERSION` to `20260525-video-projects-module-v3` (historical — `APP_CACHE_VERSION` is now neutralized as a no-op). |
 | `index.html` | Historically bumped the root `js/main.js` query string to `20260525-video-projects-module-v3`. Current source no longer uses a root `js/main.js?v=...` query string. |
 
 Focused verification run:
@@ -113,7 +123,7 @@ Deployed verification:
 
 The card phase label is presentation-specific. Keeping it local avoids a named-export mismatch from breaking the entire lazy Video Projects feature.
 
-The historical version bump forced the root app shell and lazy module graph to be requested under a new cache key, reducing mixed-version module loads for that deployment. The current guarded policy is different: Cloudflare Pages `_headers` is the primary freshness mechanism for app HTML/JS/CSS, while `APP_CACHE_VERSION` remains only a temporary lazy-boundary fallback until production headers are proven on the real deployed URL.
+The historical version bump forced the root app shell and lazy module graph to be requested under a new cache key, reducing mixed-version module loads for that deployment. **This approach is now obsolete.** The current policy relies solely on Cloudflare Pages `_headers` (`Cache-Control: no-store, max-age=0`) for all app HTML/JS/CSS freshness.
 
 ## If this happens again
 
@@ -165,8 +175,8 @@ Expected healthy result:
 ## Prevention checklist
 
 - [ ] Keep `_headers`, tests, and docs aligned on the current app-code policy: `Cache-Control: no-store, max-age=0` for `/`, `/index.html`, root JS, nested JS/MJS modules, root CSS, and nested CSS.
-- [ ] Verify the real Cloudflare Pages deployment before treating `APP_CACHE_VERSION` as removable; local `_headers` is not proof if Pages publishes a different directory or dashboard cache rules override it.
-- [ ] Keep `APP_CACHE_VERSION` as a temporary fallback for lazy modules/CSS until production headers are proven. Do not reintroduce mandatory root `js/main.js?v=...` bump guidance unless a deploy-time HTML rewrite becomes the approved architecture.
+- [x] ~~Verify the real Cloudflare Pages deployment before treating `APP_CACHE_VERSION` as removable~~ — DONE (Phase 6, 2026-05-26). Production headers confirmed.
+- [x] ~~Keep `APP_CACHE_VERSION` as a temporary fallback~~ — DONE. `APP_CACHE_VERSION` is now neutralized (no-op). Do NOT reintroduce manual query-versioning or `?v=` bumps.
 - [ ] Avoid adding fragile named imports to critical lazy-render modules unless a focused runtime import test covers the deployed module path.
 - [ ] If API data is healthy but the UI shows empty state, check console ESM errors before debugging n8n/Supabase.
 - [ ] For live read models, keep browser GET requests simple: no unnecessary custom request headers.

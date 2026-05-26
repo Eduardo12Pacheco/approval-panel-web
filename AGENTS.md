@@ -193,10 +193,55 @@ No corras build para validar este subproyecto. La validación esperada es con py
 - Facades de compatibilidad de checks y features.
 - Contratos `approval-editor-service` / `approval-editor-service-v1`.
 
+## Cache Strategy (Phase 6 — 2026-05-26)
+
+**This is the single source of truth. Do NOT deviate.**
+
+### How freshness works
+
+Every browser gets the latest app code on every request via HTTP headers. There is NO query-versioning, NO `?v=`, NO manual cache busting.
+
+| Mechanism | Status |
+|---|---|
+| Cloudflare Pages `_headers` | **PRIMARY** — `Cache-Control: no-store, max-age=0` on all app HTML/JS/CSS |
+| `APP_CACHE_VERSION` | **NEUTRALIZED** — no-op, kept for traceability only (`noop-header-only`) |
+| `versionedModule()` / `versionedAsset()` | **NO-OP** — returns clean `new URL(specifier, baseUrl).href` |
+| Service Workers / PWA | **NONE** — not present, do NOT introduce |
+
+### What happens on deploy
+
+1. `git push` → Cloudflare Pages deploys
+2. Next browser request fetches fresh HTML/JS/CSS (headers force revalidation)
+3. Already-open tabs need a **hard refresh** (Ctrl+Shift+R) — ESM module map keeps evaluated modules in memory until reload
+
+### What you MUST NOT do
+
+- ❌ Do NOT bump `APP_CACHE_VERSION` — it does nothing
+- ❌ Do NOT add `?v=` query params to any `<script>`, `<link>`, or `import()`
+- ❌ Do NOT reintroduce `searchParams.set('v', ...)` in `asset-version.js`
+- ❌ Do NOT add a service worker
+- ❌ Do NOT add a bundler or content hashing (this is a no-build project)
+- ❌ Do NOT change `_headers` cache policy without updating `test_cloudflare_pages_headers.py`
+
+### How to verify in production
+
+```powershell
+curl -I https://approval-panel-web.pages.dev/
+curl -I https://approval-panel-web.pages.dev/js/main.js
+# Must return: Cache-Control: no-store, max-age=0
+```
+
+### Related tests
+
+```powershell
+python -m pytest tests/test_cloudflare_pages_headers.py tests/test_cache_busting_source_of_truth.py
+```
+
 ## Estado SDD reciente
 
 Cambios relevantes completados y archivados:
 
+- `control-panel-cache-unification` ← **Phase 6 complete (2026-05-26)**. APP_CACHE_VERSION neutralized, HTTP headers are sole freshness source.
 - `approval-editor-service-boundary-cleanup`
 - `control-panel-docs-hygiene`
 - `scripts-feature-normalization`
