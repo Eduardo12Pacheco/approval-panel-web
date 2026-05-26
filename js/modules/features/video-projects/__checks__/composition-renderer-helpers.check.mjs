@@ -127,6 +127,7 @@ test('renderer helper facade exposes newspaper image layout parity semantics', (
 
   const firstFrame = resolveNewspaperImageStyles({ viewportWidth: 1920, viewportHeight: 1080, imageWidth: 720, imageHeight: 1280, progress: 0 });
   const lastFrame = resolveNewspaperImageStyles({ viewportWidth: 1920, viewportHeight: 1080, imageWidth: 720, imageHeight: 1280, progress: 1 });
+  const explicitZoom150 = resolveNewspaperImageStyles({ viewportWidth: 1920, viewportHeight: 1080, imageWidth: 720, imageHeight: 1280, progress: 1, motion: { fromScale: 1, toScale: 1.5 } });
 
   assert.equal(firstFrame.background.objectFit, 'cover');
   assert.equal(firstFrame.background.objectPosition, 'center top');
@@ -135,7 +136,8 @@ test('renderer helper facade exposes newspaper image layout parity semantics', (
   assert.equal(firstFrame.foreground.objectPosition, 'center center', 'newspaper foreground remains vertically centered while the blurred background stays top anchored');
   assert.equal(firstFrame.foreground.height, '100%');
   assert.equal(firstFrame.foreground.transform, 'scale(1)');
-  assert.equal(lastFrame.foreground.transform, 'scale(1.5)');
+  assert.equal(lastFrame.foreground.transform, 'scale(1.25)');
+  assert.equal(explicitZoom150.foreground.transform, 'scale(1.5)');
   assert.equal(firstFrame.label.lines.join('\n'), 'RECREACIÓN\nARTÍSTICA');
   assert.equal(firstFrame.label.fontFamily, '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif');
   assert.equal(firstFrame.label.fontSize, '18px');
@@ -196,6 +198,7 @@ test('renderer DOM helper preserves preview layer order and logo chroma detectio
     'composition-layer composition-layer--image',
     'composition-layer composition-layer--whip-previous',
     'composition-layer composition-layer--whip-next',
+    'composition-layer composition-layer--boundary-transition-video',
     'composition-layer composition-layer--dust',
     'composition-layer composition-layer--dust-fallback',
     'composition-layer composition-layer--logo',

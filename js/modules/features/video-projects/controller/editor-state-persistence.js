@@ -36,8 +36,9 @@ export function mergeDerivedParagraphBoundaryMetadata(rows = [], rawGuion = '') 
   if (!derived.some(Boolean)) return rows;
   return rows.map((row, index) => {
     const metadata = derived[index];
-    if (!metadata || row?.paragraphBoundaryAfter === true || row?.nextRowId) return row;
-    return { ...row, paragraphBoundaryAfter: true, nextRowId: metadata.nextRowId };
+    if (!metadata) return row;
+    if (row?.paragraphBoundaryAfter === true) return row?.nextRowId ? row : { ...row, nextRowId: metadata.nextRowId };
+    return { ...row, paragraphBoundaryAfter: true, nextRowId: row?.nextRowId ? row.nextRowId.toString() : metadata.nextRowId };
   });
 }
 

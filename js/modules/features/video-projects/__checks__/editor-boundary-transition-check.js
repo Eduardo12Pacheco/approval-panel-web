@@ -108,7 +108,7 @@ function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
     guion_piped: 'Intro con pausa\n\n|Cuerpo sin pausa|Cierre',
     editor_state: {
       timed_rows: [
-        { id: 'persisted-1', rowId: 'persisted-1', phrase: 'Intro con pausa', startTime: 0, endTime: 1, transition: 'none' },
+        { id: 'persisted-1', rowId: 'persisted-1', phrase: 'Intro con pausa', startTime: 0, endTime: 1, transition: 'none', nextRowId: 'persisted-2' },
         { id: 'persisted-2', rowId: 'persisted-2', phrase: 'Cuerpo sin pausa', startTime: 1, endTime: 2, transition: 'none' },
         { id: 'persisted-3', rowId: 'persisted-3', phrase: 'Cierre', startTime: 2, endTime: 3, transition: 'none' },
       ],
