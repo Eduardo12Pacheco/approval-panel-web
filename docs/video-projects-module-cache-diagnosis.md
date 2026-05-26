@@ -78,13 +78,13 @@ Commit:
 44351 fix: stabilize video project list module
 ```
 
-Files changed:
+Files changed during that historical incident:
 
 | File | Change |
 |------|--------|
 | `js/modules/features/video-projects/render/project-list-markup.js` | Removed the fragile named import from `../domain/status-labels.js` and made the project-card phase label helper local to the list markup module. |
 | `js/modules/core/versioning/asset-version.js` | Bumped `APP_CACHE_VERSION` to `20260525-video-projects-module-v3`. |
-| `index.html` | Bumped the root `js/main.js` query string to `20260525-video-projects-module-v3`. |
+| `index.html` | Historically bumped the root `js/main.js` query string to `20260525-video-projects-module-v3`. Current source no longer uses a root `js/main.js?v=...` query string. |
 
 Focused verification run:
 
@@ -109,11 +109,11 @@ Deployed verification:
 }
 ```
 
-## Why this fix works
+## Why this fix worked at the time
 
 The card phase label is presentation-specific. Keeping it local avoids a named-export mismatch from breaking the entire lazy Video Projects feature.
 
-The version bump forces the root app shell and lazy module graph to be requested under a new cache key, reducing mixed-version module loads after deployment.
+The historical version bump forced the root app shell and lazy module graph to be requested under a new cache key, reducing mixed-version module loads for that deployment. The current guarded policy is different: Cloudflare Pages `_headers` is the primary freshness mechanism for app HTML/JS/CSS, while `APP_CACHE_VERSION` remains only a temporary lazy-boundary fallback until production headers are proven on the real deployed URL.
 
 ## If this happens again
 
@@ -164,11 +164,40 @@ Expected healthy result:
 
 ## Prevention checklist
 
-- [ ] When changing lazy-loaded ESM modules, bump `APP_CACHE_VERSION` and the root `index.html` `js/main.js?v=...` query string together.
+- [ ] Keep `_headers`, tests, and docs aligned on the current app-code policy: `Cache-Control: no-store, max-age=0` for `/`, `/index.html`, root JS, nested JS/MJS modules, root CSS, and nested CSS.
+- [ ] Verify the real Cloudflare Pages deployment before treating `APP_CACHE_VERSION` as removable; local `_headers` is not proof if Pages publishes a different directory or dashboard cache rules override it.
+- [ ] Keep `APP_CACHE_VERSION` as a temporary fallback for lazy modules/CSS until production headers are proven. Do not reintroduce mandatory root `js/main.js?v=...` bump guidance unless a deploy-time HTML rewrite becomes the approved architecture.
 - [ ] Avoid adding fragile named imports to critical lazy-render modules unless a focused runtime import test covers the deployed module path.
 - [ ] If API data is healthy but the UI shows empty state, check console ESM errors before debugging n8n/Supabase.
 - [ ] For live read models, keep browser GET requests simple: no unnecessary custom request headers.
 - [ ] Prefer visible/render diagnostics over assuming backend failure when `moduleApi` can read data successfully.
+
+## Production header verification checklist
+
+Run these checks against the real public panel URL after deploy and before removing or neutralizing `APP_CACHE_VERSION`:
+
+```powershell
+curl -I https://<panel-url>/
+curl -I https://<panel-url>/index.html
+curl -I https://<panel-url>/js/main.js
+curl -I https://<panel-url>/js/modules/app-shell/runtime.js
+curl -I https://<panel-url>/js/modules/app-shell/composition.js
+curl -I https://<panel-url>/js/modules/subtitles-workflow.mjs
+curl -I https://<panel-url>/styles/eager.css
+curl -I https://<panel-url>/styles/features/approval.css
+```
+
+Each app-code response should include:
+
+```text
+Cache-Control: no-store, max-age=0
+```
+
+Also verify the Cloudflare Pages production branch, publish/output directory, `_headers` presence in the deployed output, custom-domain Cache Rules, Transform Rules, Workers/Pages Functions, and query-string cache-key behavior.
+
+## Immutable media note
+
+`_headers` currently treats `/assets/*.webm` and `/favicon.svg` as long-lived immutable assets. That is safe only when those files are content-addressed or never replaced under the same filename. If semantic media filenames are replaced in-place, handle that as a separate asset cache-policy change rather than mixing it with app-code freshness.
 
 ## Related prior fix
 

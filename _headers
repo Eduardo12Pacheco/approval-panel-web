@@ -8,6 +8,9 @@
 /
   Cache-Control: no-store, max-age=0
 
+/index.html
+  Cache-Control: no-store, max-age=0
+
 # Static assets with content-addressed URLs — cache aggressively.
 /assets/*.webm
   Cache-Control: public, max-age=31536000, immutable
@@ -29,6 +32,12 @@
   Cache-Control: no-store, max-age=0
 
 /js/modules/**/*.js
+  Cache-Control: no-store, max-age=0
+
+/js/modules/*.mjs
+  Cache-Control: no-store, max-age=0
+
+/js/modules/**/*.mjs
   Cache-Control: no-store, max-age=0
 
 /favicon.svg
