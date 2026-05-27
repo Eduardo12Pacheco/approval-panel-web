@@ -8,13 +8,8 @@ export function createAudioCommands({ context, callbacks }) {
 
     const ttsConfig = resolveServiceConfig(state.settings, 'tts');
     const ttsBaseUrl = (ttsConfig.baseUrl || '').trim();
-    const ttsApiKey = (ttsConfig.apiKey || '').trim();
     if (!ttsBaseUrl) {
       toast('Configurá Base URL Audio API antes de ejecutar');
-      return;
-    }
-    if (!ttsApiKey) {
-      toast('Configurá x-api-key Audio API antes de ejecutar');
       return;
     }
 
