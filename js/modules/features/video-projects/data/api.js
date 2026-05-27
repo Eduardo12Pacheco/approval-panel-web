@@ -21,11 +21,13 @@ async function createManualVideoProject({ settings = {}, payload = {}, fetchImpl
   if (!baseUrl) throw new Error('Falta configurar la URL base de n8n.');
 
   const headers = { 'Content-Type': 'application/json' };
-  if (config.secret) headers['x-approval-secret'] = config.secret;
+  const shellVersion = (globalThis.__CONTROL_PANEL_BOOTSTRAP__?.app_version || '').toString().trim();
+  if (shellVersion) headers['x-control-panel-shell-version'] = shellVersion;
 
   const response = await fetchImpl(`${baseUrl}${MANUAL_VIDEO_PROJECT_ENDPOINT}`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
   const data = await parseResponseBody(response);
