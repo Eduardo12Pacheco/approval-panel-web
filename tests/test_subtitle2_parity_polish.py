@@ -364,6 +364,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
 
     preview_index = index_html.index('id="subtitle2PreviewStage"')
     history_index = index_html.index('id="subtitle2SessionHistory"')
+    render_index = index_html.index('id="subtitle2PhaseDone"')
     edition_index = index_html.index('id="subtitle2PhaseEdition"')
     master_index = index_html.index('class="subtitle2-master-card"')
     side_index = index_html.index('class="subtitle2-side-card"')
@@ -371,6 +372,8 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
     assert edition_index < side_index
     assert preview_index < history_index
     assert side_index < preview_index
+    assert side_index < render_index
+    assert 'id="subtitle2PhaseDone" class="subtitle-render-card hidden"' in index_html
 
     for expected_rule in [
         '#viewSubtitulos2.subtitle2-screen',
@@ -381,6 +384,8 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         '#viewSubtitulos2 .subtitle2-upload-source-card',
         '#viewSubtitulos2 .subtitle2-editor-card',
         '#viewSubtitulos2 .subtitle2-history-section',
+        '#viewSubtitulos2 .subtitle-render-card',
+        'grid-column: 1 / -1;',
         '#0C0C0C',
         '#00E88F',
         '#9DB8FF',

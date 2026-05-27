@@ -128,18 +128,6 @@ export const subtitlesViewHTML = `\
                     <button id="subtitle2SaveBtn" class="secondary">Guardar cambios</button>
                   </div>
 
-                  <section id="subtitle2PhaseDone" class="subtitle-render-card" aria-live="polite">
-                    <div>
-                      <span class="subtitle2-section-label">Render final</span>
-                      <h3 id="subtitle2DoneTitle">Renderizar video</h3>
-                      <p id="subtitle2DoneMessage" class="meta">Cuando la tabla est\u00e9 lista, renderiz\u00e1 el video desde ac\u00e1 sin salir del editor.</p>
-                    </div>
-                    <div class="audio-actions subtitle-finish-actions">
-                      <button id="subtitle2ReadyBtn" class="approve">Renderizar video</button>
-                      <button id="subtitle2DownloadBtn">Descargar video</button>
-                      <button id="subtitle2AnotherVideoBtn" class="secondary">Subtitular otro video</button>
-                    </div>
-                  </section>
                 </article>
               </section>
             </section>
@@ -178,4 +166,17 @@ export const subtitlesViewHTML = `\
                 <div id="subtitle2SessionHistory" class="subtitle-history-list">Todav\u00eda no hay sesiones remotas.</div>
               </div>
             </aside>
+
+            <section id="subtitle2PhaseDone" class="subtitle-render-card hidden" aria-live="polite">
+              <div>
+                <span class="subtitle2-section-label">Render final</span>
+                <h3 id="subtitle2DoneTitle">Renderizar video</h3>
+                <p id="subtitle2DoneMessage" class="meta">Cuando la tabla est\u00e9 lista, renderiz\u00e1 el video desde ac\u00e1 sin salir del editor.</p>
+              </div>
+              <div class="audio-actions subtitle-finish-actions">
+                <button id="subtitle2ReadyBtn" class="approve">Renderizar video</button>
+                <button id="subtitle2DownloadBtn">Descargar video</button>
+                <button id="subtitle2AnotherVideoBtn" class="secondary">Subtitular otro video</button>
+              </div>
+            </section>
           </section>`;
