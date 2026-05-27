@@ -361,6 +361,10 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         'class="subtitle2-history-section"',
     ]:
         assert expected_fragment in index_html
+    assert index_html.count('class="subtitle-phase-item"') == 3
+    assert 'data-phase="Procesando video"' not in index_html
+    assert 'data-phase="Terminado"' not in index_html
+    assert "? 'Edicion' : current" in subtitle_runtime_source
 
     preview_index = index_html.index('id="subtitle2PreviewStage"')
     history_index = index_html.index('id="subtitle2SessionHistory"')

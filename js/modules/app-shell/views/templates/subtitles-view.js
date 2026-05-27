@@ -19,8 +19,6 @@ export const subtitlesViewHTML = `\
                 <li class="subtitle-phase-item" data-phase="Carga">Carga</li>
                 <li class="subtitle-phase-item" data-phase="Procesando audio">Procesando audio</li>
                 <li class="subtitle-phase-item" data-phase="Edicion">Edicion</li>
-                <li class="subtitle-phase-item" data-phase="Procesando video">Procesando video</li>
-                <li class="subtitle-phase-item" data-phase="Terminado">Terminado</li>
               </ol>
 
               <section id="subtitle2PhaseUpload" class="subtitle-phase-section subtitle-phase-section--centered">

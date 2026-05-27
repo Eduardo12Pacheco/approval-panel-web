@@ -68,7 +68,8 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
 
   function renderPhaseBar() {
     const current = state.subtitles2.machine.getPhase();
-    const currentIndex = SUBTITLES_PHASES.indexOf(current);
+    const visibleCurrent = current === 'Procesando video' || current === 'Terminado' ? 'Edicion' : current;
+    const currentIndex = SUBTITLES_PHASES.indexOf(visibleCurrent);
     el.subtitle2PhaseBar?.querySelectorAll('[data-phase]').forEach((node) => {
       const idx = SUBTITLES_PHASES.indexOf(node.dataset.phase);
       node.classList.toggle('active', idx === currentIndex);
