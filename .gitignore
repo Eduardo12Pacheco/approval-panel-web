@@ -3,3 +3,4 @@ __pycache__/
 .pytest_cache/
 services/approval-editor/projects/
 runtime-logs/
+js/modules/.pi-lens/
