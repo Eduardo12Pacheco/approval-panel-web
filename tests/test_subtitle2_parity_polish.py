@@ -386,6 +386,8 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         '#viewSubtitulos2 .subtitle2-history-section',
         '#viewSubtitulos2 .subtitle-render-card',
         'grid-column: 1 / -1;',
+        'justify-self: stretch;',
+        'width: 100%;',
         '#0C0C0C',
         '#00E88F',
         '#9DB8FF',
