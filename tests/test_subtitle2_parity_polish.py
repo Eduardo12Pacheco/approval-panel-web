@@ -283,6 +283,14 @@ def test_subtitle2_remote_style_presets_match_backend_contracts():
     assert "Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2'])" in workflow
     assert "Object.freeze(['Khand Bold'" not in workflow
     assert "font_weight" in controller
+    assert "text_transform: 'uppercase'" in controller
+    assert "text_align: 'center'" in controller
+    assert "line_height: 1.02" in controller
+    assert "padding_x_px: 22" in controller
+    assert "padding_y_px: 14" in controller
+    assert "stripe_enabled: true" in controller
+    assert "stripe_thickness_px: 3" in controller
+    assert "text_shadow: 'none'" in controller
     assert "style.fontWeight = presentation.fontWeight" in controller
 
 
