@@ -383,6 +383,7 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         '#viewSubtitulos2.subtitle2-screen',
         '#viewSubtitulos2 .subtitle2-workspace',
         'grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.3fr);',
+        'grid-template-columns: repeat(3, minmax(0, 1fr));',
         '#viewSubtitulos2 .subtitle2-master-card',
         '#viewSubtitulos2 .subtitle2-side-card',
         '#viewSubtitulos2 .subtitle2-upload-source-card',
