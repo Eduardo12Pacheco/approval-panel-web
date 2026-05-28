@@ -1,6 +1,6 @@
 import { isLocalServiceUrl, isRemoteBrowserContext, resolveServiceConfig } from '../../core/state/app-store.js';
 
-const REMOTE_LOCAL_SERVICE_MESSAGE = 'AI Rescue local no está disponible desde este dominio. Configurá Channel Monitor URL en settings con una URL pública o usá el panel desde localhost.';
+const REMOTE_LOCAL_SERVICE_MESSAGE = 'Prensa IA local no está disponible desde este dominio. Configurá Channel Monitor URL en settings con una URL pública o usá el panel desde localhost.';
 
 function trimTrailingSlash(value) {
   return (value || '').toString().trim().replace(/\/+$/, '');
@@ -52,15 +52,15 @@ export function createAiRescueApiClient({ getSettings, fetchImpl = fetch, locati
       });
     } catch (error) {
       const serviceMessage = sanitizeServiceMessage(error?.message, apiKey);
-      throw new Error(`AI Rescue no disponible. Revisá que Channel Monitor esté iniciado y que la URL sea correcta.${serviceMessage ? ` Detalle: ${serviceMessage}` : ''}`);
+      throw new Error(`Prensa IA no disponible. Revisá que Channel Monitor esté iniciado y que la URL sea correcta.${serviceMessage ? ` Detalle: ${serviceMessage}` : ''}`);
     }
     const payload = await parseJsonResponse(response);
     if (!response.ok) {
       const serviceMessage = sanitizeServiceMessage(extractServiceMessage(payload), apiKey);
       if (response.status === 401 || response.status === 403) {
-        throw new Error(`Autenticación de AI Rescue falló. Revisá la API key.${serviceMessage ? ` Detalle: ${serviceMessage}` : ''}`);
+        throw new Error(`Autenticación de Prensa IA falló. Revisá la API key.${serviceMessage ? ` Detalle: ${serviceMessage}` : ''}`);
       }
-      throw new Error(serviceMessage || `AI Rescue respondió HTTP ${response.status}`);
+      throw new Error(serviceMessage || `Prensa IA respondió HTTP ${response.status}`);
     }
     return payload;
   }

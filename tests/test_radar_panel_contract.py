@@ -181,6 +181,7 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
         assert current > previous
         previous = current
     assert "data-radar-country-option" in template
+    assert "00 / Todos" in template
     assert 'data-radar-country-option="important"' in template
     assert "07 / IMPORTANTES" in template
     assert "MONITOREO" in template
@@ -190,7 +191,8 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
         ".radar-country-bar",
         ".radar-country-card",
         ".radar-monitor-card",
-        "grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);",
+        "grid-template-columns: minmax(0, 1fr) 152px minmax(420px, 40%);",
+        'grid-template-areas: "main actions mentions";',
         ".radar-monitor-card__meta",
         ".radar-monitor-card__mentions",
         ".radar-monitor-card__mentions-title",

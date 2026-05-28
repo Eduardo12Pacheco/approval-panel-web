@@ -311,7 +311,7 @@ async function runApiClientCheck() {
   } catch (error) {
     authMessage = error?.message || '';
   }
-  assertIncludes(authMessage, 'Autenticación de AI Rescue falló', 'AI Rescue auth error should be actionable');
+  assertIncludes(authMessage, 'Autenticación de Prensa IA falló', 'Prensa IA auth error should be actionable');
   assertNotIncludes(authMessage, 'shared-secret', 'AI Rescue auth error leaked shared API key');
 }
 

@@ -107,10 +107,8 @@
 
 #viewRadar .radar-monitor-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);
-  grid-template-areas:
-    "main actions"
-    "main mentions";
+  grid-template-columns: minmax(0, 1fr) 152px minmax(420px, 40%);
+  grid-template-areas: "main actions mentions";
   gap: 24px;
   align-items: stretch;
   min-height: 128px;
@@ -459,8 +457,8 @@
   #viewRadar .radar-monitor-card {
     grid-template-areas:
       "main"
-      "mentions"
-      "actions";
+      "actions"
+      "mentions";
   }
 
   #viewRadar .radar-monitor-card__actions {

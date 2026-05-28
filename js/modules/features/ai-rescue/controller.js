@@ -40,7 +40,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       state.error = '';
     } catch (error) {
       state.status = 'error';
-      state.error = error?.message || 'AI Rescue no disponible';
+      state.error = error?.message || 'Prensa IA no disponible';
       if (!silent) toast(state.error);
     } finally {
       state.refreshInFlight = false;
@@ -51,10 +51,10 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   async function manualRefresh() {
     try {
       const result = await api.refresh();
-      toast(result?.status === 'disabled' ? 'AI Rescue está deshabilitado.' : `AI Rescue actualizado: ${Number(result?.enqueued_count || 0)} nuevos en cola.`);
+      toast(result?.status === 'disabled' ? 'Prensa IA está deshabilitado.' : `Prensa IA actualizado: ${Number(result?.enqueued_count || 0)} nuevos en cola.`);
       await refreshAll();
     } catch (error) {
-      toast(error?.message || 'No pude actualizar AI Rescue');
+      toast(error?.message || 'No pude actualizar Prensa IA');
     }
   }
 
@@ -65,7 +65,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       state.queue = normalizeAiRescueQueue(await api.queue());
       renderAiRescueQueue({ el, queue: state.queue });
     } catch (error) {
-      if (el.aiRescueQueueBody) el.aiRescueQueueBody.innerHTML = `<p class="meta">${escapeHtml(error?.message || 'No pude cargar la cola AI Rescue')}</p>`;
+      if (el.aiRescueQueueBody) el.aiRescueQueueBody.innerHTML = `<p class="meta">${escapeHtml(error?.message || 'No pude cargar la cola Prensa IA')}</p>`;
     } finally {
       state.queueInFlight = false;
     }
@@ -90,7 +90,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       renderAiRescueDetail({ el, candidate });
       el.aiRescueDetailDialog?.showModal?.();
     } catch (error) {
-      toast(error?.message || 'No pude cargar el resumen AI Rescue');
+      toast(error?.message || 'No pude cargar el resumen Prensa IA');
     }
   }
 

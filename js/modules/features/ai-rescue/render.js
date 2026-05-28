@@ -39,9 +39,9 @@ export function renderAiRescueCandidates({ el, state }) {
   if (el.aiRescueStatus) {
     const visibleCount = getAiRescueVisibleCandidates(state).length;
     el.aiRescueStatus.textContent = state.status === 'loading'
-      ? 'Cargando candidatos AI Rescue.'
+      ? 'Cargando candidatos Prensa IA.'
       : state.status === 'error'
-        ? state.error || 'AI Rescue no disponible.'
+        ? state.error || 'Prensa IA no disponible.'
         : `${visibleCount}/${state.candidates?.length || 0} candidatos`;
   }
   if (!el.aiRescueList) return;
@@ -50,7 +50,7 @@ export function renderAiRescueCandidates({ el, state }) {
     return;
   }
   if (state.status === 'error') {
-    el.aiRescueList.innerHTML = `<article class="ai-rescue-error">${escapeHtml(state.error || 'AI Rescue no disponible.')}</article>`;
+    el.aiRescueList.innerHTML = `<article class="ai-rescue-error">${escapeHtml(state.error || 'Prensa IA no disponible.')}</article>`;
     return;
   }
   const visible = getAiRescueVisibleCandidates(state);
@@ -81,7 +81,7 @@ function renderCandidateCard(candidate) {
         <small>${escapeHtml(meta)}</small>
         <p>${escapeHtml(item.summary || 'Resumen pendiente.')}</p>
       </div>
-      <div class="ai-rescue-card__actions" aria-label="Acciones AI Rescue">
+      <div class="ai-rescue-card__actions" aria-label="Acciones Prensa IA">
         <button type="button" data-ai-rescue-action="open-link" data-ai-rescue-url="${escapeHtml(item.url)}" ${linkDisabled}>Link</button>
         <button type="button" data-ai-rescue-action="summary" data-ai-rescue-candidate-id="${escapeHtml(item.id)}">Resumen</button>
       </div>
