@@ -16,6 +16,7 @@ export const radarViewHTML = `\
                 </div>
               </header>
               <nav id="radarCountryBar" class="radar-country-bar" aria-label="Pa\u00edses monitoreados">
+                <button class="radar-country-card" type="button" data-radar-country-option="" aria-pressed="true"><span>00 / Todos</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="ecuador" aria-pressed="false"><span>01 / Ecuador</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="colombia" aria-pressed="false"><span>02 / Colombia</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="argentina" aria-pressed="false"><span>03 / Argentina</span><strong>Monitoreo</strong></button>
