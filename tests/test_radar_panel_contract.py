@@ -184,7 +184,9 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
     assert "00 / Todos" in template
     assert 'data-radar-country-option="important"' in template
     assert "07 / IMPORTANTES" in template
-    assert "MONITOREO" in template
+    assert "Buscador de Prensa." in template
+    assert "Monitoreo" not in template
+    assert "MONITOREO" not in template
 
     for expected in [
         ".radar-monitor-toolbar",

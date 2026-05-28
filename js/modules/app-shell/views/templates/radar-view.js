@@ -7,7 +7,7 @@ export const radarViewHTML = `\
             <section class="panel-shell radar-monitor-panel">
               <header class="audio-queue-header">
                 <div>
-                  <h3>Radar Monitor</h3>
+                  <h3>Buscador de Prensa.</h3>
                   <p id="radarMonitorStatus" class="meta word-count">Cargando videos monitoreados.</p>
                 </div>
                 <div class="radar-monitor-toolbar" aria-label="Acciones Radar Monitor">
@@ -16,14 +16,14 @@ export const radarViewHTML = `\
                 </div>
               </header>
               <nav id="radarCountryBar" class="radar-country-bar" aria-label="Pa\u00edses monitoreados">
-                <button class="radar-country-card" type="button" data-radar-country-option="" aria-pressed="true"><span>00 / Todos</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="ecuador" aria-pressed="false"><span>01 / Ecuador</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="colombia" aria-pressed="false"><span>02 / Colombia</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="argentina" aria-pressed="false"><span>03 / Argentina</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="uruguay" aria-pressed="false"><span>04 / Uruguay</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="paraguay" aria-pressed="false"><span>05 / Paraguay</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="mexico" aria-pressed="false"><span>06 / M\u00e9xico</span><strong>Monitoreo</strong></button>
-                <button class="radar-country-card" type="button" data-radar-country-option="important" aria-pressed="false"><span>07 / IMPORTANTES</span><strong>MONITOREO</strong></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="" aria-pressed="true"><span>00 / Todos</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="ecuador" aria-pressed="false"><span>01 / Ecuador</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="colombia" aria-pressed="false"><span>02 / Colombia</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="argentina" aria-pressed="false"><span>03 / Argentina</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="uruguay" aria-pressed="false"><span>04 / Uruguay</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="paraguay" aria-pressed="false"><span>05 / Paraguay</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="mexico" aria-pressed="false"><span>06 / M\u00e9xico</span></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="important" aria-pressed="false"><span>07 / IMPORTANTES</span></button>
               </nav>
               <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>

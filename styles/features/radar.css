@@ -63,7 +63,7 @@
 
 #viewRadar .radar-country-card {
   display: grid;
-  gap: 6px;
+  place-items: center;
   min-height: 74px;
   padding: 14px 16px;
   border: 1px solid #262626;
@@ -73,19 +73,11 @@
 }
 
 #viewRadar .radar-country-card span {
-  color: #8B8E93;
+  color: #FFFFFF;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-#viewRadar .radar-country-card strong {
-  color: #D8DBDE;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -95,8 +87,7 @@
   background: #03140D;
 }
 
-#viewRadar .radar-country-card.is-active span,
-#viewRadar .radar-country-card.is-active strong {
+#viewRadar .radar-country-card.is-active span {
   color: #00E88F;
 }
 
