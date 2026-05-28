@@ -108,6 +108,9 @@
 #viewRadar .radar-monitor-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);
+  grid-template-areas:
+    "main actions"
+    "main mentions";
   gap: 24px;
   align-items: stretch;
   min-height: 128px;
@@ -122,6 +125,7 @@
 }
 
 #viewRadar .radar-monitor-card__main {
+  grid-area: main;
   display: grid;
   gap: 8px;
   align-content: start;
@@ -142,6 +146,7 @@
 }
 
 #viewRadar .radar-monitor-card__mentions {
+  grid-area: mentions;
   display: grid;
   gap: 10px;
   align-items: stretch;
@@ -342,6 +347,7 @@
 }
 
 #viewRadar .radar-monitor-card__actions {
+  grid-area: actions;
   display: flex;
   flex-direction: column;
   align-self: center;
@@ -448,6 +454,13 @@
   #viewRadar .radar-layout,
   #viewRadar .radar-monitor-card {
     grid-template-columns: 1fr;
+  }
+
+  #viewRadar .radar-monitor-card {
+    grid-template-areas:
+      "main"
+      "mentions"
+      "actions";
   }
 
   #viewRadar .radar-monitor-card__actions {
