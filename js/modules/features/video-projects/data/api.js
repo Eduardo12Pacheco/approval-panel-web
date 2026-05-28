@@ -2,6 +2,7 @@ import { createApprovalPipelineClient as createApprovalPipelineClientBase } from
 import { createRemotionClient as createRemotionClientBase } from './remotion-client.js';
 import { createSupabaseVideoProjectsClient } from './supabase-client.js';
 import { resolveServiceConfig } from '../../../core/state/app-store.js';
+import { resolveGatewayBaseUrl, resolveGatewayPresenceHeartbeatPath, resolveGatewayPresenceReadPath } from '../../../core/http/shared-read-models.js';
 
 const MANUAL_VIDEO_PROJECT_ENDPOINT = '/webhook/video-projects/manual-create/v1';
 
@@ -39,11 +40,29 @@ async function createManualVideoProject({ settings = {}, payload = {}, fetchImpl
   return data;
 }
 
-export function createVideoProjectsApiClient({ fetchImpl = fetch } = {}) {
+async function readPresence({ settings = {}, fetchImpl = fetch } = {}) {
+  const response = await fetchImpl(`${resolveGatewayBaseUrl(settings)}${resolveGatewayPresenceReadPath()}`, { credentials: 'include', cache: 'no-store' });
+  return response.ok ? response.json() : { sessions: [], resources: [] };
+}
+
+async function reportPresence({ settings = {}, payload = {}, fetchImpl = fetch } = {}) {
+  const response = await fetchImpl(`${resolveGatewayBaseUrl(settings)}${resolveGatewayPresenceHeartbeatPath()}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`Presence heartbeat ${response.status}`);
+  return response.json();
+}
+
+export function createVideoProjectsApiClient({ fetchImpl = fetch, getSettings = () => ({}) } = {}) {
   return {
     ...createSupabaseVideoProjectsClient({ fetchImpl }),
     createManualVideoProject: (options = {}) => createManualVideoProject({ fetchImpl, ...options }),
     createRemotionClient: (options = {}) => createRemotionClientBase({ fetchImpl, ...options }),
     createApprovalPipelineClient: (options = {}) => createApprovalPipelineClientBase({ fetchImpl, ...options }),
+    readPresence: () => readPresence({ settings: getSettings(), fetchImpl }),
+    reportPresence: (payload) => reportPresence({ settings: getSettings(), payload, fetchImpl }),
   };
 }

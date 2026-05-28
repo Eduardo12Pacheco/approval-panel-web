@@ -35,6 +35,34 @@ export function resolveSharedReadModelUrl(path, settings = {}) {
   return `${resolveGatewayBaseUrl(settings)}${normalizedPath}`;
 }
 
+export function resolveGatewayEventsReadPath(filters = {}) {
+  const params = new URLSearchParams();
+  const entries = [
+    ['kind', filters.kind],
+    ['status', filters.status],
+    ['service', filters.service],
+    ['actor', filters.actor],
+    ['correlation_id', filters.correlationId ?? filters.correlation_id],
+    ['from', filters.from],
+    ['to', filters.to],
+    ['limit', filters.limit],
+  ];
+  for (const [key, value] of entries) {
+    const text = (value ?? '').toString().trim();
+    if (text) params.set(key, text);
+  }
+  const query = params.toString();
+  return `/panel/read-models/gateway/events${query ? `?${query}` : ''}`;
+}
+
+export function resolveGatewayPresenceReadPath() {
+  return '/panel/read-models/gateway/presence';
+}
+
+export function resolveGatewayPresenceHeartbeatPath() {
+  return '/panel/presence/heartbeat';
+}
+
 export function resolveApprovalSharedReadPath(path = '') {
   const value = (path || '').toString();
   if (value === '/webhook/approval/pending/supabase/v2') return '/panel/read-models/approval/pending';

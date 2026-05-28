@@ -4,9 +4,33 @@ import { createSubtitleRenderCommands } from './controller/render-commands.js';
 import { createSubtitleSessionController } from './controller/session.js';
 import { createSubtitleTableEditor } from './controller/table-editor.js';
 import { createSubtitleWorkflowRenderer } from './controller/render-workflow.js';
+import { resolvePresenceAdvisory, resolveSubtitlePresence } from './presence.js';
 
 export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser = globalThis }) {
   const ctx = buildSubtitleControllerContext({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser });
+  let subtitlePresenceWarning = null;
+
+  async function reportSubtitlePresence({ mode, currentSessionId } = {}) {
+    const payload = resolveSubtitlePresence({
+      sessionId: state.subtitles2.sessionId,
+      dirty: state.subtitles2.dirty,
+      mode,
+    });
+    if (!payload) return null;
+    try {
+      await ttsApi.reportPresence?.(payload);
+      const snapshot = await ttsApi.readPresence?.();
+      subtitlePresenceWarning = resolvePresenceAdvisory({ snapshot, resource: payload, currentSessionId });
+      state.subtitles2.presenceWarning = subtitlePresenceWarning;
+      return subtitlePresenceWarning;
+    } catch {
+      return subtitlePresenceWarning;
+    }
+  }
+
+  function getSubtitlePresenceWarning() {
+    return subtitlePresenceWarning;
+  }
 
   const previewPlayer = createSubtitlePreviewPlayer(ctx, {
     renderTable: () => tableEditor.onTableRender?.() || workflowRenderer.renderTable(),
@@ -46,6 +70,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     transitionPhase: (phase) => sessionController.transitionPhase(phase),
     renderDoneCard: () => workflowRenderer.renderDoneCard(),
     updateButtonsByPhase: () => workflowRenderer.updateButtonsByPhase(),
+    reportPresence: reportSubtitlePresence,
   });
 
   const loadSubtitle2PreviewVideoBlob = (sessionId) => previewPlayer.loadPreviewVideoBlob(sessionId);
@@ -73,6 +98,12 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
   void placeSubtitle2DraftBetweenRows;
   void forceSubtitles2Phase;
 
+  function onTableInputWithPresence(ev) {
+    const result = tableEditor.onTableInput(ev);
+    void reportSubtitlePresence({ mode: 'editing' });
+    return result;
+  }
+
   return {
     pollRemoteSubtitleSessionStatus,
     pollRemoteSubtitleRenderStatus,
@@ -92,7 +123,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     onReadyClicked: () => renderCommands.onReadyClicked(),
     onDownloadClicked: () => renderCommands.onDownloadClicked(),
     onAddRowClicked: () => tableEditor.onAddRowClicked(),
-    onTableInput: (ev) => tableEditor.onTableInput(ev),
+    onTableInput: onTableInputWithPresence,
     onTableClick: (ev) => tableEditor.onTableClick(ev),
     onTablePointerDown: (ev) => tableEditor.onTablePointerDown(ev),
     onDraftDragStart: onSubtitle2DraftDragStart,
@@ -107,6 +138,8 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     onPreviewTimelineDragStart: (ev) => previewPlayer.onTimelineDragStart(ev),
     renameHistorySession: (sessionId, currentName) => sessionController.renameHistorySession(sessionId, currentName),
     deleteHistorySession: deleteSubtitle2HistorySession,
+    reportSubtitlePresence,
+    getSubtitlePresenceWarning,
     activate: () => {},  // no-op: subtitles controller handles init via setView
   };
 }

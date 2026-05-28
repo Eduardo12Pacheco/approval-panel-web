@@ -101,7 +101,7 @@
 
 #viewRadar .radar-monitor-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 152px minmax(420px, 42%);
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 42%);
   gap: 24px;
   align-items: stretch;
   min-height: 128px;

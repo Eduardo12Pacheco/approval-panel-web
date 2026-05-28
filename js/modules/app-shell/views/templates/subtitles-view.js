@@ -93,6 +93,8 @@ export const subtitlesViewHTML = `\
                     <p class="meta">Ajust\u00e1 tiempos, frase y estilo antes de renderizar.</p>
                   </div>
 
+                  <div id="subtitle2PresenceWarning" class="subtitle2-presence-warning" role="status" aria-live="polite" hidden></div>
+
                    <div class="subtitle-table-scroll">
                      <table class="subtitle-table subtitle-table--remote" id="subtitle2RowsTable">
                        <colgroup>

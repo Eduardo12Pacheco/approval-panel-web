@@ -50,13 +50,17 @@ export function filterMonitorCards(cards = [], country = '') {
 export function mapMonitorCard(card = {}, summaryColumns = []) {
   const countryConfig = getCountryConfig(card.target_country || card.country);
   const sourceCounts = summaryColumns.length ? summaryColumns : normalizeExistingMentionCounts(card.mention_counts);
-  const mentionCounts = normalizeMonitorCardStatus(card) === 'transcrito'
+  const mentionCounts = normalizeMonitorCardStatus(card) === 'transcrito' || isImportantMonitorView(card)
     ? sourceCounts
     : buildCountryMentionDashboard({ countryConfig, sourceCounts });
   return {
     ...card,
     mentionCounts,
   };
+}
+
+function isImportantMonitorView(card = {}) {
+  return normalizeCountryKey(card.target_country || card.country) === 'important';
 }
 
 export function normalizeMonitorCardStatus(card = {}) {

@@ -22,6 +22,7 @@ export const radarViewHTML = `\
                 <button class="radar-country-card" type="button" data-radar-country-option="uruguay" aria-pressed="false"><span>04 / Uruguay</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="paraguay" aria-pressed="false"><span>05 / Paraguay</span><strong>Monitoreo</strong></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="mexico" aria-pressed="false"><span>06 / M\u00e9xico</span><strong>Monitoreo</strong></button>
+                <button class="radar-country-card" type="button" data-radar-country-option="important" aria-pressed="false"><span>07 / IMPORTANTES</span><strong>MONITOREO</strong></button>
               </nav>
               <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>

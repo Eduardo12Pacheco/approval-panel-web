@@ -14,6 +14,7 @@ const COUNTRY_LABELS = new Map([
   ['ury', 'Uruguay'],
   ['mx', 'México'],
   ['mex', 'México'],
+  ['important', 'IMPORTANTES'],
 ]);
 
 const LIFECYCLE_LABELS = {

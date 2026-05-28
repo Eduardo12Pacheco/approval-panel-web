@@ -7,6 +7,7 @@ import { createRowVideoCommands } from '../data/row-video-commands.js';
 import { createSelectionCommands } from '../data/selection-commands.js';
 import { normalizeVideoProjectRows } from '../data/video-project-rows.js';
 import { resolveVideoProjectKey } from '../domain/project-identity.js';
+import { resolvePresenceAdvisory, resolveVideoEditorPresence } from '../presence.js';
 import { createApprovalSnapshotOperations } from './approval-snapshot-operations.js';
 import { createBrandCommands } from './brand-commands.js';
 import { createEditorStatePersistence, setVideoProjectStep } from './editor-state-persistence.js';
@@ -92,6 +93,26 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     debounceMs: SAVE_DEBOUNCE_MS,
   };
   const undoManager = createEditorUndoManager();
+  let editorPresenceWarning = null;
+
+  async function reportEditorPresence({ mode, currentSessionId } = {}) {
+    const project = store.getState().selectedVideoProject;
+    const payload = resolveVideoEditorPresence(project, { mode });
+    if (!payload) return null;
+    try {
+      await api.reportPresence?.(payload);
+      const snapshot = await api.readPresence?.();
+      editorPresenceWarning = resolvePresenceAdvisory({ snapshot, resource: payload, currentSessionId });
+      if (project) project._presenceWarning = editorPresenceWarning;
+      return editorPresenceWarning;
+    } catch {
+      return editorPresenceWarning;
+    }
+  }
+
+  function getEditorPresenceWarning() {
+    return editorPresenceWarning;
+  }
 
   const detailCache = createVideoProjectDetailCache({
     api,
@@ -316,9 +337,21 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     ...timerAccess,
   });
 
+  async function openVideoProjectWithPresence(projectId) {
+    const result = await projectLoading.openVideoProject(projectId);
+    await reportEditorPresence();
+    return result;
+  }
+
+  function updateRowWithPresence(...args) {
+    const result = updateRow(...args);
+    void reportEditorPresence({ mode: 'editing' });
+    return result;
+  }
+
   const controller = {
     refreshVideoProjects: projectLoading.refreshVideoProjects,
-    openVideoProject: projectLoading.openVideoProject,
+    openVideoProject: openVideoProjectWithPresence,
     disableVideoProject: projectLoading.disableVideoProject,
     createManualVideoProject,
     prefetchProjectDetail: detailCache.prefetchProjectDetail,
@@ -331,7 +364,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     preparePreview: previewExport.preparePreview,
     refreshPreview: previewExport.refreshPreview,
     exportFinal: previewExport.exportFinal,
-    updateRow,
+    updateRow: updateRowWithPresence,
     swapRowImages,
     assignExistingImageToRow: rowImages.assignExistingImageToRow,
     uploadAndAssignImage: rowImages.uploadAndAssignImage,
@@ -340,6 +373,8 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     updateGlobalAudio: globalAudio.updateGlobalAudio,
     updateBrandChannel: brand.updateBrandChannel,
     undoEditorChange,
+    reportEditorPresence,
+    getEditorPresenceWarning,
     activate: () => {},  // no-op: video-projects init happens on first view render
   };
 

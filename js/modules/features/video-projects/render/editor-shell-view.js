@@ -128,12 +128,19 @@ function buildFinalExportPanel({ project, editorState }) {
     </section>`;
 }
 
+function buildPresenceWarning(project = {}) {
+  const warning = project?._presenceWarning;
+  if (!warning?.message) return '';
+  return `<aside class="video-editor-presence-warning" role="status" aria-live="polite"><strong>Presencia activa</strong><p>${escapeHtmlCore(warning.message)}</p></aside>`;
+}
+
 export function buildEditorShell(project, options = {}) {
   const { editorRows = [], selectedRowId = null, globalAudio = {}, editorState = {}, onRowSelect, onImageReplace, onUploadAssign, onExportFinal, rowImageUploading } = options;
   const shell = buildEditorShellViewModel(project, { editorRows, selectedRowId });
   const { activeSelectedRowId, selectedRow, selectedRowIndex } = shell;
   return `
     <section class="video-editor-shell" data-editor-phase="${escapeHtmlCore((editorState.phase || 'idle').toString())}">
+      ${buildPresenceWarning(project)}
       <section class="video-editor-shell__workspace">
         <div class="video-editor-shell__left">
           <div class="video-editor-shell__card video-editor-shell__card--preview"><div class="video-project-section-heading video-project-section-heading--compact"><div><span class="video-projects-eyebrow">Preview Card — Top</span><h4>Vista previa</h4></div></div>${buildPreviewMonitor({ project, previewUrl: editorState.preview_url, rows: editorRows, selectedRowId: activeSelectedRowId })}</div>

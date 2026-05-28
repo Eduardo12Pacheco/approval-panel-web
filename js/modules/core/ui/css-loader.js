@@ -23,6 +23,8 @@ const FEATURE_CSS_MAP = Object.freeze({
   subtitulos2: "features/subtitles/index.css",
   radar: "features/radar.css",
   "ai-rescue": "features/ai-rescue.css",
+  "errors-audit": "features/errors-audit.css",
+  "active-users": "features/active-users.css",
 });
 
 /** @type {Set<string>} Tracks which feature CSS link elements exist in <head>. */

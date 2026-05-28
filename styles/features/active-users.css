@@ -1,0 +1,29 @@
+.active-users-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.active-users-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.active-users-card,
+.active-users-empty,
+.active-users-error {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.3);
+}
+
+.active-users-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.active-users-card p,
+.active-users-card small {
+  color: var(--text-muted, #94a3b8);
+}

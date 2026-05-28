@@ -76,6 +76,7 @@ async function runApiClientCheck() {
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
       if (url.endsWith('/api/monitor/cards')) return new Response(JSON.stringify({ items: [{ video_id: 'video-1' }] }), { status: 200 });
+      if (url.endsWith('/api/monitor/cards?target_country=important')) return new Response(JSON.stringify({ items: [{ video_id: 'important-1', target_country: 'important' }] }), { status: 200 });
       if (url.endsWith('/api/monitor/summary')) return new Response(JSON.stringify({ basura_count: 2, targets: [] }), { status: 200 });
       if (url.endsWith('/api/monitor/basura')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }] }), { status: 200 });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
@@ -99,6 +100,7 @@ async function runApiClientCheck() {
   await api.cancelJob('job-1');
   await api.deleteJob('job-1');
   const monitorPayload = await api.monitorCards();
+  const importantMonitorPayload = await api.monitorCards('important');
   const monitorSummary = await api.monitorSummary();
   const basuraPayload = await api.monitorBasura();
 
@@ -118,8 +120,10 @@ async function runApiClientCheck() {
   assertEqual(calls[8].options.method, 'GET', 'monitor cards must be read-only GET');
   assertEqual(calls[8].options.headers['x-api-key'], 'secret-token', 'monitor cards shared api key header drift');
   assertDeepEqual(monitorPayload.items, [{ video_id: 'video-1' }], 'monitor cards payload drift');
-  assertEqual(calls[9].url, 'https://api.example.test/monitor/api/monitor/summary', 'monitor summary URL drift');
-  assertEqual(calls[10].url, 'https://api.example.test/monitor/api/monitor/basura', 'monitor basura URL drift');
+  assertEqual(calls[9].url, 'https://api.example.test/monitor/api/monitor/cards?target_country=important', 'important monitor cards URL drift');
+  assertDeepEqual(importantMonitorPayload.items, [{ video_id: 'important-1', target_country: 'important' }], 'important monitor cards payload drift');
+  assertEqual(calls[10].url, 'https://api.example.test/monitor/api/monitor/summary', 'monitor summary URL drift');
+  assertEqual(calls[11].url, 'https://api.example.test/monitor/api/monitor/basura', 'monitor basura URL drift');
   assertEqual(monitorSummary.basura_count, 2, 'monitor summary basura counter drift');
   assertEqual(basuraPayload.total, 2, 'monitor basura payload drift');
 
@@ -220,6 +224,10 @@ function runStateAndRenderCheck() {
     { video_id: 'e', country: 'ecuador' },
     { video_id: 'm', country: 'méxico' },
   ], 'argentina'), [{ video_id: 'a', country: 'argentina' }], 'country filter drift');
+  assertDeepEqual(filterMonitorCards([
+    { video_id: 'important-source', target_country: 'important' },
+    { video_id: 'mx-country', target_country: 'mexico' },
+  ], 'important'), [{ video_id: 'important-source', target_country: 'important' }], 'important filter should not replace real country filtering');
 
   const pendingMexicoCard = mapMonitorCard({ video_id: 'mx-1', country: 'México' }, []);
   assertDeepEqual(pendingMexicoCard.mentionCounts, [
@@ -253,6 +261,9 @@ function runStateAndRenderCheck() {
 
   const transcribedEmptyMexicoCard = mapMonitorCard({ video_id: 'mx-3', country: 'mexico', status: 'transcrito' }, []);
   assertDeepEqual(transcribedEmptyMexicoCard.mentionCounts, [], 'transcribed cards without backend mentions should not fake pending dashboard dashes');
+
+  const importantPendingCard = mapMonitorCard({ video_id: 'imp-1', target_country: 'important', target_country_label: 'IMPORTANTES', status: 'enqueued' }, []);
+  assertDeepEqual(importantPendingCard.mentionCounts, [], 'important view should not render fake country mention dashboards');
 
   const queueEl = makeElement();
   renderRadarResults({ el: { radarQueueList: queueEl }, state: { currentJob: { job_id: 'job-1', title: 'Video uno', status: 'running', selected_countries: ['argentina'] } } });
@@ -429,7 +440,7 @@ async function runControllerCheck() {
   };
   const api = {
     async health() { calls.push('health'); return { status: 'ok' }; },
-    async monitorCards() { calls.push('monitorCards'); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }] }; },
+    async monitorCards(targetCountry = '') { calls.push(targetCountry ? { type: 'monitorCards', targetCountry } : 'monitorCards'); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }] }; },
     async monitorSummary() { calls.push('monitorSummary'); return { basura_count: 1, targets: [] }; },
     async monitorBasura() { calls.push('monitorBasura'); return { total: 1, items: [{ video_id: 'trash-1', title: 'Trash' }] }; },
     async createJob(payload) { calls.push({ type: 'create', payload }); return { job_id: 'job-1', status: 'queued' }; },
@@ -476,6 +487,9 @@ async function runControllerCheck() {
 
   await controller.refreshHealth();
   await controller.refreshMonitor();
+  state.selectedCountry = 'important';
+  await controller.refreshMonitor();
+  state.selectedCountry = '';
   await controller.submitCurrentJob();
   await controller.showSummary('job-1');
   await controller.downloadJob('job-1');
@@ -489,9 +503,11 @@ async function runControllerCheck() {
   assertEqual(calls[0], 'health', 'health call drift');
   assertEqual(calls[1], 'monitorCards', 'monitor refresh should read cards');
   assertEqual(calls[2], 'monitorSummary', 'monitor refresh should read summary counters');
-  assertEqual(calls[3].type, 'create', 'submit should create a service job');
-  assertEqual(calls[3].payload.countries[0], 'argentina', 'controller countries payload drift');
-  assertEqual(calls[3].payload.countries[1], 'paraguay', 'controller expanded countries payload drift');
+  assertDeepEqual(calls[3], { type: 'monitorCards', targetCountry: 'important' }, 'important monitor refresh should request important API view');
+  assertEqual(calls[4], 'monitorSummary', 'important monitor refresh should keep summary counters');
+  assertEqual(calls[5].type, 'create', 'submit should create a service job');
+  assertEqual(calls[5].payload.countries[0], 'argentina', 'controller countries payload drift');
+  assertEqual(calls[5].payload.countries[1], 'paraguay', 'controller expanded countries payload drift');
   if (!calls.some((entry) => entry.type === 'getJob')) throw new Error('controller should poll job detail');
   if (!calls.some((entry) => entry.type === 'summary')) throw new Error('controller should fetch backend summary');
   if (!calls.some((entry) => entry.type === 'download')) throw new Error('controller should request backend TXT download');

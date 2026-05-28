@@ -3,6 +3,8 @@ import {
   buildGatewayReadHeaders,
   getShellVersion,
   resolveGatewayBaseUrl,
+  resolveGatewayPresenceHeartbeatPath,
+  resolveGatewayPresenceReadPath,
   resolveSharedReadModelUrl,
   resolveSubtitlesSharedReadPath,
   resolveTtsSharedReadPath,
@@ -444,6 +446,24 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     return res.blob();
   }
 
+  async function readPresence() {
+    const settings = getSettings();
+    const res = await fetchImpl(`${resolveGatewayBaseUrl(settings)}${resolveGatewayPresenceReadPath()}`, { credentials: 'include', cache: 'no-store' });
+    return res.ok ? res.json() : { sessions: [], resources: [] };
+  }
+
+  async function reportPresence(payload = {}) {
+    const settings = getSettings();
+    const res = await fetchImpl(`${resolveGatewayBaseUrl(settings)}${resolveGatewayPresenceHeartbeatPath()}`, {
+      method: 'POST',
+      headers: buildGatewayHeaders('application/json'),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`Presence heartbeat ${res.status}`);
+    return res.json();
+  }
+
   return {
     get,
     post,
@@ -453,6 +473,8 @@ export function createTtsApiClient({ getSettings, fetchImpl = fetch, btoaImpl = 
     postForm,
     getBlob,
     buildTtsHeaders,
+    readPresence,
+    reportPresence,
     getSubtitlesHealth: () => subtitlesGet('/api/subtitles/health'),
     createSubtitleSession(formData) {
       return subtitlesPostForm('/api/subtitles/sessions', formData);

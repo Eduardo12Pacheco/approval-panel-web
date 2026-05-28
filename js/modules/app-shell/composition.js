@@ -90,6 +90,10 @@ export function createAppShellComposition({
   const radarController = createRadarStub();
   state.aiRescue = { _stub: true };
   const aiRescueController = createAiRescueStub();
+  state.errorsAudit = { _stub: true };
+  const errorsAuditController = createErrorsAuditStub();
+  state.activeUsers = { _stub: true };
+  const activeUsersController = createActiveUsersStub();
 
   const ttsApi = createTtsApiStub();
   const subtitlesController = createSubtitlesStub();
@@ -117,7 +121,7 @@ export function createAppShellComposition({
       import(versionedModule('../features/video-projects/api.js', import.meta.url)),
       import(versionedModule('../features/video-projects/index.js', import.meta.url)),
     ]);
-    videoProjectsApi = apiMod.createVideoProjectsApiClient({ fetchImpl });
+    videoProjectsApi = apiMod.createVideoProjectsApiClient({ fetchImpl, getSettings: () => state.settings });
     const realFeature = featureMod.createVideoProjectsFeature({
       api: videoProjectsApi,
       store,
@@ -294,6 +298,52 @@ export function createAppShellComposition({
     return _aiRescueModules;
   }
 
+  let _errorsAuditModules = null;
+  async function _ensureErrorsAuditFeature() {
+    if (_errorsAuditModules) return _errorsAuditModules;
+    const [featureMod] = await Promise.all([
+      import(versionedModule('../features/errors-audit/index.js', import.meta.url)),
+    ]);
+    const realState = featureMod.createErrorsAuditState();
+    Object.assign(state.errorsAudit, realState);
+    const errorsAuditApi = featureMod.createErrorsAuditApiClient({
+      getSettings: () => state.settings,
+      fetchImpl,
+    });
+    const realController = featureMod.createErrorsAuditController({
+      state: state.errorsAudit,
+      el,
+      api: errorsAuditApi,
+      ui,
+    });
+    Object.assign(errorsAuditController, realController);
+    _errorsAuditModules = { controller: errorsAuditController, api: errorsAuditApi };
+    return _errorsAuditModules;
+  }
+
+  let _activeUsersModules = null;
+  async function _ensureActiveUsersFeature() {
+    if (_activeUsersModules) return _activeUsersModules;
+    const [featureMod] = await Promise.all([
+      import(versionedModule('../features/active-users/index.js', import.meta.url)),
+    ]);
+    const realState = featureMod.createActiveUsersState();
+    Object.assign(state.activeUsers, realState);
+    const activeUsersApi = featureMod.createActiveUsersApiClient({
+      getSettings: () => state.settings,
+      fetchImpl,
+    });
+    const realController = featureMod.createActiveUsersController({
+      state: state.activeUsers,
+      el,
+      api: activeUsersApi,
+      ui,
+    });
+    Object.assign(activeUsersController, realController);
+    _activeUsersModules = { controller: activeUsersController, api: activeUsersApi };
+    return _activeUsersModules;
+  }
+
   return {
     // Eager pieces
     state,
@@ -306,6 +356,8 @@ export function createAppShellComposition({
     videoProjectsFeature,
     radarController,
     aiRescueController,
+    errorsAuditController,
+    activeUsersController,
     subtitlesController,
     audioFeature,
     ttsApi,
@@ -321,6 +373,8 @@ export function createAppShellComposition({
     _ensureSubtitlesFeature,
     _ensureRadarFeature,
     _ensureAiRescueFeature,
+    _ensureErrorsAuditFeature,
+    _ensureActiveUsersFeature,
 
     // Tracker Sets — populated by navigation guards
     _cssLoaded,
@@ -372,6 +426,22 @@ function createRadarStub() {
   };
 }
 function createAiRescueStub() {
+  return {
+    bindEvents() {},
+    activate() { return Promise.resolve(); },
+    deactivate() {},
+    render() {},
+  };
+}
+function createErrorsAuditStub() {
+  return {
+    bindEvents() {},
+    activate() { return Promise.resolve(); },
+    deactivate() {},
+    render() {},
+  };
+}
+function createActiveUsersStub() {
   return {
     bindEvents() {},
     activate() { return Promise.resolve(); },

@@ -148,6 +148,8 @@ const {
   videoProjectsFeature,
   radarController,
   aiRescueController,
+  errorsAuditController,
+  activeUsersController,
   subtitlesController,
   audioFeature,
   ttsApi,
@@ -161,6 +163,8 @@ const {
   _ensureSubtitlesFeature,
   _ensureRadarFeature,
   _ensureAiRescueFeature,
+  _ensureErrorsAuditFeature,
+  _ensureActiveUsersFeature,
   _cssLoaded,
   _domInjected,
   _visited,
@@ -194,6 +198,8 @@ const navigation = createShellNavigationController({
   subtitlesController,
   radarController,
   aiRescueController,
+  errorsAuditController,
+  activeUsersController,
   approvalFeature,
   scriptsFeature,
   videoProjectsFeature,
@@ -207,6 +213,8 @@ const navigation = createShellNavigationController({
   _ensureSubtitlesFeature,
   _ensureRadarFeature,
   _ensureAiRescueFeature,
+  _ensureErrorsAuditFeature,
+  _ensureActiveUsersFeature,
   _cssLoaded,
   _domInjected,
   _visited,
@@ -291,6 +299,8 @@ function bindEvents() {
     }),
     bindRadar: () => radarController.bindEvents(),
     bindAiRescue: () => aiRescueController.bindEvents?.(),
+    bindErrorsAudit: () => errorsAuditController.bindEvents?.(),
+    bindActiveUsers: () => activeUsersController.bindEvents?.(),
     bindScripts: () => bindScriptEvents({
       state,
       el,
@@ -346,6 +356,14 @@ function bindViewEvents(viewName) {
   }
   if (viewName === 'ai-rescue') {
     aiRescueController.bindEvents?.();
+    return;
+  }
+  if (viewName === 'errors-audit') {
+    errorsAuditController.bindEvents?.();
+    return;
+  }
+  if (viewName === 'active-users') {
+    activeUsersController.bindEvents?.();
     return;
   }
   if (viewName === 'subtitulos2') {

@@ -12,6 +12,7 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
   const pollRenderStatus = callbacks.pollRenderStatus || (() => {});
   const renderDoneCard = callbacks.renderDoneCard || (() => {});
   const updateButtonsByPhase = callbacks.updateButtonsByPhase || (() => {});
+  const reportPresence = callbacks.reportPresence || (() => {});
 
   async function onSaveClicked() {
     if (!state.subtitles2.sessionId) {
@@ -27,6 +28,7 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
       return;
     }
     try {
+      await reportPresence({ mode: 'editing' });
       await enqueueSave('manual');
       toast('Cambios guardados');
     } catch (err) {

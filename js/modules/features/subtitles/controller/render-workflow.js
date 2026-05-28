@@ -46,6 +46,7 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
     renderProcessingCard();
     renderDoneCard();
     renderTable();
+    renderPresenceWarning();
     updateButtonsByPhase();
   }
 
@@ -194,6 +195,13 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
     customDropdowns.refreshAll();
   }
 
+  function renderPresenceWarning() {
+    if (!el.subtitle2PresenceWarning) return;
+    const warning = state.subtitles2.presenceWarning;
+    el.subtitle2PresenceWarning.hidden = !warning?.message;
+    el.subtitle2PresenceWarning.textContent = warning?.message || '';
+  }
+
   function updateButtonsByPhase() {
     const current = state.subtitles2.machine.getPhase();
     const policy = getSubtitlesActionPolicy(current);
@@ -217,6 +225,7 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
     renderProcessingCard,
     renderDoneCard,
     renderTable,
+    renderPresenceWarning,
     updateButtonsByPhase,
   };
 }

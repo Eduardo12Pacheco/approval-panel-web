@@ -175,12 +175,15 @@ def test_radar_monitor_card_layout_has_wide_cards_filters_and_mention_columns():
     template = RADAR_TEMPLATE_PATH.read_text(encoding="utf-8")
 
     previous = -1
-    for country in ["Ecuador", "Colombia", "Argentina", "Uruguay", "Paraguay", "M\\u00e9xico"]:
+    for country in ["Ecuador", "Colombia", "Argentina", "Uruguay", "Paraguay", "M\\u00e9xico", "IMPORTANTES"]:
         assert country in template
         current = template.index(country)
         assert current > previous
         previous = current
     assert "data-radar-country-option" in template
+    assert 'data-radar-country-option="important"' in template
+    assert "07 / IMPORTANTES" in template
+    assert "MONITOREO" in template
 
     for expected in [
         ".radar-monitor-toolbar",
