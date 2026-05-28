@@ -28,32 +28,39 @@ export function bindCoreEvents({
   renderCards,
   reloadPage,
 }) {
+  function openAuthenticatedShell() {
+    persistSessionStatus();
+    el.authGate.classList.add('hidden');
+    el.appShell.classList.remove('hidden');
+    el.authPass.value = '';
+    setView('approval');
+    toast('Sesión iniciada');
+    refreshAll({ silent: true, source: 'login' });
+  }
+
   el.authForm.addEventListener('submit', (ev) => {
     ev.preventDefault();
     void (async () => {
       const user = el.authUser.value.trim();
       const pass = el.authPass.value;
 
+      if (typeof loginGatewaySession === 'function') {
+        try {
+          await loginGatewaySession({ user, pass });
+          openAuthenticatedShell();
+          return;
+        } catch {
+          if (shouldBlockRemoteOperatorFallback()) {
+            toast('Usuario o contraseña incorrectos');
+            return;
+          }
+          // Keep the existing operator login flow available for local/offline fallback only.
+        }
+      }
+
       const validLocalCredentials = isValidCredentials({ user, pass, authUser, authPass });
       if (validLocalCredentials) {
-        if (typeof loginGatewaySession === 'function') {
-          try {
-            await loginGatewaySession({ user, pass });
-          } catch {
-            if (shouldBlockRemoteOperatorFallback()) {
-              toast('Usuario o contraseña incorrectos');
-              return;
-            }
-            // Keep the existing operator login flow available during gateway rollout.
-          }
-        }
-        persistSessionStatus();
-        el.authGate.classList.add('hidden');
-        el.appShell.classList.remove('hidden');
-        el.authPass.value = '';
-        setView('approval');
-        toast('Sesión iniciada');
-        refreshAll({ silent: true, source: 'login' });
+        openAuthenticatedShell();
         return;
       }
 
