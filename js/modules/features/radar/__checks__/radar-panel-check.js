@@ -76,9 +76,12 @@ async function runApiClientCheck() {
     fetchImpl: async (url, options = {}) => {
       calls.push({ url, options });
       if (url.endsWith('/api/monitor/cards')) return new Response(JSON.stringify({ items: [{ video_id: 'video-1' }] }), { status: 200 });
+      if (url.endsWith('/api/monitor/cards?limit=200&offset=0')) return new Response(JSON.stringify({ items: [{ video_id: 'video-1' }], pagination: { limit: 200, offset: 0, total: 1, has_more: false } }), { status: 200 });
       if (url.endsWith('/api/monitor/cards?target_country=important')) return new Response(JSON.stringify({ items: [{ video_id: 'important-1', target_country: 'important' }] }), { status: 200 });
+      if (url.endsWith('/api/monitor/cards?target_country=important&limit=200&offset=0')) return new Response(JSON.stringify({ items: [{ video_id: 'important-1', target_country: 'important' }], pagination: { limit: 200, offset: 0, total: 1, has_more: false } }), { status: 200 });
       if (url.endsWith('/api/monitor/summary')) return new Response(JSON.stringify({ basura_count: 2, targets: [] }), { status: 200 });
       if (url.endsWith('/api/monitor/basura')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }] }), { status: 200 });
+      if (url.endsWith('/api/monitor/basura?limit=200&offset=0')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }], pagination: { limit: 200, offset: 0, total: 2, has_more: false } }), { status: 200 });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
       if (url.endsWith('/jobs/job-1/summary')) return new Response(JSON.stringify({ items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }), { status: 200 });
       if (url.endsWith('/jobs/job-1/export.txt')) return new Response('TXT backend', { status: 200, headers: { 'content-type': 'text/plain' } });
@@ -101,8 +104,9 @@ async function runApiClientCheck() {
   await api.deleteJob('job-1');
   const monitorPayload = await api.monitorCards();
   const importantMonitorPayload = await api.monitorCards('important');
+  const pagedMonitorPayload = await api.monitorCards('', { limit: 200, offset: 0 });
   const monitorSummary = await api.monitorSummary();
-  const basuraPayload = await api.monitorBasura();
+  const basuraPayload = await api.monitorBasura({ limit: 200, offset: 0 });
 
   assertEqual(calls[0].url, 'https://api.example.test/radar/api/radar/health', 'health URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
@@ -122,8 +126,10 @@ async function runApiClientCheck() {
   assertDeepEqual(monitorPayload.items, [{ video_id: 'video-1' }], 'monitor cards payload drift');
   assertEqual(calls[9].url, 'https://api.example.test/monitor/api/monitor/cards?target_country=important', 'important monitor cards URL drift');
   assertDeepEqual(importantMonitorPayload.items, [{ video_id: 'important-1', target_country: 'important' }], 'important monitor cards payload drift');
-  assertEqual(calls[10].url, 'https://api.example.test/monitor/api/monitor/summary', 'monitor summary URL drift');
-  assertEqual(calls[11].url, 'https://api.example.test/monitor/api/monitor/basura', 'monitor basura URL drift');
+  assertEqual(calls[10].url, 'https://api.example.test/monitor/api/monitor/cards?limit=200&offset=0', 'paged monitor cards URL drift');
+  assertDeepEqual(pagedMonitorPayload.pagination, { limit: 200, offset: 0, total: 1, has_more: false }, 'paged monitor cards payload drift');
+  assertEqual(calls[11].url, 'https://api.example.test/monitor/api/monitor/summary', 'monitor summary URL drift');
+  assertEqual(calls[12].url, 'https://api.example.test/monitor/api/monitor/basura?limit=200&offset=0', 'monitor basura paged URL drift');
   assertEqual(monitorSummary.basura_count, 2, 'monitor summary basura counter drift');
   assertEqual(basuraPayload.total, 2, 'monitor basura payload drift');
 
@@ -484,9 +490,9 @@ async function runControllerCheck() {
   };
   const api = {
     async health() { calls.push('health'); return { status: 'ok' }; },
-    async monitorCards(targetCountry = '') { calls.push(targetCountry ? { type: 'monitorCards', targetCountry } : 'monitorCards'); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }] }; },
+    async monitorCards(targetCountry = '', page = {}) { calls.push(targetCountry ? { type: 'monitorCards', targetCountry, page } : { type: 'monitorCards', page }); return { status: 'ok', items: [{ video_id: 'video-1', title: 'Final', country: 'argentina', channel_label: 'TyC', radar_job_id: 'job-1' }], pagination: { limit: page.limit, offset: page.offset, total: 1, has_more: false } }; },
     async monitorSummary() { calls.push('monitorSummary'); return { basura_count: 1, targets: [] }; },
-    async monitorBasura() { calls.push('monitorBasura'); return { total: 1, items: [{ video_id: 'trash-1', title: 'Trash' }] }; },
+    async monitorBasura(page = {}) { calls.push({ type: 'monitorBasura', page }); return { total: 1, items: [{ video_id: 'trash-1', title: 'Trash' }], pagination: { limit: page.limit, offset: page.offset, total: 1, has_more: false } }; },
     async createJob(payload) { calls.push({ type: 'create', payload }); return { job_id: 'job-1', status: 'queued' }; },
     async getJob(jobId) { calls.push({ type: 'getJob', jobId }); return { job_id: jobId, status: 'succeeded', progress: { percent: 100 } }; },
     async getSummary(jobId) { calls.push({ type: 'summary', jobId }); return { items: [{ label: 'Argentina', count: 1, timestamps: ['00:12'] }] }; },
@@ -545,9 +551,9 @@ async function runControllerCheck() {
   await el.radarConfirmAcceptBtn.onclick();
 
   assertEqual(calls[0], 'health', 'health call drift');
-  assertEqual(calls[1], 'monitorCards', 'monitor refresh should read cards');
+  assertDeepEqual(calls[1], { type: 'monitorCards', page: { limit: 200, offset: 0 } }, 'monitor refresh should read paged cards');
   assertEqual(calls[2], 'monitorSummary', 'monitor refresh should read summary counters');
-  assertDeepEqual(calls[3], { type: 'monitorCards', targetCountry: 'important' }, 'important monitor refresh should request important API view');
+  assertDeepEqual(calls[3], { type: 'monitorCards', targetCountry: 'important', page: { limit: 200, offset: 0 } }, 'important monitor refresh should request paged important API view');
   assertEqual(calls[4], 'monitorSummary', 'important monitor refresh should keep summary counters');
   assertEqual(calls[5].type, 'create', 'submit should create a service job');
   assertEqual(calls[5].payload.countries[0], 'argentina', 'controller countries payload drift');
@@ -584,12 +590,12 @@ async function runControllerMonitorFallbackCheck() {
     state,
     el,
     api: {
-      async monitorCards() {
-        calls.push('monitorCards');
+      async monitorCards(_targetCountry = '', page = {}) {
+        calls.push({ type: 'monitorCards', page });
         return { items: [
           { video_id: 'without-radar-link', title: 'No Radar link', country: 'argentina', channel_label: 'TyC' },
           { video_id: 'summary-failed', title: 'Summary failed', country: 'ecuador', channel_label: 'Ecuador TV', radar_job_id: 'job-failed-summary' },
-        ] };
+        ], pagination: { limit: page.limit, offset: page.offset, total: 2, has_more: false } };
       },
       async getSummary(jobId) {
         calls.push({ type: 'summary', jobId });
@@ -601,7 +607,7 @@ async function runControllerMonitorFallbackCheck() {
 
   await controller.refreshMonitor();
 
-  assertEqual(calls[0], 'monitorCards', 'monitor fallback check should read monitor cards first');
+  assertDeepEqual(calls[0], { type: 'monitorCards', page: { limit: 200, offset: 0 } }, 'monitor fallback check should read paged monitor cards first');
   assertDeepEqual(calls.filter((entry) => entry?.type === 'summary'), [], 'monitor cards should not fetch per-card Transcript summaries');
   assertDeepEqual(state.monitorCards[0].mentionCounts, [
     { label: 'Messi', count: '—', status: 'pending' },

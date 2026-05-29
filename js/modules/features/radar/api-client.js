@@ -82,9 +82,22 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationL
   return {
     isBlockedByRemoteContext,
     getRemoteLocalServiceMessage: () => REMOTE_LOCAL_SERVICE_MESSAGE,
-    monitorCards: (targetCountry = '') => request(`/api/monitor/cards${targetCountry ? `?target_country=${encodeURIComponent(targetCountry)}` : ''}`, { service: 'monitor' }),
+    monitorCards: (targetCountry = '', { limit, offset } = {}) => {
+      const params = new URLSearchParams();
+      if (targetCountry) params.set('target_country', targetCountry);
+      if (limit !== undefined) params.set('limit', String(limit));
+      if (offset !== undefined) params.set('offset', String(offset));
+      const query = params.toString();
+      return request(`/api/monitor/cards${query ? `?${query}` : ''}`, { service: 'monitor' });
+    },
     monitorSummary: () => request('/api/monitor/summary', { service: 'monitor' }),
-    monitorBasura: () => request('/api/monitor/basura', { service: 'monitor' }),
+    monitorBasura: ({ limit, offset } = {}) => {
+      const params = new URLSearchParams();
+      if (limit !== undefined) params.set('limit', String(limit));
+      if (offset !== undefined) params.set('offset', String(offset));
+      const query = params.toString();
+      return request(`/api/monitor/basura${query ? `?${query}` : ''}`, { service: 'monitor' });
+    },
     health: () => request('/api/radar/health'),
     createJob: (payload) => request('/api/radar/jobs', { method: 'POST', body: payload }),
     history: () => request('/api/radar/jobs'),

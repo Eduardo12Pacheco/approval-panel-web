@@ -10,6 +10,7 @@ import {
 } from './render.js';
 
 const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'cancelled']);
+const MONITOR_PAGE_SIZE = 200;
 
 export function createRadarController({ state, el, api, ui = {}, browser = {} }) {
   const setTimeoutImpl = browser.setTimeout || setTimeout;
@@ -70,7 +71,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     renderAll();
     try {
       const [payload, summary] = await Promise.all([
-        api.monitorCards(state.selectedCountry || ''),
+        loadAllPages((page) => api.monitorCards(state.selectedCountry || '', page)),
         api.monitorSummary?.().catch?.(() => null) || null,
       ]);
       const cards = Array.isArray(payload.items) ? payload.items : [];
@@ -90,7 +91,7 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
 
   async function showBasura() {
     try {
-      const payload = await api.monitorBasura?.();
+      const payload = await loadAllPages((page) => api.monitorBasura?.(page));
       state.basuraItems = Array.isArray(payload?.items) ? payload.items : [];
       state.basuraCount = Number(payload?.total ?? state.basuraItems.length);
       renderAll();
@@ -98,6 +99,27 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     } catch (error) {
       toast(error?.message || 'No pude cargar Basura');
     }
+  }
+
+  async function loadAllPages(fetchPage) {
+    const items = [];
+    let offset = 0;
+    let total = 0;
+    let hasMore = true;
+    let firstPayload = null;
+    while (hasMore) {
+      const page = await fetchPage({ limit: MONITOR_PAGE_SIZE, offset });
+      if (!firstPayload) firstPayload = page || {};
+      const pageItems = Array.isArray(page?.items) ? page.items : [];
+      items.push(...pageItems);
+      const pagination = page?.pagination || {};
+      total = Number(pagination.total ?? page?.total ?? items.length);
+      const pageLimit = Number(pagination.limit || MONITOR_PAGE_SIZE);
+      offset = Number(pagination.offset ?? offset) + pageLimit;
+      hasMore = Boolean(pagination.has_more) && pageItems.length > 0;
+      if (!page?.pagination) hasMore = false;
+    }
+    return { ...(firstPayload || {}), total, items };
   }
 
   async function enrichMonitorCards(cards) {
