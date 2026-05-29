@@ -199,6 +199,7 @@ function renderMonitorCard(card = {}) {
   const dashboardCard = mapMonitorCard(card, Array.isArray(card.mentionCounts) ? card.mentionCounts : []);
   const title = card.title || card.video_id || 'Video sin título';
   const meta = formatMonitorMetadata(card);
+  const importantAudit = formatImportantAudit(card);
   const status = normalizeMonitorCardStatus(card);
   const statusLabel = formatMonitorDisplayStatus(card, status);
   const url = resolveMonitorVideoUrl(card);
@@ -215,6 +216,7 @@ function renderMonitorCard(card = {}) {
         <span class="radar-status-chip ${escapeHtml(monitorStatusChipClass(status))}">${escapeHtml(statusLabel)}</span>
         <strong>${escapeHtml(title)}</strong>
         <small class="radar-monitor-card__meta">${escapeHtml(meta || 'Metadata pendiente')}</small>
+        ${importantAudit ? `<small class="radar-monitor-card__meta">${escapeHtml(importantAudit)}</small>` : ''}
       </div>
       <div class="radar-monitor-card__actions" aria-label="Acciones del video monitoreado">
         <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
@@ -254,6 +256,7 @@ function monitorStatusChipClass(status = '') {
   if (normalized === 'aprobado') return 'is-info';
   if (normalized === 'transcribiendo') return 'is-warning';
   if (normalized === 'transcrito') return 'is-success';
+  if (normalized === 'geo_blocked' || normalized === 'yt_dlp_geo_blocked') return 'is-failed';
   if (normalized === 'error' || normalized === 'failed') return 'is-failed';
   return 'is-processing';
 }
@@ -264,6 +267,33 @@ function formatMonitorMetadata(card = {}) {
   const channel = card.channel_label || card.channel_name || card.channel;
   const uploaded = formatUploadedAt(card.published_at || card.uploaded_at || card.created_at);
   return [target ? `Destino: ${target}` : '', source ? `Fuente: ${source}` : '', channel ? `Canal: ${channel}` : '', uploaded].filter(Boolean).join(' · ');
+}
+
+function formatImportantAudit(card = {}) {
+  if (!card.important && normalizeKey(card.target_country || card.country) !== 'important') return '';
+  const reason = formatImportantReason(card.important_reason || card.importantReason || card.classification_reason || card.classificationReason || '');
+  const rule = formatImportantRule(card.important_rule || card.importantRule);
+  return [reason ? `IMPORTANTE: ${reason}` : 'IMPORTANTE', rule].filter(Boolean).join(' · ');
+}
+
+function formatImportantReason(value = '') {
+  const normalized = normalizeKey(value).replace(/-/g, '_');
+  const labels = {
+    important_program_match: 'coincidencia de programa',
+    important_full_channel: 'canal completo',
+    full_channel: 'canal completo',
+    program_rules: 'coincidencia de programa',
+    important_channel: 'canal importante',
+  };
+  return labels[normalized] || humanizeToken(value);
+}
+
+function formatImportantRule(rule = null) {
+  if (!rule || typeof rule !== 'object') return '';
+  const op = (rule.op || rule.type || '').toString().trim();
+  const value = (rule.value || rule.label || '').toString().trim();
+  if (op && value) return `${op}: ${value}`;
+  return value || op;
 }
 
 function formatCountryLabel(value = '') {
@@ -281,7 +311,13 @@ function formatLifecycleLabel(value = '') {
 function formatMonitorDisplayStatus(card = {}, normalizedStatus = '') {
   const displayStatus = (card.display_status || card.displayStatus || '').toString().trim();
   if (displayStatus) return displayStatus;
+  if (isGeoBlockedStatus(normalizedStatus) || isGeoBlockedStatus(card.last_error || card.lastError)) return 'GEO-BLOQUEADO';
   return formatLifecycleLabel(normalizedStatus);
+}
+
+function isGeoBlockedStatus(value = '') {
+  const normalized = normalizeKey(value).replace(/-/g, '_');
+  return normalized === 'geo_blocked' || normalized === 'yt_dlp_geo_blocked';
 }
 
 function formatUploadedAt(value = '') {
@@ -324,6 +360,8 @@ function humanJobStatus(status = '') {
     aprobado: 'Aprobado',
     transcribiendo: 'Transcribiendo',
     transcrito: 'Transcrito',
+    geo_blocked: 'GEO-BLOQUEADO',
+    yt_dlp_geo_blocked: 'GEO-BLOQUEADO',
     error: 'Error',
     queued: 'En cola',
     running: 'Procesando',

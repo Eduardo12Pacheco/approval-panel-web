@@ -336,6 +336,50 @@ function runStateAndRenderCheck() {
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
     state: {
       monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'geo-video', title: 'Geo bloqueado', country: 'ecuador', status: 'geo_blocked', last_error: 'yt_dlp_geo_blocked' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('GEO-BLOQUEADO') || !monitorEl.innerHTML.includes('is-failed') || monitorEl.innerHTML.includes('>ERROR<')) throw new Error(`geo-blocked status chip drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'legacy-geo-video', title: 'Geo bloqueado legacy', country: 'ecuador', status: 'error', last_error: 'yt_dlp_geo_blocked' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('GEO-BLOQUEADO') || monitorEl.innerHTML.includes('>ERROR<')) throw new Error(`legacy geo-blocked last_error should not render generic error: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{
+        video_id: 'important-program',
+        title: 'Fútbol Picante',
+        target_country: 'important',
+        target_country_label: 'IMPORTANTES',
+        source_country: 'mexico',
+        source_country_label: 'México',
+        channel_label: 'ESPN MX',
+        status: 'geo_blocked',
+        display_status: 'GEO-BLOQUEADO',
+        important: true,
+        important_reason: 'important_program_match',
+        important_rule: { op: 'contains', value: 'FUTBOL PICANTE' },
+      }],
+      selectedCountry: 'important',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('GEO-BLOQUEADO') || !monitorEl.innerHTML.includes('Destino: IMPORTANTES · Fuente: México · Canal: ESPN MX')) throw new Error(`important card should render backend status and labels: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('IMPORTANTE: coincidencia de programa · contains: FUTBOL PICANTE')) throw new Error(`important card should render backend reason/rule: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
       monitorCards: [{
         video_id: 'transcribed-video',
         title: 'Transcrito',
