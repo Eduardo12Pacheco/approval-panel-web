@@ -90,14 +90,37 @@
 }
 
 #viewAiRescue .ai-rescue-card {
+  position: relative;
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr) 172px;
   gap: 24px;
   align-items: stretch;
   min-height: 128px;
-  padding: 20px 24px;
+  padding: 20px 56px 20px 24px;
   border: 1px solid #2A2A2A;
   background: #0A0A0A;
+}
+
+#viewAiRescue .ai-rescue-card__dismiss {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #8F1D1D;
+  background: #180606;
+  color: #FF5C5C;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  line-height: 1;
+}
+
+#viewAiRescue .ai-rescue-card__dismiss:hover {
+  border-color: #FF5C5C;
+  color: #FFFFFF;
+  background: #3A0B0B;
 }
 
 #viewAiRescue .ai-rescue-card:hover,

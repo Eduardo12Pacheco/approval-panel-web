@@ -232,6 +232,7 @@ function renderMonitorCard(card = {}) {
     : '<span class="radar-mention-row is-pending"><small>Pendiente:</small><strong>—</strong></span>';
   return `
     <article class="radar-monitor-card" data-video-id="${escapeHtml(card.video_id || '')}" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}">
+      <button class="radar-monitor-card__dismiss" type="button" data-radar-action="dismiss-monitor-card" data-radar-dismiss-surface="monitor-card" data-radar-dismiss-target-context="${escapeHtml(dismissContext)}" data-radar-dismiss-target-label="${escapeHtml(dismissLabel)}" data-radar-dismiss-video-id="${escapeHtml(card.video_id || '')}" aria-label="Ocultar card solo en ${escapeHtml(dismissLabel)}">×</button>
       <div class="radar-monitor-card__main">
         <span class="radar-status-chip ${escapeHtml(monitorStatusChipClass(status))}">${escapeHtml(statusLabel)}</span>
         <strong>${escapeHtml(title)}</strong>
@@ -239,7 +240,6 @@ function renderMonitorCard(card = {}) {
         ${importantAudit ? `<small class="radar-monitor-card__meta">${escapeHtml(importantAudit)}</small>` : ''}
       </div>
       <div class="radar-monitor-card__actions" aria-label="Acciones del video monitoreado">
-        <button type="button" data-radar-action="dismiss-monitor-card" data-radar-dismiss-surface="monitor-card" data-radar-dismiss-target-context="${escapeHtml(dismissContext)}" data-radar-dismiss-target-label="${escapeHtml(dismissLabel)}" data-radar-dismiss-video-id="${escapeHtml(card.video_id || '')}" aria-label="Ocultar card solo en ${escapeHtml(dismissLabel)}">×</button>
         <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
         <button type="button" data-radar-action="download-monitor-transcript" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}" aria-label="Descargar transcripción TXT" ${transcriptDisabled}>Transcripción</button>
       </div>

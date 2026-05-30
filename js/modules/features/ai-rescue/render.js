@@ -73,6 +73,7 @@ function renderCandidateCard(candidate) {
   const linkDisabled = item.url ? '' : 'disabled aria-disabled="true" title="Link no disponible"';
   return `
     <article class="ai-rescue-card" data-ai-rescue-candidate-id="${escapeHtml(item.id)}">
+      <button class="ai-rescue-card__dismiss" type="button" data-ai-rescue-action="dismiss-candidate" data-ai-rescue-dismiss-surface="ai-rescue-candidate" data-ai-rescue-dismiss-target-context="${escapeHtml(item.targetCountry)}" data-ai-rescue-dismiss-video-id="${escapeHtml(item.videoId)}" data-ai-rescue-dismiss-candidate-id="${escapeHtml(item.id)}" aria-label="Ocultar candidato Prensa IA para ${escapeHtml(item.targetLabel)}">×</button>
       <div class="ai-rescue-card__score"><span>Score</span><strong>Score ${escapeHtml(item.score)}</strong></div>
       <div class="ai-rescue-card__main">
         <strong>${escapeHtml(item.title)}</strong>
@@ -80,7 +81,6 @@ function renderCandidateCard(candidate) {
         <p>${escapeHtml(item.summary || 'Resumen pendiente.')}</p>
       </div>
       <div class="ai-rescue-card__actions" aria-label="Acciones Prensa IA">
-        <button class="secondary" type="button" data-ai-rescue-action="dismiss-candidate" data-ai-rescue-dismiss-surface="ai-rescue-candidate" data-ai-rescue-dismiss-target-context="${escapeHtml(item.targetCountry)}" data-ai-rescue-dismiss-video-id="${escapeHtml(item.videoId)}" data-ai-rescue-dismiss-candidate-id="${escapeHtml(item.id)}" aria-label="Ocultar candidato Prensa IA para ${escapeHtml(item.targetLabel)}">×</button>
         <button type="button" data-ai-rescue-action="open-link" data-ai-rescue-url="${escapeHtml(item.url)}" ${linkDisabled}>Link</button>
         <button type="button" data-ai-rescue-action="summary" data-ai-rescue-candidate-id="${escapeHtml(item.id)}">Resumen</button>
       </div>
