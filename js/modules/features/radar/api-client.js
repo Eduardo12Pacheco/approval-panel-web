@@ -91,6 +91,17 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationL
       return request(`/api/monitor/cards${query ? `?${query}` : ''}`, { service: 'monitor' });
     },
     monitorSummary: () => request('/api/monitor/summary', { service: 'monitor' }),
+    dismissCard: ({ surface = 'monitor-card', targetContext, videoId, reason = 'operator-dismissed', dismissedBy = 'control-panel' } = {}) => request('/api/monitor/card-dismissals', {
+      method: 'POST',
+      service: 'monitor',
+      body: {
+        surface,
+        target_context: normalizeDismissalContext(targetContext),
+        video_id: videoId,
+        reason,
+        dismissed_by: dismissedBy,
+      },
+    }),
     monitorBasura: ({ limit, offset } = {}) => {
       const params = new URLSearchParams();
       if (limit !== undefined) params.set('limit', String(limit));
@@ -109,4 +120,10 @@ export function createRadarApiClient({ getSettings, fetchImpl = fetch, locationL
     cancelJob: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' }),
     deleteJob: (jobId) => request(`/api/radar/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' }),
   };
+}
+
+function normalizeDismissalContext(value = '') {
+  const normalized = (value || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (normalized === 'importantes') return 'important';
+  return normalized;
 }

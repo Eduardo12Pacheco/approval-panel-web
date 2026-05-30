@@ -109,6 +109,23 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
     el.aiRescueConfirmDialog?.showModal?.();
   }
 
+  function confirmCandidateDismiss({ surface = 'ai-rescue-candidate', targetContext = '', videoId = '', candidateId = 0, restoreFocusTo = null } = {}) {
+    const contextLabel = humanizeContext(targetContext);
+    if (el.aiRescueConfirmTitle) el.aiRescueConfirmTitle.textContent = 'Ocultar candidato Prensa IA';
+    if (el.aiRescueConfirmMessage) el.aiRescueConfirmMessage.textContent = `Esta acción solo oculta este candidato en ${contextLabel}; no aprueba, rechaza ni borra el candidato, el video, la transcripción ni la evidencia. Radar Ecuador, Colombia e IMPORTANTES siguen usando sus propios contextos. La limpieza normal de 5 días se mantiene.`;
+    const closeAndRestore = () => {
+      el.aiRescueConfirmDialog?.close?.();
+      restoreFocusTo?.focus?.();
+    };
+    if (el.aiRescueConfirmCancelBtn) el.aiRescueConfirmCancelBtn.onclick = closeAndRestore;
+    if (el.aiRescueConfirmAcceptBtn) el.aiRescueConfirmAcceptBtn.onclick = async () => {
+      await api.dismissCandidate?.({ surface, targetContext: normalizeDismissContext(targetContext), videoId, candidateId: Number(candidateId || 0) });
+      closeAndRestore();
+      await refreshAll({ silent: true });
+    };
+    el.aiRescueConfirmDialog?.showModal?.();
+  }
+
   function openLink(url) {
     const cleanUrl = (url || '').toString().trim();
     if (!isSafeYouTubeUrl(cleanUrl)) {
@@ -125,6 +142,10 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
     el.aiRescueQueueRefreshBtn?.addEventListener?.('click', () => { void refreshQueue(); });
     el.aiRescueDetailCloseBtn?.addEventListener?.('click', () => el.aiRescueDetailDialog?.close?.());
     el.aiRescueConfirmCancelBtn?.addEventListener?.('click', () => el.aiRescueConfirmDialog?.close?.());
+    el.aiRescueConfirmDialog?.addEventListener?.('cancel', () => {
+      state.dismissFocusTarget?.focus?.();
+      state.dismissFocusTarget = null;
+    });
     el.aiRescueTabs?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-ai-rescue-tab]');
       if (!button) return;
@@ -139,6 +160,16 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       const candidateId = Number(button.dataset.aiRescueCandidateId || 0);
       if (action === 'open-link') openLink(button.dataset.aiRescueUrl);
       if (action === 'summary' && candidateId) void openDetail(candidateId);
+      if (action === 'dismiss-candidate') {
+        state.dismissFocusTarget = button;
+        confirmCandidateDismiss({
+          surface: button.dataset.aiRescueDismissSurface || 'ai-rescue-candidate',
+          targetContext: button.dataset.aiRescueDismissTargetContext || state.selectedTab || '',
+          videoId: button.dataset.aiRescueDismissVideoId || '',
+          candidateId: Number(button.dataset.aiRescueDismissCandidateId || 0),
+          restoreFocusTo: button,
+        });
+      }
     });
     el.aiRescueDetailBody?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-ai-rescue-action]');
@@ -163,7 +194,17 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
     state.queuePollingTimer = null;
   }
 
-  return { activate, deactivate, bindEvents, refreshAll, manualRefresh, openQueue, closeQueue, refreshQueue, openDetail, confirmDecision, openLink, render };
+  return { activate, deactivate, bindEvents, refreshAll, manualRefresh, openQueue, closeQueue, refreshQueue, openDetail, confirmDecision, confirmCandidateDismiss, openLink, render };
+}
+
+function normalizeDismissContext(value = '') {
+  return (value || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function humanizeContext(value = '') {
+  const normalized = normalizeDismissContext(value);
+  const labels = { ecuador: 'Ecuador', colombia: 'Colombia', argentina: 'Argentina', uruguay: 'Uruguay', paraguay: 'Paraguay', mexico: 'México', important: 'IMPORTANTES' };
+  return labels[normalized] || (value || 'este contexto').toString();
 }
 
 function isSafeYouTubeUrl(rawUrl = '') {

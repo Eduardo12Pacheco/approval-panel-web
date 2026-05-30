@@ -74,6 +74,17 @@ export function createAiRescueApiClient({ getSettings, fetchImpl = fetch, locati
     candidateDetail: (candidateId) => request(`/api/monitor/ai-rescue/candidates/${encodeURIComponent(candidateId)}`),
     rejections: () => request('/api/monitor/ai-rescue/rejections'),
     refresh: () => request('/api/monitor/ai-rescue/refresh', { method: 'POST' }),
+    dismissCandidate: ({ surface = 'ai-rescue-candidate', targetContext, videoId, candidateId, reason = 'operator-dismissed', dismissedBy = 'control-panel' } = {}) => request('/api/monitor/card-dismissals', {
+      method: 'POST',
+      body: {
+        surface,
+        target_context: (targetContext || '').toString().trim().toLowerCase(),
+        video_id: (videoId || '').toString(),
+        candidate_id: Number(candidateId || 0),
+        reason,
+        dismissed_by: dismissedBy,
+      },
+    }),
     approveCandidate: (candidateId, payload = {}) => request(`/api/monitor/ai-rescue/candidates/${encodeURIComponent(candidateId)}/approve`, { method: 'POST', body: { confirmed: true, ...payload } }),
     rejectCandidate: (candidateId, payload = {}) => request(`/api/monitor/ai-rescue/candidates/${encodeURIComponent(candidateId)}/reject`, { method: 'POST', body: { confirmed: true, ...payload } }),
   };

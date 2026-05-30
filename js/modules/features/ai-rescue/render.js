@@ -6,6 +6,7 @@ import {
   normalizeAiRescueQueue,
   normalizeAiRescueQueueItem,
 } from './state.js';
+import { formatEcuadorDateTimeWithZone } from '../../shared/time/ecuador-time.js';
 
 function escapeHtml(value) {
   return (value ?? '').toString()
@@ -24,10 +25,7 @@ function formatTimestamp(ms = 0) {
 }
 
 function formatDate(value = '') {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value.toString();
-  return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(date).replace(/\./g, '') + ' UTC';
+  return formatEcuadorDateTimeWithZone(value);
 }
 
 export function renderAiRescueCandidates({ el, state }) {
@@ -70,7 +68,7 @@ function renderAiRescueTabs({ el, selectedTab }) {
 
 function renderCandidateCard(candidate) {
   const item = normalizeAiRescueCandidate(candidate);
-  const published = formatDate(item.publishedAt);
+  const published = formatDate(item.publishedAt || item.submittedAt);
   const meta = [`Destino: ${item.targetLabel}`, `Fuente excluida: ${item.sourceLabel}`, published].filter(Boolean).join(' · ');
   const linkDisabled = item.url ? '' : 'disabled aria-disabled="true" title="Link no disponible"';
   return `
@@ -82,6 +80,7 @@ function renderCandidateCard(candidate) {
         <p>${escapeHtml(item.summary || 'Resumen pendiente.')}</p>
       </div>
       <div class="ai-rescue-card__actions" aria-label="Acciones Prensa IA">
+        <button class="secondary" type="button" data-ai-rescue-action="dismiss-candidate" data-ai-rescue-dismiss-surface="ai-rescue-candidate" data-ai-rescue-dismiss-target-context="${escapeHtml(item.targetCountry)}" data-ai-rescue-dismiss-video-id="${escapeHtml(item.videoId)}" data-ai-rescue-dismiss-candidate-id="${escapeHtml(item.id)}" aria-label="Ocultar candidato Prensa IA para ${escapeHtml(item.targetLabel)}">×</button>
         <button type="button" data-ai-rescue-action="open-link" data-ai-rescue-url="${escapeHtml(item.url)}" ${linkDisabled}>Link</button>
         <button type="button" data-ai-rescue-action="summary" data-ai-rescue-candidate-id="${escapeHtml(item.id)}">Resumen</button>
       </div>

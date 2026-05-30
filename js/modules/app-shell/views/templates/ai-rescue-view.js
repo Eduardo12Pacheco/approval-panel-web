@@ -40,7 +40,7 @@ export const aiRescueViewHTML = `\
             </article>
           </dialog>
 
-          <dialog id="aiRescueConfirmDialog">
+          <dialog id="aiRescueConfirmDialog" aria-labelledby="aiRescueConfirmTitle" aria-describedby="aiRescueConfirmMessage">
             <article>
               <header class="dialog-header"><h2 id="aiRescueConfirmTitle">Confirmar acción</h2></header>
               <p id="aiRescueConfirmMessage">Esta acción modifica el candidato Prensa IA.</p>

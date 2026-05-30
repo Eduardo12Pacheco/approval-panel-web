@@ -72,6 +72,7 @@ function makeElement({ value = '', textContent = '' } = {}) {
     listeners: new Map(),
     onclick: null,
     addEventListener(type, handler) { this.listeners.set(type, handler); },
+    focus() { this.focused = true; },
     setAttribute(name, value) { this[name] = value; },
     querySelector() { return null; },
     querySelectorAll() { return []; },
@@ -111,6 +112,7 @@ const sampleCandidates = [
     angle_es: 'Ángulo menor.',
     risk: 'medium',
     risks: ['Evidencia débil'],
+    submitted_at: '2026-05-22T05:30:00Z',
     evidence_count: 1,
   },
 ];
@@ -179,6 +181,14 @@ function runRenderCheck() {
   assertIncludes(listEl.innerHTML, 'Score 91', 'card should show visible score');
   assertIncludes(listEl.innerHTML, '&lt;b&gt;Final de crack&lt;/b&gt;', 'card title must be escaped');
   assertIncludes(listEl.innerHTML, 'Destino: Argentina · Fuente excluida: Ecuador', 'card metadata should show target and excluded source');
+  assertIncludes(listEl.innerHTML, '22 may 2026, 05:30 ECT', 'candidate published time should render in Ecuador local time');
+  assertIncludes(listEl.innerHTML, '22 may 2026, 00:30 ECT', 'candidate submitted fallback time should render in Ecuador local time');
+  assertIncludes(listEl.innerHTML, 'aria-label="Ocultar candidato Prensa IA para Argentina"', 'dismiss button should have accessible candidate-context label');
+  assertIncludes(listEl.innerHTML, 'data-ai-rescue-action="dismiss-candidate"', 'candidate dismiss action should be present');
+  assertIncludes(listEl.innerHTML, 'data-ai-rescue-dismiss-surface="ai-rescue-candidate"', 'candidate dismiss surface should be explicit');
+  assertIncludes(listEl.innerHTML, 'data-ai-rescue-dismiss-target-context="argentina"', 'candidate dismiss target context should be explicit');
+  assertIncludes(listEl.innerHTML, 'data-ai-rescue-dismiss-video-id="v-high"', 'candidate dismiss video id should be explicit');
+  assertIncludes(listEl.innerHTML, 'data-ai-rescue-dismiss-candidate-id="2"', 'candidate dismiss candidate id should be explicit');
   assertIncludes(listEl.innerHTML, 'data-ai-rescue-action="open-link"', 'card link action drift');
   assertIncludes(listEl.innerHTML, 'data-ai-rescue-action="summary"', 'summary action should be present');
   assertNotIncludes(listEl.innerHTML, 'data-ai-rescue-action="summary" disabled', 'summary action must stay enabled for candidate tabs');
@@ -277,6 +287,7 @@ async function runApiClientCheck() {
       if (url.endsWith('/candidates?target_country=argentina')) return new Response(JSON.stringify({ items: [sampleCandidates[0]] }), { status: 200 });
       if (url.endsWith('/candidates/2/approve')) return new Response(JSON.stringify({ status: 'approved' }), { status: 200 });
       if (url.endsWith('/candidates/2/reject')) return new Response(JSON.stringify({ status: 'rejected' }), { status: 200 });
+      if (url.endsWith('/card-dismissals') && options.method === 'POST') return new Response(JSON.stringify({ status: 'dismissed', context_key: 'ai-rescue-candidate:argentina:2' }), { status: 200 });
       if (url.endsWith('/candidates/2')) return new Response(JSON.stringify({ ...sampleCandidates[0], evidence: [] }), { status: 200 });
       if (url.endsWith('/rejections')) return new Response(JSON.stringify({ items: [] }), { status: 200 });
       if (url.endsWith('/refresh')) return new Response(JSON.stringify({ status: 'ok', enqueued_count: 1 }), { status: 200 });
@@ -292,6 +303,7 @@ async function runApiClientCheck() {
   await api.refresh();
   await api.approveCandidate(2, { reviewer: 'editor' });
   await api.rejectCandidate(2, { reviewer: 'editor', reason: 'weak evidence' });
+  await api.dismissCandidate({ targetContext: 'Argentina', videoId: 'v-high', candidateId: 2 });
 
   assertEqual(calls[0].url, 'https://api.example.test/monitor/api/monitor/ai-rescue/preflight', 'preflight URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'shared-secret', 'AI Rescue must use shared monitor API key only');
@@ -299,6 +311,15 @@ async function runApiClientCheck() {
   assertEqual(calls[5].options.method, 'POST', 'refresh method drift');
   assertDeepEqual(JSON.parse(calls[6].options.body), { confirmed: true, reviewer: 'editor' }, 'approve confirmation payload drift');
   assertDeepEqual(JSON.parse(calls[7].options.body), { confirmed: true, reviewer: 'editor', reason: 'weak evidence' }, 'reject confirmation payload drift');
+  assertEqual(calls[8].url, 'https://api.example.test/monitor/api/monitor/card-dismissals', 'candidate dismissal URL drift');
+  assertDeepEqual(JSON.parse(calls[8].options.body), {
+    surface: 'ai-rescue-candidate',
+    target_context: 'argentina',
+    video_id: 'v-high',
+    candidate_id: 2,
+    reason: 'operator-dismissed',
+    dismissed_by: 'control-panel',
+  }, 'candidate dismissal payload drift');
   for (const call of calls) {
     if (call.options.headers.Authorization || call.options.headers['x-opencode-api-key']) {
       throw new Error(`OpenCode credential leaked into browser headers: ${JSON.stringify(call.options.headers)}`);
@@ -349,6 +370,7 @@ async function runControllerCheck() {
     async refresh() { calls.push('refresh'); return { status: 'ok', enqueued_count: 1 }; },
     async approveCandidate(candidateId, payload) { calls.push({ type: 'approve', candidateId, payload }); return { status: 'approved' }; },
     async rejectCandidate(candidateId, payload) { calls.push({ type: 'reject', candidateId, payload }); return { status: 'rejected' }; },
+    async dismissCandidate(payload) { calls.push({ type: 'dismissCandidate', payload }); return { status: 'dismissed', context_key: `${payload.surface}:${payload.targetContext}:${payload.candidateId}` }; },
   };
   const controller = createAiRescueController({
     state,
@@ -362,6 +384,7 @@ async function runControllerCheck() {
       confirm() { return true; },
     },
   });
+  controller.bindEvents();
 
   await controller.activate();
   assertEqual(timers[0].delay, 10000, 'active view polling interval drift');
@@ -391,6 +414,42 @@ async function runControllerCheck() {
   await controller.confirmDecision(2, 'reject', { reason: 'weak evidence' });
   await el.aiRescueConfirmAcceptBtn.onclick();
   if (!calls.some((entry) => entry.type === 'reject' && entry.payload.reason === 'weak evidence')) throw new Error(`reject should send human reason: ${JSON.stringify(calls)}`);
+
+  const dismissButton = {
+    disabled: false,
+    focused: false,
+    dataset: {
+      aiRescueAction: 'dismiss-candidate',
+      aiRescueDismissSurface: 'ai-rescue-candidate',
+      aiRescueDismissTargetContext: 'argentina',
+      aiRescueDismissVideoId: 'v-high',
+      aiRescueDismissCandidateId: '2',
+    },
+    focus() { this.focused = true; },
+  };
+  el.aiRescueList.listeners.get('click')?.({ target: { closest: () => dismissButton } });
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'solo oculta este candidato en Argentina', 'dismiss confirm copy should explain candidate context isolation');
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'no aprueba, rechaza ni borra', 'dismiss confirm copy should explain non-destructive AI Rescue behavior');
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'Radar Ecuador, Colombia e IMPORTANTES', 'dismiss confirm copy should explain monitor-card isolation');
+  el.aiRescueConfirmCancelBtn.onclick?.();
+  if (calls.some((entry) => entry.type === 'dismissCandidate')) throw new Error(`cancel must not persist candidate dismissal: ${JSON.stringify(calls)}`);
+  assertEqual(dismissButton.focused, true, 'cancel should restore focus to candidate dismiss button');
+
+  dismissButton.focused = false;
+  el.aiRescueList.listeners.get('click')?.({ target: { closest: () => dismissButton } });
+  await el.aiRescueConfirmAcceptBtn.onclick();
+  assertDeepEqual(calls.find((entry) => entry.type === 'dismissCandidate')?.payload, {
+    surface: 'ai-rescue-candidate',
+    targetContext: 'argentina',
+    videoId: 'v-high',
+    candidateId: 2,
+  }, 'candidate dismiss should use isolated ai-rescue-candidate context');
+  if (calls.some((entry) => entry.type === 'approve' && entry.candidateId === 2 && entry.payload?.reason === 'operator-dismissed')) throw new Error(`dismissal must not approve candidate: ${JSON.stringify(calls)}`);
+  if (calls.some((entry) => entry.type === 'reject' && entry.candidateId === 2 && entry.payload?.reason === 'operator-dismissed')) throw new Error(`dismissal must not reject candidate: ${JSON.stringify(calls)}`);
+  const dismissIndex = calls.findIndex((entry) => entry.type === 'dismissCandidate');
+  const refreshAfterDismiss = calls.slice(dismissIndex + 1).some((entry) => entry.type === 'candidates');
+  assertEqual(refreshAfterDismiss, true, 'confirming candidate dismissal should refresh AI Rescue candidates');
+  assertEqual(dismissButton.focused, true, 'confirm should restore focus to candidate dismiss button');
   controller.openLink('https://youtu.be/v-high');
   controller.openLink('javascript:alert(1)');
   assertDeepEqual(opened, [{ url: 'https://youtu.be/v-high', target: '_blank', features: 'noopener,noreferrer' }], 'safe link opening drift');

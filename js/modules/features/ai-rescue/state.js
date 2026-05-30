@@ -67,6 +67,7 @@ export function normalizeAiRescueCandidate(candidate = {}) {
     evidenceCount: Number(candidate.evidence_count ?? candidate.evidenceCount ?? candidate.evidence?.length ?? 0),
     reason: candidate.reason || candidate.raw_response?.reason || candidate.rawResponse?.reason || '',
     publishedAt: candidate.published_at || candidate.publishedAt || '',
+    submittedAt: candidate.submitted_at || candidate.submittedAt || candidate.created_at || candidate.createdAt || '',
   };
 }
 

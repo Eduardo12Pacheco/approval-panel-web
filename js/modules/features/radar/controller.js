@@ -277,6 +277,53 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     el.radarConfirmDialog?.showModal?.();
   }
 
+  async function confirmMonitorCardDismiss({ videoId, targetContext, targetLabel, trigger } = {}) {
+    const cleanVideoId = (videoId || '').toString().trim();
+    const cleanTargetContext = normalizeDismissContext(targetContext);
+    const cleanTargetLabel = (targetLabel || humanizeDismissContext(cleanTargetContext)).toString().trim();
+    if (!cleanVideoId || !cleanTargetContext) {
+      toast('No pude identificar el contexto del card para ocultarlo.');
+      return;
+    }
+    if (el.radarConfirmTitle) el.radarConfirmTitle.textContent = 'Ocultar card';
+    if (el.radarConfirmMessage) {
+      el.radarConfirmMessage.textContent = `Esto oculta el card solo en ${cleanTargetLabel}; no borra videos, transcripciones, menciones ni clasificaciones. Los datos quedan retenidos y el ciclo normal de limpieza sigue siendo de 5 días.`;
+    }
+    const restoreFocus = () => trigger?.focus?.();
+    state.monitorDismissCancelHandler = () => {
+      el.radarConfirmDialog?.close?.();
+      restoreFocus();
+      state.monitorDismissCancelHandler = null;
+    };
+    if (el.radarConfirmDialog?.addEventListener && !state.monitorDismissCancelBound) {
+      el.radarConfirmDialog.addEventListener('cancel', (event) => {
+        if (!state.monitorDismissCancelHandler) return;
+        event?.preventDefault?.();
+        state.monitorDismissCancelHandler();
+      });
+      state.monitorDismissCancelBound = true;
+    }
+    if (el.radarConfirmCancelBtn) {
+      el.radarConfirmCancelBtn.onclick = () => {
+        state.monitorDismissCancelHandler?.();
+      };
+    }
+    if (el.radarConfirmAcceptBtn) {
+      el.radarConfirmAcceptBtn.onclick = async () => {
+        await api.dismissCard?.({
+          surface: 'monitor-card',
+          targetContext: cleanTargetContext,
+          videoId: cleanVideoId,
+        });
+        el.radarConfirmDialog?.close?.();
+        await refreshMonitor();
+        restoreFocus();
+        state.monitorDismissCancelHandler = null;
+      };
+    }
+    el.radarConfirmDialog?.showModal?.();
+  }
+
   async function copyMentions() {
     const text = formatMentionsCopy(state.mentions || {});
     if (!text) return;
@@ -322,6 +369,14 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       if (button.disabled) return;
       if (button.dataset.radarAction === 'open-link') openMonitorLink(button.dataset.radarUrl);
       if (button.dataset.radarAction === 'download-monitor-transcript' && button.dataset.radarJobId) void downloadJob(button.dataset.radarJobId);
+      if (button.dataset.radarAction === 'dismiss-monitor-card') {
+        void confirmMonitorCardDismiss({
+          videoId: button.dataset.radarDismissVideoId,
+          targetContext: button.dataset.radarDismissTargetContext,
+          targetLabel: button.dataset.radarDismissTargetLabel,
+          trigger: button,
+        });
+      }
     });
   }
 
@@ -344,8 +399,28 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     downloadJob,
     openMonitorLink,
     confirmJobAction,
+    confirmMonitorCardDismiss,
     render: renderAll,
     stopPolling,
     activate,
   };
+}
+
+function normalizeDismissContext(value = '') {
+  const normalized = (value || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (normalized === 'importantes') return 'important';
+  return normalized;
+}
+
+function humanizeDismissContext(value = '') {
+  const labels = {
+    important: 'IMPORTANTES',
+    ecuador: 'Ecuador',
+    colombia: 'Colombia',
+    argentina: 'Argentina',
+    uruguay: 'Uruguay',
+    paraguay: 'Paraguay',
+    mexico: 'México',
+  };
+  return labels[normalizeDismissContext(value)] || 'este contexto';
 }

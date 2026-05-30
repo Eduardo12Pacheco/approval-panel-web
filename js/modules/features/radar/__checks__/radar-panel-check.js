@@ -59,6 +59,8 @@ function makeElement({ value = '', textContent = '' } = {}) {
     addEventListener(type, handler) { this.listeners.set(type, handler); },
     querySelector() { return null; },
     querySelectorAll() { return []; },
+    focusCalls: 0,
+    focus() { this.focusCalls += 1; },
   };
 }
 
@@ -80,6 +82,7 @@ async function runApiClientCheck() {
       if (url.endsWith('/api/monitor/cards?target_country=important')) return new Response(JSON.stringify({ items: [{ video_id: 'important-1', target_country: 'important' }] }), { status: 200 });
       if (url.endsWith('/api/monitor/cards?target_country=important&limit=200&offset=0')) return new Response(JSON.stringify({ items: [{ video_id: 'important-1', target_country: 'important' }], pagination: { limit: 200, offset: 0, total: 1, has_more: false } }), { status: 200 });
       if (url.endsWith('/api/monitor/summary')) return new Response(JSON.stringify({ basura_count: 2, targets: [] }), { status: 200 });
+      if (url.endsWith('/api/monitor/card-dismissals') && options.method === 'POST') return new Response(JSON.stringify({ status: 'dismissed', context_key: 'monitor-card:ecuador:video-1' }), { status: 200 });
       if (url.endsWith('/api/monitor/basura')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }] }), { status: 200 });
       if (url.endsWith('/api/monitor/basura?limit=200&offset=0')) return new Response(JSON.stringify({ total: 2, items: [{ video_id: 'trash-1' }], pagination: { limit: 200, offset: 0, total: 2, has_more: false } }), { status: 200 });
       if (url.endsWith('/health')) return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
@@ -107,6 +110,7 @@ async function runApiClientCheck() {
   const pagedMonitorPayload = await api.monitorCards('', { limit: 200, offset: 0 });
   const monitorSummary = await api.monitorSummary();
   const basuraPayload = await api.monitorBasura({ limit: 200, offset: 0 });
+  const dismissPayload = await api.dismissCard({ targetContext: 'Ecuador', videoId: 'video-1' });
 
   assertEqual(calls[0].url, 'https://api.example.test/radar/api/radar/health', 'health URL drift');
   assertEqual(calls[0].options.headers['x-api-key'], 'secret-token', 'health api key header drift');
@@ -132,6 +136,16 @@ async function runApiClientCheck() {
   assertEqual(calls[12].url, 'https://api.example.test/monitor/api/monitor/basura?limit=200&offset=0', 'monitor basura paged URL drift');
   assertEqual(monitorSummary.basura_count, 2, 'monitor summary basura counter drift');
   assertEqual(basuraPayload.total, 2, 'monitor basura payload drift');
+  assertEqual(calls[13].url, 'https://api.example.test/monitor/api/monitor/card-dismissals', 'monitor dismissal URL drift');
+  assertEqual(calls[13].options.method, 'POST', 'monitor dismissal must be an action POST');
+  assertDeepEqual(JSON.parse(calls[13].options.body), {
+    surface: 'monitor-card',
+    target_context: 'ecuador',
+    video_id: 'video-1',
+    reason: 'operator-dismissed',
+    dismissed_by: 'control-panel',
+  }, 'monitor dismissal payload drift');
+  assertDeepEqual(dismissPayload, { status: 'dismissed', context_key: 'monitor-card:ecuador:video-1' }, 'dismissal payload drift');
 
   let authMessage = '';
   try {
@@ -301,11 +315,35 @@ function runStateAndRenderCheck() {
     },
   });
   if (!monitorEl.innerHTML.includes('&lt;b&gt;Final peligrosa&lt;/b&gt;')) throw new Error(`monitor title should be escaped: ${monitorEl.innerHTML}`);
-  if (!monitorEl.innerHTML.includes('Destino: Argentina · Canal: TyC · Subido 21 may 2026, 12:00 UTC')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('Destino: Argentina · Canal: TyC · Subido 21 may 2026, 07:00 ECT')) throw new Error(`monitor metadata drift: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('Ya visto · descartado')) throw new Error(`monitor lifecycle label drift: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('data-radar-action="dismiss-monitor-card"') || !monitorEl.innerHTML.includes('aria-label="Ocultar card solo en Argentina"')) throw new Error(`monitor dismiss button should be accessible and context-scoped: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('data-radar-dismiss-surface="monitor-card"') || !monitorEl.innerHTML.includes('data-radar-dismiss-target-context="argentina"') || !monitorEl.innerHTML.includes('data-radar-dismiss-video-id="video-1"')) throw new Error(`monitor dismiss payload attrs drift: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('data-radar-action="open-link"') || !monitorEl.innerHTML.includes('https://youtu.be/video-1')) throw new Error(`monitor link action drift: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('data-radar-action="download-monitor-transcript"') || !monitorEl.innerHTML.includes('disabled')) throw new Error(`pending monitor transcript action should be disabled: ${monitorEl.innerHTML}`);
   if (!monitorEl.innerHTML.includes('Menciones:') || !monitorEl.innerHTML.includes('Messi:') || !monitorEl.innerHTML.includes('Argentina:') || !monitorEl.innerHTML.includes('3')) throw new Error(`monitor mentions drift: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'imp-queued', title: 'Importante', target_country: 'important', target_country_label: 'IMPORTANTES', status: 'enqueued' }],
+      selectedCountry: 'important',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('En cola prioritaria de transcripción')) throw new Error(`important lifecycle label should be humanized: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('aria-label="Ocultar card solo en IMPORTANTES"') || !monitorEl.innerHTML.includes('data-radar-dismiss-target-context="important"')) throw new Error(`important dismiss should be scoped to important context: ${monitorEl.innerHTML}`);
+
+  renderRadarMonitor({
+    el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
+    state: {
+      monitorStatus: 'ready',
+      monitorCards: [{ video_id: 'fallback-time', title: 'Fallback time', country: 'ecuador', uploaded_at: '2026-05-21T05:30:00Z' }],
+      selectedCountry: '',
+    },
+  });
+  if (!monitorEl.innerHTML.includes('Subido 21 may 2026, 00:30 ECT')) throw new Error(`fallback uploaded_at should use Ecuador time: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('aria-label="Ocultar card solo en Ecuador"') || !monitorEl.innerHTML.includes('data-radar-dismiss-target-context="ecuador"')) throw new Error(`todos view should keep card country dismissal context: ${monitorEl.innerHTML}`);
 
   renderRadarMonitor({
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
@@ -481,7 +519,13 @@ async function runControllerCheck() {
     radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
     radarSummaryDialog: { showModal() { calls.push('summaryModal'); }, close() {} },
     radarSummaryBody: makeElement(),
-    radarConfirmDialog: { showModal() { calls.push('confirmModal'); }, close() {} },
+    radarConfirmDialog: {
+      open: false,
+      listeners: new Map(),
+      addEventListener(type, handler) { this.listeners.set(type, handler); },
+      showModal() { this.open = true; calls.push('confirmModal'); },
+      close() { this.open = false; },
+    },
     radarConfirmTitle: makeElement(),
     radarConfirmMessage: makeElement(),
     radarConfirmAcceptBtn: makeElement(),
@@ -499,6 +543,7 @@ async function runControllerCheck() {
     async downloadExportText(jobId) { calls.push({ type: 'download', jobId }); return 'TXT backend'; },
     async cancelJob(jobId) { calls.push({ type: 'cancel', jobId }); return { status: 'cancelled' }; },
     async deleteJob(jobId) { calls.push({ type: 'delete', jobId }); return { status: 'deleted' }; },
+    async dismissCard(payload) { calls.push({ type: 'dismissCard', payload }); return { status: 'dismissed', context_key: `${payload.surface}:${payload.targetContext}:${payload.videoId}` }; },
     async history() { calls.push('history'); return { items: [{ job_id: 'job-1', status: 'succeeded', title: 'Final', selected_countries: ['argentina'], detected_language: 'fr', mention_count: 1, artifacts: { export_txt: true } }] }; },
   };
 
@@ -549,6 +594,36 @@ async function runControllerCheck() {
   await controller.confirmJobAction('job-1', 'delete');
   await controller.confirmJobAction('job-1', 'cancel');
   await el.radarConfirmAcceptBtn.onclick();
+  const dismissButton = makeElement();
+  await controller.confirmMonitorCardDismiss({
+    videoId: 'video-1',
+    targetContext: 'ecuador',
+    targetLabel: 'Ecuador',
+    trigger: dismissButton,
+  });
+  el.radarConfirmDialog.listeners.get('cancel')?.({ preventDefault() { calls.push('cancelPrevented'); } });
+  assertEqual(el.radarConfirmDialog.open, false, 'Escape/cancel event should close dismiss confirmation');
+  assertEqual(dismissButton.focusCalls, 1, 'Escape/cancel event should restore focus to dismiss trigger');
+  if (calls.some((entry) => entry.type === 'dismissCard')) throw new Error(`Escape/cancel event must not persist dismissal: ${JSON.stringify(calls)}`);
+  await controller.confirmMonitorCardDismiss({
+    videoId: 'video-1',
+    targetContext: 'ecuador',
+    targetLabel: 'Ecuador',
+    trigger: dismissButton,
+  });
+  el.radarConfirmCancelBtn.onclick?.();
+  if (calls.some((entry) => entry.type === 'dismissCard')) throw new Error(`cancel must not persist dismissal: ${JSON.stringify(calls)}`);
+  await controller.confirmMonitorCardDismiss({
+    videoId: 'video-1',
+    targetContext: 'ecuador',
+    targetLabel: 'Ecuador',
+    trigger: dismissButton,
+  });
+  if (!el.radarConfirmTitle.textContent.includes('Ocultar card')) throw new Error(`dismiss confirm title drift: ${el.radarConfirmTitle.textContent}`);
+  for (const expected of ['solo en Ecuador', 'no borra videos', 'transcripciones', '5 días']) {
+    if (!el.radarConfirmMessage.textContent.includes(expected)) throw new Error(`dismiss confirm copy missing ${expected}: ${el.radarConfirmMessage.textContent}`);
+  }
+  await el.radarConfirmAcceptBtn.onclick();
 
   assertEqual(calls[0], 'health', 'health call drift');
   assertDeepEqual(calls[1], { type: 'monitorCards', page: { limit: 200, offset: 0 } }, 'monitor refresh should read paged cards');
@@ -570,6 +645,14 @@ async function runControllerCheck() {
   assertDeepEqual(opened, [{ url: 'https://youtu.be/video-1', target: '_blank', features: 'noopener,noreferrer' }], 'monitor link should open independently of status');
   if (!calls.some((entry) => entry.type === 'cancel')) throw new Error('controller should confirm before cancelling');
   if (calls.some((entry) => entry.type === 'delete')) throw new Error('confirm accept handler should replace stale actions');
+  assertDeepEqual(calls.find((entry) => entry.type === 'dismissCard')?.payload, {
+    surface: 'monitor-card',
+    targetContext: 'ecuador',
+    videoId: 'video-1',
+  }, 'controller dismissal payload drift');
+  const dismissIndex = calls.findIndex((entry) => entry.type === 'dismissCard');
+  if (dismissIndex < 0 || !calls.slice(dismissIndex + 1).some((entry) => entry.type === 'monitorCards' && !entry.targetCountry)) throw new Error(`dismissal should refresh current monitor list/counts: ${JSON.stringify(calls)}`);
+  assertEqual(dismissButton.focusCalls, 3, 'dismiss confirmation should restore focus to trigger on Escape, cancel, and confirm');
   if (!el.radarProgressStatus.textContent.includes('Listo para investigar')) throw new Error(`progress status drift after cancel: ${el.radarProgressStatus.textContent}`);
   if (!calls.includes('closeModal')) throw new Error(`submit should close the new-job modal after creating a job: ${JSON.stringify(calls)}`);
   if (!calls.includes('history')) throw new Error(`submit should refresh visible history after completed polling: ${JSON.stringify(calls)}`);

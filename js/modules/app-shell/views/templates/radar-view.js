@@ -79,7 +79,7 @@ export const radarViewHTML = `\
             </article>
           </dialog>
 
-          <dialog id="radarConfirmDialog">
+          <dialog id="radarConfirmDialog" aria-labelledby="radarConfirmTitle" aria-describedby="radarConfirmMessage">
             <article>
               <header class="dialog-header"><h2 id="radarConfirmTitle">Confirmar acci\u00f3n</h2></header>
               <p id="radarConfirmMessage">Esta acci\u00f3n modifica el job seleccionado.</p>

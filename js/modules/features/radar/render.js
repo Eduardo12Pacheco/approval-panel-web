@@ -1,4 +1,5 @@
 import { RADAR_COUNTRIES, filterMonitorCards, mapMonitorCard, normalizeMonitorCardStatus } from './state.js';
+import { formatEcuadorDateTimeWithZone } from '../../shared/time/ecuador-time.js';
 
 const COUNTRY_LABELS = new Map([
   ...RADAR_COUNTRIES.map((country) => [country.value, country.label]),
@@ -32,6 +33,23 @@ const LIFECYCLE_LABELS = {
   skipped: 'Omitido',
   failed: 'Revisar error',
   monitor: 'Monitoreado',
+};
+
+const IMPORTANT_LIFECYCLE_LABELS = {
+  aprobado: 'Aprobado para transcripción prioritaria',
+  transcribiendo: 'Transcribiendo ahora · prioridad IMPORTANTES',
+  transcrito: 'Transcrito · prioridad IMPORTANTES',
+  enqueue_pending: 'Esperando entrar a la cola prioritaria',
+  enqueued: 'En cola prioritaria de transcripción',
+  queued: 'En cola prioritaria de transcripción',
+  processing: 'Analizando menciones · prioridad IMPORTANTES',
+  processed: 'Análisis listo · prioridad IMPORTANTES',
+  completed: 'Análisis listo · prioridad IMPORTANTES',
+  ignored_seen: 'Ya visto · descartado por monitor',
+  ignored: 'Descartado por monitor',
+  skipped: 'Omitido por monitor',
+  failed: 'Revisar error de cola prioritaria',
+  monitor: 'Monitoreado como IMPORTANTE',
 };
 
 function escapeHtml(value) {
@@ -207,6 +225,8 @@ function renderMonitorCard(card = {}) {
   const linkDisabled = url ? '' : 'disabled aria-disabled="true" title="Link no disponible"';
   const transcriptDisabled = canDownloadTranscript ? '' : 'disabled aria-disabled="true" title="Disponible cuando la transcripción esté lista"';
   const mentions = Array.isArray(dashboardCard.mentionCounts) ? dashboardCard.mentionCounts : [];
+  const dismissContext = resolveDismissContext(card);
+  const dismissLabel = formatCountryLabel(dismissContext) || 'este contexto';
   const emptyMentions = status === 'transcrito'
     ? '<span class="radar-mention-row is-ready"><small>Sin menciones:</small><strong>0</strong></span>'
     : '<span class="radar-mention-row is-pending"><small>Pendiente:</small><strong>—</strong></span>';
@@ -219,6 +239,7 @@ function renderMonitorCard(card = {}) {
         ${importantAudit ? `<small class="radar-monitor-card__meta">${escapeHtml(importantAudit)}</small>` : ''}
       </div>
       <div class="radar-monitor-card__actions" aria-label="Acciones del video monitoreado">
+        <button type="button" data-radar-action="dismiss-monitor-card" data-radar-dismiss-surface="monitor-card" data-radar-dismiss-target-context="${escapeHtml(dismissContext)}" data-radar-dismiss-target-label="${escapeHtml(dismissLabel)}" data-radar-dismiss-video-id="${escapeHtml(card.video_id || '')}" aria-label="Ocultar card solo en ${escapeHtml(dismissLabel)}">×</button>
         <button type="button" data-radar-action="open-link" data-radar-url="${escapeHtml(url)}" aria-label="Abrir video en YouTube" ${linkDisabled}>Link</button>
         <button type="button" data-radar-action="download-monitor-transcript" data-radar-job-id="${escapeHtml(card.radar_job_id || '')}" aria-label="Descargar transcripción TXT" ${transcriptDisabled}>Transcripción</button>
       </div>
@@ -230,6 +251,13 @@ function renderMonitorCard(card = {}) {
       </div>
     </article>
   `;
+}
+
+function resolveDismissContext(card = {}) {
+  const rawContext = card.target_country || card.country || '';
+  const normalized = normalizeKey(rawContext);
+  if (normalized === 'importantes') return 'important';
+  return normalized || 'monitor';
 }
 
 function resolveMonitorVideoUrl(card = {}) {
@@ -312,7 +340,22 @@ function formatMonitorDisplayStatus(card = {}, normalizedStatus = '') {
   const displayStatus = (card.display_status || card.displayStatus || '').toString().trim();
   if (displayStatus) return displayStatus;
   if (isGeoBlockedStatus(normalizedStatus) || isGeoBlockedStatus(card.last_error || card.lastError)) return 'GEO-BLOQUEADO';
+  if (isImportantMonitorCard(card)) {
+    return formatImportantLifecycleLabel(normalizedStatus);
+  }
   return formatLifecycleLabel(normalizedStatus);
+}
+
+function formatImportantLifecycleLabel(value = '') {
+  const normalized = normalizeKey(value).replace(/-/g, '_');
+  if (!normalized) return 'Monitoreado como IMPORTANTE';
+  return IMPORTANT_LIFECYCLE_LABELS[normalized] || humanizeToken(value);
+}
+
+function isImportantMonitorCard(card = {}) {
+  return Boolean(card.important)
+    || normalizeKey(card.target_country || card.country) === 'important'
+    || normalizeKey(card.target_country_label || card.country_label) === 'importantes';
 }
 
 function isGeoBlockedStatus(value = '') {
@@ -321,19 +364,8 @@ function isGeoBlockedStatus(value = '') {
 }
 
 function formatUploadedAt(value = '') {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value.toString();
-  const formatted = new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'UTC',
-  }).format(date).replace(/\./g, '');
-  return `Subido ${formatted} UTC`;
+  const formatted = formatEcuadorDateTimeWithZone(value);
+  return formatted ? `Subido ${formatted}` : '';
 }
 
 function normalizeKey(value = '') {
