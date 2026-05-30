@@ -619,8 +619,8 @@ async function runControllerCheck() {
     targetLabel: 'Ecuador',
     trigger: dismissButton,
   });
-  if (!el.radarConfirmTitle.textContent.includes('Ocultar card')) throw new Error(`dismiss confirm title drift: ${el.radarConfirmTitle.textContent}`);
-  for (const expected of ['solo en Ecuador', 'no borra videos', 'transcripciones', '5 días']) {
+  if (!el.radarConfirmTitle.textContent.includes('¿Estás seguro?')) throw new Error(`dismiss confirm title drift: ${el.radarConfirmTitle.textContent}`);
+  for (const expected of ['no volverá a mostrarse en Ecuador', 'No se borra el video', 'transcripción']) {
     if (!el.radarConfirmMessage.textContent.includes(expected)) throw new Error(`dismiss confirm copy missing ${expected}: ${el.radarConfirmMessage.textContent}`);
   }
   await el.radarConfirmAcceptBtn.onclick();

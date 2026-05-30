@@ -314,10 +314,17 @@
   font-size: 10px;
 }
 
+#viewAiRescue #aiRescueQueueDialog,
+#viewAiRescue #aiRescueDetailDialog,
+#viewAiRescue #aiRescueConfirmDialog {
+  width: min(860px, calc(100vw - 48px));
+}
+
 #viewAiRescue #aiRescueQueueDialog article,
 #viewAiRescue #aiRescueDetailDialog article,
 #viewAiRescue #aiRescueConfirmDialog article {
-  width: min(860px, calc(100vw - 48px));
+  width: auto;
+  box-sizing: border-box;
   border: 1px solid #2A2A2A;
   background: #0A0A0A;
 }

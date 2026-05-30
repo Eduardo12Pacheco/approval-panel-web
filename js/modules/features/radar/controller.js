@@ -285,9 +285,9 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
       toast('No pude identificar el contexto del card para ocultarlo.');
       return;
     }
-    if (el.radarConfirmTitle) el.radarConfirmTitle.textContent = 'Ocultar card';
+    if (el.radarConfirmTitle) el.radarConfirmTitle.textContent = '¿Estás seguro?';
     if (el.radarConfirmMessage) {
-      el.radarConfirmMessage.textContent = `Esto oculta el card solo en ${cleanTargetLabel}; no borra videos, transcripciones, menciones ni clasificaciones. Los datos quedan retenidos y el ciclo normal de limpieza sigue siendo de 5 días.`;
+      el.radarConfirmMessage.textContent = `Esta card no volverá a mostrarse en ${cleanTargetLabel}. No se borra el video ni la transcripción.`;
     }
     const restoreFocus = () => trigger?.focus?.();
     state.monitorDismissCancelHandler = () => {

@@ -404,6 +404,11 @@
   width: min(760px, calc(100vw - 48px));
 }
 
+#viewRadar #radarConfirmDialog,
+#viewRadar #radarSummaryDialog {
+  width: min(760px, calc(100vw - 48px));
+}
+
 #viewRadar #radarNewJobDialog article {
   width: auto;
   box-sizing: border-box;
@@ -411,7 +416,8 @@
 
 #viewRadar #radarSummaryDialog article,
 #viewRadar #radarConfirmDialog article {
-  width: min(760px, calc(100vw - 48px));
+  width: auto;
+  box-sizing: border-box;
   border: 1px solid #2A2A2A;
   background: #0A0A0A;
 }

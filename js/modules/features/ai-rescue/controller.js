@@ -111,8 +111,8 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
 
   function confirmCandidateDismiss({ surface = 'ai-rescue-candidate', targetContext = '', videoId = '', candidateId = 0, restoreFocusTo = null } = {}) {
     const contextLabel = humanizeContext(targetContext);
-    if (el.aiRescueConfirmTitle) el.aiRescueConfirmTitle.textContent = 'Ocultar candidato Prensa IA';
-    if (el.aiRescueConfirmMessage) el.aiRescueConfirmMessage.textContent = `Esta acción solo oculta este candidato en ${contextLabel}; no aprueba, rechaza ni borra el candidato, el video, la transcripción ni la evidencia. Radar Ecuador, Colombia e IMPORTANTES siguen usando sus propios contextos. La limpieza normal de 5 días se mantiene.`;
+    if (el.aiRescueConfirmTitle) el.aiRescueConfirmTitle.textContent = '¿Estás seguro?';
+    if (el.aiRescueConfirmMessage) el.aiRescueConfirmMessage.textContent = `Esta card no volverá a mostrarse en ${contextLabel}. No se borra el video ni la transcripción.`;
     const closeAndRestore = () => {
       el.aiRescueConfirmDialog?.close?.();
       restoreFocusTo?.focus?.();

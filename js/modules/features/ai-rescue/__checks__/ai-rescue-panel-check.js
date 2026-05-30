@@ -428,9 +428,10 @@ async function runControllerCheck() {
     focus() { this.focused = true; },
   };
   el.aiRescueList.listeners.get('click')?.({ target: { closest: () => dismissButton } });
-  assertIncludes(el.aiRescueConfirmMessage.textContent, 'solo oculta este candidato en Argentina', 'dismiss confirm copy should explain candidate context isolation');
-  assertIncludes(el.aiRescueConfirmMessage.textContent, 'no aprueba, rechaza ni borra', 'dismiss confirm copy should explain non-destructive AI Rescue behavior');
-  assertIncludes(el.aiRescueConfirmMessage.textContent, 'Radar Ecuador, Colombia e IMPORTANTES', 'dismiss confirm copy should explain monitor-card isolation');
+  assertIncludes(el.aiRescueConfirmTitle.textContent, '¿Estás seguro?', 'dismiss confirm title should stay simple');
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'no volverá a mostrarse en Argentina', 'dismiss confirm copy should explain candidate context isolation');
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'No se borra el video', 'dismiss confirm copy should explain non-destructive behavior');
+  assertIncludes(el.aiRescueConfirmMessage.textContent, 'transcripción', 'dismiss confirm copy should mention transcription retention');
   el.aiRescueConfirmCancelBtn.onclick?.();
   if (calls.some((entry) => entry.type === 'dismissCandidate')) throw new Error(`cancel must not persist candidate dismissal: ${JSON.stringify(calls)}`);
   assertEqual(dismissButton.focused, true, 'cancel should restore focus to candidate dismiss button');
