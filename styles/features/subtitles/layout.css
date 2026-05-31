@@ -261,14 +261,15 @@
   margin-top: 0;
   padding: 14px 24px 16px;
   border-top: 1px solid #262626;
-  justify-content: flex-start;
+  justify-content: flex-end;
   background: #0A0A0A;
 }
 
 #viewSubtitulos2 .subtitle-autosave-status {
   color: var(--subtitle2-muted);
   font-size: 12px;
-  margin-left: 8px;
+  margin-right: auto;
+  order: -1;
 }
 
 #viewSubtitulos2 .subtitle-phase-section--centered {
