@@ -29,6 +29,7 @@
   min-width: 0;
   box-sizing: border-box;
   gap: 14px;
+  margin-top: 16px;
   padding: 18px 24px 20px;
   border: 1px solid #262626;
   background: #0A0A0A;
@@ -43,6 +44,6 @@
   margin-top: 0;
   padding: 14px 0 0;
   border-top: 1px solid #262626;
-  justify-content: flex-start;
+  justify-content: flex-end;
   background: transparent;
 }
