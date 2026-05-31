@@ -454,8 +454,9 @@
   width: 122px;
 }
 
+.subtitle-table__col--insert,
 .subtitle-table__col--delete {
-  width: 58px;
+  width: 42px;
 }
 
 .subtitle-table--remote thead th {

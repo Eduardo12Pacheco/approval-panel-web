@@ -1,10 +1,22 @@
 export function buildSubtitleControllerContext({ state, el, api, ui, helpers, customDropdowns, browser = globalThis, renderCallbacks = {} }) {
   const URLImpl = browser.URL || globalThis.URL;
   const windowRef = browser.window || globalThis;
-  const timeoutHost = browser.setTimeout ? browser : globalThis;
-  const intervalHost = browser.setInterval ? browser : globalThis;
-  const clearTimeoutHost = browser.clearTimeout ? browser : globalThis;
-  const clearIntervalHost = browser.clearInterval ? browser : globalThis;
+  const createTimerInvoker = (methodName) => {
+    const fn = browser?.[methodName] || globalThis[methodName];
+    const fallbackFn = globalThis[methodName];
+    return (...args) => {
+      try {
+        return fn.call(browser?.[methodName] ? browser : globalThis, ...args);
+      } catch (error) {
+        if (!(error instanceof TypeError) || typeof fallbackFn !== 'function') throw error;
+        return fallbackFn.call(globalThis, ...args);
+      }
+    };
+  };
+  const setTimeoutImpl = createTimerInvoker('setTimeout');
+  const setIntervalImpl = createTimerInvoker('setInterval');
+  const clearTimeoutImpl = createTimerInvoker('clearTimeout');
+  const clearIntervalImpl = createTimerInvoker('clearInterval');
 
   return {
     state,
@@ -15,10 +27,10 @@ export function buildSubtitleControllerContext({ state, el, api, ui, helpers, cu
     customDropdowns,
     browser,
     timers: {
-      setTimeout: (...args) => timeoutHost.setTimeout(...args),
-      setInterval: (...args) => intervalHost.setInterval(...args),
-      clearTimeout: (...args) => clearTimeoutHost.clearTimeout(...args),
-      clearInterval: (...args) => clearIntervalHost.clearInterval(...args),
+      setTimeout: setTimeoutImpl,
+      setInterval: setIntervalImpl,
+      clearTimeout: clearTimeoutImpl,
+      clearInterval: clearIntervalImpl,
     },
     URLImpl,
     windowRef,

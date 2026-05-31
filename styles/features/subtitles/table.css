@@ -65,7 +65,7 @@
   color: #9DB8FF;
 }
 
-#viewSubtitulos2 .subtitle-table--remote thead th:not(:nth-child(7)):not(:nth-child(8)) .subtitle-table__hint {
+#viewSubtitulos2 .subtitle-table--remote thead th:not(:nth-child(7)):not(:nth-child(8)):not(:nth-child(9)) .subtitle-table__hint {
   display: none;
 }
 
@@ -239,22 +239,22 @@
   color: #00E88F;
 }
 
-#viewSubtitulos2 .subtitle-row-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
 #viewSubtitulos2 .subtitle-row-delete,
 #viewSubtitulos2 .subtitle-row-insert {
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
   padding: 0;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 1;
+}
+
+#viewSubtitulos2 .subtitle-table__cell--insert,
+#viewSubtitulos2 .subtitle-table__cell--delete {
+  padding-inline: 4px;
+  text-align: center;
 }
 
 #viewSubtitulos2 .subtitle-row-delete {
@@ -269,7 +269,8 @@
   color: #00E88F;
 }
 
-#viewSubtitulos2 .subtitle-row-delete:disabled {
+#viewSubtitulos2 .subtitle-row-delete:disabled,
+#viewSubtitulos2 .subtitle-row-insert:disabled {
   border-color: #2A2A2A;
   background: transparent;
   color: #4B4F55;

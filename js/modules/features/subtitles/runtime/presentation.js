@@ -71,6 +71,7 @@ export function buildSubtitleTableRowMarkupRuntime({
   const isDraft = Boolean(row?.isDraft);
   const isActive = !isDraft && row?.id && row.id === activeRowId;
   const isLastTimedRow = index === lastNonDraftRowIndex;
+  const canInsertAfter = !isDraft && !isLastTimedRow;
   const rowClassName = [isDraft ? 'subtitle-row--draft' : '', isActive ? 'subtitle-row--active' : ''].filter(Boolean).join(' ');
   const escapedRowId = escape(row?.id || '');
   return `
@@ -112,12 +113,8 @@ export function buildSubtitleTableRowMarkupRuntime({
             <button type="button" data-row-id="${escapedRowId}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
           </div>
         </td>
-        <td>
-          <div class="subtitle-row-actions">
-            <button type="button" class="subtitle-row-insert" data-action="insert-subtitle-row" data-row-id="${escapedRowId}" aria-label="Insertar subtítulo después de esta frase" title="Insertar subtítulo después">+</button>
-            <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
-          </div>
-        </td>
+        <td class="subtitle-table__cell--insert"><button type="button" class="subtitle-row-insert" data-action="insert-subtitle-row" data-row-id="${escapedRowId}" aria-label="Insertar subtítulo después de esta frase" title="Insertar subtítulo después" ${canInsertAfter ? '' : 'disabled'}>+</button></td>
+        <td class="subtitle-table__cell--delete"><button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button></td>
       </tr>
     `;
 }

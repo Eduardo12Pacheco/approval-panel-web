@@ -103,9 +103,10 @@ export const subtitlesViewHTML = `\
                          <col class="subtitle-table__col subtitle-table__col--size" />
                          <col class="subtitle-table__col subtitle-table__col--space" />
                           <col class="subtitle-table__col subtitle-table__col--font" />
-                          <col class="subtitle-table__col subtitle-table__col--color" />
-                          <col class="subtitle-table__col subtitle-table__col--align" />
-                          <col class="subtitle-table__col subtitle-table__col--delete" />
+                           <col class="subtitle-table__col subtitle-table__col--color" />
+                           <col class="subtitle-table__col subtitle-table__col--align" />
+                           <col class="subtitle-table__col subtitle-table__col--insert" />
+                           <col class="subtitle-table__col subtitle-table__col--delete" />
                        </colgroup>
                        <thead>
                          <tr>
@@ -114,9 +115,10 @@ export const subtitlesViewHTML = `\
                            <th><span class="subtitle-table__title">Tama\u00f1o</span><span class="subtitle-table__hint">escala cue</span></th>
                            <th><span class="subtitle-table__title">Ancho m\u00e1x</span><span class="subtitle-table__hint">espacio</span></th>
                            <th><span class="subtitle-table__title">Fuente</span><span class="subtitle-table__hint">familia</span></th>
-                            <th><span class="subtitle-table__title">Color</span><span class="subtitle-table__hint">cue</span></th>
-                            <th><span class="subtitle-table__title">Alineaci\u00f3n</span><span class="subtitle-table__hint">I \u00b7 C \u00b7 D</span></th>
-                            <th aria-label="Eliminar"></th>
+                             <th><span class="subtitle-table__title">Color</span><span class="subtitle-table__hint">cue</span></th>
+                             <th><span class="subtitle-table__title">Alineaci\u00f3n</span><span class="subtitle-table__hint">I \u00b7 C \u00b7 D</span></th>
+                             <th aria-label="Insertar"><span class="subtitle-table__title">+</span><span class="subtitle-table__hint">insertar</span></th>
+                             <th aria-label="Eliminar"></th>
                           </tr>
                        </thead>
                        <tbody id="subtitle2RowsBody"></tbody>

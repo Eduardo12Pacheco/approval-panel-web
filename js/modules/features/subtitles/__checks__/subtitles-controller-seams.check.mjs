@@ -171,6 +171,36 @@ test('subtitles controller context centralizes browser adapters and render callb
   assert.equal(ctx.renderCallbacks.renderTable(), 'table-rendered');
 });
 
+test('subtitles controller context safely invokes unbound host timers', () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  try {
+    globalThis.setTimeout = function setTimeoutCheck() {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      return 'global-timeout-id';
+    };
+    globalThis.clearTimeout = function clearTimeoutCheck() {
+      if (this !== globalThis) throw new TypeError('Illegal invocation');
+      return 'global-timeout-cleared';
+    };
+    const browser = {
+      URL: { createObjectURL: () => 'blob:ctx', revokeObjectURL() {} },
+      window: { addEventListener() {}, removeEventListener() {} },
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout,
+      clearInterval() {},
+    };
+
+    const ctx = buildSubtitleControllerContext({ ...createMinimalDependencies(), browser });
+
+    assert.equal(ctx.timers.setTimeout(() => {}, 1), 'global-timeout-id');
+    assert.equal(ctx.timers.clearTimeout('global-timeout-id'), 'global-timeout-cleared');
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});
+
 test('root subtitles controller uses the shared context wiring seam', async () => {
   const controllerSource = await readModule('features/subtitles/controller.js');
 
@@ -641,6 +671,30 @@ test('subtitles table markup supports extended size presets, compact dropdown, a
   assert.match(markup, /aria-label="Insertar subtítulo después de esta frase"/);
   assert.match(markup, /data-action="step-subtitle-number"/);
   assert.match(markup, /aria-label="Subir ancho máximo"/);
+});
+
+test('subtitles table markup separates insert and delete actions and disables insert at non-insertable rows', () => {
+  const markup = buildSubtitlesTableRowsMarkupRuntime({
+    rows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', size: '110', maxWidthPx: 1080, fontFamily: 'Khand', color: '#FFFFFF', align: 'center' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', size: '110', maxWidthPx: 1080, fontFamily: 'Khand', color: '#FFFFFF', align: 'center' },
+      { id: 'draft-1', start: '', end: '', phrase: '', isDraft: true, size: '110', maxWidthPx: 1080, fontFamily: 'Khand', color: '#FFFFFF', align: 'center' },
+    ],
+    lastNonDraftRowIndex: 1,
+    escapeHtml(value) { return (value ?? '').toString(); },
+    formatDisplayTime(value) { return value; },
+    getAlignmentButtonState: () => ({
+      left: { className: '', selected: false },
+      center: { className: 'selected-green', selected: true },
+      right: { className: '', selected: false },
+    }),
+    resolveFontWeight: () => 'Bold',
+  });
+
+  assert.match(markup, /<td class="subtitle-table__cell--insert"><button[^>]+data-row-id="row-1"[^>]*>\+<\/button><\/td>\s*<td class="subtitle-table__cell--delete">/);
+  assert.doesNotMatch(markup, /data-row-id="row-1"[^>]+disabled[^>]*>\+<\/button>/);
+  assert.match(markup, /data-row-id="row-2"[^>]+disabled[^>]*>\+<\/button>/);
+  assert.match(markup, /data-row-id="draft-1"[^>]+disabled[^>]*>\+<\/button>/);
 });
 
 test('session seam preserves polling cadence, hydration, terminal cleanup, and stale guards', async () => {

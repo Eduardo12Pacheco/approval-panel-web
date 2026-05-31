@@ -192,9 +192,11 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert 'id="subtitle2PreviewPlayBtn"' in index_html
     assert 'id="subtitle2PreviewEmpty"' in index_html
     assert 'subtitle-table__col--time-range' in index_html
+    assert 'subtitle-table__col--insert' in index_html
     assert 'subtitle-table__col--delete' in index_html
     assert 'id="subtitle2PreviewVideo" playsinline preload="auto"' in index_html
     assert 'Start / End' in index_html
+    assert '<th aria-label="Insertar"><span class="subtitle-table__title">+</span><span class="subtitle-table__hint">insertar</span></th>' in index_html
     assert '<th aria-label="Eliminar"></th>' in index_html
     assert '<span class="subtitle-table__title">Eliminar</span>' not in index_html
     assert 'Agregar subt' in index_html
@@ -213,6 +215,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-time-nudge',
         '.subtitle-time-range__line',
         '.subtitle-align-group--compact',
+        '.subtitle-table__cell--insert',
+        '.subtitle-table__cell--delete',
         'button.selected-green',
         '.subtitle-history-item--editing',
         '.subtitle-history-item--done',
@@ -220,6 +224,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         '.subtitle-history-item__resume',
         '.subtitle-history-item__delete',
         '.subtitle-row-delete',
+        '.subtitle-row-insert',
         '.subtitle-row--draft',
         '.is-drop-before',
         '.is-dragging',

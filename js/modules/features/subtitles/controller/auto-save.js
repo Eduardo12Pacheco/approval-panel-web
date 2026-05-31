@@ -81,8 +81,7 @@ export function createSubtitleAutoSaveController(ctx, callbacks = {}) {
   function activate() {
     if (activated) return;
     activated = true;
-    const intervalHost = browser?.setInterval ? browser : globalThis;
-    intervalTimer = intervalHost.setInterval(() => {
+    intervalTimer = timers.setInterval(() => {
       void flush('interval');
     }, SUBTITLE_AUTOSAVE_INTERVAL_MS);
     const documentRef = browser?.document || globalThis.document;
