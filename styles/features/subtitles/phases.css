@@ -39,6 +39,11 @@
   margin: 4px 0 6px;
 }
 
+#viewSubtitulos2 .subtitle-render-card #subtitle2DoneMessage {
+  font-size: 15px;
+  line-height: 1.55;
+}
+
 #viewSubtitulos2 .subtitle-render-card .subtitle-finish-actions {
   display: flex;
   align-items: center;

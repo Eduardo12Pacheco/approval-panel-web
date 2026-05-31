@@ -199,7 +199,7 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
     assert '<th aria-label="Insertar"><span class="subtitle-table__title">+</span><span class="subtitle-table__hint">insertar</span></th>' in index_html
     assert '<th aria-label="Eliminar"></th>' in index_html
     assert '<span class="subtitle-table__title">Eliminar</span>' not in index_html
-    assert 'Agregar subt' in index_html
+    assert 'Agregar subt' not in index_html
     assert 'subtitle-table__title' in index_html
     assert 'subtitle-table__hint' in index_html
     assert 'subtitle-row-actions subtitle-row-actions--tight' not in app_shell
@@ -330,7 +330,6 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         "subtitle2PreviewPlayhead",
         "subtitle2PreviewTimecode",
         "subtitle2RowsBody",
-        "subtitle2AddRowBtn",
         "subtitle2SaveBtn",
         "subtitle2ReadyBtn",
         "subtitle2DownloadBtn",
@@ -410,6 +409,9 @@ def test_subtitle2_visual_redesign_recomposes_upload_and_editing_slides_without_
         '#viewSubtitulos2 .subtitle-render-card .subtitle-finish-actions',
         'display: flex;',
         'border-bottom: 1px solid #262626;',
+        '#viewSubtitulos2 .subtitle-render-card #subtitle2DoneMessage',
+        'font-size: 15px;',
+        'line-height: 1.55;',
         'justify-content: flex-end;',
         '#viewSubtitulos2 #subtitle2PhaseEdition .audio-actions',
         'justify-content: flex-end;',

@@ -126,7 +126,6 @@ export const subtitlesViewHTML = `\
                   </div>
 
                   <div class="audio-actions">
-                    <button id="subtitle2AddRowBtn" class="secondary">Agregar subt\u00edtulo</button>
                     <button id="subtitle2SaveBtn" class="secondary">Guardar cambios</button>
                     <span id="subtitle2AutosaveStatus" class="subtitle-autosave-status" aria-live="polite"></span>
                   </div>
