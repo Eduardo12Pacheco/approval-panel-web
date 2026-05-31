@@ -239,18 +239,34 @@
   color: #00E88F;
 }
 
-#viewSubtitulos2 .subtitle-row-delete {
+#viewSubtitulos2 .subtitle-row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+#viewSubtitulos2 .subtitle-row-delete,
+#viewSubtitulos2 .subtitle-row-insert {
   width: 34px;
   min-width: 34px;
   min-height: 34px;
   padding: 0;
-  border: 1px solid rgba(255, 88, 102, 0.36);
-  background: rgba(255, 88, 102, 0.06);
-  color: #FF5A66;
   font-family: 'JetBrains Mono', monospace;
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
+}
+
+#viewSubtitulos2 .subtitle-row-delete {
+  border: 1px solid rgba(255, 88, 102, 0.36);
+  background: rgba(255, 88, 102, 0.06);
+  color: #FF5A66;
+}
+
+#viewSubtitulos2 .subtitle-row-insert {
+  border: 1px solid rgba(0, 232, 143, 0.36);
+  background: rgba(0, 232, 143, 0.06);
+  color: #00E88F;
 }
 
 #viewSubtitulos2 .subtitle-row-delete:disabled {

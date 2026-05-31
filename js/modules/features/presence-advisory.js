@@ -6,13 +6,17 @@ function normalizeMode(value = '') {
   return normalizeText(value).toLowerCase() === 'editing' ? 'editing' : 'viewing';
 }
 
+function resolveCurrentSessionId(currentSessionId = '') {
+  return normalizeText(currentSessionId || globalThis.__CONTROL_PANEL_SESSION__?.session_id);
+}
+
 export function resolvePresenceAdvisory({ snapshot = {}, resource = {}, currentSessionId = '' } = {}) {
   const area = normalizeText(resource.area);
   const resourceType = normalizeText(resource.resource_type);
   const resourceId = normalizeText(resource.resource_id);
   if (!area || !resourceType || !resourceId) return null;
 
-  const currentSession = normalizeText(currentSessionId);
+  const currentSession = resolveCurrentSessionId(currentSessionId);
   const matches = (Array.isArray(snapshot?.sessions) ? snapshot.sessions : []).filter((session) => {
     if (currentSession && normalizeText(session?.session_id) === currentSession) return false;
     return normalizeText(session?.area) === area

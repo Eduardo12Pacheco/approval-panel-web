@@ -150,15 +150,17 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
       throw new Error('Ubicá el subtítulo fantasma antes de guardar');
     }
     ensureRowsCoverDuration();
-    const layoutLinesByRowId = await capturePreviewLayoutLines(state.subtitles2.rows);
+    const changeVersionAtSave = Number(state.subtitles2.changeVersion || 0);
+    const rowsForSave = state.subtitles2.rows.map((row) => ({ ...row }));
+    const layoutLinesByRowId = await capturePreviewLayoutLines(rowsForSave);
     const response = await ttsApi.updateSubtitleSegments(state.subtitles2.sessionId, {
       base_version: state.subtitles2.snapshotVersion,
       save_mode: saveMode,
-      segments: state.subtitles2.rows.map((row) => buildSegmentPayload(row, layoutLinesByRowId.get(row.id) || [])),
+      segments: rowsForSave.map((row) => buildSegmentPayload(row, layoutLinesByRowId.get(row.id) || [])),
     });
     state.subtitles2.snapshotVersion = Number(response?.version || 0);
-    state.subtitles2.savedVersion = Math.max(state.subtitles2.savedVersion, state.subtitles2.changeVersion);
-    state.subtitles2.dirty = false;
+    state.subtitles2.savedVersion = Math.max(state.subtitles2.savedVersion, changeVersionAtSave);
+    state.subtitles2.dirty = Number(state.subtitles2.changeVersion || 0) > Number(state.subtitles2.savedVersion || 0);
     await refreshRemoteStatus();
     return response;
   }

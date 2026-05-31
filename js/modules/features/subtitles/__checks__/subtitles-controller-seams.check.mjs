@@ -9,6 +9,7 @@ import { createSubtitleRenderCommands } from '../controller/render-commands.js';
 import { createSubtitleSessionController } from '../controller/session.js';
 import { createSubtitleTableEditor } from '../controller/table-editor.js';
 import { createSubtitleWorkflowRenderer } from '../controller/render-workflow.js';
+import { createSubtitleAutoSaveController } from '../controller/auto-save.js';
 import { createSubtitlesController } from '../controller.js';
 import { createSubtitlesFeature } from '../index.js';
 import { buildSubtitlesTableRowsMarkupRuntime } from '../runtime/presentation.js';
@@ -47,6 +48,8 @@ const EXPECTED_CONTROLLER_API = [
   'onPreviewTimelineDragStart',
   'renameHistorySession',
   'deleteHistorySession',
+  'reportSubtitlePresence',
+  'getSubtitlePresenceWarning',
   'activate',
 ];
 
@@ -55,6 +58,8 @@ const EXPECTED_SUPPORT_MODULES = [
   ['features/subtitles/controller/session.js', 'createSubtitleSessionController'],
   ['features/subtitles/controller/render-workflow.js', 'createSubtitleWorkflowRenderer'],
   ['features/subtitles/controller/table-editor.js', 'createSubtitleTableEditor'],
+  ['features/subtitles/controller/undo-history.js', 'createSubtitleUndoHistory'],
+  ['features/subtitles/controller/auto-save.js', 'createSubtitleAutoSaveController'],
   ['features/subtitles/controller/preview-player.js', 'createSubtitlePreviewPlayer'],
   ['features/subtitles/controller/render-commands.js', 'createSubtitleRenderCommands'],
 ];
@@ -421,10 +426,10 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
   });
 
   editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
-  timers[0].callback();
-  timers[1].callback();
+  timers.find((timer) => timer.ms === 320).callback();
+  timers.filter((timer) => timer.ms === 75).at(-1).callback();
   windowListeners.get('pointerup')();
-  timers[2].callback();
+  timers.filter((timer) => timer.ms === 75).at(-1).callback();
 
   assert.equal(input.value, '1110');
   assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1110);
@@ -481,17 +486,133 @@ test('table editor seam preserves row patching, timing validation, and draft pla
   editor.onTableInput({ target: { dataset: { rowId: 'row-2', field: 'phrase' }, value: 'dos editado' } });
   editor.applyTimingInput('row-2', 'start', '00:00.50');
   editor.placeDraftBetweenRows('draft-1', 2);
+  editor.onTableClick({ target: { dataset: { rowId: 'row-3' }, closest(selector) { return selector === 'button[data-action="insert-subtitle-row"]' ? this : null; } } });
 
   assert.equal(ctx.state.subtitles2.rows.find((row) => row.id === 'row-2').phrase, 'dos editado');
   assert.equal(ctx.state.subtitles2.rows.find((row) => row.id === 'row-2').start, '00:01.06');
   assert.equal(ctx.state.subtitles2.rows.find((row) => row.id === 'draft-1').isDraft, false);
-  assert.deepEqual(ctx.state.subtitles2.rows.map((row) => row.id), ['row-1', 'row-2', 'draft-1', 'row-3', 'row-4']);
+  assert.deepEqual(ctx.state.subtitles2.rows.map((row) => row.id).map((id) => id.startsWith('insert-') ? 'inserted' : id), ['row-1', 'row-2', 'draft-1', 'row-3', 'inserted', 'row-4']);
   assert.equal(ctx.state.subtitles2.rows.find((row) => row.id === 'row-3').start, '00:04.12');
+  assert.equal(ctx.state.subtitles2.rows.find((row) => row.id === 'row-4').start, '00:06.12');
   assert.deepEqual(toasts, ['START inválido: debe ser END anterior + gap.']);
   assert.equal(ctx.state.subtitles2.dirty, true);
   assert.ok(ctx.state.subtitles2.changeVersion >= 2);
   assert.ok(renderCalls.includes('overlay'));
   assert.ok(renderCalls.includes('workflow'));
+});
+
+test('table editor undo restores previous subtitle rows and coalesces phrase typing', () => {
+  const timers = [];
+  const cleared = [];
+  const renderCalls = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [{ id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 }],
+        changeVersion: 0,
+        savedVersion: 0,
+        dirty: false,
+      },
+    },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: { addEventListener() {}, removeEventListener() {} },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      clearTimeout(id) { cleared.push(id); },
+      clearInterval() {},
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => renderCalls.push('workflow'),
+    renderTable: () => renderCalls.push('table'),
+    renderPreviewOverlay: () => renderCalls.push('overlay'),
+    updateButtonsByPhase: () => renderCalls.push('buttons'),
+  });
+
+  editor.onTableInput({ target: { dataset: { rowId: 'row-1', field: 'phrase' }, value: 'uno dos' } });
+  editor.onTableInput({ target: { dataset: { rowId: 'row-1', field: 'phrase' }, value: 'uno dos tres' } });
+  editor.patchRow('row-1', { maxWidthPx: 900 });
+
+  assert.equal(ctx.state.subtitles2.undoStack.length, 2);
+  assert.equal(editor.undoLastRowsChange(), true);
+  assert.equal(ctx.state.subtitles2.rows[0].phrase, 'uno dos tres');
+  assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1080);
+  assert.equal(editor.undoLastRowsChange(), true);
+  assert.equal(ctx.state.subtitles2.rows[0].phrase, 'uno');
+  assert.equal(ctx.state.subtitles2.dirty, true);
+  assert.ok(renderCalls.includes('workflow'));
+  assert.ok(cleared.includes('timer-1'));
+});
+
+test('subtitle auto-save debounces dirty valid sessions and skips overlapping saves', async () => {
+  const timers = [];
+  const intervals = [];
+  const clearedIntervals = [];
+  const calls = [];
+  let releaseSave;
+  const pendingSave = new Promise((resolve) => { releaseSave = resolve; });
+  const autosaveStatus = { textContent: '' };
+  const windowListeners = new Map();
+  const documentListeners = new Map();
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        sessionId: 'session-1',
+        snapshotVersion: 2,
+        dirty: true,
+        autoSaveStatus: '',
+      },
+    },
+    el: { subtitle2AutosaveStatus: autosaveStatus },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      document: {
+        visibilityState: 'visible',
+        addEventListener(name, callback) { documentListeners.set(name, callback); },
+        removeEventListener(name) { documentListeners.delete(name); },
+      },
+      window: {
+        addEventListener(name, callback) { windowListeners.set(name, callback); },
+        removeEventListener(name) { windowListeners.delete(name); },
+      },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      setInterval(callback, ms) { intervals.push({ callback, ms }); return `interval-${intervals.length}`; },
+      clearTimeout() {},
+      clearInterval(id) { clearedIntervals.push(id); },
+    },
+  });
+  const autosave = createSubtitleAutoSaveController(ctx, {
+    hasDraftRows: () => false,
+    reportPresence: async () => calls.push('presence'),
+    enqueueSave: async (mode) => {
+      calls.push(`save:${mode}`);
+      await pendingSave;
+      ctx.state.subtitles2.dirty = false;
+    },
+    updateButtonsByPhase: () => calls.push('buttons'),
+  });
+
+  autosave.activate();
+  autosave.requestAutoSave();
+  assert.equal(timers[0].ms, 2500);
+  const firstFlush = timers[0].callback();
+  const overlapFlush = autosave.flush('interval');
+  assert.equal(ctx.state.subtitles2.autoSaveStatus, 'Autoguardado pendiente');
+  releaseSave();
+  await firstFlush;
+  await overlapFlush;
+  autosave.deactivate();
+
+  assert.deepEqual(calls.filter((call) => call.startsWith('save:')), ['save:auto']);
+  assert.ok(calls.includes('presence'));
+  assert.ok(calls.includes('buttons'));
+  assert.equal(autosaveStatus.textContent.startsWith('Guardado automáticamente'), true);
+  assert.equal(intervals[0].ms, 15000);
+  assert.ok(clearedIntervals.includes('interval-1'));
+  assert.equal(documentListeners.has('visibilitychange'), false);
+  assert.equal(windowListeners.has('pagehide'), false);
 });
 
 test('subtitles table markup supports extended size presets, compact dropdown, active row, and hold stepper controls', () => {
@@ -516,6 +637,8 @@ test('subtitles table markup supports extended size presets, compact dropdown, a
   assert.match(markup, /<option value="200" selected>200<\/option>/);
   assert.match(markup, /class="subtitle-row--active"/);
   assert.match(markup, /class="subtitle-size-select" data-custom-dropdown/);
+  assert.match(markup, /data-action="insert-subtitle-row"/);
+  assert.match(markup, /aria-label="Insertar subtítulo después de esta frase"/);
   assert.match(markup, /data-action="step-subtitle-number"/);
   assert.match(markup, /aria-label="Subir ancho máximo"/);
 });
@@ -635,7 +758,22 @@ test('render commands seam preserves save payload, render polling handoff, and d
     end_ms: 1000,
     source_text: 'hola',
     translated_text: 'hello',
-    style: { font_size: 110, font_family: 'Khand', font_weight: 'Bold', color: '#FFFFFF', align: 'center', max_width_px: 1080 },
+    style: {
+      font_size: 110,
+      font_family: 'Khand',
+      font_weight: 'Bold',
+      color: '#FFFFFF',
+      align: 'center',
+      max_width_px: 1080,
+      text_transform: 'uppercase',
+      text_align: 'center',
+      line_height: 1.02,
+      padding_x_px: 22,
+      padding_y_px: 14,
+      stripe_enabled: true,
+      stripe_thickness_px: 3,
+      text_shadow: 'none',
+    },
   });
   assert.equal(calls.some((call) => call.type === 'phase' && call.phase === 'Procesando video'), false);
   assert.ok(calls.some((call) => call.type === 'poll-render' && call.sessionId === 'session-123'));

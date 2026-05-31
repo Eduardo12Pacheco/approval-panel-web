@@ -260,6 +260,12 @@
   background: #0A0A0A;
 }
 
+#viewSubtitulos2 .subtitle-autosave-status {
+  color: var(--subtitle2-muted);
+  font-size: 12px;
+  margin-left: 8px;
+}
+
 #viewSubtitulos2 .subtitle-phase-section--centered {
   min-height: min(610px, calc(100vh - 340px));
 }

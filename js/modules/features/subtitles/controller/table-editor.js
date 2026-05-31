@@ -10,6 +10,7 @@ import {
   resolveSubtitlePreviewDurationMsRuntime,
   validateSubtitleTimingPatchRuntime,
 } from '../runtime/index.js';
+import { createSubtitleUndoHistory } from './undo-history.js';
 
 // Cohesive exception: row patching, timing validation, and draft drag/drop stay
 // together so each edit path shares the same row identity and dirty-state rules.
@@ -27,16 +28,25 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   const renderTable = callbacks.renderTable || (() => ctx.renderCallbacks.renderTable?.());
   const renderPreviewOverlay = callbacks.renderPreviewOverlay || (() => ctx.renderCallbacks.renderPreviewOverlay?.());
   const updateButtonsByPhase = callbacks.updateButtonsByPhase || (() => ctx.renderCallbacks.updateButtonsByPhase?.());
+  const onRowsChanged = callbacks.onRowsChanged || (() => {});
   const resolvePreviewDurationMs = callbacks.resolvePreviewDurationMs || (() => resolveSubtitlePreviewDurationMsRuntime({
     audioDurationMs: state.subtitles2.audioDurationMs,
     rows: state.subtitles2.rows,
   }));
+  const undoHistory = createSubtitleUndoHistory(ctx, {
+    renderWorkflow,
+    renderPreviewOverlay,
+    updateButtonsByPhase,
+    onRowsChanged,
+  });
 
   function patchRow(rowId, patch, options = {}) {
     const rerender = options.rerender !== false;
+    if (options.captureUndo !== false) undoHistory.captureRowsSnapshot({ coalesceKey: options.coalesceKey || '' });
     state.subtitles2.rows = state.subtitles2.rows.map((row) => (row.id === rowId ? applySubtitleRowPatch(row, patch) : row));
     state.subtitles2.changeVersion += 1;
     state.subtitles2.dirty = true;
+    onRowsChanged();
     if (rerender) renderTable();
     renderPreviewOverlay();
     updateButtonsByPhase();
@@ -57,7 +67,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       return;
     }
     if (target.dataset.field === 'phrase') {
-      patchRow(rowId, { phrase: target.value }, { rerender: false });
+      patchRow(rowId, { phrase: target.value }, { rerender: false, coalesceKey: `phrase:${rowId}` });
       return;
     }
     if (target.dataset.field === 'maxWidthPx') {
@@ -88,16 +98,22 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
     const row = state.subtitles2.rows[index];
     if (!row) return;
+    undoHistory.captureRowsSnapshot();
     if (field === 'start') {
-      patchRow(rowId, { start: formatSubtitleDisplayTimeRuntime(valueMs) });
+      patchRow(rowId, { start: formatSubtitleDisplayTimeRuntime(valueMs) }, { captureUndo: false });
       return;
     }
-    patchRow(rowId, { end: formatSubtitleDisplayTimeRuntime(valueMs) });
+    patchRow(rowId, { end: formatSubtitleDisplayTimeRuntime(valueMs) }, { captureUndo: false });
     const nextRow = state.subtitles2.rows[index + 1];
-    if (nextRow) patchRow(nextRow.id, { start: formatSubtitleDisplayTimeRuntime(valueMs + SUBTITLE_TIMING_GAP_MS) });
+    if (nextRow) patchRow(nextRow.id, { start: formatSubtitleDisplayTimeRuntime(valueMs + SUBTITLE_TIMING_GAP_MS) }, { captureUndo: false });
   }
 
   function onTableClick(ev) {
+    const insertButton = closestFromEventTarget(ev.target, 'button[data-action="insert-subtitle-row"]');
+    if (insertButton) {
+      insertSubtitleNearRow(insertButton.dataset.rowId);
+      return;
+    }
     const nudgeButton = closestFromEventTarget(ev.target, 'button[data-action="nudge-subtitle-time"]');
     if (nudgeButton) {
       nudgeTimingBoundary(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
@@ -220,7 +236,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const base = Number.isFinite(current) ? current : Number(row.maxWidthPx || 1080);
     const next = Math.max(min, Math.round(base + (direction === 'down' ? -step : step)));
     if (input) input.value = String(next);
-    patchRow(rowId, { [field]: next }, { rerender: false });
+    patchRow(rowId, { [field]: next }, { rerender: false, coalesceKey: `${field}:${rowId}` });
   }
 
   function findRowInput(rowId, field) {
@@ -255,6 +271,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
         toast('No hay margen suficiente para mover el START');
         return;
       }
+      undoHistory.captureRowsSnapshot({ coalesceKey: `timing:${field}:${rowId}` });
       state.subtitles2.rows = state.subtitles2.rows.map((item, itemIndex) => {
         if (itemIndex === index - 1) return applySubtitleRowPatch(item, { end: formatSubtitleDisplayTimeRuntime(previousEndMs) });
         if (itemIndex === index) return applySubtitleRowPatch(item, { start: formatSubtitleDisplayTimeRuntime(nextStartMs) });
@@ -276,6 +293,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       toast('No hay margen suficiente para mover el END');
       return;
     }
+    undoHistory.captureRowsSnapshot({ coalesceKey: `timing:${field}:${rowId}` });
     state.subtitles2.rows = state.subtitles2.rows.map((item, itemIndex) => {
       if (itemIndex === index) return applySubtitleRowPatch(item, { end: formatSubtitleDisplayTimeRuntime(nextEndBoundaryMs) });
       if (next && itemIndex === index + 1) return applySubtitleRowPatch(item, { start: formatSubtitleDisplayTimeRuntime(nextStartMs) });
@@ -295,6 +313,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     }
     const deletedRow = state.subtitles2.rows[index];
     if (deletedRow?.isDraft) {
+      undoHistory.captureRowsSnapshot();
       state.subtitles2.rows = state.subtitles2.rows.filter((row) => row.id !== rowId);
       markRowsChanged();
       renderWorkflow();
@@ -306,6 +325,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       ...previousRow,
       end: deletedRow.end,
     };
+    undoHistory.captureRowsSnapshot();
     state.subtitles2.rows = nextRows;
     markRowsChanged();
     renderWorkflow();
@@ -323,6 +343,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       phrase: '',
       isDraft: true,
     });
+    undoHistory.captureRowsSnapshot();
     state.subtitles2.rows = [...state.subtitles2.rows, row];
     markRowsChanged();
     renderWorkflow();
@@ -387,9 +408,46 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   function placeDraftBetweenRows(draftId, targetIndex) {
     const rows = state.subtitles2.rows;
     const draft = rows.find((row) => row.id === draftId && row.isDraft);
+    if (!draft) return;
+    const placedDraft = { ...draft, isDraft: false };
+    if (placeSubtitleBetweenRows(placedDraft, targetIndex, { renderOnNoSpace: true })) {
+      state.subtitles2.draggingDraftRowId = null;
+    }
+  }
+
+  function insertSubtitleNearRow(rowId) {
+    const rows = state.subtitles2.rows;
+    const rowIndex = rows.findIndex((row) => row.id === rowId);
+    const row = rows[rowIndex];
+    if (!row || row.isDraft) return;
+    const lastNonDraftIndex = getLastNonDraftRowIndex();
+    const targetIndex = rowIndex + 1;
+    if (targetIndex <= 0 || targetIndex > lastNonDraftIndex) {
+      toast('No hay espacio suficiente para insertar el subtítulo');
+      return;
+    }
+    const existingDraft = rows.find((item) => item.isDraft);
+    const insertedRow = existingDraft || createInsertedSubtitleRow();
+    placeSubtitleBetweenRows(insertedRow, targetIndex);
+  }
+
+  function createInsertedSubtitleRow() {
+    const counter = Number(state.subtitles2.insertRowCounter || 0) + 1;
+    state.subtitles2.insertRowCounter = counter;
+    return createEmptySubtitleRow({
+      id: `insert-${Date.now()}-${counter}`,
+      start: '',
+      end: '',
+      phrase: '',
+      isDraft: false,
+    });
+  }
+
+  function placeSubtitleBetweenRows(rowToPlace, targetIndex, options = {}) {
+    const rows = state.subtitles2.rows;
     const previous = rows[targetIndex - 1];
     const next = rows[targetIndex];
-    if (!draft || !previous || !next || previous.isDraft || next.isDraft) return;
+    if (!rowToPlace || !previous || !next || previous.isDraft || next.isDraft) return false;
     const previousEndMs = parseSubtitleTimeToMsRuntime(previous.end);
     const nextStartMs = parseSubtitleTimeToMsRuntime(next.start);
     const nextEndMs = parseSubtitleTimeToMsRuntime(next.end);
@@ -398,29 +456,30 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const adjustedNextStartMs = draftEndMs + SUBTITLE_TIMING_GAP_MS;
     if (draftStartMs < previousEndMs + SUBTITLE_TIMING_GAP_MS || adjustedNextStartMs >= nextEndMs) {
       toast('No hay espacio suficiente para insertar el subtítulo');
-      renderWorkflow();
-      return;
+      if (options.renderOnNoSpace) renderWorkflow();
+      return false;
     }
-    const placedDraft = {
-      ...draft,
+    const placedRow = {
+      ...rowToPlace,
       start: formatSubtitleDisplayTimeRuntime(draftStartMs),
       end: formatSubtitleDisplayTimeRuntime(draftEndMs),
       isDraft: false,
     };
-    const withoutDraft = rows.filter((row) => row.id !== draftId);
-    const adjustedTargetIndex = withoutDraft.findIndex((row) => row.id === next.id);
-    withoutDraft[adjustedTargetIndex] = {
+    const withoutPlacedRow = rows.filter((row) => row.id !== rowToPlace.id);
+    const adjustedTargetIndex = withoutPlacedRow.findIndex((row) => row.id === next.id);
+    withoutPlacedRow[adjustedTargetIndex] = {
       ...next,
       start: formatSubtitleDisplayTimeRuntime(adjustedNextStartMs),
     };
+    undoHistory.captureRowsSnapshot();
     state.subtitles2.rows = [
-      ...withoutDraft.slice(0, adjustedTargetIndex),
-      placedDraft,
-      ...withoutDraft.slice(adjustedTargetIndex),
+      ...withoutPlacedRow.slice(0, adjustedTargetIndex),
+      placedRow,
+      ...withoutPlacedRow.slice(adjustedTargetIndex),
     ];
     markRowsChanged();
-    state.subtitles2.draggingDraftRowId = null;
     renderWorkflow();
+    return true;
   }
 
   function ensureRowsCoverDuration(durationMs = resolvePreviewDurationMs()) {
@@ -448,6 +507,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   function markRowsChanged() {
     state.subtitles2.changeVersion += 1;
     state.subtitles2.dirty = true;
+    onRowsChanged();
   }
 
   function closestFromEventTarget(target, selector) {
@@ -463,6 +523,8 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     onTableClick,
     onTablePointerDown,
     stopNumberHold,
+    undoLastRowsChange: () => undoHistory.undoLastRowsChange(),
+    clearUndoHistory: () => undoHistory.clearUndoHistory(),
     nudgeTimingBoundary,
     deleteRow,
     onAddRowClicked,

@@ -33,6 +33,7 @@ export function createSubtitleSessionController(ctx, callbacks = {}) {
   const renderSessionHistory = callbacks.renderSessionHistory || (() => ctx.renderCallbacks.renderSessionHistory?.());
   const renderDoneCard = callbacks.renderDoneCard || (() => ctx.renderCallbacks.renderDoneCard?.());
   const renderSourceLanguagePicker = callbacks.renderSourceLanguagePicker || (() => ctx.renderCallbacks.renderSourceLanguagePicker?.());
+  const clearUndoHistory = callbacks.clearUndoHistory || (() => {});
 
   async function pollSessionStatus(sessionId) {
     const detail = await ttsApi.getSubtitleSession(sessionId);
@@ -86,6 +87,7 @@ export function createSubtitleSessionController(ctx, callbacks = {}) {
 
   function resetRunState() {
     const previous = state.subtitles2 || {};
+    clearUndoHistory();
     callbacks.revokePreviewObjectUrl?.();
     const next = createRemoteSubtitlesState();
     next.sessionHistory = Array.isArray(previous.sessionHistory) ? previous.sessionHistory : next.sessionHistory;
@@ -206,6 +208,7 @@ export function createSubtitleSessionController(ctx, callbacks = {}) {
     const durationAdjusted = ensureRowsCoverDuration(state.subtitles2.audioDurationMs);
     state.subtitles2.savedVersion = state.subtitles2.changeVersion;
     state.subtitles2.dirty = durationAdjusted;
+    clearUndoHistory();
     if (render) renderWorkflow();
     return detail;
   }

@@ -203,6 +203,7 @@ export function getDomSelectors(doc = document) {
     subtitle2PresenceWarning: doc.getElementById('subtitle2PresenceWarning'),
     subtitle2AddRowBtn: doc.getElementById('subtitle2AddRowBtn'),
     subtitle2SaveBtn: doc.getElementById('subtitle2SaveBtn'),
+    subtitle2AutosaveStatus: doc.getElementById('subtitle2AutosaveStatus'),
     subtitle2ReadyBtn: doc.getElementById('subtitle2ReadyBtn'),
     subtitle2DownloadBtn: doc.getElementById('subtitle2DownloadBtn'),
     subtitle2AnotherVideoBtn: doc.getElementById('subtitle2AnotherVideoBtn'),

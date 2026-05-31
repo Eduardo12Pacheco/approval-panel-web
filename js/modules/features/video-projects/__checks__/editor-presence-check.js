@@ -81,6 +81,18 @@ function runPurePresenceCheck() {
   assert(advisory, 'expected same-resource advisory when another editor is active');
   assertEqual(advisory.blocking, false, 'presence advisory must be non-blocking');
   assertEqual(advisory.actors, 'María Editor', 'advisory actor label drift');
+
+  const previousSession = globalThis.__CONTROL_PANEL_SESSION__;
+  globalThis.__CONTROL_PANEL_SESSION__ = { status: 'ok', session_id: 'local-session' };
+  try {
+    const globalSessionAdvisory = resolvePresenceAdvisory({
+      snapshot: { sessions: [sameResourceSnapshot.sessions[0]] },
+      resource: editingPayload,
+    });
+    assertEqual(globalSessionAdvisory, null, 'advisory must ignore current gateway session by default');
+  } finally {
+    globalThis.__CONTROL_PANEL_SESSION__ = previousSession;
+  }
 }
 
 async function runControllerHeartbeatCheck() {

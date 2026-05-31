@@ -113,7 +113,10 @@ export function buildSubtitleTableRowMarkupRuntime({
           </div>
         </td>
         <td>
-          <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
+          <div class="subtitle-row-actions">
+            <button type="button" class="subtitle-row-insert" data-action="insert-subtitle-row" data-row-id="${escapedRowId}" aria-label="Insertar subtítulo después de esta frase" title="Insertar subtítulo después">+</button>
+            <button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button>
+          </div>
         </td>
       </tr>
     `;

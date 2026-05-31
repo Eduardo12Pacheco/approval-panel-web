@@ -4,11 +4,14 @@ import { createSubtitleRenderCommands } from './controller/render-commands.js';
 import { createSubtitleSessionController } from './controller/session.js';
 import { createSubtitleTableEditor } from './controller/table-editor.js';
 import { createSubtitleWorkflowRenderer } from './controller/render-workflow.js';
+import { createSubtitleAutoSaveController } from './controller/auto-save.js';
 import { resolvePresenceAdvisory, resolveSubtitlePresence } from './presence.js';
 
 export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser = globalThis }) {
   const ctx = buildSubtitleControllerContext({ state, el, api: ttsApi, ui, helpers, customDropdowns, browser });
   let subtitlePresenceWarning = null;
+  let autoSaveController = null;
+  let keyboardShortcutsActive = false;
 
   async function reportSubtitlePresence({ mode, currentSessionId } = {}) {
     const payload = resolveSubtitlePresence({
@@ -50,6 +53,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     renderPreviewOverlay: () => previewPlayer.renderPreviewOverlay(),
     updateButtonsByPhase: () => workflowRenderer.updateButtonsByPhase(),
     resolvePreviewDurationMs: () => tableEditor.resolvePreviewDuration(),
+    onRowsChanged: () => autoSaveController?.requestAutoSave(),
   });
   const sessionController = createSubtitleSessionController(ctx, {
     revokePreviewObjectUrl: () => previewPlayer.revokePreviewObjectUrl(),
@@ -61,6 +65,7 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     renderSessionHistory: () => workflowRenderer.renderSessionHistory(),
     renderDoneCard: () => workflowRenderer.renderDoneCard(),
     renderSourceLanguagePicker: () => workflowRenderer.renderSourceLanguagePicker(),
+    clearUndoHistory: () => tableEditor.clearUndoHistory(),
   });
   const renderCommands = createSubtitleRenderCommands(ctx, {
     hasDraftRows: () => tableEditor.hasDraftRows(),
@@ -69,6 +74,12 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     pollRenderStatus: (sessionId) => sessionController.pollRenderStatus(sessionId),
     transitionPhase: (phase) => sessionController.transitionPhase(phase),
     renderDoneCard: () => workflowRenderer.renderDoneCard(),
+    updateButtonsByPhase: () => workflowRenderer.updateButtonsByPhase(),
+    reportPresence: reportSubtitlePresence,
+  });
+  autoSaveController = createSubtitleAutoSaveController(ctx, {
+    enqueueSave: (saveMode) => renderCommands.enqueueSave(saveMode),
+    hasDraftRows: () => tableEditor.hasDraftRows(),
     updateButtonsByPhase: () => workflowRenderer.updateButtonsByPhase(),
     reportPresence: reportSubtitlePresence,
   });
@@ -102,6 +113,24 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     const result = tableEditor.onTableInput(ev);
     void reportSubtitlePresence({ mode: 'editing' });
     return result;
+  }
+
+  function onSubtitleEditorKeydown(ev) {
+    const key = (ev.key || '').toLowerCase();
+    if (!(key === 'z' && (ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey)) return;
+    const target = ev.target;
+    const inSubtitlesEditor = el.viewSubtitulos2?.contains?.(target) || el.subtitle2RowsBody?.contains?.(target);
+    if (!inSubtitlesEditor) return;
+    if (!tableEditor.undoLastRowsChange()) return;
+    ev.preventDefault?.();
+    void reportSubtitlePresence({ mode: 'editing' });
+  }
+
+  function activate() {
+    autoSaveController?.activate();
+    if (keyboardShortcutsActive) return;
+    keyboardShortcutsActive = true;
+    ctx.windowRef?.addEventListener?.('keydown', onSubtitleEditorKeydown);
   }
 
   return {
@@ -140,6 +169,6 @@ export function createSubtitlesController({ state, el, api: ttsApi, ui, helpers,
     deleteHistorySession: deleteSubtitle2HistorySession,
     reportSubtitlePresence,
     getSubtitlePresenceWarning,
-    activate: () => {},  // no-op: subtitles controller handles init via setView
+    activate,
   };
 }
