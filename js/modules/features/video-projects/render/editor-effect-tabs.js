@@ -265,6 +265,7 @@ function resolveContentTypeLabel(contentType = 'image') {
 function buildContentTypeSwitcher({ row, activeContentType = 'image' } = {}) {
   if (!row) return '';
   const rowId = escapeHtmlCore(row.id || '');
+  const startTime = escapeHtmlCore(String(Number(row.startTime || 0)));
   const currentLabel = resolveContentTypeLabel(activeContentType);
   const options = [
     { type: 'image', label: 'Imagen', action: 'open-assets-tab' },
@@ -285,6 +286,7 @@ function buildContentTypeSwitcher({ row, activeContentType = 'image' } = {}) {
             type="button"
             data-action="${escapeHtmlCore(option.action)}"
             data-row-id="${rowId}"
+            data-start-time="${startTime}"
             data-content-type-switch="${escapeHtmlCore(option.type)}"
             data-target-effect-tab="content"
             aria-pressed="${option.type === activeContentType ? 'true' : 'false'}"

@@ -342,10 +342,10 @@ function hydrateScrubber({ scrubber, seekPreviewFromPointer }) {
 function hydrateRowSelection({ root, selectEditorRow }) {
   root.querySelectorAll('[data-action="select-row"]').forEach((btn) => {
     btn.addEventListener('pointerdown', (ev) => ev.stopPropagation());
-    btn.addEventListener('click', (ev) => { ev.stopPropagation(); selectEditorRow(btn.dataset.rowId, btn.dataset.startTime); });
+    btn.addEventListener('click', (ev) => { ev.stopPropagation(); selectEditorRow(btn.dataset.rowId, btn.dataset.startTime, { source: 'editor-row-action', render: false }); });
   });
   root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => {
-    rowEl.addEventListener('click', (ev) => { if (!ev.target.closest('button, input, label, select, a')) selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime); });
-    rowEl.addEventListener('keydown', (ev) => { if (ev.key !== 'Enter' && ev.key !== ' ') return; ev.preventDefault(); selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime); });
+    rowEl.addEventListener('click', (ev) => { if (!ev.target.closest('button, input, label, select, a')) selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime, { source: 'editor-row', render: false }); });
+    rowEl.addEventListener('keydown', (ev) => { if (ev.key !== 'Enter' && ev.key !== ' ') return; ev.preventDefault(); selectEditorRow(rowEl.dataset.rowId, rowEl.dataset.startTime, { source: 'editor-row', render: false }); });
   });
 }

@@ -95,12 +95,18 @@ function runAssetsThumbnailStyleCheck() {
   const mediaRule = getCssRule(styles, '.video-editor-assets-card__media');
   const imageRule = getCssRule(styles, '.video-editor-assets-card__media img');
   const selectedRule = getCssRule(styles, '.video-editor-assets-card.is-selected');
+  const detailCardRule = getCssRule(styles, '.video-editor-detail__image-card');
+  const detailThumbRule = getCssRule(styles, '.video-editor-detail__thumb');
 
   assertCssDeclaration(mediaRule, 'place-items', 'center', 'Expected asset media wrapper to center thumbnails');
   assertCssDeclaration(imageRule, 'object-fit', 'contain', 'Expected asset thumbnails to preserve full image inside card');
   assertCssDeclaration(imageRule, 'object-position', 'center center', 'Expected asset thumbnails to be visually centered');
   assertCssDeclaration(selectedRule, 'border-color', 'rgba(0, 232, 143, 0.9)', 'Expected selected asset card to use a clear green border');
   assertCssDeclaration(selectedRule, 'box-shadow', '0 0 0 2px rgba(0, 232, 143, 0.28)', 'Expected selected asset card to use a clear green selected halo');
+  assertCssDeclaration(detailCardRule, 'max-height', '142px', 'Expected detail rail image card to cap vertical thumbnails');
+  assertCssDeclaration(detailCardRule, 'overflow', 'hidden', 'Expected detail rail image card to prevent tall assets pushing tabs down');
+  assertCssDeclaration(detailThumbRule, 'object-fit', 'contain', 'Expected detail rail thumbnail to preserve vertical asset aspect ratio');
+  assertCssDeclaration(detailThumbRule, 'max-height', '142px', 'Expected detail rail thumbnail to stay compact above settings tabs');
 }
 
 function runChangeImageNavigationCheck() {
@@ -116,6 +122,71 @@ function runChangeImageNavigationCheck() {
   assert(detailMarkup.includes('video-editor-detail__summary'), 'Expected detail rail to render phrase/time and image summary');
   assert(detailMarkup.includes('video-editor-detail__image-card'), 'Expected detail rail to render larger right-side image card');
   assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
+  assert(detailMarkup.includes('data-start-time="16.76"'), 'Expected detail rail content type buttons to carry the selected row start time');
+}
+
+function createSelectableRow(rowId, startTime) {
+  const listeners = new Map();
+  return {
+    dataset: { rowId, startTime: String(startTime) },
+    classList: { toggle() {} },
+    setAttribute() {},
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    listeners,
+  };
+}
+
+async function runTableRowSelectionKeepsDetailRailAlignedCheck() {
+  const rowA = createSelectableRow('row-1', 0);
+  const rowB = createSelectableRow('row-2', 5);
+  const markerA = { dataset: { rowId: 'row-1' }, classList: { toggle() {} } };
+  const markerB = { dataset: { rowId: 'row-2' }, classList: { toggle() {} } };
+  const detailHost = {
+    innerHTML: '',
+    querySelectorAll() { return []; },
+    querySelector() { return null; },
+  };
+  const project = {
+    ...makeProject(),
+    _selectedEditorRowId: 'row-1',
+    _previewSeekTime: 0,
+    _globalAudio: {},
+  };
+  const editorRows = [
+    { id: 'row-1', startTime: 0, endTime: 5, effectiveEndTime: 5, phrase: 'Primera fila', selectedAssetId: 'https://cdn.example.com/selected-1.jpg' },
+    { id: 'row-2', startTime: 5, endTime: 10, effectiveEndTime: 10, phrase: 'Segunda fila', selectedAssetId: 'https://cdn.example.com/custom-1.webp' },
+  ];
+  let renderCount = 0;
+  const root = {
+    ownerDocument: { body: {}, activeElement: null },
+    querySelector(selector) {
+      if (selector === '.video-editor-shell__right') return detailHost;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.video-editor-row[data-row-id]') return [rowA, rowB];
+      if (selector === '.video-preview-timeline__marker') return [markerA, markerB];
+      if (selector === '.video-preview-timeline__marker[data-row-id]') return [markerA, markerB];
+      return [];
+    },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project,
+    editorPhase: 'preview_ready',
+    editorRows,
+    renderSelectedVideoProject: () => { renderCount += 1; },
+  });
+
+  rowB.listeners.get('click')({ target: { closest: () => null } });
+
+  assertEqual(project._selectedEditorRowId, 'row-2', 'Expected table row click to select the clicked row');
+  assertEqual(project._previewSeekTime, 5, 'Expected table row click to seek to the clicked row start time');
+  assertEqual(renderCount, 0, 'Expected table row click to avoid full editor rerender');
+  assert(detailHost.innerHTML.includes('Segunda fila'), 'Expected detail rail to rerender with clicked row content');
+  assert(detailHost.innerHTML.includes('data-row-id="row-2"'), 'Expected detail rail actions to target the clicked row');
+  assert(!detailHost.innerHTML.includes('data-row-id="row-1"'), 'Expected detail rail actions not to keep stale first-row targets');
 }
 
 async function runNewspaperNavigationHydrationCheck() {
@@ -265,6 +336,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
+  await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
   runLayersTabLabelAndSeparationCheck();

@@ -83,7 +83,17 @@ export function hydrateEditorPhaseInteractions({
     const nextTime = Number(startTime);
     if (options.syncPreview !== false && Number.isFinite(nextTime)) {
       project._previewSeekTime = nextTime;
-      getCompositionRendererForPreview()?.seek(nextTime);
+      const renderer = getCompositionRendererForPreview();
+      if (renderer) {
+        renderer.seek(nextTime);
+        previewControls?.updatePreviewTimeline?.(nextTime, renderer.duration, { render: false, playing: renderer.isPlaying });
+      } else {
+        const previewVideo = root.querySelector('[data-preview-video]');
+        if (previewVideo) {
+          try { previewVideo.currentTime = nextTime; } catch {}
+          previewControls?.updatePreviewTimeline?.(nextTime, previewVideo.duration, { render: false, playing: !previewVideo.paused && !previewVideo.ended });
+        }
+      }
     }
     if (options.render === false) renderEditorSelectionOnly(rowId);
     else renderSelectedVideoProject?.();
@@ -214,7 +224,17 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     const rowId = button.dataset.rowId;
     const startTime = Number(button.dataset.startTime);
     if (rowId) project._selectedEditorRowId = rowId;
-    if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
+    if (Number.isFinite(startTime)) {
+      project._previewSeekTime = startTime;
+      const renderer = getCompositionRendererForPreview();
+      if (renderer) renderer.seek(startTime);
+      else {
+        const previewVideo = root.querySelector('[data-preview-video]');
+        if (previewVideo) {
+          try { previewVideo.currentTime = startTime; } catch {}
+        }
+      }
+    }
     return rowId;
   };
   root.querySelectorAll('[data-action="open-assets-tab"]').forEach((button) => {
