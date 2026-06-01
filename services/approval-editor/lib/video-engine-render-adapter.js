@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { stableId, normalizeBrandChannel, resolveBrandChannelAssets, buildBrandAssetRecords } = require("../../../../03-Contracts-Core/approval-contract-pipeline");
 const { addBoundaryTransitionAssets, normalizeBoundaryTransitionRows } = require("./boundary-transitions");
@@ -64,11 +65,14 @@ function isUnsafeRenderPath(value) {
 }
 
 function sanitizeAssetId(value, fallback) {
-  return String(value || fallback || "asset")
+  const sanitized = String(value || fallback || "asset")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "asset";
+  if (sanitized.length <= 120) return sanitized;
+  const hash = crypto.createHash("sha1").update(sanitized).digest("hex").slice(0, 12);
+  return `${sanitized.slice(0, 96).replace(/[-._]+$/g, "")}-${hash}`;
 }
 
 function extensionFromSource(source, asset = {}) {
