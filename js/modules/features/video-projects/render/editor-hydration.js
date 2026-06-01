@@ -1,6 +1,7 @@
 import { findMotionPreset } from '../domain/motion-presets.js';
 import { shouldHandleEditorUndoKey } from '../controller/undo-manager.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
+import { buildEditorDetailRail } from './editor-markup.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
 import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js';
 import { hydrateVideoSelectorControls } from './video-selector-hydration.js';
@@ -55,6 +56,27 @@ export function hydrateEditorPhaseInteractions({
   hydrateEditorUndoShortcut({ root, editorPhase, undoEditorChange });
   if (editorRows.length) hydrateCompositionPreview({ root, project, editorRows });
   else destroyCompositionRenderer();
+  let previewControls = null;
+  const renderEditorSelectionOnly = (rowId) => {
+    const selectedIndex = editorRows.findIndex((row) => row.id === rowId || row.rowId === rowId);
+    const selectedRow = selectedIndex >= 0 ? editorRows[selectedIndex] : null;
+    root.querySelectorAll('.video-preview-timeline__marker[data-row-id]').forEach((marker) => {
+      marker.classList.toggle('is-selected', marker.dataset.rowId === rowId);
+    });
+    root.querySelectorAll('.video-editor-row[data-row-id]').forEach((rowEl) => {
+      const isSelected = rowEl.dataset.rowId === rowId;
+      rowEl.classList.toggle('is-selected', isSelected);
+      rowEl.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    });
+    const detailHost = root.querySelector('.video-editor-shell__right');
+    if (!detailHost) return;
+    detailHost.innerHTML = buildEditorDetailRail({ row: selectedRow, globalAudio: project._globalAudio || {}, project, rowIndex: Math.max(0, selectedIndex) });
+    hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow });
+    hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
+    hydrateVideoSelectorControls({ root: detailHost, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
+    hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
+    hydrateEffectAndAudioControls({ root: detailHost, updateRow, updateGlobalAudio, updateBrandChannel });
+  };
   const selectEditorRow = (rowId, startTime, options = {}) => {
     if (!rowId) return;
     project._selectedEditorRowId = rowId;
@@ -63,9 +85,10 @@ export function hydrateEditorPhaseInteractions({
       project._previewSeekTime = nextTime;
       getCompositionRendererForPreview()?.seek(nextTime);
     }
-    if (options.render !== false) renderSelectedVideoProject?.();
+    if (options.render === false) renderEditorSelectionOnly(rowId);
+    else renderSelectedVideoProject?.();
   };
-  const previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
+  previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
   hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow });
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject });
