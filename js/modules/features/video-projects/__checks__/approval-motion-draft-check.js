@@ -11,6 +11,7 @@ import {
   destroyCompositionRenderer,
   getCompositionRendererForPreview,
   hydrateCompositionPreview,
+  hydratePreviewTransport,
   updateSelectedVideoProjectCompositionPreview,
 } from '../render/preview-lifecycle.js';
 import { createMotionScrubHandlers, resolveMotionScrubValue } from '../render/index.js';
@@ -46,6 +47,12 @@ function createFakeClassList() {
     },
     remove(value) {
       values.delete(value);
+    },
+    toggle(value, force) {
+      const shouldAdd = force === undefined ? !values.has(value) : Boolean(force);
+      if (shouldAdd) values.add(value);
+      else values.delete(value);
+      return shouldAdd;
     },
     contains(value) {
       return values.has(value);
@@ -578,6 +585,72 @@ async function runBrandChannelPreviewAssetReloadCheck() {
   }
 }
 
+function createFakeTransportElement({ dataset = {} } = {}) {
+  const listeners = new Map();
+  return {
+    dataset: { ...dataset },
+    style: {},
+    classList: createFakeClassList(),
+    addEventListener(type, handler) { listeners.set(type, handler); },
+    closest() { return null; },
+    getBoundingClientRect() { return { left: 0, width: 100 }; },
+    listeners,
+  };
+}
+
+function runPreviewTimelineAutoSelectsCurrentRowCheck() {
+  destroyCompositionRenderer();
+  const progressEl = createFakeTransportElement();
+  const playheadEl = createFakeTransportElement();
+  const currentTimeEl = createFakeTransportElement();
+  const scrubber = createFakeTransportElement({ dataset: { duration: '6' } });
+  const markerA = createFakeTransportElement({ dataset: { rowId: 'row-1' } });
+  const markerB = createFakeTransportElement({ dataset: { rowId: 'row-2' } });
+  const rowA = createFakeTransportElement({ dataset: { rowId: 'row-1' } });
+  const rowB = createFakeTransportElement({ dataset: { rowId: 'row-2' } });
+  const project = { _selectedEditorRowId: 'row-1', _previewSeekTime: 0 };
+  const rows = [
+    { id: 'row-1', startTime: 0, endTime: 3, effectiveEndTime: 3, selectedAssetId: 'image-1' },
+    { id: 'row-2', startTime: 3, endTime: 6, effectiveEndTime: 6, selectedAssetId: 'image-2' },
+  ];
+  const calls = [];
+  const root = {
+    ownerDocument: { body: {}, activeElement: null },
+    querySelector(selector) {
+      if (selector === '[data-preview-scrubber]') return scrubber;
+      if (selector === '[data-preview-progress]') return progressEl;
+      if (selector === '[data-preview-playhead]') return playheadEl;
+      if (selector === '[data-preview-current-time]') return currentTimeEl;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.video-preview-timeline__marker') return [markerA, markerB];
+      if (selector === '.video-editor-row[data-row-id]') return [rowA, rowB];
+      return [];
+    },
+  };
+
+  const controls = hydratePreviewTransport({
+    root,
+    project,
+    editorRows: rows,
+    selectEditorRow(rowId, startTime, options) { calls.push({ rowId, startTime, options }); },
+  });
+
+  assertEqual(calls.length, 0, 'Expected initial current selected row not to trigger redundant selection');
+  controls.updatePreviewTimeline(3.25, 6);
+  assertEqual(calls.length, 1, 'Expected preview timeline to select row when playhead enters a new segment');
+  assertEqual(calls[0].rowId, 'row-2', 'Expected second row to be selected from preview time');
+  assertEqual(calls[0].startTime, 3, 'Expected auto selection to pass current row start time');
+  assertDeepEqual(calls[0].options, { syncPreview: false, source: 'preview-timeline' }, 'Expected auto selection not to seek the preview backwards');
+  assertEqual(project._selectedEditorRowId, 'row-2', 'Expected project selected row to track preview row');
+  assertEqual(project._previewSeekTime, 3.25, 'Expected auto selection to preserve current preview time for rerender hydration');
+  assertEqual(markerB.classList.contains('is-current'), true, 'Expected timeline marker to show current row');
+  assertEqual(rowB.classList.contains('is-current'), true, 'Expected editor row to show current row');
+  controls.updatePreviewTimeline(3.75, 6);
+  assertEqual(calls.length, 1, 'Expected repeated ticks in same segment not to reselect row');
+}
+
 async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {
   const timers = createFakeTimers();
   try {
@@ -881,6 +954,7 @@ export async function runApprovalMotionDraftCheck() {
   runManualMotionScrubBehaviorCheck();
   runManualMotionHandlerSourceCheck();
   await runBrandChannelPreviewAssetReloadCheck();
+  runPreviewTimelineAutoSelectsCurrentRowCheck();
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

@@ -55,11 +55,11 @@ export function hydrateEditorPhaseInteractions({
   hydrateEditorUndoShortcut({ root, editorPhase, undoEditorChange });
   if (editorRows.length) hydrateCompositionPreview({ root, project, editorRows });
   else destroyCompositionRenderer();
-  const selectEditorRow = (rowId, startTime) => {
+  const selectEditorRow = (rowId, startTime, options = {}) => {
     if (!rowId) return;
     project._selectedEditorRowId = rowId;
     const nextTime = Number(startTime);
-    if (Number.isFinite(nextTime)) {
+    if (options.syncPreview !== false && Number.isFinite(nextTime)) {
       project._previewSeekTime = nextTime;
       getCompositionRendererForPreview()?.seek(nextTime);
     }

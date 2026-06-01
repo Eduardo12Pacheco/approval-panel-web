@@ -182,6 +182,14 @@ export function resolvePreviewTimelineCurrentRow(rows = [], time = 0) {
   }) || null;
 }
 
+function shouldSkipAutoPreviewRowSelection(root) {
+  const doc = root?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const active = doc?.activeElement;
+  if (!active || active === doc.body) return false;
+  if (active.isContentEditable) return true;
+  return Boolean(active.closest?.('input, textarea, select, [contenteditable="true"]'));
+}
+
 export function hydratePreviewTransport({ root, project, editorRows, selectEditorRow }) {
   const previewVideo = root.querySelector('[data-preview-video]');
   const scrubber = root.querySelector('[data-preview-scrubber]');
@@ -195,6 +203,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
   const currentTimeEl = root.querySelector('[data-preview-current-time]');
   const timelineMarkers = Array.from(root.querySelectorAll('.video-preview-timeline__marker'));
   const editorRowEls = Array.from(root.querySelectorAll('.video-editor-row[data-row-id]'));
+  let lastAutoSelectedRowId = project?._selectedEditorRowId || null;
   const updatePreviewTimeline = (currentTime, durationValue) => {
     const configuredDuration = Number(scrubber?.dataset.duration || 0);
     const duration = Math.max(Number(durationValue || previewVideo?.duration || renderer?.duration || configuredDuration || 0), configuredDuration, 1);
@@ -211,6 +220,12 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     for (let i = 0; i < editorRowEls.length; i++) {
       const rowEl = editorRowEls[i];
       if (rowEl) rowEl.classList.toggle('is-current', Boolean(currentId && rowEl.dataset.rowId === currentId));
+    }
+    if (currentId && currentId !== lastAutoSelectedRowId && !shouldSkipAutoPreviewRowSelection(root)) {
+      lastAutoSelectedRowId = currentId;
+      project._selectedEditorRowId = currentId;
+      project._previewSeekTime = Number(currentTime || 0);
+      selectEditorRow?.(currentId, currentRow?.startTime, { syncPreview: false, source: 'preview-timeline' });
     }
   };
   let previewTimelineFrame = 0;
