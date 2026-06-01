@@ -64,9 +64,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
-  max-height: 360px;
+  min-height: 0;
+  max-height: min(360px, 42vh);
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 2px 4px 4px 0;
 }
 
