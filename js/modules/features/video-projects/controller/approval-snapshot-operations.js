@@ -70,6 +70,7 @@ export function createApprovalSnapshotOperations({
       && operations.length > 0
       && operations.every((operation) => operation?.type === 'setRowImage'
         || operation?.type === 'setRowMotion'
+        || operation?.type === 'setRowNewspaper'
         || operation?.type === 'setRowVideoSegment'
         || operation?.type === 'setBoundaryTransition');
   }

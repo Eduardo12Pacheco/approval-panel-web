@@ -195,7 +195,6 @@ export function createRowCommands({
         operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId), ...(currentMediaMode ? { mediaMode: currentMediaMode } : {}) });
       }
       if (patch.mediaMode !== undefined) operations.push({ type: 'setRowMediaMode', rowId, mediaMode: patch.mediaMode, media: patch.media });
-      if (patch.newspaper !== undefined) operations.push({ type: 'setRowNewspaper', rowId, newspaper: patch.newspaper });
       if (patch.media?.kind === 'video-segment') {
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
       }
@@ -223,6 +222,14 @@ export function createRowCommands({
         project._editorRows = patchLocalEditorRows(project._editorRows, rowId, localDustPatch);
         project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
         createMotionDraft(rowId, { type: 'setRowDust', rowId, enabled: localDustPatch.dust.enabled, dustType: localDustPatch.dust.type }, localDustPatch, `${rowId}:dust`);
+        updateSelectedVideoProjectCompositionPreview({ project });
+        scheduleApprovalMotionPersistence(project);
+      }
+      if (patch.newspaper !== undefined) {
+        const localNewspaperPatch = { newspaper: { ...(rows[index]?.newspaper || {}), ...(patch.newspaper || {}) } };
+        project._editorRows = patchLocalEditorRows(project._editorRows, rowId, localNewspaperPatch);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+        createMotionDraft(rowId, { type: 'setRowNewspaper', rowId, newspaper: localNewspaperPatch.newspaper }, localNewspaperPatch, `${rowId}:newspaper`);
         updateSelectedVideoProjectCompositionPreview({ project });
         scheduleApprovalMotionPersistence(project);
       }
