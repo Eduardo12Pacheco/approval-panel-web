@@ -228,7 +228,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
       selectEditorRow?.(currentId, currentRow?.startTime, {
         syncPreview: false,
         source: 'preview-timeline',
-        render: options.playing !== true,
+        render: options.render !== false && options.playing !== true,
       });
     }
   };
@@ -272,7 +272,10 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     if (activeRenderer) activeRenderer.seek(nextTime);
     else if (previewVideo) previewVideo.currentTime = nextTime;
     project._previewSeekTime = nextTime;
-    updatePreviewTimeline(nextTime, duration, { playing: Boolean(activeRenderer?.isPlaying || (previewVideo && !previewVideo.paused && !previewVideo.ended)) });
+    updatePreviewTimeline(nextTime, duration, {
+      playing: Boolean(activeRenderer?.isPlaying || (previewVideo && !previewVideo.paused && !previewVideo.ended)),
+      render: false,
+    });
   };
   restorePreviewSeekTime();
   updatePreviewTimeline(Number(project._previewSeekTime || 0));

@@ -654,6 +654,11 @@ function runPreviewTimelineAutoSelectsCurrentRowCheck() {
   controls.updatePreviewTimeline(3.25, 6, { playing: true });
   assertEqual(calls.length, 3, 'Expected playing timeline transition to still update selected row state');
   assertDeepEqual(calls[2].options, { syncPreview: false, source: 'preview-timeline', render: false }, 'Expected playing timeline auto selection not to rerender and reset playback');
+
+  controls.updatePreviewTimeline(0.5, 6);
+  controls.updatePreviewTimeline(3.25, 6, { render: false });
+  assertEqual(calls.length, 5, 'Expected scrubbed timeline transition to still update selected row state');
+  assertDeepEqual(calls[4].options, { syncPreview: false, source: 'preview-timeline', render: false }, 'Expected scrubbed timeline auto selection not to rerender and reset seek position');
 }
 
 async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {
