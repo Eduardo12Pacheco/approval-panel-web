@@ -36,9 +36,9 @@ function resolveFinalExportPanelState(editorState = {}) {
   if (isRendering) {
     return {
       tone: 'rendering',
-      title: 'Exportando video final',
+      title: 'Renderizando video final',
       detail: 'Estamos renderizando el MP4 final. Podés revisar el editor mientras termina.',
-      buttonLabel: 'Exportando…',
+      buttonLabel: 'Renderizando…',
       buttonDisabled: true,
       showProgress: true,
       downloadEnabled: false,
@@ -48,9 +48,9 @@ function resolveFinalExportPanelState(editorState = {}) {
   if (hasError) {
     return {
       tone: 'error',
-      title: 'Error exportando',
-      detail: editorState.error || 'No se pudo exportar el video final.',
-      buttonLabel: 'Reintentar exportación',
+      title: 'Error renderizando',
+      detail: editorState.error || 'No se pudo renderizar el video final.',
+      buttonLabel: 'Reintentar renderizado',
       buttonDisabled: false,
       showProgress: false,
       downloadEnabled: false,
@@ -62,7 +62,7 @@ function resolveFinalExportPanelState(editorState = {}) {
       tone: dirty ? 'dirty' : 'ready',
       title: 'Exportación lista',
       detail: dirty
-        ? 'Cambios pendientes: modificaste el proyecto después del último final; volvé a exportar para actualizar el video.'
+        ? 'Cambios pendientes: modificaste el proyecto después del último final; volvé a renderizar para actualizar el video.'
         : 'El final está listo. Si detectás un error, corregí el proyecto y volvé a renderizar.',
       buttonLabel: 'Volver a renderizar',
       buttonDisabled: false,
@@ -74,8 +74,8 @@ function resolveFinalExportPanelState(editorState = {}) {
   return {
     tone: 'idle',
     title: 'Exportación pendiente',
-    detail: dirty ? 'Cambios sin exportar. Renderizá el final cuando termines de revisar.' : 'Cuando el editor esté correcto, generá el video final.',
-    buttonLabel: 'Exportar final',
+    detail: dirty ? 'Cambios sin renderizar. Renderizá el final cuando termines de revisar.' : 'Cuando el editor esté correcto, generá el video final.',
+    buttonLabel: 'Renderizar video',
     buttonDisabled: false,
     showProgress: false,
     downloadEnabled: false,
@@ -119,11 +119,11 @@ function buildFinalExportPanel({ project, editorState }) {
         <span class="video-projects-eyebrow">Exportación final</span>
         <h4>${escapeHtmlCore(state.title)}</h4>
         <p>${escapeHtmlCore(state.detail)}</p>
-        ${state.showProgress ? '<div class="video-editor-export-panel__progress" role="progressbar" aria-label="Exportando video final"><span class="video-editor-export-panel__progress-bar video-editor-export-panel__progress-bar--indeterminate"></span></div>' : ''}
+        ${state.showProgress ? '<div class="video-editor-export-panel__progress" role="progressbar" aria-label="Renderizando video final"><span class="video-editor-export-panel__progress-bar video-editor-export-panel__progress-bar--indeterminate"></span></div>' : ''}
       </div>
       <div class="video-editor-export-panel__actions">
         ${downloadControl}
-        <button class="${exportButtonClass}" type="button" data-action="export-final" ${state.buttonDisabled ? 'disabled' : ''} title="Exportar video final 1080p">${escapeHtmlCore(state.buttonLabel)}</button>
+        <button class="${exportButtonClass}" type="button" data-action="export-final" ${state.buttonDisabled ? 'disabled' : ''} title="Renderizar video final 1080p">${escapeHtmlCore(state.buttonLabel)}</button>
       </div>
     </section>`;
 }
