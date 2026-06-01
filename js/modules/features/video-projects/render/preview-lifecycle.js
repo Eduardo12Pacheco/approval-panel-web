@@ -204,7 +204,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
   const timelineMarkers = Array.from(root.querySelectorAll('.video-preview-timeline__marker'));
   const editorRowEls = Array.from(root.querySelectorAll('.video-editor-row[data-row-id]'));
   let lastAutoSelectedRowId = project?._selectedEditorRowId || null;
-  const updatePreviewTimeline = (currentTime, durationValue) => {
+  const updatePreviewTimeline = (currentTime, durationValue, options = {}) => {
     const configuredDuration = Number(scrubber?.dataset.duration || 0);
     const duration = Math.max(Number(durationValue || previewVideo?.duration || renderer?.duration || configuredDuration || 0), configuredDuration, 1);
     const pct = Math.max(0, Math.min((Number(currentTime || 0) / duration) * 100, 100));
@@ -225,7 +225,11 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
       lastAutoSelectedRowId = currentId;
       project._selectedEditorRowId = currentId;
       project._previewSeekTime = Number(currentTime || 0);
-      selectEditorRow?.(currentId, currentRow?.startTime, { syncPreview: false, source: 'preview-timeline' });
+      selectEditorRow?.(currentId, currentRow?.startTime, {
+        syncPreview: false,
+        source: 'preview-timeline',
+        render: options.playing !== true,
+      });
     }
   };
   let previewTimelineFrame = 0;
@@ -239,10 +243,10 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     const tick = () => {
       const activeRenderer = getCompositionRendererForPreview();
       if (activeRenderer) {
-        updatePreviewTimeline(activeRenderer.currentTime, activeRenderer.duration);
+        updatePreviewTimeline(activeRenderer.currentTime, activeRenderer.duration, { playing: activeRenderer.isPlaying });
         if (activeRenderer.isPlaying) previewTimelineFrame = window.requestAnimationFrame(tick);
       } else if (previewVideo) {
-        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration);
+        updatePreviewTimeline(previewVideo.currentTime, previewVideo.duration, { playing: !previewVideo.paused && !previewVideo.ended });
         if (!previewVideo.paused && !previewVideo.ended) previewTimelineFrame = window.requestAnimationFrame(tick);
       }
     };
@@ -268,7 +272,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     if (activeRenderer) activeRenderer.seek(nextTime);
     else if (previewVideo) previewVideo.currentTime = nextTime;
     project._previewSeekTime = nextTime;
-    updatePreviewTimeline(nextTime, duration);
+    updatePreviewTimeline(nextTime, duration, { playing: Boolean(activeRenderer?.isPlaying || (previewVideo && !previewVideo.paused && !previewVideo.ended)) });
   };
   restorePreviewSeekTime();
   updatePreviewTimeline(Number(project._previewSeekTime || 0));

@@ -642,13 +642,18 @@ function runPreviewTimelineAutoSelectsCurrentRowCheck() {
   assertEqual(calls.length, 1, 'Expected preview timeline to select row when playhead enters a new segment');
   assertEqual(calls[0].rowId, 'row-2', 'Expected second row to be selected from preview time');
   assertEqual(calls[0].startTime, 3, 'Expected auto selection to pass current row start time');
-  assertDeepEqual(calls[0].options, { syncPreview: false, source: 'preview-timeline' }, 'Expected auto selection not to seek the preview backwards');
+  assertDeepEqual(calls[0].options, { syncPreview: false, source: 'preview-timeline', render: true }, 'Expected auto selection not to seek the preview backwards');
   assertEqual(project._selectedEditorRowId, 'row-2', 'Expected project selected row to track preview row');
   assertEqual(project._previewSeekTime, 3.25, 'Expected auto selection to preserve current preview time for rerender hydration');
   assertEqual(markerB.classList.contains('is-current'), true, 'Expected timeline marker to show current row');
   assertEqual(rowB.classList.contains('is-current'), true, 'Expected editor row to show current row');
   controls.updatePreviewTimeline(3.75, 6);
   assertEqual(calls.length, 1, 'Expected repeated ticks in same segment not to reselect row');
+
+  controls.updatePreviewTimeline(0.5, 6);
+  controls.updatePreviewTimeline(3.25, 6, { playing: true });
+  assertEqual(calls.length, 3, 'Expected playing timeline transition to still update selected row state');
+  assertDeepEqual(calls[2].options, { syncPreview: false, source: 'preview-timeline', render: false }, 'Expected playing timeline auto selection not to rerender and reset playback');
 }
 
 async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {

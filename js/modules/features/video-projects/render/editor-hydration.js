@@ -63,7 +63,7 @@ export function hydrateEditorPhaseInteractions({
       project._previewSeekTime = nextTime;
       getCompositionRendererForPreview()?.seek(nextTime);
     }
-    renderSelectedVideoProject?.();
+    if (options.render !== false) renderSelectedVideoProject?.();
   };
   const previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
   hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow });
