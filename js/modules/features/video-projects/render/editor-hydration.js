@@ -75,7 +75,7 @@ export function hydrateEditorPhaseInteractions({
     detailHost.innerHTML = buildEditorDetailRail({ row: selectedRow, globalAudio: project._globalAudio || {}, project, rowIndex: Math.max(0, selectedIndex) });
     hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly });
     hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
-    hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
+    hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
     hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
     hydrateEffectAndAudioControls({ root: detailHost, updateRow, updateGlobalAudio, updateBrandChannel });
   };
@@ -105,7 +105,7 @@ export function hydrateEditorPhaseInteractions({
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
-  hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
+  hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
   hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, updateBrandChannel });
   root.querySelector('[data-action="retry-prepare-preview"]')?.addEventListener('click', () => preparePreview?.());

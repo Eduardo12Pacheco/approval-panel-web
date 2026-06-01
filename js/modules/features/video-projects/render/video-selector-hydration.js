@@ -1,6 +1,6 @@
 import { findProjectVideoAsset } from '../domain/video-assets.js';
 import { resolveVideoSelectorOpenAction, resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
-import { syncVideoSelectorPreviewLayers } from './preview-lifecycle.js';
+import { getCompositionRendererForPreview, syncVideoSelectorPreviewLayers } from './preview-lifecycle.js';
 
 function updateVideoSelectorPreviewToggle(button, playing) {
   if (!button) return;
@@ -37,6 +37,7 @@ export function hydrateVideoSelectorControls({
   project,
   editorRows = [],
   renderSelectedVideoProject,
+  refreshEditorSelectionOnly,
   assignVideoSegmentToRow,
   updateSelectedVideoProjectCompositionPreview,
   showToast,
@@ -55,9 +56,16 @@ export function hydrateVideoSelectorControls({
         return;
       }
       project._selectedEditorRowId = rowId;
+      const rowStartTime = Number(row?.startTime);
+      if (Number.isFinite(rowStartTime)) {
+        project._previewSeekTime = rowStartTime;
+        const renderer = getCompositionRendererForPreview();
+        if (renderer) renderer.seek(rowStartTime);
+      }
       project._editorEffectTab = 'content';
       project._videoSelector = action.selector;
-      renderSelectedVideoProject?.();
+      if (typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
+      else renderSelectedVideoProject?.();
     });
   });
 

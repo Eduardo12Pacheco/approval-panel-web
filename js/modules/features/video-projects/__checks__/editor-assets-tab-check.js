@@ -269,14 +269,20 @@ async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   const markerA = { dataset: { rowId: 'seg-001' }, classList: { toggle() {} } };
   const markerB = { dataset: { rowId: 'seg-002' }, classList: { toggle() {} } };
   const listeners = new Map();
+  const videoCardListeners = new Map();
   const videoButton = {
     dataset: { rowId: 'seg-002', contentTypeSwitch: 'video', targetEffectTab: 'content', startTime: '6.54' },
     addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const videoCard = {
+    dataset: { rowId: 'seg-002', videoId: 'video-a', videoSrc: 'https://cdn.example.com/a.mp4', videoDuration: '8' },
+    addEventListener(type, listener) { videoCardListeners.set(type, listener); },
   };
   const detailHost = {
     innerHTML: '',
     querySelectorAll(selector) {
       if (selector === '[data-action="open-videos-tab"]') return [videoButton];
+      if (selector === '[data-action="open-video-selector"]') return detailHost.innerHTML.includes('data-action="open-video-selector"') ? [videoCard] : [];
       return [];
     },
     querySelector() { return null; },
@@ -326,6 +332,15 @@ async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   assert(detailHost.innerHTML.includes('data-row-id="seg-002"'), 'Expected refreshed detail rail actions to target row 2');
   assert(!detailHost.innerHTML.includes('data-row-id="seg-001"'), 'Expected refreshed detail rail actions not to target row 1');
   assert(detailHost.innerHTML.includes('Biblioteca de videos'), 'Expected video switch to show the row 2 video library');
+
+  videoCardListeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'seg-002', 'Expected row 2 video card click to keep row 2 selected');
+  assertEqual(project._previewSeekTime, 6.54, 'Expected row 2 video card click to keep the row 2 preview seek time');
+  assertEqual(project._videoSelector?.videoId, 'video-a', 'Expected row 2 video card click to open the selector for the clicked video');
+  assertEqual(renderCount, 0, 'Expected row 2 video card click not to call the full selected-project renderer');
+  assert(detailHost.innerHTML.includes('data-video-selector-modal'), 'Expected row 2 video card click to render the selector preview');
+  assert(detailHost.innerHTML.includes('data-row-id="seg-002"'), 'Expected selector preview to target row 2');
 }
 
 function runLayersTabLabelAndSeparationCheck() {
