@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
 import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
+import { buildEditorVideoPicker } from '../render/editor-video-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
@@ -107,6 +108,31 @@ function runAssetsThumbnailStyleCheck() {
   assertCssDeclaration(detailCardRule, 'overflow', 'hidden', 'Expected detail rail image card to prevent tall assets pushing tabs down');
   assertCssDeclaration(detailThumbRule, 'object-fit', 'contain', 'Expected detail rail thumbnail to preserve vertical asset aspect ratio');
   assertCssDeclaration(detailThumbRule, 'max-height', '142px', 'Expected detail rail thumbnail to stay compact above settings tabs');
+}
+
+function runVideoSelectorViewportModalCheck() {
+  const row = { id: 'row-video', startTime: 1025, endTime: 1030, effectiveEndTime: 1030, phrase: 'Fila con scroll' };
+  const markup = buildEditorVideoPicker({
+    row,
+    videos: [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', title: 'Video A', durationSeconds: 8 }],
+    selector: { videoId: 'video-a', sourceInSeconds: 0, durationSeconds: 5, sourceOutSeconds: 5, windowLeftPercent: 0, windowWidthPercent: 62.5 },
+  });
+  const modalOpenTag = markup.match(/<section class="video-editor-video-selector"[^>]*>/)?.[0] || '';
+  const styles = readVideoProjectsStyles();
+  const backdropRule = getCssRule(styles, '.video-editor-video-selector__backdrop');
+  const modalRule = getCssRule(styles, '.video-editor-video-selector');
+
+  assert(modalOpenTag, 'Expected video selector modal markup to render');
+  assert(!/style=/.test(modalOpenTag), 'Expected fixed modal position not to be calculated inline from document scroll');
+  assertCssDeclaration(backdropRule, 'position', 'fixed', 'Expected video selector backdrop to be fixed to the viewport');
+  assertCssDeclaration(backdropRule, 'inset', '0', 'Expected video selector backdrop to cover the viewport');
+  assertCssDeclaration(backdropRule, 'height', '100dvh', 'Expected video selector backdrop to use viewport height');
+  assertCssDeclaration(modalRule, 'position', 'fixed', 'Expected video selector modal to be fixed to the viewport');
+  assertCssDeclaration(modalRule, 'top', '50% !important', 'Expected video selector modal top to be viewport-centered');
+  assertCssDeclaration(modalRule, 'left', '50% !important', 'Expected video selector modal left to be viewport-centered');
+  assertCssDeclaration(modalRule, 'transform', 'translate(-50%, -50%) !important', 'Expected video selector modal transform to center in viewport');
+  assertCssDeclaration(modalRule, 'max-height', 'calc(100dvh - 36px)', 'Expected video selector modal to stay within visible viewport height');
+  assertCssDeclaration(modalRule, 'overflow-y', 'auto', 'Expected video selector modal content to scroll internally when constrained');
 }
 
 function runChangeImageNavigationCheck() {
@@ -416,6 +442,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsTabResolutionCheck();
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
+  runVideoSelectorViewportModalCheck();
   runChangeImageNavigationCheck();
   await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();

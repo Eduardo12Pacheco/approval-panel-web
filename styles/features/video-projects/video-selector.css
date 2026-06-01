@@ -1,6 +1,8 @@
 .video-editor-video-selector__backdrop {
   position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100dvh;
   z-index: 2147483000;
   background: rgba(0, 0, 0, 0.74);
   backdrop-filter: blur(5px);
@@ -8,13 +10,17 @@
 
 .video-editor-video-selector {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
   z-index: 2147483001;
   display: grid;
   gap: 14px;
+  box-sizing: border-box;
   width: min(720px, calc(100vw - 36px));
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: #101010;
