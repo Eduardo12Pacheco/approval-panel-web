@@ -224,12 +224,24 @@ export function hydrateVideoSelectorControls({
       const rowId = button.dataset.rowId;
       const videoId = button.dataset.videoId;
       const video = findProjectVideoAsset(project, videoId);
+      const currentRows = Array.isArray(project?._editorRows) ? project._editorRows : editorRows;
+      const row = currentRows.find((item) => item?.id === rowId || item?.rowId === rowId);
+      const rowStartTime = Number(row?.startTime);
+      project._selectedEditorRowId = rowId;
+      if (Number.isFinite(rowStartTime)) project._previewSeekTime = rowStartTime;
       project._videoSelector = null;
       removeVideoSelectorPortal(doc);
       unlockVideoSelectorPageScroll(doc);
       const assigned = await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
+      project._selectedEditorRowId = rowId;
+      if (Number.isFinite(rowStartTime)) {
+        project._previewSeekTime = rowStartTime;
+        const renderer = getCompositionRendererForPreview();
+        if (renderer) renderer.seek(rowStartTime);
+      }
       updateSelectedVideoProjectCompositionPreview?.({ project });
-      if (!assigned) renderSelectedVideoProject?.();
+      if (assigned && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
+      else renderSelectedVideoProject?.();
     });
   });
 

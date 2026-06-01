@@ -245,19 +245,21 @@ async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
   });
   project._editorRows = [{ id: 'seg-007', rowId: 'seg-007', startTime: 30.2, effectiveEndTime: 34.68, endTime: 34.68 }];
   const patches = [];
+  const updateOptions = [];
   const commands = createRowVideoCommands({
     api: {},
     ui: { toast() {} },
     getProject: () => project,
     resolveProjectKey: () => 'draft-1',
     renderSelectedVideoProject() {},
-    updateRow: async (_rowId, patch) => patches.push(patch),
+    updateRow: async (_rowId, patch, options) => { patches.push(patch); updateOptions.push(options); },
   });
 
   const assigned = await commands.assignVideoSegmentToRow('seg-007', { id: 'video-1', src: 'clip.mp4' }, 2.084);
 
   assertEqual(assigned, true, 'Expected video segment assignment to succeed');
   assertEqual(patches[0]?.media?.durationSeconds, 4.56, 'Expected assigned video segment to send canonical Approval duration');
+  assertEqual(updateOptions[0]?.render, false, 'Expected video segment assignment to avoid a full editor rerender that can reset selection');
 }
 
 export async function runVideoSegmentStabilityCheck() {

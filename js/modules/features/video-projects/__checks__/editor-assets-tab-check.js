@@ -7,7 +7,7 @@ import { buildEditorVideoPicker } from '../render/editor-video-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
-import { lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
+import { hydrateVideoSelectorControls, lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -415,6 +415,84 @@ async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   assert(detailHost.innerHTML.includes('data-row-id="seg-002"'), 'Expected selector preview to target row 2');
 }
 
+async function runAcceptVideoSegmentKeepsSelectedRowCheck() {
+  const videoCardListeners = new Map();
+  const commitListeners = new Map();
+  const videoCard = {
+    dataset: { rowId: 'seg-010', videoId: 'video-a', videoSrc: 'https://cdn.example.com/a.mp4', videoDuration: '12' },
+    addEventListener(type, listener) { videoCardListeners.set(type, listener); },
+  };
+  const commitButton = {
+    dataset: { rowId: 'seg-010', videoId: 'video-a', sourceIn: '1.5' },
+    addEventListener(type, listener) { commitListeners.set(type, listener); },
+  };
+  const detailHost = {
+    innerHTML: '',
+    querySelectorAll(selector) {
+      if (selector === '[data-action="open-video-selector"]') return detailHost.innerHTML.includes('data-action="open-video-selector"') ? [videoCard] : [];
+      if (selector === '[data-action="commit-video-segment"]') return detailHost.innerHTML.includes('data-action="commit-video-segment"') ? [commitButton] : [];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+  const editorRows = [
+    { id: 'seg-001', startTime: 0, endTime: 6.54, effectiveEndTime: 6.54, phrase: 'Primera fila', selectedAssetId: 'https://cdn.example.com/selected-1.jpg' },
+    { id: 'seg-010', startTime: 90.25, endTime: 96, effectiveEndTime: 96, phrase: 'Décima fila', selectedAssetId: 'https://cdn.example.com/custom-1.webp' },
+  ];
+  const project = {
+    ...makeProject(),
+    _selectedEditorRowId: 'seg-010',
+    _previewSeekTime: 90.25,
+    _globalAudio: {},
+    _editorRows: editorRows,
+    _editorContentTypeByRow: { 'seg-010': 'video' },
+    video_assets: [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', title: 'Video A', durationSeconds: 12 }],
+  };
+  let renderCount = 0;
+  let previewUpdateCount = 0;
+  const assignVideoSegmentToRow = async (rowId) => {
+    project._editorRows = project._editorRows.map((row) => (row.id === rowId
+      ? { ...row, media: { kind: 'video-segment', sourceVideoAssetId: 'video-a', sourceVideoSrc: 'https://cdn.example.com/a.mp4', sourceInSeconds: 1.5, durationSeconds: 5.75 } }
+      : row));
+    renderCount += 1;
+    project._selectedEditorRowId = 'seg-001';
+    project._previewSeekTime = 0;
+    return true;
+  };
+  const renderSelectedVideoProject = () => {
+    renderCount += 1;
+    project._selectedEditorRowId = 'seg-001';
+    project._previewSeekTime = 0;
+  };
+  const refreshEditorSelectionOnly = (rowId) => {
+    const currentEditorRows = project._editorRows;
+    const rowIndex = currentEditorRows.findIndex((row) => row.id === rowId);
+    detailHost.innerHTML = buildEditorDetailRail({ row: currentEditorRows[rowIndex], project, rowIndex });
+    hydrateVideoSelectorControls({
+      root: detailHost,
+      project,
+      editorRows: currentEditorRows,
+      renderSelectedVideoProject,
+      refreshEditorSelectionOnly,
+      assignVideoSegmentToRow,
+      updateSelectedVideoProjectCompositionPreview: () => { previewUpdateCount += 1; },
+    });
+  };
+
+  refreshEditorSelectionOnly('seg-010');
+  videoCardListeners.get('click')();
+  await commitListeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'seg-010', 'Expected accepted row 10 to remain selected after video assignment render side effects');
+  assertEqual(project._previewSeekTime, 90.25, 'Expected preview seek to remain on row 10 start time after accepting video');
+  assertEqual(project._editorRows[1].media?.kind, 'video-segment', 'Expected row 10 to keep the accepted video segment assignment');
+  assertEqual(project._videoSelector, null, 'Expected selector modal state to close after accepting video');
+  assertEqual(previewUpdateCount, 1, 'Expected accepting video to refresh the composition preview once');
+  assert(detailHost.innerHTML.includes('Décima fila'), 'Expected detail rail to stay aligned with row 10 after accepting video');
+  assert(detailHost.innerHTML.includes('data-row-id="seg-010"'), 'Expected detail rail actions to keep targeting accepted row 10');
+  assert(!detailHost.innerHTML.includes('data-row-id="seg-001"'), 'Expected detail rail actions not to reset to row 1 after accepting video');
+}
+
 function runLayersTabLabelAndSeparationCheck() {
   const layersTab = EDITOR_EFFECT_TABS.find((tab) => tab.id === 'layers');
   assertEqual(layersTab?.label, 'Capas', 'Expected layer section tab to be labeled Capas');
@@ -495,6 +573,7 @@ export async function runEditorAssetsTabCheck() {
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
   await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
+  await runAcceptVideoSegmentKeepsSelectedRowCheck();
   runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();
 }
