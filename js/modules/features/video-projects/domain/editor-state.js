@@ -1,4 +1,4 @@
-export const DEFAULT_MUSIC_VOLUME = 0.65;
+export const DEFAULT_MUSIC_VOLUME = 0.8;
 
 export function sanitizePipelineHealthMetadata(healthPayload) {
   if (!healthPayload || typeof healthPayload !== 'object') return null;

@@ -87,13 +87,43 @@ export function updateSelectedVideoProjectCompositionPreview({ project } = {}) {
   if (!compositionRenderer || !compositionRendererContainer || !project) return false;
   const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
   if (!editorRows.length) return false;
-  const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
-  configureCompositionPreviewAudio(compositionRenderer, project);
-  compositionRenderer.update({ rows: compositionRows });
-  const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
-  if (imageUrls.length) void compositionRenderer.preloadImages(imageUrls);
-  const seekTime = Number(project._previewSeekTime);
-  if (Number.isFinite(seekTime) && seekTime > 0) compositionRenderer.seek(seekTime);
+  const renderer = compositionRenderer;
+  const capturedSeekTime = Number(project._previewSeekTime);
+  const fallbackSeekTime = Number(renderer.currentTime);
+  const { voiceUrl, musicUrl, compositionRows, dustWebmUrl, logoUrl, outroUrl, outroDurationSeconds, assetSignature } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  const audioSettings = resolveCompositionPreviewAudioSettings(project);
+  const applyRowsAndSeek = () => {
+    if (renderer !== compositionRenderer || !compositionRenderer) return;
+    configureCompositionPreviewAudio(renderer, project);
+    renderer.update({ rows: compositionRows });
+    const imageUrls = compositionRows.map((row) => row.image).filter(Boolean);
+    if (imageUrls.length) void renderer.preloadImages(imageUrls);
+    const seekTime = Number.isFinite(capturedSeekTime) ? capturedSeekTime : fallbackSeekTime;
+    if (Number.isFinite(seekTime) && seekTime > 0) renderer.seek(seekTime);
+  };
+
+  if (compositionRendererAssetSignature !== assetSignature) {
+    renderer.preload({
+      dustWebmUrl,
+      logoUrl,
+      outroUrl,
+      outroDurationSeconds,
+      voiceUrl,
+      musicUrl,
+      ...audioSettings,
+      rows: compositionRows,
+    }).then(() => {
+      compositionRendererAssetSignature = assetSignature;
+      applyRowsAndSeek();
+    }).catch((err) => {
+      console.warn('Composition preview preload failed, applying rows without full preload:', err);
+      compositionRendererAssetSignature = assetSignature;
+      applyRowsAndSeek();
+    });
+    return true;
+  }
+
+  applyRowsAndSeek();
   return true;
 }
 

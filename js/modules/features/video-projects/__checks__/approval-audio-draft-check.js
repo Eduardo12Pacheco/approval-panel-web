@@ -88,7 +88,7 @@ function assertZeroVolumeDoesNotSnapToDefault() {
   assertEqual(detail.musicVolumePercent, 0, 'Expected zero music volume label to remain 0%');
 }
 
-function assertDefaultMusicVolumeIsSixtyFivePercent() {
+function assertDefaultMusicVolumeIsEightyPercent() {
   const normalized = normalizeGlobalAudioState({});
   const detail = buildEditorDetailRailViewModel({
     row: { id: 'row-1', phrase: 'Fila', startTime: 0, endTime: 1 },
@@ -96,10 +96,10 @@ function assertDefaultMusicVolumeIsSixtyFivePercent() {
   });
 
   assertEqual(normalized.voice.volume, 1, 'Expected default voice volume to remain unchanged');
-  assertEqual(normalized.music.volume, 0.65, 'Expected default music volume to be 65%');
+  assertEqual(normalized.music.volume, 0.8, 'Expected default music volume to be 80%');
   assertEqual(detail.voiceVolumeValue, 1, 'Expected editor UI default voice slider to remain 100%');
-  assertEqual(detail.musicVolumeValue, 0.65, 'Expected editor UI default music slider to be 65%');
-  assertEqual(detail.musicVolumePercent, 65, 'Expected editor UI default music label to be 65%');
+  assertEqual(detail.musicVolumeValue, 0.8, 'Expected editor UI default music slider to be 80%');
+  assertEqual(detail.musicVolumePercent, 80, 'Expected editor UI default music label to be 80%');
 }
 
 function assertSetupUsesPelotazoMusicByDefault() {
@@ -172,7 +172,7 @@ function assertCompositionPreviewAudioSettingsArePropagated() {
 
 export async function runApprovalAudioDraftCheck() {
   await assertApprovalAudioUsesOptimisticDrafts();
-  assertDefaultMusicVolumeIsSixtyFivePercent();
+  assertDefaultMusicVolumeIsEightyPercent();
   assertSetupUsesPelotazoMusicByDefault();
   assertExplicitMusicVolumeIsPreserved();
   assertZeroVolumeDoesNotSnapToDefault();

@@ -7,6 +7,12 @@ import {
   mergeLocalEditorRowPatch,
   patchLocalEditorRows,
 } from '../index.js';
+import {
+  destroyCompositionRenderer,
+  getCompositionRendererForPreview,
+  hydrateCompositionPreview,
+  updateSelectedVideoProjectCompositionPreview,
+} from '../render/preview-lifecycle.js';
 import { createMotionScrubHandlers, resolveMotionScrubValue } from '../render/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -163,6 +169,68 @@ function flushMicrotasks() {
   });
 }
 
+function createFakeElement(tagName = 'div') {
+  const attributes = new Map();
+  const element = {
+    tagName: tagName.toUpperCase(),
+    children: [],
+    style: {},
+    dataset: {},
+    className: '',
+    parentElement: null,
+    clientWidth: 1920,
+    clientHeight: 1080,
+    readyState: 0,
+    videoWidth: 0,
+    videoHeight: 0,
+    appendChild(child) {
+      child.parentElement = element;
+      element.children.push(child);
+      return child;
+    },
+    remove() {},
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+      if (name === 'src') element.src = String(value);
+    },
+    getAttribute(name) {
+      if (name === 'src') return element.src || attributes.get(name) || '';
+      return attributes.get(name) || '';
+    },
+    load() {},
+    play() { return Promise.resolve(); },
+    pause() {},
+    getContext() { return null; },
+  };
+  return element;
+}
+
+function installFakeCompositionDom() {
+  const previousDocument = globalThis.document;
+  const previousImage = globalThis.Image;
+  const previousWindow = globalThis.window;
+  globalThis.window = { devicePixelRatio: 1 };
+  globalThis.document = {
+    createElement(tagName) {
+      return createFakeElement(tagName);
+    },
+  };
+  globalThis.Image = class FakeImage {
+    constructor() {
+      this.src = '';
+      this.naturalWidth = 1920;
+      this.naturalHeight = 1080;
+    }
+
+    decode() { return Promise.resolve(); }
+  };
+  return () => {
+    globalThis.document = previousDocument;
+    globalThis.Image = previousImage;
+    globalThis.window = previousWindow;
+  };
+}
+
 function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = false } = {}) {
   const updateSnapshotCalls = [];
   const savedEditorStates = [];
@@ -249,9 +317,10 @@ async function runApprovalRowImageSwapPreservesAssetUrlsCheck() {
   await feature.swapRowImages('row-1', 'row-2');
 
   assertEqual(updateSnapshotCalls.length, 1, 'Expected image swap to persist one atomic snapshot update');
-  assertEqual(updateSnapshotCalls[0].payload.operations.length, 2, 'Expected image swap to include both row image operations');
+  const imageOperations = updateSnapshotCalls[0].payload.operations.filter((operation) => operation.type === 'setRowImage');
+  assertEqual(imageOperations.length, 2, 'Expected image swap to include both row image operations');
   assertDeepEqual(
-    updateSnapshotCalls[0].payload.operations,
+    imageOperations,
     [
       { type: 'setRowImage', rowId: 'row-1', asset: { assetId: 'asset-b', previewUrl: 'https://cdn.example.com/b.jpg', renderPath: 'https://cdn.example.com/b.jpg', id: 'asset-b' } },
       { type: 'setRowImage', rowId: 'row-2', asset: { assetId: 'asset-a', previewUrl: 'https://cdn.example.com/a.jpg', renderPath: 'https://cdn.example.com/a.jpg', id: 'asset-a' } },
@@ -435,6 +504,77 @@ async function runApprovalBrandChannelUsesOptimisticDraftCheck() {
     assertDeepEqual(toasts, [], 'Expected no snapshot error toast before debounced project persistence runs');
   } finally {
     timers.restore();
+  }
+}
+
+async function runBrandChannelPreviewAssetReloadCheck() {
+  const restoreDom = installFakeCompositionDom();
+  try {
+    const container = createFakeElement('div');
+    const root = {
+      querySelector(selector) {
+        return selector === '[data-composition-container]' ? container : null;
+      },
+    };
+    const project = {
+      draft_id: 'draft-brand-preview',
+      _previewSeekTime: 1.25,
+      _editorRows: [
+        { id: 'row-1', rowId: 'row-1', image: 'https://cdn.example.com/a.jpg', startTime: 0, endTime: 3, effectiveEndTime: 3, logo: { enabled: true }, dust: { enabled: false, type: 'dust-1' } },
+      ],
+      editor_state: {
+        brandChannel: 'pelotazo-ecuador',
+        approval_contract_snapshot: {
+          brandChannel: 'pelotazo-ecuador',
+          rows: [],
+          assets: {
+            'brand-logo-ecuador': { assetId: 'brand-logo-ecuador', previewUrl: './assets/logo-alpha.webm' },
+            'brand-outro-ecuador': { assetId: 'brand-outro-ecuador', previewUrl: './assets/final-ecuador.webm' },
+          },
+          globalLayers: {
+            logo: { enabled: true, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' },
+            outro: { enabled: true, assetId: 'brand-outro-ecuador' },
+          },
+        },
+      },
+    };
+
+    hydrateCompositionPreview({ root, project, editorRows: project._editorRows });
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    const renderer = getCompositionRendererForPreview();
+    assertEqual(renderer?._logoUrl, './assets/logo-alpha.webm', 'Expected initial preview renderer to preload Ecuador logo');
+    assertEqual(renderer?._outroUrl, './assets/final-ecuador.webm', 'Expected initial preview renderer to preload Ecuador outro');
+
+    project.editor_state = {
+      ...project.editor_state,
+      brandChannel: 'pelotazo-colombia',
+      approval_contract_snapshot: {
+        brandChannel: 'pelotazo-colombia',
+        rows: [],
+        assets: {
+          'brand-logo-colombia': { assetId: 'brand-logo-colombia', previewUrl: './assets/logo-colombia.webm' },
+          'brand-outro-colombia': { assetId: 'brand-outro-colombia', previewUrl: './assets/final-colombia.webm' },
+        },
+        globalLayers: {
+          logo: { enabled: true, source: 'logo-colombia.webm', assetId: 'brand-logo-colombia' },
+          outro: { enabled: true, assetId: 'brand-outro-colombia' },
+        },
+      },
+    };
+
+    const updated = updateSelectedVideoProjectCompositionPreview({ project });
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    assertEqual(updated, true, 'Expected lightweight preview update to run for brand asset changes');
+    assertEqual(renderer._logoUrl, './assets/logo-colombia.webm', 'Expected brand change to reload Colombia logo without full rerender');
+    assertEqual(renderer._outroUrl, './assets/final-colombia.webm', 'Expected brand change to reload Colombia outro without full rerender');
+    assertEqual(renderer.currentTime, 1.25, 'Expected brand asset reload to preserve preview seek time');
+  } finally {
+    destroyCompositionRenderer();
+    restoreDom();
   }
 }
 
@@ -727,11 +867,11 @@ export async function runApprovalMotionDraftCheck() {
   runLocalMotionPatchMergeCheck();
   runPatchLocalRowsCheck();
   runCanonicalDraftProtectionCheck();
+  await runApprovalRowImageSwapPreservesAssetUrlsCheck();
   await runApprovalUpdateRowOptimisticPatchCheck();
   await runApprovalPresetMotionUsesOptimisticDraftCheck();
   await runApprovalGlobalRowLayerUsesOptimisticDraftCheck();
   await runApprovalBrandChannelUsesOptimisticDraftCheck();
-  await runApprovalRowImageSwapPreservesAssetUrlsCheck();
   await runApprovalGlobalDraftsPersistAfterDebounceCheck();
   await runApprovalMotionDebounceCoalescingCheck();
   await runOlderCanonicalSnapshotDoesNotOverwritePendingDraftCheck();
@@ -740,6 +880,7 @@ export async function runApprovalMotionDraftCheck() {
   runManualMotionScrubValueCheck();
   runManualMotionScrubBehaviorCheck();
   runManualMotionHandlerSourceCheck();
+  await runBrandChannelPreviewAssetReloadCheck();
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {
