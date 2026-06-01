@@ -28,6 +28,7 @@ export function mergeLocalEditorRowPatch(current = {}, patch = {}) {
     ...(hasOwnPatchValue(patch, 'selectedAssetId') ? { selectedAssetId: patch.selectedAssetId || null } : {}),
     ...(hasOwnPatchValue(patch, 'mediaMode') ? { mediaMode: patch.mediaMode === 'newspaper' ? 'newspaper' : 'image' } : {}),
     ...(hasOwnPatchValue(patch, 'media') ? { media: patch.media?.kind === 'video-segment' ? { ...patch.media } : { kind: 'image' } } : {}),
+    ...(hasOwnPatchValue(patch, 'newspaper') ? { newspaper: { ...(current.newspaper || {}), ...(patch.newspaper || {}) } } : {}),
   };
 }
 
@@ -76,6 +77,10 @@ function isMediaModeRowPatch(patch = {}) {
 
 function isBoundaryTransitionPatch(patch = {}) {
   return hasOwnPatchValue(patch, 'boundaryTransition');
+}
+
+function isNewspaperRowPatch(patch = {}) {
+  return hasOwnPatchValue(patch, 'newspaper');
 }
 
 function stableJson(value) {
@@ -190,6 +195,7 @@ export function createRowCommands({
         operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId), ...(currentMediaMode ? { mediaMode: currentMediaMode } : {}) });
       }
       if (patch.mediaMode !== undefined) operations.push({ type: 'setRowMediaMode', rowId, mediaMode: patch.mediaMode, media: patch.media });
+      if (patch.newspaper !== undefined) operations.push({ type: 'setRowNewspaper', rowId, newspaper: patch.newspaper });
       if (patch.media?.kind === 'video-segment') {
         operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
       }
@@ -240,7 +246,11 @@ export function createRowCommands({
           && operations.length === 1
           && operations[0]?.type === 'setRowMediaMode'
           && shouldFallbackApprovalSnapshotOperationError(err, 'setRowMediaMode');
-        if (canFallbackVideoSegment || canFallbackMediaMode) {
+        const canFallbackNewspaper = isNewspaperRowPatch(patch)
+          && operations.length === 1
+          && operations[0]?.type === 'setRowNewspaper'
+          && shouldFallbackApprovalSnapshotOperationError(err, 'setRowNewspaper');
+        if (canFallbackVideoSegment || canFallbackMediaMode || canFallbackNewspaper) {
           project._editorRows = patchLocalEditorRows(rows, rowId, patch);
           const compositionHash = computeCompositionHash(project);
           await persistEditorState(project, { timed_rows: project._editorRows, composition_hash: compositionHash, dirty: true, phase: 'editing_dirty', error: '' });
@@ -266,7 +276,7 @@ export function createRowCommands({
     const isDirty = compositionHash !== lastRenderedHash;
     project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
 
-    if (patch.manualMotionDraft === true || isMotionRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
+    if (patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else renderSelectedVideoProject();
 
     clearPendingEditorSave();

@@ -6,7 +6,7 @@ import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 
-const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos']);
+const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos', 'newspaper']);
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
 const DEFAULT_MOTION_PRESET_NAME = 'Zoom 150';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
@@ -72,6 +72,22 @@ function resolveManualMotionViewModel(row = {}) {
     fromY: resolveMotionNumber(motion.fromY, resolveMotionNumber(preset.fromY, 0)),
     toX: resolveMotionNumber(motion.toX, resolveMotionNumber(preset.toX, 0)),
     toY: resolveMotionNumber(motion.toY, resolveMotionNumber(preset.toY, 0)),
+    fromScalePercent: Math.round(fromScale * 100),
+    toScalePercent: Math.round(toScale * 100),
+  };
+}
+
+function resolveNewspaperViewModel(row = {}) {
+  const newspaper = row?.newspaper && typeof row.newspaper === 'object' ? row.newspaper : {};
+  const motion = newspaper.foregroundMotion && typeof newspaper.foregroundMotion === 'object' ? newspaper.foregroundMotion : {};
+  const fromScale = resolveMotionNumber(motion.fromScale, 1);
+  const toScale = resolveMotionNumber(motion.toScale, 1.25);
+  return {
+    labelEnabled: newspaper.labelEnabled !== false,
+    fromX: resolveMotionNumber(motion.fromX, 0),
+    fromY: resolveMotionNumber(motion.fromY, 0),
+    toX: resolveMotionNumber(motion.toX, 0),
+    toY: resolveMotionNumber(motion.toY, 0),
     fromScalePercent: Math.round(fromScale * 100),
     toScalePercent: Math.round(toScale * 100),
   };
@@ -275,6 +291,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     videos: buildEditorVideosViewModel({ project }),
     videosUploading: Boolean(project._rowVideoUploading && row?.id && project._rowVideoUploading === row.id),
     videoSelector: project._videoSelector || null,
+    newspaper: row ? resolveNewspaperViewModel(row) : null,
     motion: resolveMotionPresetName(row),
     manualMotion: row ? resolveManualMotionViewModel(row) : null,
     motionPresetGroups: buildMotionPresetGroups(),

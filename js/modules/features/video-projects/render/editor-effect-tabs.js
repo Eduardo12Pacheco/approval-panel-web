@@ -9,6 +9,7 @@ export const EDITOR_EFFECT_TABS = [
   { id: 'global', label: 'Capas' },
   { id: 'assets', label: 'Imágenes' },
   { id: 'videos', label: 'Videos' },
+  { id: 'newspaper', label: 'Periódico' },
 ];
 
 export function resolveEditorEffectTab(value = '') {
@@ -193,6 +194,54 @@ function buildVideosPanel({ row, detail }) {
   return buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading });
 }
 
+function buildNewspaperNumberInput({ field, label, value, step = 1 }) {
+  return `
+    <label class="video-motion-manual__field">
+      <span>${escapeHtmlCore(label)}</span>
+      <input type="number" step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-newspaper" data-newspaper-field="${escapeHtmlCore(field)}" />
+    </label>
+  `;
+}
+
+function buildNewspaperPanel({ row, detail }) {
+  if (!row) return '<p class="video-projects-empty">Seleccioná una fila para ajustar el formato periódico.</p>';
+  if (row.mediaMode !== 'newspaper') return '<p class="video-projects-empty">Esta sección se activa cuando la fila está en formato periódico.</p>';
+  const rowId = escapeHtmlCore(row.id || '');
+  const newspaper = detail.newspaper || {};
+  return `
+    <div class="video-motion-manual" data-newspaper-controls data-row-id="${rowId}">
+      <div class="video-motion-manual__header">
+        <div>
+          <h4>Periódico</h4>
+          <p>Mové libremente la imagen central. El fondo difuminado cubre el espacio que quede alrededor.</p>
+        </div>
+      </div>
+      <label class="video-editor-check">
+        <input type="checkbox" data-action="update-row-newspaper-label" data-row-id="${rowId}" ${newspaper.labelEnabled ? 'checked' : ''} />
+        Mostrar “Recreación artística”
+      </label>
+      <div class="video-motion-manual__grid">
+        <section class="video-motion-manual__keyframe">
+          <h5>Start</h5>
+          <div class="video-motion-manual__fields">
+            ${buildNewspaperNumberInput({ field: 'fromX', label: 'X', value: newspaper.fromX })}
+            ${buildNewspaperNumberInput({ field: 'fromY', label: 'Y', value: newspaper.fromY })}
+            ${buildNewspaperNumberInput({ field: 'fromScalePercent', label: 'Escala %', value: newspaper.fromScalePercent })}
+          </div>
+        </section>
+        <section class="video-motion-manual__keyframe">
+          <h5>End</h5>
+          <div class="video-motion-manual__fields">
+            ${buildNewspaperNumberInput({ field: 'toX', label: 'X', value: newspaper.toX })}
+            ${buildNewspaperNumberInput({ field: 'toY', label: 'Y', value: newspaper.toY })}
+            ${buildNewspaperNumberInput({ field: 'toScalePercent', label: 'Escala %', value: newspaper.toScalePercent })}
+          </div>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
 export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}) {
   const resolvedTab = resolveEditorEffectTab(activeTab);
   const panels = {
@@ -201,6 +250,7 @@ export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}
     global: buildGlobalPanel({ row, detail }),
     assets: buildAssetsPanel({ row, detail }),
     videos: buildVideosPanel({ row, detail }),
+    newspaper: buildNewspaperPanel({ row, detail }),
   };
 
   return `

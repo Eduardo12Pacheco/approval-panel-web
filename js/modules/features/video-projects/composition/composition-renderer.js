@@ -520,7 +520,7 @@ export class CompositionRenderer {
     }
 
     if (isNewspaperMode) {
-      const newspaperStyles = resolveNewspaperImageStyles({ progress: localProgress, motion: segment.motion });
+      const newspaperStyles = resolveNewspaperImageStyles({ progress: localProgress, motion: segment.motion, newspaper: segment.newspaper });
       layers.newspaperBackground.style.objectFit = newspaperStyles.background.objectFit;
       layers.newspaperBackground.style.objectPosition = newspaperStyles.background.objectPosition;
       layers.newspaperBackground.style.filter = newspaperStyles.background.filter;
@@ -544,6 +544,7 @@ export class CompositionRenderer {
       layers.newspaperLabel.style.background = newspaperStyles.label.background;
       layers.newspaperLabel.style.padding = newspaperStyles.label.padding;
       layers.newspaperLabel.style.borderRadius = newspaperStyles.label.borderRadius;
+      layers.newspaperLabel.style.visibility = newspaperStyles.label.visible ? 'visible' : 'hidden';
     }
 
     const zoom = resolveZoomRange(segment.motion);

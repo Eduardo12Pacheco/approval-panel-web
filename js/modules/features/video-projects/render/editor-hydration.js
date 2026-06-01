@@ -225,7 +225,7 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       const startTime = Number(button.dataset.startTime);
       if (rowId) project._selectedEditorRowId = rowId;
       if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
-      project._editorEffectTab = 'assets';
+      project._editorEffectTab = 'newspaper';
       await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } });
       renderSelectedVideoProject?.();
     });
@@ -358,6 +358,39 @@ function hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, upd
   });
   root.querySelectorAll('[data-action="update-row-logo"]').forEach((select) => {
     select.addEventListener('change', () => { if (select.dataset.rowId) updateRow?.(select.dataset.rowId, { logo: { enabled: select.value === 'true' } }); });
+  });
+  root.querySelectorAll('[data-action="update-row-newspaper-label"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const rowId = input.dataset.rowId || input.closest('[data-newspaper-controls]')?.dataset?.rowId || '';
+      if (rowId) updateRow?.(rowId, { newspaper: { labelEnabled: input.checked } });
+    });
+  });
+  root.querySelectorAll('[data-action="update-row-newspaper"]').forEach((input) => {
+    const updateNewspaper = () => {
+      const panel = input.closest('[data-newspaper-controls]');
+      const rowId = panel?.dataset.rowId || '';
+      if (!rowId) return;
+      const readField = (field, fallback = 0) => {
+        const value = Number(panel.querySelector(`[data-newspaper-field="${field}"]`)?.value);
+        return Number.isFinite(value) ? value : fallback;
+      };
+      updateRow?.(rowId, {
+        newspaper: {
+          foregroundMotion: {
+            fromX: readField('fromX'),
+            fromY: readField('fromY'),
+            toX: readField('toX'),
+            toY: readField('toY'),
+            fromScale: Math.max(0.1, readField('fromScalePercent', 100) / 100),
+            toScale: Math.max(0.1, readField('toScalePercent', 125) / 100),
+            easing: 'linear',
+          },
+        },
+      });
+    };
+    input.addEventListener('input', updateNewspaper);
+    input.addEventListener('change', updateNewspaper);
+    hydrateMotionScrubberInput(input);
   });
   root.querySelectorAll('[data-action="update-brand-channel"]').forEach((select) => select.addEventListener('change', () => updateBrandChannel?.(select.value)));
   root.querySelectorAll('[data-action="update-global-audio"]').forEach((input) => {

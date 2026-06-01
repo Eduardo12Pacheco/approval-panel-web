@@ -31,6 +31,7 @@ export function normalizePreparedContractRows(rows = []) {
       endTime: Number(row?.endTime ?? 0),
       selectedAssetId: isVideoSegment ? null : (row?.selectedAssetId || null),
       mediaMode,
+      newspaper: row?.newspaper && typeof row.newspaper === 'object' ? { ...row.newspaper } : { labelEnabled: true },
       media: isVideoSegment ? { ...row.media } : { kind: 'image' },
       motionPresetId: motion.motionPresetId,
       motion: motion.motion,

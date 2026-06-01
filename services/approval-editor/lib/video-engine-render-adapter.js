@@ -358,6 +358,7 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
       endTime: Number(row?.endTime ?? row?.end_time ?? row?.end ?? (index + 1) * 3),
       selectedAssetId: row?.selectedAssetId || null,
       mediaMode: row?.mediaMode === "newspaper" ? "newspaper" : "image",
+      newspaper: row?.newspaper && typeof row.newspaper === "object" ? { ...row.newspaper } : { labelEnabled: true },
       candidates: [],
       motion: row?.motion || "slow-zoom-in",
       dust: { ...(row?.dust || {}), enabled: dustEnabled, type: dustType, assetId: dustEnabled ? (row?.dust?.assetId || dustType) : null, opacity: Number(row?.dust?.opacity ?? 0.36), blendMode: row?.dust?.blendMode || "screen" },

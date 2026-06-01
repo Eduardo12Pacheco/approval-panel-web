@@ -141,9 +141,18 @@ export function resolveNewspaperMotion() {
   return { from: NEWSPAPER_FOREGROUND_ZOOM.from, to: NEWSPAPER_FOREGROUND_ZOOM.to, fromX: 0, fromY: 0, toX: 0, toY: 0 };
 }
 
-export function resolveNewspaperImageStyles({ progress = 0, motion } = {}) {
-  const motionRange = motion ? resolveZoomRange(motion) : resolveNewspaperMotion();
+function resolveNewspaperForegroundMotion({ motion, newspaper } = {}) {
+  const explicit = newspaper?.foregroundMotion && typeof newspaper.foregroundMotion === 'object'
+    ? newspaper.foregroundMotion
+    : motion;
+  return explicit ? resolveZoomRange(explicit) : resolveNewspaperMotion();
+}
+
+export function resolveNewspaperImageStyles({ progress = 0, motion, newspaper } = {}) {
+  const motionRange = resolveNewspaperForegroundMotion({ motion, newspaper });
   const scale = interpolateLinear(motionRange.from, motionRange.to, progress);
+  const x = interpolateLinear(motionRange.fromX, motionRange.toX, progress);
+  const y = interpolateLinear(motionRange.fromY, motionRange.toY, progress);
   return {
     background: {
       objectFit: 'cover',
@@ -156,11 +165,12 @@ export function resolveNewspaperImageStyles({ progress = 0, motion } = {}) {
       height: '100%',
       objectFit: 'contain',
       objectPosition: 'center center',
-      transform: `scale(${Number(scale.toFixed(4))})`,
+      transform: `translate3d(${Number(x.toFixed(2))}px, ${Number(y.toFixed(2))}px, 0) scale(${Number(scale.toFixed(4))})`,
       transformOrigin: 'center center',
     },
     label: {
       lines: ['RECREACIÓN', 'ARTÍSTICA'],
+      visible: newspaper?.labelEnabled !== false,
       fontFamily: NEWSPAPER_LABEL_FONT_FAMILY,
       fontSize: `${NEWSPAPER_LABEL_FONT_SIZE}px`,
       lineHeight: NEWSPAPER_LABEL_LINE_HEIGHT,

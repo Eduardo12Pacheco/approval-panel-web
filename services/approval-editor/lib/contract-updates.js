@@ -173,6 +173,27 @@ function applyBrandChannel(next, brandChannel) {
   }
 }
 
+function normalizeNewspaperSettings(value = {}) {
+  const settings = value && typeof value === "object" ? value : {};
+  const foregroundMotion = settings.foregroundMotion && typeof settings.foregroundMotion === "object"
+    ? settings.foregroundMotion
+    : null;
+  return {
+    ...(Object.prototype.hasOwnProperty.call(settings, "labelEnabled") ? { labelEnabled: settings.labelEnabled !== false } : {}),
+    ...(foregroundMotion ? {
+      foregroundMotion: {
+        fromX: Number(foregroundMotion.fromX || 0),
+        fromY: Number(foregroundMotion.fromY || 0),
+        toX: Number(foregroundMotion.toX || 0),
+        toY: Number(foregroundMotion.toY || 0),
+        fromScale: Math.max(0.1, Number(foregroundMotion.fromScale || 1)),
+        toScale: Math.max(0.1, Number(foregroundMotion.toScale || 1.25)),
+        easing: "linear",
+      },
+    } : {}),
+  };
+}
+
 function applyContractOperations(snapshot, operations = []) {
   const next = clone(snapshot);
   next.assets = next.assets || {};
@@ -206,10 +227,14 @@ function applyContractOperations(snapshot, operations = []) {
       const row = findRow(next, op.rowId);
       row.mediaMode = op.mediaMode === "newspaper" ? "newspaper" : "image";
       if (op.media?.kind !== "video-segment") row.media = { kind: "image" };
+      if (row.mediaMode === "newspaper") row.newspaper = { labelEnabled: true, ...(row.newspaper || {}) };
       if (row.mediaMode === "newspaper" && (!row.motionPresetId || row.motionPresetId === "Zoom 110" || row.motionPresetId === "slow-zoom-in")) {
         row.motionPresetId = "Zoom 150";
         row.motion = defaultZoom150Motion();
       }
+    } else if (op.type === "setRowNewspaper") {
+      const row = findRow(next, op.rowId);
+      row.newspaper = { labelEnabled: true, ...(row.newspaper || {}), ...normalizeNewspaperSettings(op.newspaper || op.settings || {}) };
     } else if (op.type === "setRowMotion") {
       const row = findRow(next, op.rowId);
       const preset = findMotionPreset(op.motionPresetId || op.presetId || op.name);
