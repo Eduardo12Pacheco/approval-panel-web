@@ -169,7 +169,8 @@ export function createRowCommands({
     if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
   }
 
-  async function updateRow(rowId, patch) {
+  async function updateRow(rowId, patch, options = {}) {
+    const suppressRender = options?.render === false;
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project || !rowId) return;
@@ -244,6 +245,7 @@ export function createRowCommands({
       if (!operations.length) return;
       try {
         await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+        if (suppressRender) updateSelectedVideoProjectCompositionPreview({ project });
       } catch (err) {
         const canFallbackVideoSegment = patch.media?.kind === 'video-segment'
           && operations.length === 1
@@ -269,7 +271,7 @@ export function createRowCommands({
         ui.toast('Error actualizando snapshot');
         throw err;
       } finally {
-        renderSelectedVideoProject();
+        if (!suppressRender) renderSelectedVideoProject();
       }
       return;
     }
@@ -283,7 +285,7 @@ export function createRowCommands({
     const isDirty = compositionHash !== lastRenderedHash;
     project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
 
-    if (patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
+    if (suppressRender || patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else renderSelectedVideoProject();
 
     clearPendingEditorSave();

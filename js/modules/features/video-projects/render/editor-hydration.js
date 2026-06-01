@@ -57,9 +57,11 @@ export function hydrateEditorPhaseInteractions({
   if (editorRows.length) hydrateCompositionPreview({ root, project, editorRows });
   else destroyCompositionRenderer();
   let previewControls = null;
+  const getCurrentEditorRows = () => (Array.isArray(project?._editorRows) && project._editorRows.length ? project._editorRows : editorRows);
   const renderEditorSelectionOnly = (rowId) => {
-    const selectedIndex = editorRows.findIndex((row) => row.id === rowId || row.rowId === rowId);
-    const selectedRow = selectedIndex >= 0 ? editorRows[selectedIndex] : null;
+    const currentEditorRows = getCurrentEditorRows();
+    const selectedIndex = currentEditorRows.findIndex((row) => row.id === rowId || row.rowId === rowId);
+    const selectedRow = selectedIndex >= 0 ? currentEditorRows[selectedIndex] : null;
     root.querySelectorAll('.video-preview-timeline__marker[data-row-id]').forEach((marker) => {
       marker.classList.toggle('is-selected', marker.dataset.rowId === rowId);
     });
@@ -71,9 +73,9 @@ export function hydrateEditorPhaseInteractions({
     const detailHost = root.querySelector('.video-editor-shell__right');
     if (!detailHost) return;
     detailHost.innerHTML = buildEditorDetailRail({ row: selectedRow, globalAudio: project._globalAudio || {}, project, rowIndex: Math.max(0, selectedIndex) });
-    hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow });
+    hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly });
     hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
-    hydrateVideoSelectorControls({ root: detailHost, project, editorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
+    hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
     hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
     hydrateEffectAndAudioControls({ root: detailHost, updateRow, updateGlobalAudio, updateBrandChannel });
   };
@@ -99,7 +101,7 @@ export function hydrateEditorPhaseInteractions({
     else renderSelectedVideoProject?.();
   };
   previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
-  hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow });
+  hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly });
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
@@ -196,7 +198,7 @@ export function hydrateRowImageSwapControls({ root, editorRows = [], updateRow, 
   return thumbs.length;
 }
 
-function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow }) {
+function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly }) {
   root.querySelectorAll('[data-action="switch-effect-tab"]').forEach((button) => {
     button.addEventListener('click', () => {
       const activeTab = resolveEditorEffectTab(button.dataset.effectTab);
@@ -243,9 +245,10 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
       if (button.dataset.contentTypeSwitch === 'image') {
         rememberContentType(rowId, 'image');
-        await updateRow?.(rowId, { mediaMode: 'image', media: { kind: 'image' } });
+        await updateRow?.(rowId, { mediaMode: 'image', media: { kind: 'image' } }, { render: false });
       }
-      renderSelectedVideoProject?.();
+      if (rowId && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
+      else renderSelectedVideoProject?.();
     });
   });
   root.querySelectorAll('[data-action="open-videos-tab"]').forEach((button) => {
@@ -253,7 +256,8 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       const rowId = syncSelectedRowFromButton(button);
       rememberContentType(rowId, 'video');
       project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
-      renderSelectedVideoProject?.();
+      if (rowId && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
+      else renderSelectedVideoProject?.();
     });
   });
   root.querySelectorAll('[data-action="open-newspaper-tab"]').forEach((button) => {
@@ -261,8 +265,9 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       const rowId = syncSelectedRowFromButton(button);
       rememberContentType(rowId, 'newspaper');
       project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'framing');
-      await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } });
-      renderSelectedVideoProject?.();
+      await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } }, { render: false });
+      if (rowId && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
+      else renderSelectedVideoProject?.();
     });
   });
   root.querySelectorAll('[data-action="switch-motion-editor-tab"]').forEach((button) => {

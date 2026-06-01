@@ -212,7 +212,7 @@ async function runNewspaperNavigationHydrationCheck() {
     project,
     editorPhase: 'preview_ready',
     editorRows: [],
-    updateRow: async (rowId, patch) => patches.push({ rowId, patch }),
+    updateRow: async (rowId, patch, options) => patches.push({ rowId, patch, options }),
     renderSelectedVideoProject: () => { renderCount += 1; },
   });
 
@@ -225,7 +225,8 @@ async function runNewspaperNavigationHydrationCheck() {
   assertEqual(patches[0].rowId, 'row-news', 'Expected newspaper mode patch to target the clicked row');
   assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected newspaper action to persist first-class mediaMode');
   assertEqual(patches[0].patch.media?.kind, 'image', 'Expected newspaper mode to remain image-driven');
-  assertEqual(renderCount, 1, 'Expected newspaper action to rerender the selected row editor');
+  assertEqual(patches[0].options?.render, false, 'Expected newspaper mode patch to suppress full editor rerender');
+  assertEqual(renderCount, 0, 'Expected newspaper action to avoid a full editor rerender');
 }
 
 async function runContentTypeSwitcherHydrationCheck() {
@@ -259,7 +260,72 @@ async function runContentTypeSwitcherHydrationCheck() {
   assertEqual(project._previewSeekTime, 4.25, 'Expected content type switch to seek to row start time when available');
   assertEqual(project._editorEffectTab, 'content', 'Expected content type switch to keep the Contenido panel open');
   assertEqual(project._editorContentTypeByRow?.['row-content'], 'video', 'Expected video switch to remember video picker visibility before assignment');
-  assertEqual(renderCount, 1, 'Expected video content type switch to rerender the selected row editor');
+  assertEqual(renderCount, 0, 'Expected video content type switch to avoid a full editor rerender');
+}
+
+async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
+  const rowA = createSelectableRow('seg-001', 0);
+  const rowB = createSelectableRow('seg-002', 6.54);
+  const markerA = { dataset: { rowId: 'seg-001' }, classList: { toggle() {} } };
+  const markerB = { dataset: { rowId: 'seg-002' }, classList: { toggle() {} } };
+  const listeners = new Map();
+  const videoButton = {
+    dataset: { rowId: 'seg-002', contentTypeSwitch: 'video', targetEffectTab: 'content', startTime: '6.54' },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const detailHost = {
+    innerHTML: '',
+    querySelectorAll(selector) {
+      if (selector === '[data-action="open-videos-tab"]') return [videoButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+  const project = {
+    ...makeProject(),
+    _selectedEditorRowId: 'seg-002',
+    _previewSeekTime: 6.54,
+    _globalAudio: {},
+    video_assets: [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', title: 'Video A', durationSeconds: 8 }],
+  };
+  const editorRows = [
+    { id: 'seg-001', startTime: 0, endTime: 6.54, effectiveEndTime: 6.54, phrase: 'Primera fila', selectedAssetId: 'https://cdn.example.com/selected-1.jpg' },
+    { id: 'seg-002', startTime: 6.54, endTime: 12, effectiveEndTime: 12, phrase: 'Segunda fila', selectedAssetId: 'https://cdn.example.com/custom-1.webp' },
+  ];
+  project._editorRows = editorRows;
+  let renderCount = 0;
+  const root = {
+    ownerDocument: { body: {}, activeElement: null },
+    querySelector(selector) {
+      if (selector === '.video-editor-shell__right') return detailHost;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.video-editor-row[data-row-id]') return [rowA, rowB];
+      if (selector === '.video-preview-timeline__marker') return [markerA, markerB];
+      if (selector === '.video-preview-timeline__marker[data-row-id]') return [markerA, markerB];
+      if (selector === '[data-action="open-videos-tab"]') return [videoButton];
+      return [];
+    },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project,
+    editorPhase: 'preview_ready',
+    editorRows,
+    renderSelectedVideoProject: () => { renderCount += 1; project._selectedEditorRowId = 'seg-001'; project._previewSeekTime = 0; },
+  });
+
+  listeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'seg-002', 'Expected right-rail video switch to keep row 2 selected');
+  assertEqual(project._previewSeekTime, 6.54, 'Expected right-rail video switch to keep row 2 start seek time');
+  assertEqual(renderCount, 0, 'Expected right-rail video switch not to call the full selected-project renderer');
+  assert(detailHost.innerHTML.includes('Segunda fila'), 'Expected detail rail to stay on row 2 content');
+  assert(detailHost.innerHTML.includes('data-row-id="seg-002"'), 'Expected refreshed detail rail actions to target row 2');
+  assert(!detailHost.innerHTML.includes('data-row-id="seg-001"'), 'Expected refreshed detail rail actions not to target row 1');
+  assert(detailHost.innerHTML.includes('Biblioteca de videos'), 'Expected video switch to show the row 2 video library');
 }
 
 function runLayersTabLabelAndSeparationCheck() {
@@ -339,6 +405,7 @@ export async function runEditorAssetsTabCheck() {
   await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
+  await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
   runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();
 }
