@@ -63,7 +63,9 @@
 .video-editor-video-library {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-auto-rows: max-content;
   gap: 10px;
+  align-content: start;
   min-height: 0;
   max-height: min(360px, 42vh);
   overflow-x: hidden;
