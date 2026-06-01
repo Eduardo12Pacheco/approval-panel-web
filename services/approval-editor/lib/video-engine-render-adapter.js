@@ -166,6 +166,14 @@ function firstRenderableSource(asset = {}) {
     .find((entry) => typeof entry === "string" && entry.trim());
 }
 
+function firstMaterializableExternalSource(asset = {}) {
+  return [asset.localPath, asset.publicPath, asset.publicUrl, asset.url, asset.previewUrl, asset.renderPath]
+    .find((entry) => {
+      if (typeof entry !== "string" || !entry.trim()) return false;
+      return isHttpUrl(entry) || path.isAbsolute(entry);
+    });
+}
+
 function resolveVideoSegmentAssetSource(media = {}) {
   const explicitSource = [media.sourceVideoSrc, media.previewUrl, media.renderPath, media.publicUrl, media.publicPath, media.localPath]
     .find((entry) => typeof entry === "string" && entry.trim());
@@ -271,9 +279,17 @@ async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fe
       continue;
     }
     const renderPath = typeof asset.renderPath === "string" ? asset.renderPath.trim() : "";
-    const source = firstRenderableSource(asset);
-    if (!source || (renderPath && !isUnsafeRenderPath(renderPath))) {
-      materializeSafeRelativeAsset({ assetSourceRoot, projectRoot, renderPath });
+    let source = firstRenderableSource(asset);
+    if (renderPath && !isUnsafeRenderPath(renderPath)) {
+      const materialized = materializeSafeRelativeAsset({ assetSourceRoot, projectRoot, renderPath });
+      const fallbackSource = materialized ? "" : firstMaterializableExternalSource(asset);
+      if (!fallbackSource) {
+        localizedAssets[assetId] = asset;
+        continue;
+      }
+      source = fallbackSource;
+    }
+    if (!source) {
       localizedAssets[assetId] = asset;
       continue;
     }
