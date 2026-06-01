@@ -2,6 +2,110 @@ import { findProjectVideoAsset } from '../domain/video-assets.js';
 import { resolveVideoSelectorOpenAction, resolveVideoSegmentSelectionWindow } from './editor-video-picker.js';
 import { getCompositionRendererForPreview, syncVideoSelectorPreviewLayers } from './preview-lifecycle.js';
 
+const VIDEO_SELECTOR_SCROLL_LOCK_CLASS = 'video-editor-video-selector--scroll-locked';
+const VIDEO_SELECTOR_PORTAL_ATTRIBUTE = 'data-video-selector-portal';
+
+function getOwnerDocument(root) {
+  return root?.ownerDocument || globalThis.document || null;
+}
+
+function getDefaultView(doc) {
+  return doc?.defaultView || globalThis.window || null;
+}
+
+function canUsePortal(doc) {
+  return Boolean(doc?.body?.appendChild && doc?.createElement);
+}
+
+function getVideoSelectorPortal(doc) {
+  if (!canUsePortal(doc)) return null;
+  let portal = doc.body.querySelector?.(`[${VIDEO_SELECTOR_PORTAL_ATTRIBUTE}]`);
+  if (!portal) {
+    portal = doc.createElement('div');
+    portal.setAttribute(VIDEO_SELECTOR_PORTAL_ATTRIBUTE, '');
+    doc.body.appendChild(portal);
+  }
+  return portal;
+}
+
+export function lockVideoSelectorPageScroll(doc = globalThis.document) {
+  if (!doc?.body || !doc?.documentElement) return false;
+  const win = getDefaultView(doc);
+  if (doc.body.dataset.videoSelectorScrollLocked === 'true') return true;
+
+  const scrollY = Number(win?.scrollY || doc.documentElement.scrollTop || doc.body.scrollTop || 0);
+  doc.body.dataset.videoSelectorScrollLocked = 'true';
+  doc.body.dataset.videoSelectorScrollY = String(scrollY);
+  doc.body.dataset.videoSelectorPreviousPosition = doc.body.style.position || '';
+  doc.body.dataset.videoSelectorPreviousTop = doc.body.style.top || '';
+  doc.body.dataset.videoSelectorPreviousWidth = doc.body.style.width || '';
+  doc.body.dataset.videoSelectorPreviousOverflow = doc.body.style.overflow || '';
+  doc.documentElement.dataset.videoSelectorPreviousOverflow = doc.documentElement.style.overflow || '';
+
+  doc.documentElement.classList?.add(VIDEO_SELECTOR_SCROLL_LOCK_CLASS);
+  doc.body.classList?.add(VIDEO_SELECTOR_SCROLL_LOCK_CLASS);
+  doc.documentElement.style.overflow = 'hidden';
+  doc.body.style.overflow = 'hidden';
+  doc.body.style.position = 'fixed';
+  doc.body.style.top = `-${scrollY}px`;
+  doc.body.style.width = '100%';
+  return true;
+}
+
+export function unlockVideoSelectorPageScroll(doc = globalThis.document) {
+  if (!doc?.body || !doc?.documentElement) return false;
+  if (doc.body.dataset.videoSelectorScrollLocked !== 'true') return false;
+
+  const win = getDefaultView(doc);
+  const scrollY = Number(doc.body.dataset.videoSelectorScrollY || 0);
+  doc.documentElement.classList?.remove(VIDEO_SELECTOR_SCROLL_LOCK_CLASS);
+  doc.body.classList?.remove(VIDEO_SELECTOR_SCROLL_LOCK_CLASS);
+  doc.documentElement.style.overflow = doc.documentElement.dataset.videoSelectorPreviousOverflow || '';
+  doc.body.style.overflow = doc.body.dataset.videoSelectorPreviousOverflow || '';
+  doc.body.style.position = doc.body.dataset.videoSelectorPreviousPosition || '';
+  doc.body.style.top = doc.body.dataset.videoSelectorPreviousTop || '';
+  doc.body.style.width = doc.body.dataset.videoSelectorPreviousWidth || '';
+
+  delete doc.documentElement.dataset.videoSelectorPreviousOverflow;
+  delete doc.body.dataset.videoSelectorScrollLocked;
+  delete doc.body.dataset.videoSelectorScrollY;
+  delete doc.body.dataset.videoSelectorPreviousPosition;
+  delete doc.body.dataset.videoSelectorPreviousTop;
+  delete doc.body.dataset.videoSelectorPreviousWidth;
+  delete doc.body.dataset.videoSelectorPreviousOverflow;
+  win?.scrollTo?.(0, scrollY);
+  return true;
+}
+
+export function removeVideoSelectorPortal(doc = globalThis.document) {
+  const portal = doc?.body?.querySelector?.(`[${VIDEO_SELECTOR_PORTAL_ATTRIBUTE}]`);
+  portal?.remove?.();
+}
+
+function closeVideoSelector({ project, renderSelectedVideoProject, doc }) {
+  project._videoSelector = null;
+  removeVideoSelectorPortal(doc);
+  unlockVideoSelectorPageScroll(doc);
+  renderSelectedVideoProject?.();
+}
+
+export function mountVideoSelectorPortal(root) {
+  const doc = getOwnerDocument(root);
+  const modal = root?.querySelector?.('[data-video-selector-modal]');
+  const backdrop = root?.querySelector?.('[data-video-selector-backdrop]');
+  if (!modal || !backdrop) {
+    removeVideoSelectorPortal(doc);
+    unlockVideoSelectorPageScroll(doc);
+    return false;
+  }
+
+  const portal = getVideoSelectorPortal(doc);
+  if (!portal) return false;
+  portal.replaceChildren(backdrop, modal);
+  lockVideoSelectorPageScroll(doc);
+  return true;
+}
+
 function updateVideoSelectorPreviewToggle(button, playing) {
   if (!button) return;
   button.setAttribute('aria-pressed', playing ? 'true' : 'false');
@@ -42,6 +146,7 @@ export function hydrateVideoSelectorControls({
   updateSelectedVideoProjectCompositionPreview,
   showToast,
 }) {
+  const doc = getOwnerDocument(root);
   root.querySelectorAll('[data-action="open-video-selector"]').forEach((button) => {
     button.addEventListener('click', () => {
       const rowId = button.dataset.rowId;
@@ -71,8 +176,7 @@ export function hydrateVideoSelectorControls({
 
   root.querySelectorAll('[data-action="cancel-video-selector"]').forEach((button) => {
     button.addEventListener('click', () => {
-      project._videoSelector = null;
-      renderSelectedVideoProject?.();
+      closeVideoSelector({ project, renderSelectedVideoProject, doc });
     });
   });
 
@@ -121,9 +225,13 @@ export function hydrateVideoSelectorControls({
       const videoId = button.dataset.videoId;
       const video = findProjectVideoAsset(project, videoId);
       project._videoSelector = null;
+      removeVideoSelectorPortal(doc);
+      unlockVideoSelectorPageScroll(doc);
       const assigned = await assignVideoSegmentToRow?.(rowId, video, Number(button.dataset.sourceIn || 0));
       updateSelectedVideoProjectCompositionPreview?.({ project });
       if (!assigned) renderSelectedVideoProject?.();
     });
   });
+
+  mountVideoSelectorPortal(root);
 }

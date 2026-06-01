@@ -7,6 +7,7 @@ import { buildEditorVideoPicker } from '../render/editor-video-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
+import { lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -121,6 +122,7 @@ function runVideoSelectorViewportModalCheck() {
   const styles = readVideoProjectsStyles();
   const backdropRule = getCssRule(styles, '.video-editor-video-selector__backdrop');
   const modalRule = getCssRule(styles, '.video-editor-video-selector');
+  const scrollLockRule = getCssRule(styles, '.video-editor-video-selector--scroll-locked');
 
   assert(modalOpenTag, 'Expected video selector modal markup to render');
   assert(!/style=/.test(modalOpenTag), 'Expected fixed modal position not to be calculated inline from document scroll');
@@ -133,6 +135,50 @@ function runVideoSelectorViewportModalCheck() {
   assertCssDeclaration(modalRule, 'transform', 'translate(-50%, -50%) !important', 'Expected video selector modal transform to center in viewport');
   assertCssDeclaration(modalRule, 'max-height', 'calc(100dvh - 36px)', 'Expected video selector modal to stay within visible viewport height');
   assertCssDeclaration(modalRule, 'overflow-y', 'auto', 'Expected video selector modal content to scroll internally when constrained');
+  assertCssDeclaration(scrollLockRule, 'overflow', 'hidden !important', 'Expected video selector scroll lock class to prevent page scroll');
+}
+
+function createClassList() {
+  const values = new Set();
+  return {
+    add(value) { values.add(value); },
+    remove(value) { values.delete(value); },
+    contains(value) { return values.has(value); },
+  };
+}
+
+function createScrollLockDocument() {
+  const doc = {
+    documentElement: { style: {}, dataset: {}, classList: createClassList(), scrollTop: 0 },
+    body: { style: {}, dataset: {}, classList: createClassList(), scrollTop: 0 },
+    defaultView: {
+      scrollY: 728,
+      restoredScroll: null,
+      scrollTo(x, y) { this.restoredScroll = { x, y }; },
+    },
+  };
+  return doc;
+}
+
+function runVideoSelectorScrollLockLifecycleCheck() {
+  const doc = createScrollLockDocument();
+
+  assertEqual(lockVideoSelectorPageScroll(doc), true, 'Expected selector open to apply a page scroll lock');
+  assert(doc.documentElement.classList.contains('video-editor-video-selector--scroll-locked'), 'Expected html element to receive the selector scroll lock class');
+  assert(doc.body.classList.contains('video-editor-video-selector--scroll-locked'), 'Expected body element to receive the selector scroll lock class');
+  assertEqual(doc.documentElement.style.overflow, 'hidden', 'Expected html overflow to be hidden while selector is open');
+  assertEqual(doc.body.style.overflow, 'hidden', 'Expected body overflow to be hidden while selector is open');
+  assertEqual(doc.body.style.position, 'fixed', 'Expected body position lock to keep the page from moving behind the selector');
+  assertEqual(doc.body.style.top, '-728px', 'Expected body lock to preserve the current scroll offset');
+
+  assertEqual(unlockVideoSelectorPageScroll(doc), true, 'Expected selector close to remove a page scroll lock');
+  assertEqual(doc.documentElement.classList.contains('video-editor-video-selector--scroll-locked'), false, 'Expected html scroll lock class to be removed on close');
+  assertEqual(doc.body.classList.contains('video-editor-video-selector--scroll-locked'), false, 'Expected body scroll lock class to be removed on close');
+  assertEqual(doc.documentElement.style.overflow, '', 'Expected html overflow to be restored on close');
+  assertEqual(doc.body.style.overflow, '', 'Expected body overflow to be restored on close');
+  assertEqual(doc.body.style.position, '', 'Expected body position to be restored on close');
+  assertEqual(doc.body.style.top, '', 'Expected body top offset to be restored on close');
+  assertEqual(doc.defaultView.restoredScroll.y, 728, 'Expected close to restore the pre-modal scroll position');
 }
 
 function runChangeImageNavigationCheck() {
@@ -443,6 +489,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runVideoSelectorViewportModalCheck();
+  runVideoSelectorScrollLockLifecycleCheck();
   runChangeImageNavigationCheck();
   await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();
