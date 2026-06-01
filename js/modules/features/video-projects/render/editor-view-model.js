@@ -44,6 +44,22 @@ function resolveMotionEditorTab(value = '') {
   return MOTION_EDITOR_TAB_IDS.has(tab) ? tab : 'presets';
 }
 
+function resolveRowContentType(row = null) {
+  if (row?.media?.kind === 'video-segment') return 'video';
+  if (row?.mediaMode === 'newspaper') return 'newspaper';
+  return 'image';
+}
+
+function resolveEditorContentType({ row = null, project = {} } = {}) {
+  const rowId = row?.id || row?.rowId || '';
+  const draftByRow = project?._editorContentTypeByRow && typeof project._editorContentTypeByRow === 'object'
+    ? project._editorContentTypeByRow
+    : {};
+  const draft = rowId ? draftByRow[rowId] : '';
+  if (draft === 'image' || draft === 'video' || draft === 'newspaper') return draft;
+  return resolveRowContentType(row);
+}
+
 function resolveMotionPresetName(row = {}) {
   const explicit = normalizeLegacyMotionName(row.motionPresetId || row.motion_preset_id || row.motionPreset || '');
   if (explicit) return explicit;
@@ -294,6 +310,7 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
     musicVolumeValue: music.volume ?? DEFAULT_MUSIC_VOLUME,
     activeEffectTab: resolveEditorEffectTab(project._editorEffectTab),
     activeMotionEditorTab: resolveMotionEditorTab(project._motionEditorTab),
+    activeContentType: resolveEditorContentType({ row, project }),
     assets: buildEditorAssetsViewModel({ project, row, rowIndex }),
     assetsUploading: Boolean(project._rowImageUploading && row?.id && project._rowImageUploading === row.id),
     videos: buildEditorVideosViewModel({ project }),

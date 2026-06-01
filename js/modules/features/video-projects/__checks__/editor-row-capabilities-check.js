@@ -108,12 +108,17 @@ export function runEditorRowCapabilitiesCheck() {
   );
 
   const imageMarkup = buildEditorEffectTabs({ row: { id: 'row-image', mediaMode: 'image' }, detail: createDetail(), activeTab: 'framing' });
+  assertIncludes(imageMarkup, 'Tipo actual', 'Expected content panel to show the current row content type');
+  assertIncludes(imageMarkup, 'data-content-type-switch="image"', 'Expected content panel to expose an image type switch');
+  assertIncludes(imageMarkup, 'data-content-type-switch="video"', 'Expected content panel to expose a video type switch');
+  assertIncludes(imageMarkup, 'data-content-type-switch="newspaper"', 'Expected content panel to expose a newspaper type switch');
   assertIncludes(imageMarkup, 'Movimiento', 'Expected image framing panel to keep normal motion controls');
   assertIncludes(imageMarkup, 'data-action="update-row-dust"', 'Expected image layers panel to include dust controls');
   assertIncludes(imageMarkup, 'data-action="update-row-logo"', 'Expected image layers panel to include logo controls');
   assertNotIncludes(imageMarkup, 'data-action="update-row-newspaper"', 'Expected image rows not to show newspaper motion controls');
 
   const videoMarkup = buildEditorEffectTabs({ row: { id: 'row-video', media: { kind: 'video-segment', sourceInSeconds: 1.5, durationSeconds: 3 } }, detail: createDetail(), activeTab: 'framing' });
+  assertIncludes(videoMarkup, '<strong>Video</strong>', 'Expected video rows to display Video as the current content type');
   assertIncludes(videoMarkup, 'Ventana de video', 'Expected video framing panel to show video window context');
   assertIncludes(videoMarkup, 'data-action="upload-row-video"', 'Expected video content panel to expose video picker/upload');
   assertNotIncludes(videoMarkup, 'data-action="update-row-motion"', 'Expected video rows not to show normal image motion');
@@ -122,12 +127,22 @@ export function runEditorRowCapabilitiesCheck() {
   assertNotIncludes(videoMarkup, 'data-action="update-row-logo"', 'Expected video rows not to show row logo controls');
 
   const newspaperMarkup = buildEditorEffectTabs({ row: { id: 'row-news', mediaMode: 'newspaper', media: { kind: 'image' } }, detail: createDetail(), activeTab: 'framing' });
+  assertIncludes(newspaperMarkup, '<strong>Periódico</strong>', 'Expected newspaper rows to display Periódico as the current content type');
   assertIncludes(newspaperMarkup, 'data-action="upload-assets-image"', 'Expected newspaper content panel to expose base image picker/upload');
   assertIncludes(newspaperMarkup, 'data-action="update-row-newspaper"', 'Expected newspaper framing panel to expose foreground motion controls');
   assertIncludes(newspaperMarkup, 'data-action="update-row-newspaper-label"', 'Expected newspaper layers panel to expose label controls');
   assertIncludes(newspaperMarkup, 'data-action="update-row-logo"', 'Expected newspaper layers panel to keep logo controls');
   assertNotIncludes(newspaperMarkup, 'data-action="update-row-motion"', 'Expected newspaper rows not to show normal image motion as primary control');
   assertNotIncludes(newspaperMarkup, 'data-action="update-row-dust"', 'Expected newspaper rows not to show dust controls yet');
+
+  const videoDraftMarkup = buildEditorEffectTabs({
+    row: { id: 'row-image-to-video', mediaMode: 'image', startTime: 0, endTime: 3 },
+    detail: createDetail({ activeContentType: 'video' }),
+    activeTab: 'content',
+  });
+  assertIncludes(videoDraftMarkup, '<strong>Video</strong>', 'Expected a pending video switch to display Video in the content panel');
+  assertIncludes(videoDraftMarkup, 'data-action="upload-row-video"', 'Expected a pending video switch to make the video picker reachable');
+  assertIncludes(videoDraftMarkup, 'Biblioteca de videos', 'Expected a pending video switch to show the video library');
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

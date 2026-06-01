@@ -157,6 +157,40 @@ async function runNewspaperNavigationHydrationCheck() {
   assertEqual(renderCount, 1, 'Expected newspaper action to rerender the selected row editor');
 }
 
+async function runContentTypeSwitcherHydrationCheck() {
+  const listeners = new Map();
+  const videoButton = {
+    dataset: { rowId: 'row-content', contentTypeSwitch: 'video', targetEffectTab: 'content', startTime: '4.25' },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const project = { _selectedEditorRowId: null, _editorEffectTab: 'layers', _previewSeekTime: 0 };
+  let renderCount = 0;
+
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-action="open-videos-tab"]') return [videoButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project,
+    editorPhase: 'preview_ready',
+    editorRows: [],
+    renderSelectedVideoProject: () => { renderCount += 1; },
+  });
+
+  listeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'row-content', 'Expected content type switch to select the clicked row');
+  assertEqual(project._previewSeekTime, 4.25, 'Expected content type switch to seek to row start time when available');
+  assertEqual(project._editorEffectTab, 'content', 'Expected content type switch to keep the Contenido panel open');
+  assertEqual(project._editorContentTypeByRow?.['row-content'], 'video', 'Expected video switch to remember video picker visibility before assignment');
+  assertEqual(renderCount, 1, 'Expected video content type switch to rerender the selected row editor');
+}
+
 function runLayersTabLabelAndSeparationCheck() {
   const layersTab = EDITOR_EFFECT_TABS.find((tab) => tab.id === 'layers');
   assertEqual(layersTab?.label, 'Capas', 'Expected layer section tab to be labeled Capas');
@@ -232,6 +266,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsThumbnailStyleCheck();
   runChangeImageNavigationCheck();
   await runNewspaperNavigationHydrationCheck();
+  await runContentTypeSwitcherHydrationCheck();
   runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();
 }

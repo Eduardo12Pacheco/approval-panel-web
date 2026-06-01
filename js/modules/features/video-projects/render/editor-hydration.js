@@ -203,29 +203,44 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       });
     });
   });
+  const rememberContentType = (rowId, contentType) => {
+    if (!rowId || !['image', 'video', 'newspaper'].includes(contentType)) return;
+    project._editorContentTypeByRow = {
+      ...(project._editorContentTypeByRow || {}),
+      [rowId]: contentType,
+    };
+  };
+  const syncSelectedRowFromButton = (button) => {
+    const rowId = button.dataset.rowId;
+    const startTime = Number(button.dataset.startTime);
+    if (rowId) project._selectedEditorRowId = rowId;
+    if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
+    return rowId;
+  };
   root.querySelectorAll('[data-action="open-assets-tab"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const rowId = button.dataset.rowId;
-      if (rowId) project._selectedEditorRowId = rowId;
-      project._editorEffectTab = 'content';
+    button.addEventListener('click', async () => {
+      const rowId = syncSelectedRowFromButton(button);
+      project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
+      if (button.dataset.contentTypeSwitch === 'image') {
+        rememberContentType(rowId, 'image');
+        await updateRow?.(rowId, { mediaMode: 'image', media: { kind: 'image' } });
+      }
       renderSelectedVideoProject?.();
     });
   });
   root.querySelectorAll('[data-action="open-videos-tab"]').forEach((button) => {
     button.addEventListener('click', () => {
-      const rowId = button.dataset.rowId;
-      if (rowId) project._selectedEditorRowId = rowId;
-      project._editorEffectTab = 'content';
+      const rowId = syncSelectedRowFromButton(button);
+      rememberContentType(rowId, 'video');
+      project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
       renderSelectedVideoProject?.();
     });
   });
   root.querySelectorAll('[data-action="open-newspaper-tab"]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const rowId = button.dataset.rowId;
-      const startTime = Number(button.dataset.startTime);
-      if (rowId) project._selectedEditorRowId = rowId;
-      if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
-      project._editorEffectTab = 'framing';
+      const rowId = syncSelectedRowFromButton(button);
+      rememberContentType(rowId, 'newspaper');
+      project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'framing');
       await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } });
       renderSelectedVideoProject?.();
     });

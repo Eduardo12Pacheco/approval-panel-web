@@ -256,9 +256,55 @@ function buildLayersPanel({ row, detail, capabilities }) {
   `;
 }
 
+function resolveContentTypeLabel(contentType = 'image') {
+  if (contentType === 'video') return 'Video';
+  if (contentType === 'newspaper') return 'Periódico';
+  return 'Imagen';
+}
+
+function buildContentTypeSwitcher({ row, activeContentType = 'image' } = {}) {
+  if (!row) return '';
+  const rowId = escapeHtmlCore(row.id || '');
+  const currentLabel = resolveContentTypeLabel(activeContentType);
+  const options = [
+    { type: 'image', label: 'Imagen', action: 'open-assets-tab' },
+    { type: 'video', label: 'Video', action: 'open-videos-tab' },
+    { type: 'newspaper', label: 'Periódico', action: 'open-newspaper-tab' },
+  ];
+
+  return `
+    <div class="video-editor-content-type" aria-label="Tipo de contenido de la fila">
+      <div class="video-editor-content-type__heading">
+        <span>Tipo actual</span>
+        <strong>${escapeHtmlCore(currentLabel)}</strong>
+      </div>
+      <div class="video-editor-content-type__actions" role="group" aria-label="Cambiar tipo de contenido">
+        ${options.map((option) => `
+          <button
+            class="video-editor-content-type__button ${option.type === activeContentType ? 'is-active' : ''}"
+            type="button"
+            data-action="${escapeHtmlCore(option.action)}"
+            data-row-id="${rowId}"
+            data-content-type-switch="${escapeHtmlCore(option.type)}"
+            data-target-effect-tab="content"
+            aria-pressed="${option.type === activeContentType ? 'true' : 'false'}"
+          >${escapeHtmlCore(option.label)}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function buildContentPanel({ row, detail, capabilities }) {
-  if (capabilities.content === 'video') return buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading });
-  return buildEditorAssetsPicker({ row, assets: detail.assets, uploading: detail.assetsUploading });
+  const activeContentType = detail.activeContentType || capabilities.format || 'image';
+  const picker = activeContentType === 'video'
+    ? buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading })
+    : buildEditorAssetsPicker({ row, assets: detail.assets, uploading: detail.assetsUploading });
+
+  return `
+    ${buildContentTypeSwitcher({ row, activeContentType })}
+    ${picker}
+  `;
 }
 
 function buildVideoFramingPanel({ row }) {
