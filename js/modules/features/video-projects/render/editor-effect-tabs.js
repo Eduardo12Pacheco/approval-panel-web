@@ -4,17 +4,54 @@ import { buildMotionPicker } from './editor-motion-picker.js';
 import { buildEditorVideoPicker } from './editor-video-picker.js';
 
 export const EDITOR_EFFECT_TABS = [
-  { id: 'motion', label: 'Movimiento' },
+  { id: 'content', label: 'Contenido' },
+  { id: 'framing', label: 'Encuadre' },
+  { id: 'layers', label: 'Capas' },
   { id: 'audio', label: 'Audio' },
-  { id: 'global', label: 'Capas' },
-  { id: 'assets', label: 'Imágenes' },
-  { id: 'videos', label: 'Videos' },
-  { id: 'newspaper', label: 'Periódico' },
 ];
+
+const LEGACY_EFFECT_TAB_MAP = {
+  assets: 'content',
+  videos: 'content',
+  motion: 'framing',
+  newspaper: 'framing',
+  global: 'layers',
+};
 
 export function resolveEditorEffectTab(value = '') {
   const tab = value.toString();
-  return EDITOR_EFFECT_TABS.some((item) => item.id === tab) ? tab : 'motion';
+  const normalizedTab = LEGACY_EFFECT_TAB_MAP[tab] || tab;
+  return EDITOR_EFFECT_TABS.some((item) => item.id === normalizedTab) ? normalizedTab : 'content';
+}
+
+export function deriveRowSettingsCapabilities(row = null) {
+  const isVideo = row?.media?.kind === 'video-segment';
+  const isNewspaper = !isVideo && row?.mediaMode === 'newspaper';
+
+  if (isVideo) {
+    return {
+      format: 'video',
+      content: 'video',
+      framing: 'video-window',
+      layers: { projectBrand: true, dust: false, logo: false, newspaperLabel: false },
+    };
+  }
+
+  if (isNewspaper) {
+    return {
+      format: 'newspaper',
+      content: 'image',
+      framing: 'newspaper-motion',
+      layers: { projectBrand: true, dust: false, logo: true, newspaperLabel: true },
+    };
+  }
+
+  return {
+    format: 'image',
+    content: 'image',
+    framing: 'image-motion',
+    layers: { projectBrand: true, dust: true, logo: true, newspaperLabel: false },
+  };
 }
 
 function buildEffectTabsNav(activeTab) {
@@ -143,11 +180,7 @@ function buildAudioPanel({ detail }) {
   `;
 }
 
-function buildGlobalPanel({ row, detail }) {
-  if (!row) {
-    return '<p class="video-projects-empty">Seleccioná una fila de la tabla para editar polvo y logo.</p>';
-  }
-
+function buildProjectBrandControls({ detail }) {
   return `
     <div class="video-editor-layer-panel video-editor-layer-panel--project">
       <div class="video-editor-layer-panel__heading">
@@ -162,36 +195,87 @@ function buildGlobalPanel({ row, detail }) {
         </select>
       </div>
     </div>
-    <div class="video-editor-layer-panel video-editor-layer-panel--row">
-      <div class="video-editor-layer-panel__heading">
-        <span>Foto seleccionada</span>
-        <small>Aplica solo a esta fila.</small>
-      </div>
-      <div class="video-editor-control">
-        <label>Polvo</label>
-        <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
-          <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
-          <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
-          <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
-        </select>
-      </div>
-      <div class="video-editor-control">
-        <label>Logo</label>
-        <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
-          <option value="true" ${detail.logoEnabled ? 'selected' : ''}>Activado</option>
-          <option value="false" ${!detail.logoEnabled ? 'selected' : ''}>Desactivado</option>
-        </select>
-      </div>
+  `;
+}
+
+function buildDustControl({ row, detail }) {
+  return `
+    <div class="video-editor-control">
+      <label>Polvo</label>
+      <select data-action="update-row-dust" data-row-id="${escapeHtmlCore(row.id)}">
+        <option value="none" ${detail.dustType === 'none' ? 'selected' : ''}>Sin polvo</option>
+        <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
+        <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
+      </select>
     </div>
   `;
 }
 
-function buildAssetsPanel({ row, detail }) {
+function buildLogoControl({ row, detail }) {
+  return `
+    <div class="video-editor-control">
+      <label>Logo</label>
+      <select data-action="update-row-logo" data-row-id="${escapeHtmlCore(row.id)}">
+        <option value="true" ${detail.logoEnabled ? 'selected' : ''}>Activado</option>
+        <option value="false" ${!detail.logoEnabled ? 'selected' : ''}>Desactivado</option>
+      </select>
+    </div>
+  `;
+}
+
+function buildNewspaperLabelControl({ row, detail }) {
+  const newspaper = detail.newspaper || {};
+  return `
+    <label class="video-editor-check">
+      <input type="checkbox" data-action="update-row-newspaper-label" data-row-id="${escapeHtmlCore(row.id || '')}" ${newspaper.labelEnabled ? 'checked' : ''} />
+      Mostrar “Recreación artística”
+    </label>
+  `;
+}
+
+function buildLayersPanel({ row, detail, capabilities }) {
+  if (!row) {
+    return '<p class="video-projects-empty">Seleccioná una fila de la tabla para editar polvo y logo.</p>';
+  }
+
+  const rowLayerControls = [
+    capabilities.layers.newspaperLabel ? buildNewspaperLabelControl({ row, detail }) : '',
+    capabilities.layers.dust ? buildDustControl({ row, detail }) : '',
+    capabilities.layers.logo ? buildLogoControl({ row, detail }) : '',
+  ].filter(Boolean).join('');
+
+  return `
+    ${capabilities.layers.projectBrand ? buildProjectBrandControls({ detail }) : ''}
+    ${rowLayerControls ? `<div class="video-editor-layer-panel video-editor-layer-panel--row">
+      <div class="video-editor-layer-panel__heading">
+        <span>Fila seleccionada</span>
+        <small>Aplica solo a esta fila.</small>
+      </div>
+      ${rowLayerControls}
+    </div>` : '<p class="video-projects-empty">Esta fila no tiene capas propias disponibles por ahora.</p>'}
+  `;
+}
+
+function buildContentPanel({ row, detail, capabilities }) {
+  if (capabilities.content === 'video') return buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading });
   return buildEditorAssetsPicker({ row, assets: detail.assets, uploading: detail.assetsUploading });
 }
 
-function buildVideosPanel({ row, detail }) {
-  return buildEditorVideoPicker({ row, videos: detail.videos, selector: detail.videoSelector, uploading: detail.videosUploading });
+function buildVideoFramingPanel({ row }) {
+  if (!row) return '<p class="video-projects-empty">Seleccioná una fila de video para ver el encuadre.</p>';
+  const media = row.media || {};
+  const sourceIn = Number(media.sourceInSeconds ?? media.source_in_seconds ?? 0);
+  const duration = Number(media.durationSeconds ?? media.duration_seconds ?? Math.max(0, Number(row.endTime || 0) - Number(row.startTime || 0)));
+  const sourceOut = Number.isFinite(sourceIn) && Number.isFinite(duration) ? sourceIn + duration : 0;
+  return `
+    <div class="video-editor-control video-editor-control--effect-panel">
+      <h4>Ventana de video</h4>
+      <p>El segmento usa una ventana fija del video fuente para cubrir la duración de la frase.</p>
+      <p class="video-projects-empty">${Number.isFinite(sourceIn) && Number.isFinite(sourceOut)
+        ? `Fuente: ${escapeHtmlCore(sourceIn.toFixed(2))}s → ${escapeHtmlCore(sourceOut.toFixed(2))}s`
+        : 'Sin ventana de video definida todavía.'}</p>
+    </div>
+  `;
 }
 
 function buildNewspaperNumberInput({ field, label, value, step = 1 }) {
@@ -216,10 +300,6 @@ function buildNewspaperPanel({ row, detail }) {
           <p>Mové libremente la imagen central. El fondo difuminado cubre el espacio que quede alrededor.</p>
         </div>
       </div>
-      <label class="video-editor-check">
-        <input type="checkbox" data-action="update-row-newspaper-label" data-row-id="${rowId}" ${newspaper.labelEnabled ? 'checked' : ''} />
-        Mostrar “Recreación artística”
-      </label>
       <div class="video-motion-manual__grid">
         <section class="video-motion-manual__keyframe">
           <h5>Start</h5>
@@ -242,15 +322,20 @@ function buildNewspaperPanel({ row, detail }) {
   `;
 }
 
+function buildFramingPanel({ row, detail, capabilities }) {
+  if (capabilities.framing === 'video-window') return buildVideoFramingPanel({ row });
+  if (capabilities.framing === 'newspaper-motion') return buildNewspaperPanel({ row, detail });
+  return buildMotionPanel({ row, detail });
+}
+
 export function buildEditorEffectTabs({ row, detail, activeTab = 'motion' } = {}) {
+  const capabilities = deriveRowSettingsCapabilities(row);
   const resolvedTab = resolveEditorEffectTab(activeTab);
   const panels = {
-    motion: buildMotionPanel({ row, detail }),
+    content: buildContentPanel({ row, detail, capabilities }),
+    framing: buildFramingPanel({ row, detail, capabilities }),
+    layers: buildLayersPanel({ row, detail, capabilities }),
     audio: buildAudioPanel({ detail }),
-    global: buildGlobalPanel({ row, detail }),
-    assets: buildAssetsPanel({ row, detail }),
-    videos: buildVideosPanel({ row, detail }),
-    newspaper: buildNewspaperPanel({ row, detail }),
   };
 
   return `

@@ -207,7 +207,7 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     button.addEventListener('click', () => {
       const rowId = button.dataset.rowId;
       if (rowId) project._selectedEditorRowId = rowId;
-      project._editorEffectTab = 'assets';
+      project._editorEffectTab = 'content';
       renderSelectedVideoProject?.();
     });
   });
@@ -215,7 +215,7 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     button.addEventListener('click', () => {
       const rowId = button.dataset.rowId;
       if (rowId) project._selectedEditorRowId = rowId;
-      project._editorEffectTab = 'videos';
+      project._editorEffectTab = 'content';
       renderSelectedVideoProject?.();
     });
   });
@@ -225,7 +225,7 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
       const startTime = Number(button.dataset.startTime);
       if (rowId) project._selectedEditorRowId = rowId;
       if (Number.isFinite(startTime)) project._previewSeekTime = startTime;
-      project._editorEffectTab = 'newspaper';
+      project._editorEffectTab = 'framing';
       await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } });
       renderSelectedVideoProject?.();
     });
@@ -260,7 +260,7 @@ function hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignI
       const [file] = input.files || [];
       const rowId = input.dataset.rowId;
       if (!file || !rowId) return;
-      if (input.dataset.action === 'upload-assets-image') project._editorEffectTab = 'assets';
+      if (input.dataset.action === 'upload-assets-image') project._editorEffectTab = 'content';
       await uploadAndAssignImage?.(rowId, file);
       input.value = '';
     });
@@ -270,7 +270,7 @@ function hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignI
       const [file] = input.files || [];
       const rowId = input.dataset.rowId;
       if (!file || !rowId) return;
-      project._editorEffectTab = 'videos';
+      project._editorEffectTab = 'content';
       await uploadVideoToLibrary?.(rowId, file);
       input.value = '';
     });

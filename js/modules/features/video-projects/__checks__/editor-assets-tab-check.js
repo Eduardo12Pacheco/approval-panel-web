@@ -72,9 +72,9 @@ function runAssetsViewModelCheck() {
 }
 
 function runAssetsTabResolutionCheck() {
-  assertEqual(resolveEditorEffectTab('assets'), 'assets', 'Expected Assets to be a valid editor tab');
+  assertEqual(resolveEditorEffectTab('assets'), 'content', 'Expected legacy Assets state to route to Contenido');
   const detail = buildEditorDetailRailViewModel({ row: { id: 'row-1' }, project: { ...makeProject(), _editorEffectTab: 'assets' } });
-  assertEqual(detail.activeEffectTab, 'assets', 'Expected detail rail to preserve active Assets tab');
+  assertEqual(detail.activeEffectTab, 'content', 'Expected detail rail to normalize legacy Assets tab to Contenido');
 }
 
 function runAssetsMarkupCheck() {
@@ -124,7 +124,7 @@ async function runNewspaperNavigationHydrationCheck() {
     dataset: { rowId: 'row-news', startTime: '12.5' },
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
-  const project = { _selectedEditorRowId: null, _editorEffectTab: 'global', _previewSeekTime: 0 };
+  const project = { _selectedEditorRowId: null, _editorEffectTab: 'layers', _previewSeekTime: 0 };
   const patches = [];
   let renderCount = 0;
 
@@ -149,7 +149,7 @@ async function runNewspaperNavigationHydrationCheck() {
 
   assertEqual(project._selectedEditorRowId, 'row-news', 'Expected newspaper action to select the clicked row');
   assertEqual(project._previewSeekTime, 12.5, 'Expected newspaper action to seek to the row start time');
-  assertEqual(project._editorEffectTab, 'assets', 'Expected newspaper action to route to image selection/upload');
+  assertEqual(project._editorEffectTab, 'framing', 'Expected newspaper action to route to newspaper framing controls');
   assertEqual(patches.length, 1, 'Expected newspaper action to persist a row mode patch');
   assertEqual(patches[0].rowId, 'row-news', 'Expected newspaper mode patch to target the clicked row');
   assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected newspaper action to persist first-class mediaMode');
@@ -158,8 +158,8 @@ async function runNewspaperNavigationHydrationCheck() {
 }
 
 function runLayersTabLabelAndSeparationCheck() {
-  const globalTab = EDITOR_EFFECT_TABS.find((tab) => tab.id === 'global');
-  assertEqual(globalTab?.label, 'Capas', 'Expected Global tab to be renamed to Capas');
+  const layersTab = EDITOR_EFFECT_TABS.find((tab) => tab.id === 'layers');
+  assertEqual(layersTab?.label, 'Capas', 'Expected layer section tab to be labeled Capas');
 
   const row = { id: 'row-1', startTime: 16.76, endTime: 23.3, phrase: 'Fila de prueba', selectedAssetId: 'https://cdn.example.com/custom-1.webp', dust: { enabled: true, type: 'dust-1' } };
   const project = { ...makeProject(), _editorEffectTab: 'global' };
@@ -167,8 +167,8 @@ function runLayersTabLabelAndSeparationCheck() {
   const styles = readVideoProjectsStyles();
 
   assert(detailMarkup.includes('Proyecto completo'), 'Expected Capas tab to label project-wide controls clearly');
-  assert(detailMarkup.includes('Foto seleccionada'), 'Expected Capas tab to label selected-row controls clearly');
-  assert(detailMarkup.indexOf('Proyecto completo') < detailMarkup.indexOf('Foto seleccionada'), 'Expected project controls to render before row controls');
+  assert(detailMarkup.includes('Fila seleccionada'), 'Expected Capas tab to label selected-row controls clearly');
+  assert(detailMarkup.indexOf('Proyecto completo') < detailMarkup.indexOf('Fila seleccionada'), 'Expected project controls to render before row controls');
   assert(detailMarkup.includes('Aplica a todo el video.'), 'Expected project controls helper copy');
   assert(detailMarkup.includes('Aplica solo a esta fila.'), 'Expected row controls helper copy');
   assert(styles.includes('.video-editor-layer-panel + .video-editor-layer-panel'), 'Expected layer sections to have divider styling');

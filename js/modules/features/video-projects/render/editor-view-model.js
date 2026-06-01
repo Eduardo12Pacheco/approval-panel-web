@@ -6,7 +6,14 @@ import { resolveCandidateImageUrl, resolveCandidateDimensions } from '../domain/
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { resolveProjectVideoLibrary } from '../domain/video-assets.js';
 
-const EDITOR_EFFECT_TAB_IDS = new Set(['motion', 'audio', 'global', 'assets', 'videos', 'newspaper']);
+const EDITOR_EFFECT_TAB_IDS = new Set(['content', 'framing', 'layers', 'audio']);
+const LEGACY_EFFECT_TAB_MAP = {
+  assets: 'content',
+  videos: 'content',
+  motion: 'framing',
+  newspaper: 'framing',
+  global: 'layers',
+};
 const MOTION_EDITOR_TAB_IDS = new Set(['presets', 'manual']);
 const DEFAULT_MOTION_PRESET_NAME = 'Zoom 150';
 const DEFAULT_BRAND_CHANNEL = 'pelotazo-ecuador';
@@ -28,7 +35,8 @@ function normalizeLegacyMotionName(value = '', { defaultEmpty = false } = {}) {
 
 function resolveEditorEffectTab(value = '') {
   const tab = value.toString();
-  return EDITOR_EFFECT_TAB_IDS.has(tab) ? tab : 'motion';
+  const normalizedTab = LEGACY_EFFECT_TAB_MAP[tab] || tab;
+  return EDITOR_EFFECT_TAB_IDS.has(normalizedTab) ? normalizedTab : 'content';
 }
 
 function resolveMotionEditorTab(value = '') {

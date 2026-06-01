@@ -55,7 +55,7 @@ export function hydrateVideoSelectorControls({
         return;
       }
       project._selectedEditorRowId = rowId;
-      project._editorEffectTab = 'videos';
+      project._editorEffectTab = 'content';
       project._videoSelector = action.selector;
       renderSelectedVideoProject?.();
     });
