@@ -44,12 +44,15 @@ export function captureCompositionPreviewSeekTime(project, renderer = compositio
   return true;
 }
 
-export function captureCompositionPreviewImageGeometry(project, renderer = compositionRenderer) {
+export async function captureCompositionPreviewImageGeometry(project, renderer = compositionRenderer) {
   if (!project || !renderer || typeof renderer.captureImageGeometryByRowId !== 'function') return {};
   if (renderer === compositionRenderer && compositionRendererProject && compositionRendererProject !== project) return {};
   const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
   if (!editorRows.length) return {};
   const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  if (typeof renderer.captureAllImageGeometryByRowId === 'function') {
+    return renderer.captureAllImageGeometryByRowId(compositionRows);
+  }
   return renderer.captureImageGeometryByRowId(compositionRows);
 }
 

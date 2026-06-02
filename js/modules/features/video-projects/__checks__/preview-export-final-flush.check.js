@@ -160,3 +160,181 @@ test('exportFinal persists browser image geometry through setRowMotion when no a
   const finalPersist = calls.find((call) => call.type === 'persist' && call.phase === 'final_ready');
   assert.equal(finalPersist.lastRenderedHash, 'hash-after-geometry');
 });
+
+test('exportFinal persists browser image geometry for every image row, including non-visible later rows', async () => {
+  const calls = [];
+  const rows = Array.from({ length: 7 }, (_, index) => {
+    const rowNumber = index + 1;
+    return {
+      id: `seg-00${rowNumber}`,
+      rowId: `seg-00${rowNumber}`,
+      phrase: `Fila ${rowNumber}`,
+      selectedAssetId: `https://cdn.example.com/image-${rowNumber}.jpg`,
+      media: { kind: 'image' },
+      motionPresetId: 'custom',
+      motion: { fromX: 0, fromY: rowNumber * 10, toX: 0, toY: rowNumber * 12, fromScale: 1, toScale: 1.2 },
+    };
+  });
+  const project = {
+    _editorRows: rows,
+    editor_state: {
+      dirty: false,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://127.0.0.1:3042',
+      approval_contract_snapshot: {
+        contractVersion: 'approval-editor-service-v1',
+        snapshotHash: 'hash-before-many-rows',
+        rows: rows.map((row) => ({ ...row })),
+        assets: Object.fromEntries(rows.map((row) => [row.selectedAssetId, { assetId: row.selectedAssetId, renderPath: `images/${row.rowId}.jpg`, status: 'ready' }])),
+      },
+      remotion_project_id: 'approval-project-many-rows',
+      snapshot_hash: 'hash-before-many-rows',
+    },
+  };
+  const store = { getState: () => ({ selectedVideoProject: project, settings: {} }) };
+  const client = {
+    updateSnapshot: async (projectId, payload) => {
+      calls.push({ type: 'updateSnapshot', projectId, payload });
+      const motionByRowId = new Map(payload.operations.map((operation) => [operation.rowId, operation.motion]));
+      return {
+        snapshot: {
+          ...project.editor_state.approval_contract_snapshot,
+          snapshotHash: 'hash-after-many-geometry',
+          rows: rows.map((row) => ({ ...row, motion: motionByRowId.get(row.rowId) || row.motion })),
+        },
+      };
+    },
+    renderFinal: async (projectId, payload) => {
+      calls.push({ type: 'renderFinal', projectId, payload });
+      return { render: { status: 'rendered', outputPath: 'output/video-final.mp4' }, lastRenderedSnapshotHash: payload.snapshotHash };
+    },
+    finalDownloadUrl: () => '/api/projects/approval-project-many-rows/final',
+  };
+  const approval = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    renderSelectedVideoProject() {},
+    updateSelectedVideoProjectCompositionPreview: () => false,
+    debounceMs: 0,
+  });
+
+  const commands = createPreviewExportCommands({
+    api: {},
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash, error: patch.error });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    isApprovalServiceMode: () => true,
+    createApprovalServiceClient: () => client,
+    renderSelectedVideoProject() {},
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
+    captureApprovalRenderGeometry: async () => Object.fromEntries(rows.map((row, index) => [row.rowId, {
+      imageWidth: 900 + index,
+      imageHeight: 1200 + index,
+      panViewportWidth: 950.53125,
+      panViewportHeight: 533.796875,
+    }])),
+    renderFinalPollDelayMs: 0,
+    renderFinalMaxPolls: 0,
+  });
+
+  await commands.exportFinal();
+
+  const updateCall = calls.find((call) => call.type === 'updateSnapshot');
+  assert.equal(updateCall.payload.operations.length, 7);
+  assert.deepEqual(updateCall.payload.operations.map((operation) => operation.rowId), rows.map((row) => row.rowId));
+  const rowSixOperation = updateCall.payload.operations.find((operation) => operation.rowId === 'seg-006');
+  const rowSevenOperation = updateCall.payload.operations.find((operation) => operation.rowId === 'seg-007');
+  assert.equal(rowSixOperation.motion.imageWidth, 905);
+  assert.equal(rowSixOperation.motion.panViewportHeight, 533.796875);
+  assert.equal(rowSevenOperation.motion.imageHeight, 1206);
+  assert.equal(rowSevenOperation.motion.panViewportWidth, 950.53125);
+  const renderCall = calls.find((call) => call.type === 'renderFinal');
+  assert.deepEqual(renderCall.payload, { snapshotHash: 'hash-after-many-geometry', async: true });
+});
+
+test('exportFinal blocks final render when any image row is missing required geometry', async () => {
+  const calls = [];
+  const rows = [6, 7].map((rowNumber) => ({
+    id: `seg-00${rowNumber}`,
+    rowId: `seg-00${rowNumber}`,
+    phrase: `Fila ${rowNumber}`,
+    selectedAssetId: `https://cdn.example.com/image-${rowNumber}.jpg`,
+    media: { kind: 'image' },
+    motionPresetId: 'custom',
+    motion: { fromX: 0, fromY: rowNumber * 10, toX: 0, toY: rowNumber * 12, fromScale: 1, toScale: 1.2 },
+  }));
+  const project = {
+    _editorRows: rows,
+    editor_state: {
+      dirty: false,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://127.0.0.1:3042',
+      approval_contract_snapshot: { contractVersion: 'approval-editor-service-v1', snapshotHash: 'hash-before-missing-row-7', rows: rows.map((row) => ({ ...row })) },
+      remotion_project_id: 'approval-project-missing-row-7',
+      snapshot_hash: 'hash-before-missing-row-7',
+    },
+  };
+  const store = { getState: () => ({ selectedVideoProject: project, settings: {} }) };
+  const client = {
+    updateSnapshot: async (projectId, payload) => {
+      calls.push({ type: 'updateSnapshot', projectId, payload });
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-after-missing-row-7' } };
+    },
+    renderFinal: async (projectId, payload) => {
+      calls.push({ type: 'renderFinal', projectId, payload });
+      return { render: { status: 'rendered', outputPath: 'output/video-final.mp4' }, lastRenderedSnapshotHash: payload.snapshotHash };
+    },
+  };
+  const approval = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, error: patch.error });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    renderSelectedVideoProject() {},
+    updateSelectedVideoProjectCompositionPreview: () => false,
+    debounceMs: 0,
+  });
+
+  const commands = createPreviewExportCommands({
+    api: {},
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, error: patch.error });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    isApprovalServiceMode: () => true,
+    createApprovalServiceClient: () => client,
+    renderSelectedVideoProject() {},
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
+    captureApprovalRenderGeometry: () => ({
+      'seg-006': { imageWidth: 951, imageHeight: 1171, panViewportWidth: 950.53125, panViewportHeight: 533.796875 },
+    }),
+    renderFinalPollDelayMs: 0,
+    renderFinalMaxPolls: 0,
+  });
+
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    await commands.exportFinal();
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(calls.some((call) => call.type === 'renderFinal'), false);
+  const errorPersist = calls.find((call) => call.type === 'persist' && call.phase === 'error');
+  assert.match(errorPersist.error, /seg-007/);
+  assert.match(errorPersist.error, /geometry/i);
+});

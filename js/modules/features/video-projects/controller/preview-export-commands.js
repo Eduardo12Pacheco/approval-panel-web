@@ -185,7 +185,8 @@ export function createPreviewExportCommands({
       const projectId = project.editor_state?.remotion_project_id;
       try {
         if (typeof flushPendingApprovalDrafts === 'function') {
-          await flushPendingApprovalDrafts(project, { renderGeometryByRowId: captureApprovalRenderGeometry?.(project) || {} });
+          const renderGeometryByRowId = await Promise.resolve(captureApprovalRenderGeometry?.(project) || {});
+          await flushPendingApprovalDrafts(project, { renderGeometryByRowId });
         }
         const snapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });

@@ -351,6 +351,51 @@ export class CompositionRenderer {
     return geometryByRowId;
   }
 
+  async captureAllImageGeometryByRowId(rows = this.#rows) {
+    this.#updateViewportDimensions();
+    const viewportWidth = this.#viewportWidth;
+    const viewportHeight = this.#viewportHeight;
+    const activeImageElement = this.#dom?.layers?.image || null;
+    const geometryByRowId = {};
+    const imageRows = (Array.isArray(rows) ? rows : [])
+      .map((row) => ({
+        row,
+        rowId: (row?.rowId || row?.id || '').toString().trim(),
+        imageUrl: (row?.image || row?.selectedAssetId || '').toString().trim(),
+      }))
+      .filter(({ row, rowId, imageUrl }) => rowId && imageUrl && row?.media?.kind !== 'video-segment');
+
+    await Promise.all(imageRows.map(async ({ row, rowId, imageUrl }) => {
+      let { imageWidth, imageHeight } = resolveActiveImageDimensions({
+        activeUrl: imageUrl,
+        segment: row,
+        cacheImage: this.#imageCache.get(imageUrl),
+        imageElement: activeImageElement,
+      });
+      if ((!Number.isFinite(Number(imageWidth)) || Number(imageWidth) <= 0 || !Number.isFinite(Number(imageHeight)) || Number(imageHeight) <= 0) && typeof Image === 'function') {
+        try {
+          const img = new Image();
+          img.src = imageUrl;
+          await img.decode();
+          imageWidth = img.naturalWidth || img.width;
+          imageHeight = img.naturalHeight || img.height;
+        } catch {
+          imageWidth = undefined;
+          imageHeight = undefined;
+        }
+      }
+      if (!Number.isFinite(Number(imageWidth)) || Number(imageWidth) <= 0 || !Number.isFinite(Number(imageHeight)) || Number(imageHeight) <= 0) return;
+      geometryByRowId[rowId] = {
+        imageWidth: Number(imageWidth),
+        imageHeight: Number(imageHeight),
+        panViewportWidth: Number(viewportWidth),
+        panViewportHeight: Number(viewportHeight),
+      };
+    }));
+
+    return geometryByRowId;
+  }
+
   #startRafLoop() {
     this.#stopRafLoop();
     const tick = () => {

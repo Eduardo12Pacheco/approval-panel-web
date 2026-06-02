@@ -18,11 +18,21 @@ function hasSameGeometry(motion = {}, geometry = {}) {
     && Number(motion.panViewportHeight) === Number(geometry.panViewportHeight);
 }
 
+function hasCompleteRenderGeometry(motion = {}) {
+  return Boolean(
+    toPositiveFiniteNumber(motion?.imageWidth)
+    && toPositiveFiniteNumber(motion?.imageHeight)
+    && toPositiveFiniteNumber(motion?.panViewportWidth)
+    && toPositiveFiniteNumber(motion?.panViewportHeight),
+  );
+}
+
 export function buildApprovalRenderGeometryMotionOperations(project = {}, renderGeometryByRowId = {}) {
   const rows = Array.isArray(project?._editorRows) && project._editorRows.length
     ? project._editorRows
     : normalizePreparedContractRows(project?.editor_state?.timed_rows || project?.editor_state?.approval_contract_snapshot?.rows);
   const operations = [];
+  const missingGeometryRowIds = [];
   for (const row of rows) {
     const rowId = resolveEditorRowId(row);
     if (!rowId || row?.media?.kind === 'video-segment' || !row?.selectedAssetId || !row?.motion || typeof row.motion !== 'object') continue;
@@ -33,7 +43,10 @@ export function buildApprovalRenderGeometryMotionOperations(project = {}, render
       panViewportWidth: toPositiveFiniteNumber(sourceGeometry?.panViewportWidth),
       panViewportHeight: toPositiveFiniteNumber(sourceGeometry?.panViewportHeight),
     };
-    if (!geometry.imageWidth || !geometry.imageHeight || !geometry.panViewportWidth || !geometry.panViewportHeight) continue;
+    if (!geometry.imageWidth || !geometry.imageHeight || !geometry.panViewportWidth || !geometry.panViewportHeight) {
+      if (!hasCompleteRenderGeometry(row.motion)) missingGeometryRowIds.push(rowId);
+      continue;
+    }
     if (hasSameGeometry(row.motion, geometry)) continue;
     operations.push({
       type: 'setRowMotion',
@@ -41,6 +54,9 @@ export function buildApprovalRenderGeometryMotionOperations(project = {}, render
       motionPresetId: row.motionPresetId || row.motion?.motionPresetId || 'custom',
       motion: { ...row.motion, ...geometry },
     });
+  }
+  if (missingGeometryRowIds.length) {
+    throw new Error(`No se pudo resolver geometry de render para las filas de imagen: ${missingGeometryRowIds.join(', ')}. Actualizá la preview o verificá que las imágenes carguen antes del render final.`);
   }
   return operations;
 }
