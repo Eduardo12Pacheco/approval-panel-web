@@ -711,6 +711,13 @@ function runPreviewTimelineDoesNotStealSelectionFromVideoSelectorCheck() {
   assertEqual(project._previewSeekTime, 7.67, 'Expected preview seek time not to be overwritten by auto-selection while selector is open');
   assertEqual(markerA.classList.contains('is-current'), true, 'Expected timeline marker to still reflect the current preview playhead');
   assertEqual(rowA.classList.contains('is-current'), true, 'Expected table row current marker to still reflect the current preview playhead');
+
+  project._videoSelector = null;
+  project._previewRowSelectionLockRowId = 'seg-003';
+  controls.updatePreviewTimeline(0.5, 12);
+
+  assertEqual(calls.length, 0, 'Expected preview timeline not to auto-select row 1 while a video commit lock is active');
+  assertEqual(project._selectedEditorRowId, 'seg-003', 'Expected video commit lock to keep the accepted row selected');
 }
 
 async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {

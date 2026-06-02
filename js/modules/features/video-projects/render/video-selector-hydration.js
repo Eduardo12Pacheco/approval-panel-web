@@ -237,6 +237,7 @@ export function hydrateVideoSelectorControls({
       const row = currentRows.find((item) => item?.id === rowId || item?.rowId === rowId);
       const rowStartTime = Number(row?.startTime);
       project._selectedEditorRowId = rowId;
+      project._previewRowSelectionLockRowId = rowId;
       if (Number.isFinite(rowStartTime)) project._previewSeekTime = rowStartTime;
       project._videoSelector = null;
       removeVideoSelectorPortal(doc);
@@ -252,6 +253,9 @@ export function hydrateVideoSelectorControls({
       renderSelectedVideoProject?.();
       project._selectedEditorRowId = rowId;
       if (Number.isFinite(rowStartTime)) project._previewSeekTime = rowStartTime;
+      globalThis.setTimeout?.(() => {
+        if (project?._previewRowSelectionLockRowId === rowId) delete project._previewRowSelectionLockRowId;
+      }, 1200);
     });
   });
 

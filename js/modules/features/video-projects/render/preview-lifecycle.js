@@ -203,7 +203,7 @@ function shouldSkipAutoPreviewRowSelection(root) {
 }
 
 function shouldFreezePreviewRowSelection(project) {
-  return Boolean(project?._videoSelector);
+  return Boolean(project?._videoSelector || project?._previewRowSelectionLockRowId);
 }
 
 export function hydratePreviewTransport({ root, project, editorRows, selectEditorRow }) {

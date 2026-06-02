@@ -544,6 +544,7 @@ async function runAcceptVideoSegmentKeepsSelectedRowCheck() {
 
   assertEqual(project._selectedEditorRowId, 'seg-010', 'Expected accepted row 10 to remain selected after video assignment render side effects');
   assertEqual(project._previewSeekTime, 90.25, 'Expected preview seek to remain on row 10 start time after accepting video');
+  assertEqual(project._previewRowSelectionLockRowId, 'seg-010', 'Expected accepting video to hold a short preview auto-selection lock on the accepted row');
   assertEqual(project._editorRows[1].media?.kind, 'video-segment', 'Expected row 10 to keep the accepted video segment assignment');
   assertEqual(project._videoSelector, null, 'Expected selector modal state to close after accepting video');
   assertEqual(previewUpdateCount, 1, 'Expected accepting video to refresh the composition preview once');
