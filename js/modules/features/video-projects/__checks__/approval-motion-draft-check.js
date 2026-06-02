@@ -661,6 +661,58 @@ function runPreviewTimelineAutoSelectsCurrentRowCheck() {
   assertDeepEqual(calls[4].options, { syncPreview: false, source: 'preview-timeline', render: false }, 'Expected scrubbed timeline auto selection not to rerender and reset seek position');
 }
 
+function runPreviewTimelineDoesNotStealSelectionFromVideoSelectorCheck() {
+  destroyCompositionRenderer();
+  const progressEl = createFakeTransportElement();
+  const playheadEl = createFakeTransportElement();
+  const currentTimeEl = createFakeTransportElement();
+  const scrubber = createFakeTransportElement({ dataset: { duration: '12' } });
+  const markerA = createFakeTransportElement({ dataset: { rowId: 'seg-001' } });
+  const markerC = createFakeTransportElement({ dataset: { rowId: 'seg-003' } });
+  const rowA = createFakeTransportElement({ dataset: { rowId: 'seg-001' } });
+  const rowC = createFakeTransportElement({ dataset: { rowId: 'seg-003' } });
+  const project = {
+    _selectedEditorRowId: 'seg-003',
+    _previewSeekTime: 7.67,
+    _videoSelector: { rowId: 'seg-003', videoId: 'video-a', sourceInSeconds: 0 },
+  };
+  const rows = [
+    { id: 'seg-001', startTime: 0, endTime: 2.66, effectiveEndTime: 2.66, selectedAssetId: 'image-1' },
+    { id: 'seg-003', startTime: 7.67, endTime: 14.66, effectiveEndTime: 14.66, selectedAssetId: 'image-3' },
+  ];
+  const calls = [];
+  const root = {
+    ownerDocument: { body: {}, activeElement: null },
+    querySelector(selector) {
+      if (selector === '[data-preview-scrubber]') return scrubber;
+      if (selector === '[data-preview-progress]') return progressEl;
+      if (selector === '[data-preview-playhead]') return playheadEl;
+      if (selector === '[data-preview-current-time]') return currentTimeEl;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.video-preview-timeline__marker') return [markerA, markerC];
+      if (selector === '.video-editor-row[data-row-id]') return [rowA, rowC];
+      return [];
+    },
+  };
+
+  const controls = hydratePreviewTransport({
+    root,
+    project,
+    editorRows: rows,
+    selectEditorRow(rowId, startTime, options) { calls.push({ rowId, startTime, options }); },
+  });
+
+  controls.updatePreviewTimeline(0.5, 12);
+
+  assertEqual(calls.length, 0, 'Expected preview timeline not to auto-select row 1 while video selector is open');
+  assertEqual(project._selectedEditorRowId, 'seg-003', 'Expected open video selector to keep the target row selected');
+  assertEqual(project._previewSeekTime, 7.67, 'Expected preview seek time not to be overwritten by auto-selection while selector is open');
+  assertEqual(markerA.classList.contains('is-current'), true, 'Expected timeline marker to still reflect the current preview playhead');
+  assertEqual(rowA.classList.contains('is-current'), true, 'Expected table row current marker to still reflect the current preview playhead');
+}
+
 async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {
   const timers = createFakeTimers();
   try {
@@ -987,6 +1039,7 @@ export async function runApprovalMotionDraftCheck() {
   runManualMotionHandlerSourceCheck();
   await runBrandChannelPreviewAssetReloadCheck();
   runPreviewTimelineAutoSelectsCurrentRowCheck();
+  runPreviewTimelineDoesNotStealSelectionFromVideoSelectorCheck();
 }
 
 if (process.argv[1] && __filename === process.argv[1]) {

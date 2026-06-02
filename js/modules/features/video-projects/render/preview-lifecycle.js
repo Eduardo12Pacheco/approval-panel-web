@@ -202,6 +202,10 @@ function shouldSkipAutoPreviewRowSelection(root) {
   return Boolean(active.closest?.('input, textarea, select, [contenteditable="true"]'));
 }
 
+function shouldFreezePreviewRowSelection(project) {
+  return Boolean(project?._videoSelector);
+}
+
 export function hydratePreviewTransport({ root, project, editorRows, selectEditorRow }) {
   const previewVideo = root.querySelector('[data-preview-video]');
   const scrubber = root.querySelector('[data-preview-scrubber]');
@@ -233,7 +237,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
       const rowEl = editorRowEls[i];
       if (rowEl) rowEl.classList.toggle('is-current', Boolean(currentId && rowEl.dataset.rowId === currentId));
     }
-    if (currentId && currentId !== lastAutoSelectedRowId && !shouldSkipAutoPreviewRowSelection(root)) {
+    if (currentId && currentId !== lastAutoSelectedRowId && !shouldFreezePreviewRowSelection(project) && !shouldSkipAutoPreviewRowSelection(root)) {
       lastAutoSelectedRowId = currentId;
       project._selectedEditorRowId = currentId;
       project._previewSeekTime = Number(currentTime || 0);
