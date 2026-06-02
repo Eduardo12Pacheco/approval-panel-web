@@ -314,6 +314,22 @@ body.is-motion-scrubbing {
   background: transparent;
 }
 
+.video-motion-manual__field--video-foreground {
+  gap: 8px;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.video-motion-manual__field--video-foreground span {
+  color: var(--text);
+}
+
+.video-motion-manual__field--video-foreground input {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 0.95rem;
+}
+
 .video-motion-card__image {
   position: absolute;
   inset: -12%;

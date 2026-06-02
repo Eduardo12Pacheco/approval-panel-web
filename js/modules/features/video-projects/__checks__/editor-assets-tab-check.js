@@ -410,9 +410,68 @@ async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   assertEqual(project._selectedEditorRowId, 'seg-002', 'Expected row 2 video card click to keep row 2 selected');
   assertEqual(project._previewSeekTime, 6.54, 'Expected row 2 video card click to keep the row 2 preview seek time');
   assertEqual(project._videoSelector?.videoId, 'video-a', 'Expected row 2 video card click to open the selector for the clicked video');
+  assertEqual(project._videoSelector?.rowId, 'seg-002', 'Expected opened video selector state to be owned by row 2');
   assertEqual(renderCount, 0, 'Expected row 2 video card click not to call the full selected-project renderer');
   assert(detailHost.innerHTML.includes('data-video-selector-modal'), 'Expected row 2 video card click to render the selector preview');
   assert(detailHost.innerHTML.includes('data-row-id="seg-002"'), 'Expected selector preview to target row 2');
+}
+
+function runVideoSelectorOwnerRowGuardCheck() {
+  const videos = [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', title: 'Video A', durationSeconds: 12 }];
+  const selector = { rowId: 'seg-003', videoId: 'video-a', sourceInSeconds: 0, durationSeconds: 4, sourceOutSeconds: 4, windowLeftPercent: 0, windowWidthPercent: 33.33, ok: true };
+  const rowOneMarkup = buildEditorVideoPicker({ row: { id: 'seg-001', startTime: 0, endTime: 4 }, videos, selector });
+  const rowThreeMarkup = buildEditorVideoPicker({ row: { id: 'seg-003', startTime: 8, endTime: 12 }, videos, selector });
+
+  assert(!rowOneMarkup.includes('data-video-selector-modal'), 'Expected selector modal not to render for a non-owner row');
+  assert(!rowOneMarkup.includes('data-action="commit-video-segment"'), 'Expected non-owner row not to expose a stale commit button');
+  assert(rowThreeMarkup.includes('data-video-selector-modal'), 'Expected selector modal to render for its owner row');
+  assert(rowThreeMarkup.includes('data-row-id="seg-003"'), 'Expected owner row selector markup to keep row 3 as target');
+}
+
+async function runVideoSelectorRejectsMismatchedCommitCheck() {
+  const commitListeners = new Map();
+  const commitButton = {
+    dataset: { rowId: 'seg-001', videoId: 'video-a', sourceIn: '1.5' },
+    closest(selector) { return selector === '[data-video-selector-modal]' ? { dataset: { rowId: 'seg-001' } } : null; },
+    addEventListener(type, listener) { commitListeners.set(type, listener); },
+  };
+  const root = {
+    ownerDocument: {
+      body: { dataset: {}, style: {}, classList: { add() {}, remove() {} }, querySelector() { return null; } },
+      documentElement: { dataset: {}, style: {}, classList: { add() {}, remove() {} } },
+      defaultView: { scrollY: 0, scrollTo() {} },
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-action="commit-video-segment"]') return [commitButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+  const project = {
+    ...makeProject(),
+    _selectedEditorRowId: 'seg-003',
+    _videoSelector: { rowId: 'seg-003', videoId: 'video-a', sourceInSeconds: 1.5 },
+    _editorRows: [{ id: 'seg-001', startTime: 0 }, { id: 'seg-003', startTime: 8 }],
+    video_assets: [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', durationSeconds: 12 }],
+  };
+  const toasts = [];
+  let assignCount = 0;
+  let renderCount = 0;
+  hydrateVideoSelectorControls({
+    root,
+    project,
+    editorRows: project._editorRows,
+    assignVideoSegmentToRow: async () => { assignCount += 1; },
+    renderSelectedVideoProject: () => { renderCount += 1; },
+    showToast: (message) => toasts.push(message),
+  });
+
+  await commitListeners.get('click')();
+
+  assertEqual(assignCount, 0, 'Expected mismatched selector commit not to assign video to the stale row');
+  assertEqual(project._videoSelector, null, 'Expected mismatched selector commit to close stale selector state');
+  assertEqual(renderCount, 1, 'Expected mismatched selector commit to rerender after closing stale selector');
+  assert(toasts.some((message) => message.includes('cambió de fila')), 'Expected mismatched selector commit to explain the stale selector');
 }
 
 async function runAcceptVideoSegmentKeepsSelectedRowCheck() {
@@ -573,6 +632,8 @@ export async function runEditorAssetsTabCheck() {
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
   await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
+  runVideoSelectorOwnerRowGuardCheck();
+  await runVideoSelectorRejectsMismatchedCommitCheck();
   await runAcceptVideoSegmentKeepsSelectedRowCheck();
   runLayersTabLabelAndSeparationCheck();
   await runRowImageSwapHydrationCheck();

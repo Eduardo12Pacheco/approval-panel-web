@@ -114,9 +114,10 @@ export function buildEditorVideoPicker({ row = null, videos = [], selector = nul
   const rowId = row?.id || '';
   const targetDuration = resolveRowDuration(row);
   const normalizedVideos = Array.isArray(videos) ? videos.map(normalizeVideoAsset) : [];
-  const selectedVideo = selector ? normalizedVideos.find((video) => video.id === selector?.videoId) || null : null;
-  const window = selector && selectedVideo
-    ? { ...resolveVideoSegmentSelectionWindow({ sourceDurationSeconds: selectedVideo.durationSeconds, targetDurationSeconds: targetDuration, requestedSourceInSeconds: selector.sourceInSeconds }), ...selector }
+  const selectorForRow = selector && (!selector.rowId || selector.rowId === rowId) ? selector : null;
+  const selectedVideo = selectorForRow ? normalizedVideos.find((video) => video.id === selectorForRow?.videoId) || null : null;
+  const window = selectorForRow && selectedVideo
+    ? { ...resolveVideoSegmentSelectionWindow({ sourceDurationSeconds: selectedVideo.durationSeconds, targetDurationSeconds: targetDuration, requestedSourceInSeconds: selectorForRow.sourceInSeconds }), ...selectorForRow }
     : null;
   const durationLabel = formatSeconds(targetDuration);
 

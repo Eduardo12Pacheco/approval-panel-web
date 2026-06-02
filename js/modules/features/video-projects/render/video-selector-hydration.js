@@ -168,7 +168,7 @@ export function hydrateVideoSelectorControls({
         if (renderer) renderer.seek(rowStartTime);
       }
       project._editorEffectTab = 'content';
-      project._videoSelector = action.selector;
+      project._videoSelector = { rowId, ...action.selector };
       if (typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
       else renderSelectedVideoProject?.();
     });
@@ -199,7 +199,8 @@ export function hydrateVideoSelectorControls({
       const nextWindow = resolveVideoSegmentSelectionWindow({ sourceDurationSeconds, targetDurationSeconds, requestedSourceInSeconds });
       const windowLeftPercent = sourceDurationSeconds > 0 ? Math.round((nextWindow.sourceInSeconds / sourceDurationSeconds) * 100000) / 1000 : 0;
       const windowWidthPercent = sourceDurationSeconds > 0 ? Math.round((nextWindow.durationSeconds / sourceDurationSeconds) * 100000) / 1000 : 0;
-      project._videoSelector = { videoId: modal.dataset.videoId, ...nextWindow, windowLeftPercent, windowWidthPercent };
+      const selectorRowId = project?._videoSelector?.rowId || modal.dataset.rowId || '';
+      project._videoSelector = { rowId: selectorRowId, videoId: modal.dataset.videoId, ...nextWindow, windowLeftPercent, windowWidthPercent };
       selectorWindow.dataset.sourceIn = nextWindow.sourceInSeconds.toString();
       selectorWindow.dataset.sourceOut = nextWindow.sourceOutSeconds.toString();
       selectorWindow.style.setProperty('--window-left', `${windowLeftPercent}%`);
@@ -222,6 +223,14 @@ export function hydrateVideoSelectorControls({
   root.querySelectorAll('[data-action="commit-video-segment"]').forEach((button) => {
     button.addEventListener('click', async () => {
       const rowId = button.dataset.rowId;
+      const modal = button.closest?.('[data-video-selector-modal]');
+      const modalRowId = modal?.dataset?.rowId || '';
+      const selectorRowId = project?._videoSelector?.rowId || '';
+      if ((modalRowId && modalRowId !== rowId) || (selectorRowId && selectorRowId !== rowId)) {
+        showToast?.('El selector de video cambió de fila; volvé a abrirlo.');
+        closeVideoSelector({ project, renderSelectedVideoProject, doc });
+        return;
+      }
       const videoId = button.dataset.videoId;
       const video = findProjectVideoAsset(project, videoId);
       const currentRows = Array.isArray(project?._editorRows) ? project._editorRows : editorRows;
@@ -241,6 +250,8 @@ export function hydrateVideoSelectorControls({
       }
       updateSelectedVideoProjectCompositionPreview?.({ project });
       renderSelectedVideoProject?.();
+      project._selectedEditorRowId = rowId;
+      if (Number.isFinite(rowStartTime)) project._previewSeekTime = rowStartTime;
     });
   });
 

@@ -347,7 +347,7 @@ function buildVideoFramingPanel({ row }) {
 function buildVideoForegroundNumberInput({ field, label, value, min = null, step = 1 }) {
   const minAttribute = min === null ? '' : ` min="${escapeHtmlCore(min.toString())}"`;
   return `
-    <label class="video-motion-manual__field">
+    <label class="video-motion-manual__field video-motion-manual__field--video-foreground">
       <span>${escapeHtmlCore(label)}</span>
       <input type="number"${minAttribute} step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-video-foreground" data-video-foreground-field="${escapeHtmlCore(field)}" />
     </label>
