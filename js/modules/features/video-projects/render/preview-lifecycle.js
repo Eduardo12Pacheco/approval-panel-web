@@ -44,6 +44,15 @@ export function captureCompositionPreviewSeekTime(project, renderer = compositio
   return true;
 }
 
+export function captureCompositionPreviewImageGeometry(project, renderer = compositionRenderer) {
+  if (!project || !renderer || typeof renderer.captureImageGeometryByRowId !== 'function') return {};
+  if (renderer === compositionRenderer && compositionRendererProject && compositionRendererProject !== project) return {};
+  const editorRows = Array.isArray(project._editorRows) ? project._editorRows : [];
+  if (!editorRows.length) return {};
+  const { compositionRows } = buildCompositionPreviewAssets({ project, rows: editorRows });
+  return renderer.captureImageGeometryByRowId(compositionRows);
+}
+
 export function resolveCompositionPreviewAudioSettings(project = {}) {
   const globalAudioData = project?._globalAudio || { voice: { volume: 1, muted: false }, music: { volume: DEFAULT_MUSIC_VOLUME, muted: false } };
   return {

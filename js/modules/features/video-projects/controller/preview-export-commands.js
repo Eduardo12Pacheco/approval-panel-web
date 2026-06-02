@@ -2,6 +2,7 @@ import { buildCompositionPayload, computeCompositionHash } from '../composition/
 import { prepareVideoCompositionContract, normalizePreparedContractRows } from '../data/contract-pipeline-client.js';
 import { normalizeEditorState, sanitizePipelineHealthMetadata } from '../domain/editor-state.js';
 import { createDefaultBackgroundMusicAudio } from '../audio/default-background-music.js';
+import { captureCompositionPreviewImageGeometry } from '../render/preview-lifecycle.js';
 
 function pickDownloadableRenderPath(renderResult) {
   const render = renderResult?.render || {};
@@ -45,6 +46,7 @@ export function createPreviewExportCommands({
   isApprovalServiceMode,
   createApprovalServiceClient,
   flushPendingApprovalDrafts,
+  captureApprovalRenderGeometry = captureCompositionPreviewImageGeometry,
   renderSelectedVideoProject,
   renderFinalPollDelayMs,
   renderFinalMaxPolls,
@@ -183,7 +185,7 @@ export function createPreviewExportCommands({
       const projectId = project.editor_state?.remotion_project_id;
       try {
         if (typeof flushPendingApprovalDrafts === 'function') {
-          await flushPendingApprovalDrafts(project);
+          await flushPendingApprovalDrafts(project, { renderGeometryByRowId: captureApprovalRenderGeometry?.(project) || {} });
         }
         const snapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });

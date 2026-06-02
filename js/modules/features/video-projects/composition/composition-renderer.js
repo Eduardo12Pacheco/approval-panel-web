@@ -324,6 +324,33 @@ export class CompositionRenderer {
     return resolveActiveSegment(this.#currentTime, this.#rows);
   }
 
+  captureImageGeometryByRowId(rows = this.#rows) {
+    this.#updateViewportDimensions();
+    const viewportWidth = this.#viewportWidth;
+    const viewportHeight = this.#viewportHeight;
+    const activeImageElement = this.#dom?.layers?.image || null;
+    const geometryByRowId = {};
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const rowId = (row?.rowId || row?.id || '').toString().trim();
+      const imageUrl = (row?.image || row?.selectedAssetId || '').toString().trim();
+      if (!rowId || !imageUrl || row?.media?.kind === 'video-segment') continue;
+      const { imageWidth, imageHeight } = resolveActiveImageDimensions({
+        activeUrl: imageUrl,
+        segment: row,
+        cacheImage: this.#imageCache.get(imageUrl),
+        imageElement: activeImageElement,
+      });
+      if (!Number.isFinite(Number(imageWidth)) || Number(imageWidth) <= 0 || !Number.isFinite(Number(imageHeight)) || Number(imageHeight) <= 0) continue;
+      geometryByRowId[rowId] = {
+        imageWidth: Number(imageWidth),
+        imageHeight: Number(imageHeight),
+        panViewportWidth: Number(viewportWidth),
+        panViewportHeight: Number(viewportHeight),
+      };
+    }
+    return geometryByRowId;
+  }
+
   #startRafLoop() {
     this.#stopRafLoop();
     const tick = () => {

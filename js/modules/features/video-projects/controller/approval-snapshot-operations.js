@@ -2,6 +2,49 @@ import { normalizePreparedContractRows } from '../data/contract-pipeline-client.
 import { normalizeEditorState, normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { applyPendingMotionDrafts } from './row-commands.js';
 
+function toPositiveFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function resolveEditorRowId(row = {}) {
+  return (row?.id || row?.rowId || '').toString().trim();
+}
+
+function hasSameGeometry(motion = {}, geometry = {}) {
+  return Number(motion.imageWidth) === Number(geometry.imageWidth)
+    && Number(motion.imageHeight) === Number(geometry.imageHeight)
+    && Number(motion.panViewportWidth) === Number(geometry.panViewportWidth)
+    && Number(motion.panViewportHeight) === Number(geometry.panViewportHeight);
+}
+
+export function buildApprovalRenderGeometryMotionOperations(project = {}, renderGeometryByRowId = {}) {
+  const rows = Array.isArray(project?._editorRows) && project._editorRows.length
+    ? project._editorRows
+    : normalizePreparedContractRows(project?.editor_state?.timed_rows || project?.editor_state?.approval_contract_snapshot?.rows);
+  const operations = [];
+  for (const row of rows) {
+    const rowId = resolveEditorRowId(row);
+    if (!rowId || row?.media?.kind === 'video-segment' || !row?.selectedAssetId || !row?.motion || typeof row.motion !== 'object') continue;
+    const sourceGeometry = renderGeometryByRowId?.[rowId];
+    const geometry = {
+      imageWidth: toPositiveFiniteNumber(sourceGeometry?.imageWidth),
+      imageHeight: toPositiveFiniteNumber(sourceGeometry?.imageHeight),
+      panViewportWidth: toPositiveFiniteNumber(sourceGeometry?.panViewportWidth),
+      panViewportHeight: toPositiveFiniteNumber(sourceGeometry?.panViewportHeight),
+    };
+    if (!geometry.imageWidth || !geometry.imageHeight || !geometry.panViewportWidth || !geometry.panViewportHeight) continue;
+    if (hasSameGeometry(row.motion, geometry)) continue;
+    operations.push({
+      type: 'setRowMotion',
+      rowId,
+      motionPresetId: row.motionPresetId || row.motion?.motionPresetId || 'custom',
+      motion: { ...row.motion, ...geometry },
+    });
+  }
+  return operations;
+}
+
 export function createApprovalSnapshotOperations({
   api,
   store,
@@ -223,14 +266,15 @@ export function createApprovalSnapshotOperations({
     }, debounceMs);
   }
 
-  async function flushPendingApprovalDrafts(project) {
+  async function flushPendingApprovalDrafts(project, { renderGeometryByRowId = {} } = {}) {
     if (approvalMotionSaveTimer !== null) {
       clearTimeout(approvalMotionSaveTimer);
       approvalMotionSaveTimer = null;
     }
 
     const pending = Array.from(pendingApprovalMotionOperations.entries());
-    if (!pending.length) {
+    const geometryOperations = buildApprovalRenderGeometryMotionOperations(project, renderGeometryByRowId);
+    if (!pending.length && !geometryOperations.length) {
       await approvalCommitQueue.catch(() => {});
       return {
         flushedOperations: 0,
@@ -239,7 +283,10 @@ export function createApprovalSnapshotOperations({
     }
 
     pendingApprovalMotionOperations.clear();
-    const operations = pending.map(([, entry]) => entry.operation).filter(Boolean);
+    const operations = [
+      ...pending.map(([, entry]) => entry.operation).filter(Boolean),
+      ...geometryOperations,
+    ];
     if (!operations.length) {
       await approvalCommitQueue.catch(() => {});
       return {
