@@ -468,6 +468,7 @@ export class CompositionRenderer {
 
   #renderFrame() {
     if (!this.#dom) return;
+    this.#updateViewportDimensions();
 
     const { layers } = this.#dom;
     const resolved = resolveActiveSegment(this.#currentTime, this.#rows, finitePositive(this._outroDurationSeconds, OUTRO_DURATION_SECONDS));
@@ -538,7 +539,7 @@ export class CompositionRenderer {
     const isNewspaperMode = !isVideoSegment && resolveMediaMode(segment.mediaMode) === 'newspaper';
     const segmentRenderKey = `${isNewspaperMode ? 'newspaper' : isVideoSegment ? 'video' : 'image'}:${segmentKey}`;
     if (isVideoSegment) {
-      const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime });
+      const plan = buildVideoSegmentPreviewLayerPlan({ media: segment.media, localTime, viewport: { width: this.#viewportWidth, height: this.#viewportHeight } });
       const [background, color, effect2, effect1, foreground] = plan.layers;
       for (const [layer, element] of [[background, layers.videoBackground], [effect1, layers.videoEffect1], [effect2, layers.videoEffect2], [foreground, layers.videoForeground]]) {
         if (layer?.src && element.getAttribute('src') !== layer.src) {

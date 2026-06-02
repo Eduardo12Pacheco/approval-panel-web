@@ -1,5 +1,10 @@
 import { findMotionPreset } from '../domain/motion-presets.js';
 import { shouldHandleEditorUndoKey } from '../controller/undo-manager.js';
+import {
+  convertVideoForegroundTransformToPreview,
+  convertVideoForegroundTransformToRender,
+  normalizeVideoForegroundViewport,
+} from '../composition/renderer/video-layers.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
 import { buildEditorDetailRail } from './editor-markup.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
@@ -433,6 +438,12 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
     hydrateMotionScrubberInput(input);
   });
   root.querySelectorAll('[data-action="update-row-video-foreground"]').forEach((input) => {
+    const panel = input.closest('[data-video-foreground-controls]');
+    const rowId = panel?.dataset.rowId || '';
+    const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
+    const row = rows.find((item) => item?.id === rowId || item?.rowId === rowId) || null;
+    const currentMedia = row?.media?.kind === 'video-segment' ? row.media : null;
+    if (panel && currentMedia) syncVideoForegroundPanelPreviewValues(panel, currentMedia, resolveVideoForegroundPreviewViewport(root, project));
     const updateVideoForeground = () => {
       const panel = input.closest('[data-video-foreground-controls]');
       const rowId = panel?.dataset.rowId || '';
@@ -445,13 +456,18 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
         const value = Number(panel.querySelector(`[data-video-foreground-field="${field}"]`)?.value);
         return Number.isFinite(value) ? value : fallback;
       };
+      const renderTransform = convertVideoForegroundTransformToRender({
+        x: readField('x'),
+        y: readField('y'),
+        scale: Math.max(0.1, readField('scalePercent', 100) / 100),
+      }, resolveVideoForegroundPreviewViewport(root, project));
       updateRow?.(rowId, {
         media: {
           ...currentMedia,
           foregroundTransform: {
-            x: readField('x'),
-            y: readField('y'),
-            scale: Math.max(0.1, readField('scalePercent', 100) / 100),
+            x: renderTransform.x,
+            y: renderTransform.y,
+            scale: renderTransform.scale,
           },
         },
       });
@@ -479,4 +495,20 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
       updateGlobalAudio?.(kind, patch);
     });
   });
+}
+
+function resolveVideoForegroundPreviewViewport(root, project = {}) {
+  const projectViewport = project?._videoPreviewViewport;
+  if (projectViewport) return normalizeVideoForegroundViewport(projectViewport);
+  const doc = root?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const stage = doc?.querySelector?.('[data-composition-container], .composition-stage');
+  return normalizeVideoForegroundViewport({ width: stage?.clientWidth, height: stage?.clientHeight });
+}
+
+function syncVideoForegroundPanelPreviewValues(panel, media = {}, viewport = {}) {
+  const previewTransform = convertVideoForegroundTransformToPreview(media.foregroundTransform || {}, viewport);
+  const xInput = panel.querySelector?.('[data-video-foreground-field="x"]');
+  const yInput = panel.querySelector?.('[data-video-foreground-field="y"]');
+  if (xInput) xInput.value = String(Math.round(previewTransform.x));
+  if (yInput) yInput.value = String(Math.round(previewTransform.y));
 }

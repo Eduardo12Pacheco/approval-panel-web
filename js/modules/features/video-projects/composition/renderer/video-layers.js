@@ -7,6 +7,8 @@ export const VIDEO_SEGMENT_EFFECT_02_URL = resolveVideoSegmentEffectUrl('effect-
 export const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-layer-01');
 export const VIDEO_METADATA_READY_STATE = 1;
 export const MANAGED_VIDEO_PENDING_SYNC_KEY = Symbol('managedVideoPendingSync');
+export const CANONICAL_VIDEO_RENDER_WIDTH = 1920;
+export const CANONICAL_VIDEO_RENDER_HEIGHT = 1080;
 
 export function normalizeVideoForegroundTransform(value = {}) {
   const transform = value && typeof value === 'object' ? value : {};
@@ -16,12 +18,42 @@ export function normalizeVideoForegroundTransform(value = {}) {
   return { x, y, scale };
 }
 
-export function buildVideoForegroundTransformStyle(value = {}) {
-  const transform = normalizeVideoForegroundTransform(value);
-  return `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+export function normalizeVideoForegroundViewport(value = {}) {
+  const viewport = value && typeof value === 'object' ? value : {};
+  const rawWidth = finiteNumber(viewport.width ?? viewport.viewportWidth, CANONICAL_VIDEO_RENDER_WIDTH);
+  const rawHeight = finiteNumber(viewport.height ?? viewport.viewportHeight, CANONICAL_VIDEO_RENDER_HEIGHT);
+  const width = rawWidth > 0 ? rawWidth : CANONICAL_VIDEO_RENDER_WIDTH;
+  const height = rawHeight > 0 ? rawHeight : CANONICAL_VIDEO_RENDER_HEIGHT;
+  return { width, height };
 }
 
-export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } = {}) {
+export function convertVideoForegroundTransformToPreview(value = {}, viewport = {}) {
+  const transform = normalizeVideoForegroundTransform(value);
+  const { width, height } = normalizeVideoForegroundViewport(viewport);
+  return {
+    x: transform.x * (width / CANONICAL_VIDEO_RENDER_WIDTH),
+    y: transform.y * (height / CANONICAL_VIDEO_RENDER_HEIGHT),
+    scale: transform.scale,
+  };
+}
+
+export function convertVideoForegroundTransformToRender(value = {}, viewport = {}) {
+  const transform = normalizeVideoForegroundTransform(value);
+  const { width, height } = normalizeVideoForegroundViewport(viewport);
+  return {
+    x: transform.x * (CANONICAL_VIDEO_RENDER_WIDTH / width),
+    y: transform.y * (CANONICAL_VIDEO_RENDER_HEIGHT / height),
+    scale: transform.scale,
+  };
+}
+
+export function buildVideoForegroundTransformStyle(value = {}, viewport = {}) {
+  const transform = normalizeVideoForegroundTransform(value);
+  const previewTransform = convertVideoForegroundTransformToPreview(transform, viewport);
+  return `translate(${previewTransform.x}px, ${previewTransform.y}px) scale(${previewTransform.scale})`;
+}
+
+export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0, viewport = {} } = {}) {
   if (media?.kind !== 'video-segment') return { layers: [] };
   const sourceInSeconds = finiteNumber(media.sourceInSeconds, 0);
   const durationSeconds = Math.max(0, finiteNumber(media.durationSeconds, 0));
@@ -41,7 +73,7 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
       { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect2BlendMode || 'multiply' },
       { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect1BlendMode || 'screen' },
-      { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain', foregroundTransform, transform: buildVideoForegroundTransformStyle(foregroundTransform), transformOrigin: 'center center' },
+      { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain', foregroundTransform, transform: buildVideoForegroundTransformStyle(foregroundTransform, viewport), transformOrigin: 'center center' },
     ],
   };
 }

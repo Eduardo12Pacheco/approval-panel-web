@@ -1,4 +1,5 @@
 import { escapeHtmlCore } from '../../../core/ui/escape-html.js';
+import { convertVideoForegroundTransformToPreview } from '../composition/renderer/video-layers.js';
 import { buildEditorAssetsPicker } from './editor-assets-picker.js';
 import { buildMotionPicker } from './editor-motion-picker.js';
 import { buildEditorVideoPicker } from './editor-video-picker.js';
@@ -309,15 +310,16 @@ function buildContentPanel({ row, detail, capabilities }) {
   `;
 }
 
-function buildVideoFramingPanel({ row }) {
+function buildVideoFramingPanel({ row, detail = {} }) {
   if (!row) return '<p class="video-projects-empty">Seleccioná una fila de video para ver el encuadre.</p>';
   const media = row.media || {};
   const sourceIn = Number(media.sourceInSeconds ?? media.source_in_seconds ?? 0);
   const duration = Number(media.durationSeconds ?? media.duration_seconds ?? Math.max(0, Number(row.endTime || 0) - Number(row.startTime || 0)));
   const sourceOut = Number.isFinite(sourceIn) && Number.isFinite(duration) ? sourceIn + duration : 0;
   const transform = media.foregroundTransform && typeof media.foregroundTransform === 'object' ? media.foregroundTransform : {};
-  const x = Number.isFinite(Number(transform.x)) ? Number(transform.x) : 0;
-  const y = Number.isFinite(Number(transform.y)) ? Number(transform.y) : 0;
+  const previewTransform = convertVideoForegroundTransformToPreview(transform, detail.previewViewport || {});
+  const x = Math.round(Number.isFinite(Number(previewTransform.x)) ? Number(previewTransform.x) : 0);
+  const y = Math.round(Number.isFinite(Number(previewTransform.y)) ? Number(previewTransform.y) : 0);
   const scale = Number.isFinite(Number(transform.scale)) && Number(transform.scale) > 0 ? Number(transform.scale) : 1;
   const scalePercent = Math.round(scale * 100);
   return `
@@ -399,7 +401,7 @@ function buildNewspaperPanel({ row, detail }) {
 }
 
 function buildFramingPanel({ row, detail, capabilities }) {
-  if (capabilities.framing === 'video-window') return buildVideoFramingPanel({ row });
+  if (capabilities.framing === 'video-window') return buildVideoFramingPanel({ row, detail });
   if (capabilities.framing === 'newspaper-motion') return buildNewspaperPanel({ row, detail });
   return buildMotionPanel({ row, detail });
 }

@@ -1,4 +1,5 @@
 import { CompositionRenderer, syncManagedVideoElement } from '../composition/composition-renderer.js';
+import { normalizeVideoForegroundViewport } from '../composition/renderer/video-layers.js';
 import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { formatSeconds } from '../domain/formatters.js';
@@ -144,6 +145,12 @@ export function hydrateCompositionPreview({ root, project, editorRows }) {
   if (!compositionContainer || !Array.isArray(editorRows) || !editorRows.length) {
     destroyCompositionRenderer();
     return null;
+  }
+  if (project) {
+    project._videoPreviewViewport = normalizeVideoForegroundViewport({
+      width: compositionContainer.clientWidth,
+      height: compositionContainer.clientHeight,
+    });
   }
   const renderer = ensureCompositionRenderer(compositionContainer);
   compositionRendererProject = project;
