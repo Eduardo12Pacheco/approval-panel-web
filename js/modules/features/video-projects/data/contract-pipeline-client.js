@@ -1,6 +1,6 @@
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { normalizeRowMotionForPreview } from '../domain/motion-presets.js';
-import { applyAlternatingBoundaryTransitionDefaults } from '../domain/boundary-transitions.js';
+import { BOUNDARY_TRANSITION_CONFIGS, applyAlternatingBoundaryTransitionDefaults } from '../domain/boundary-transitions.js';
 import { resolveServiceConfig } from '../../../core/state/app-store.js';
 
 function resolveVideoProjectKey(row = {}) {
@@ -47,6 +47,23 @@ export function normalizePreparedContractRows(rows = []) {
     };
   }).filter((row) => row.id);
   return applyAlternatingBoundaryTransitionDefaults(normalizedRows);
+}
+
+function buildBoundaryTransitionAssetRecord(transition) {
+  const config = BOUNDARY_TRANSITION_CONFIGS[transition];
+  if (!config) return null;
+  return { assetId: transition, id: transition, type: 'video', role: 'boundary-transition', renderPath: config.renderPath, previewUrl: config.previewUrl, durationSeconds: config.durationSeconds, status: 'ready' };
+}
+
+function normalizeApprovalContractSnapshot(snapshot) {
+  if (snapshot?.contractVersion !== 'approval-editor-service-v1') return null;
+  const rows = applyAlternatingBoundaryTransitionDefaults(Array.isArray(snapshot.rows) ? snapshot.rows.map((row) => ({ ...row })) : []);
+  const assets = { ...(snapshot.assets || {}) };
+  for (const row of rows) {
+    const asset = buildBoundaryTransitionAssetRecord(row?.transition);
+    if (asset && !assets[asset.assetId]) assets[asset.assetId] = asset;
+  }
+  return { ...snapshot, rows, assets };
 }
 
 function applyPreparedEditorDustDefaults(rows = []) {
@@ -167,15 +184,13 @@ export async function prepareVideoCompositionContract({ project, settings, api }
       throw new Error(`Alineación de audio pendiente. Esperando Whisper...${detail ? ` (${detail})` : ''}`);
     }
 
-    const canonicalSnapshot = created?.snapshot?.contractVersion === 'approval-editor-service-v1'
-      ? created.snapshot
-      : null;
+    const canonicalSnapshot = normalizeApprovalContractSnapshot(created?.snapshot);
     const compositionProjectId = created?.projectId || canonicalSnapshot?.projectId || created?.snapshot?.project?.projectId;
     if (!compositionProjectId) throw new Error('Remotion no devolvió projectId');
 
     const createdRows = normalizePreparedContractRows(canonicalSnapshot?.rows || created?.snapshot?.project?.rows);
     const status = await client.status(compositionProjectId);
-    const statusSnapshot = status?.snapshot?.contractVersion === 'approval-editor-service-v1' ? status.snapshot : null;
+    const statusSnapshot = normalizeApprovalContractSnapshot(status?.snapshot);
     const statusRows = normalizePreparedContractRows(statusSnapshot?.rows || status?.project?.rows);
     const timedRows = applyPreparedEditorDustDefaults(createdRows.length ? createdRows : statusRows);
     if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');

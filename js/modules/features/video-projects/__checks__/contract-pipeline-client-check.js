@@ -389,6 +389,88 @@ export async function runContractPipelineClientCheck() {
     throw new Error('Expected minimal provider metadata to be present');
   }
 
+  const boundarySnapshot = {
+    contractVersion: 'approval-editor-service-v1',
+    projectId: 'approval-boundary-preview',
+    snapshotId: 'snapshot-boundary-preview',
+    snapshotHash: 'hash-boundary-preview',
+    rows: [
+      { rowId: 'row-1', id: 'row-1', index: 0, phrase: 'Primer párrafo', startTime: 0, endTime: 1, selectedAssetId: 'asset-1', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-2', transition: 'none' },
+      { rowId: 'row-2', id: 'row-2', index: 1, phrase: 'Segundo párrafo', startTime: 1, endTime: 2, selectedAssetId: 'asset-2', media: { kind: 'image' }, paragraphBoundaryAfter: true, nextRowId: 'row-3', transition: 'none' },
+      { rowId: 'row-3', id: 'row-3', index: 2, phrase: 'Tercer párrafo', startTime: 2, endTime: 3, selectedAssetId: 'asset-3', media: { kind: 'image' }, transition: 'none' },
+    ],
+    assets: {
+      'asset-1': { assetId: 'asset-1', previewUrl: 'https://cdn.example.com/1.jpg', renderPath: 'https://cdn.example.com/1.jpg' },
+      'asset-2': { assetId: 'asset-2', previewUrl: 'https://cdn.example.com/2.jpg', renderPath: 'https://cdn.example.com/2.jpg' },
+      'asset-3': { assetId: 'asset-3', previewUrl: 'https://cdn.example.com/3.jpg', renderPath: 'https://cdn.example.com/3.jpg' },
+    },
+    audio: { voice: { volume: 1, muted: false }, music: { volume: 0.16, muted: false } },
+  };
+  const boundaryPrepared = await prepareVideoCompositionContract({
+    project: baseProject(),
+    settings: { remotionApiUrl: 'https://remotion.local' },
+    api: {
+      createRemotionClient() {
+        return {
+          async createFromApproval() {
+            return { alignmentStatus: { status: 'ready' }, projectId: boundarySnapshot.projectId, snapshot: boundarySnapshot };
+          },
+          async status() {
+            return { snapshot: boundarySnapshot, previewAssets: { assets: {} } };
+          },
+        };
+      },
+    },
+  });
+
+  const preparedSnapshotRows = boundaryPrepared.approvalContractSnapshot?.rows || [];
+  if (preparedSnapshotRows[0]?.transition !== 'glitch-1' || preparedSnapshotRows[0]?.transitionSource !== 'auto') {
+    throw new Error('Expected prepared Approval snapshot row 1 to already persist automatic Glitch 1');
+  }
+  if (preparedSnapshotRows[1]?.transition !== 'glitch-2' || preparedSnapshotRows[1]?.transitionSource !== 'auto') {
+    throw new Error('Expected prepared Approval snapshot row 2 to already persist automatic Glitch 2');
+  }
+  if (preparedSnapshotRows[0]?.transitionConfig?.assetId !== 'glitch-1' || preparedSnapshotRows[1]?.transitionConfig?.assetId !== 'glitch-2') {
+    throw new Error('Expected prepared Approval snapshot rows to include full automatic Glitch configs');
+  }
+  if (!boundaryPrepared.approvalContractSnapshot?.assets?.['glitch-1'] || !boundaryPrepared.approvalContractSnapshot?.assets?.['glitch-2']) {
+    throw new Error('Expected prepared Approval snapshot to include automatic Glitch boundary assets');
+  }
+
+  const manualNoneSnapshot = {
+    ...boundarySnapshot,
+    snapshotId: 'snapshot-manual-none-preview',
+    snapshotHash: 'hash-manual-none-preview',
+    rows: [
+      { ...boundarySnapshot.rows[0], transition: 'none', transitionSource: 'manual' },
+      { ...boundarySnapshot.rows[1], transition: 'none' },
+      { ...boundarySnapshot.rows[2] },
+    ],
+  };
+  const manualNonePrepared = await prepareVideoCompositionContract({
+    project: baseProject(),
+    settings: { remotionApiUrl: 'https://remotion.local' },
+    api: {
+      createRemotionClient() {
+        return {
+          async createFromApproval() {
+            return { alignmentStatus: { status: 'ready' }, projectId: manualNoneSnapshot.projectId, snapshot: manualNoneSnapshot };
+          },
+          async status() {
+            return { snapshot: manualNoneSnapshot, previewAssets: { assets: {} } };
+          },
+        };
+      },
+    },
+  });
+  const manualRows = manualNonePrepared.approvalContractSnapshot?.rows || [];
+  if (manualRows[0]?.transition !== 'none' || manualRows[0]?.transitionSource !== 'manual') {
+    throw new Error('Expected prepared Approval snapshot to preserve explicit manual none at the first boundary');
+  }
+  if (manualRows[1]?.transition !== 'glitch-2' || manualRows[1]?.transitionSource !== 'auto') {
+    throw new Error('Expected automatic boundary alternation to continue after a preserved manual none');
+  }
+
   const adapterCall = calls.find((entry) => entry.type === 'adapter');
   if (!adapterCall || adapterCall.baseUrl !== 'https://remotion.local') {
     throw new Error('Expected contract pipeline client to configure adapter with settings base URL');
