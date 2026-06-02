@@ -315,6 +315,10 @@ function buildVideoFramingPanel({ row }) {
   const sourceIn = Number(media.sourceInSeconds ?? media.source_in_seconds ?? 0);
   const duration = Number(media.durationSeconds ?? media.duration_seconds ?? Math.max(0, Number(row.endTime || 0) - Number(row.startTime || 0)));
   const sourceOut = Number.isFinite(sourceIn) && Number.isFinite(duration) ? sourceIn + duration : 0;
+  const transform = media.foregroundTransform && typeof media.foregroundTransform === 'object' ? media.foregroundTransform : {};
+  const x = Number.isFinite(Number(transform.x)) ? Number(transform.x) : 0;
+  const y = Number.isFinite(Number(transform.y)) ? Number(transform.y) : 0;
+  const scale = Number.isFinite(Number(transform.scale)) && Number(transform.scale) > 0 ? Number(transform.scale) : 1;
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
       <h4>Ventana de video</h4>
@@ -323,6 +327,28 @@ function buildVideoFramingPanel({ row }) {
         ? `Fuente: ${escapeHtmlCore(sourceIn.toFixed(2))}s → ${escapeHtmlCore(sourceOut.toFixed(2))}s`
         : 'Sin ventana de video definida todavía.'}</p>
     </div>
+    <div class="video-motion-manual" data-video-foreground-controls data-row-id="${escapeHtmlCore(row.id || row.rowId || '')}">
+      <div class="video-motion-manual__header">
+        <div>
+          <h4>Video fuente</h4>
+          <p>Ajustá solo el video central. El fondo y los efectos se mantienen igual.</p>
+        </div>
+      </div>
+      <div class="video-motion-manual__fields">
+        ${buildVideoForegroundNumberInput({ field: 'x', label: 'X', value: x })}
+        ${buildVideoForegroundNumberInput({ field: 'y', label: 'Y', value: y })}
+        ${buildVideoForegroundNumberInput({ field: 'scale', label: 'Escala', value: scale, step: 0.01 })}
+      </div>
+    </div>
+  `;
+}
+
+function buildVideoForegroundNumberInput({ field, label, value, step = 1 }) {
+  return `
+    <label class="video-motion-manual__field">
+      <span>${escapeHtmlCore(label)}</span>
+      <input type="number" step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-video-foreground" data-video-foreground-field="${escapeHtmlCore(field)}" />
+    </label>
   `;
 }
 

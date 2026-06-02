@@ -8,6 +8,19 @@ export const VIDEO_SEGMENT_EFFECT_01_URL = resolveVideoSegmentEffectUrl('effect-
 export const VIDEO_METADATA_READY_STATE = 1;
 export const MANAGED_VIDEO_PENDING_SYNC_KEY = Symbol('managedVideoPendingSync');
 
+export function normalizeVideoForegroundTransform(value = {}) {
+  const transform = value && typeof value === 'object' ? value : {};
+  const x = finiteNumber(transform.x, 0);
+  const y = finiteNumber(transform.y, 0);
+  const scale = Math.max(0.1, finiteNumber(transform.scale, 1));
+  return { x, y, scale };
+}
+
+export function buildVideoForegroundTransformStyle(value = {}) {
+  const transform = normalizeVideoForegroundTransform(value);
+  return `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+}
+
 export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } = {}) {
   if (media?.kind !== 'video-segment') return { layers: [] };
   const sourceInSeconds = finiteNumber(media.sourceInSeconds, 0);
@@ -16,6 +29,7 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
   const currentTimeSeconds = sourceInSeconds + clampedLocalTime;
   const effectTimeSeconds = clampedLocalTime;
   const sourceVideoSrc = media.sourceVideoSrc || media.src || '';
+  const foregroundTransform = normalizeVideoForegroundTransform(media.foregroundTransform);
 
   return {
     sourceInSeconds,
@@ -27,7 +41,7 @@ export function buildVideoSegmentPreviewLayerPlan({ media = {}, localTime = 0 } 
       { name: 'color-overlay', backgroundColor: media.overlayColor || VIDEO_SEGMENT_OVERLAY_COLOR, opacity: Number(media.overlayOpacity ?? VIDEO_SEGMENT_OVERLAY_OPACITY) },
       { name: 'effect-layer-02', src: media.effect2Src || VIDEO_SEGMENT_EFFECT_02_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect2BlendMode || 'multiply' },
       { name: 'effect-layer-01', src: media.effect1Src || VIDEO_SEGMENT_EFFECT_01_URL, currentTimeSeconds: effectTimeSeconds, mixBlendMode: media.effect1BlendMode || 'screen' },
-      { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain' },
+      { name: 'foreground-video', src: sourceVideoSrc, currentTimeSeconds, objectFit: 'contain', foregroundTransform, transform: buildVideoForegroundTransformStyle(foregroundTransform), transformOrigin: 'center center' },
     ],
   };
 }

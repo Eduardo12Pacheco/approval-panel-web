@@ -77,7 +77,7 @@ export function hydrateEditorPhaseInteractions({
     hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
     hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
     hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
-    hydrateEffectAndAudioControls({ root: detailHost, updateRow, updateGlobalAudio, updateBrandChannel });
+    hydrateEffectAndAudioControls({ root: detailHost, project, updateRow, updateGlobalAudio, updateBrandChannel });
   };
   const selectEditorRow = (rowId, startTime, options = {}) => {
     if (!rowId) return;
@@ -107,7 +107,7 @@ export function hydrateEditorPhaseInteractions({
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
-  hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, updateBrandChannel });
+  hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalAudio, updateBrandChannel });
   root.querySelector('[data-action="retry-prepare-preview"]')?.addEventListener('click', () => preparePreview?.());
   root.querySelector('[data-action="return-to-audio-step"]')?.addEventListener('click', () => {
     if (project?.editor_state?.phase === 'error') {
@@ -389,7 +389,7 @@ function updateManualMotionPanelValues(root, rowId, preset, presetName = '') {
   setFieldValue('toScalePercent', Math.round(Number(preset.toScale ?? 1) * 100));
 }
 
-function hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, updateBrandChannel }) {
+function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalAudio, updateBrandChannel }) {
   root.querySelectorAll('[data-action="update-row-dust"]').forEach((select) => {
     select.addEventListener('change', () => {
       const rowId = select.dataset.rowId;
@@ -430,6 +430,34 @@ function hydrateEffectAndAudioControls({ root, updateRow, updateGlobalAudio, upd
     };
     input.addEventListener('input', updateNewspaper);
     input.addEventListener('change', updateNewspaper);
+    hydrateMotionScrubberInput(input);
+  });
+  root.querySelectorAll('[data-action="update-row-video-foreground"]').forEach((input) => {
+    const updateVideoForeground = () => {
+      const panel = input.closest('[data-video-foreground-controls]');
+      const rowId = panel?.dataset.rowId || '';
+      if (!rowId) return;
+      const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
+      const row = rows.find((item) => item?.id === rowId || item?.rowId === rowId) || null;
+      const currentMedia = row?.media?.kind === 'video-segment' ? row.media : null;
+      if (!currentMedia) return;
+      const readField = (field, fallback = 0) => {
+        const value = Number(panel.querySelector(`[data-video-foreground-field="${field}"]`)?.value);
+        return Number.isFinite(value) ? value : fallback;
+      };
+      updateRow?.(rowId, {
+        media: {
+          ...currentMedia,
+          foregroundTransform: {
+            x: readField('x'),
+            y: readField('y'),
+            scale: Math.max(0.1, readField('scale', 1)),
+          },
+        },
+      });
+    };
+    input.addEventListener('input', updateVideoForeground);
+    input.addEventListener('change', updateVideoForeground);
     hydrateMotionScrubberInput(input);
   });
   root.querySelectorAll('[data-action="update-brand-channel"]').forEach((select) => select.addEventListener('change', () => updateBrandChannel?.(select.value)));

@@ -83,6 +83,15 @@ function isNewspaperRowPatch(patch = {}) {
   return hasOwnPatchValue(patch, 'newspaper');
 }
 
+function isVideoForegroundTransformPatch(row = {}, patch = {}) {
+  if (row?.media?.kind !== 'video-segment' || patch?.media?.kind !== 'video-segment') return false;
+  if (!patch.media.foregroundTransform || typeof patch.media.foregroundTransform !== 'object') return false;
+  return String(patch.media.sourceVideoAssetId || '') === String(row.media.sourceVideoAssetId || '')
+    && String(patch.media.sourceVideoSrc || '') === String(row.media.sourceVideoSrc || '')
+    && Number(patch.media.sourceInSeconds || 0) === Number(row.media.sourceInSeconds || 0)
+    && Number(patch.media.durationSeconds || 0) === Number(row.media.durationSeconds || 0);
+}
+
 function stableJson(value) {
   return JSON.stringify(value ?? null);
 }
@@ -191,13 +200,24 @@ export function createRowCommands({
     if (isApprovalServiceMode(project)) {
       const operations = [];
       const shouldDraftMotion = isMotionRowPatch(patch);
+      const shouldDraftVideoForeground = isVideoForegroundTransformPatch(rows[index], patch);
       if (patch.selectedAssetId !== undefined) {
         const currentMediaMode = patch.mediaMode || rows[index]?.mediaMode;
         operations.push({ type: 'setRowImage', rowId, asset: resolveApprovalRowImageAsset(project, patch.selectedAssetId), ...(currentMediaMode ? { mediaMode: currentMediaMode } : {}) });
       }
       if (patch.mediaMode !== undefined) operations.push({ type: 'setRowMediaMode', rowId, mediaMode: patch.mediaMode, media: patch.media });
       if (patch.media?.kind === 'video-segment') {
-        operations.push({ type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds });
+        const operation = { type: 'setRowVideoSegment', rowId, sourceVideoAssetId: patch.media.sourceVideoAssetId, sourceVideoSrc: patch.media.sourceVideoSrc, sourceInSeconds: patch.media.sourceInSeconds, durationSeconds: patch.media.durationSeconds, foregroundTransform: patch.media.foregroundTransform };
+        if (shouldDraftVideoForeground) {
+          const localMediaPatch = { media: { ...rows[index].media, foregroundTransform: { ...patch.media.foregroundTransform } } };
+          project._editorRows = patchLocalEditorRows(rows, rowId, localMediaPatch);
+          project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+          createMotionDraft(rowId, operation, localMediaPatch, `${rowId}:video-foreground`);
+          updateSelectedVideoProjectCompositionPreview({ project });
+          scheduleApprovalMotionPersistence(project);
+        } else {
+          operations.push(operation);
+        }
       }
       if (isBoundaryTransitionPatch(patch)) {
         const transition = ['whip', 'glitch-1', 'glitch-2'].includes(patch.boundaryTransition) ? patch.boundaryTransition : 'none';

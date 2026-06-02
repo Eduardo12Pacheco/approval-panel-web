@@ -547,6 +547,8 @@ export class CompositionRenderer {
         }
         element.style.visibility = layer?.src ? 'visible' : 'hidden';
         element.style.objectFit = layer?.objectFit || element.style.objectFit;
+        element.style.transform = layer?.transform || '';
+        element.style.transformOrigin = layer?.transformOrigin || '';
         syncManagedVideoElement({ video: element, currentTimeSeconds: layer?.currentTimeSeconds, playing: Boolean(this.#isPlaying && layer?.src) });
       }
       layers.videoColorOverlay.style.visibility = 'visible';

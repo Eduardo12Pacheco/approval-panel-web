@@ -46,6 +46,7 @@ function normalizeVideoSegmentOperation(row, op = {}) {
   if (!Number.isFinite(sourceInSeconds) || sourceInSeconds < 0) {
     throw Object.assign(new Error("sourceInSeconds must be non-negative"), { code: "invalid_video_segment" });
   }
+  const foregroundTransform = op.foregroundTransform && typeof op.foregroundTransform === "object" ? op.foregroundTransform : null;
   return {
     kind: "video-segment",
     sourceInSeconds,
@@ -54,6 +55,13 @@ function normalizeVideoSegmentOperation(row, op = {}) {
     overlayOpacity: 0.3,
     effect1AssetId: "effect-layer-01",
     effect2AssetId: "effect-layer-02",
+    ...(foregroundTransform ? {
+      foregroundTransform: {
+        x: Number(foregroundTransform.x || 0),
+        y: Number(foregroundTransform.y || 0),
+        scale: Math.max(0.1, Number(foregroundTransform.scale || 1)),
+      },
+    } : {}),
   };
 }
 

@@ -1,9 +1,13 @@
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { createVideoProjectsFeature } from '../index.js';
 import { buildVideoSegmentPreviewLayerPlan } from '../composition/renderer/video-layers.js';
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { createRowVideoCommands, resolveVideoSegmentDurationSeconds } from '../data/row-video-commands.js';
 import { syncVideoSelectorPreviewLayers } from '../render/preview-lifecycle.js';
+
+const require = createRequire(import.meta.url);
+const { applyContractOperations } = require('../../../../../services/approval-editor/lib/contract-updates.js');
 
 function assertEqual(actual, expected, message) {
   if (actual !== expected) {
@@ -193,6 +197,34 @@ function testPreviewPlanSeparatesSourceTrimFromDecorativeEffects() {
   assertEqual(byName['effect-layer-02'].currentTimeSeconds, 1.5, 'Expected decorative effect 02 to use local timeline time');
 }
 
+function testPreviewPlanAppliesForegroundTransformOnlyToSourceLayer() {
+  const plan = buildVideoSegmentPreviewLayerPlan({
+    media: {
+      kind: 'video-segment',
+      sourceVideoSrc: 'clip.mp4',
+      sourceInSeconds: 0,
+      durationSeconds: 4,
+      foregroundTransform: { x: -42, y: 18, scale: 1.35 },
+    },
+    localTime: 0.5,
+  });
+  const byName = Object.fromEntries(plan.layers.map((layer) => [layer.name, layer]));
+
+  assertDeepEqual(
+    byName['foreground-video'].foregroundTransform,
+    { x: -42, y: 18, scale: 1.35 },
+    'Expected preview plan to carry the source foreground transform',
+  );
+  assertEqual(
+    byName['foreground-video'].transform,
+    'translate(-42px, 18px) scale(1.35)',
+    'Expected foreground source video to receive center-origin translate/scale transform',
+  );
+  assertEqual(byName['background-video'].transform, undefined, 'Expected background video to stay untransformed');
+  assertEqual(byName['effect-layer-01'].transform, undefined, 'Expected decorative effect 01 to stay untransformed');
+  assertEqual(byName['effect-layer-02'].transform, undefined, 'Expected decorative effect 02 to stay untransformed');
+}
+
 function testSelectorPreviewKeepsDecorativeEffectsAtLocalStart() {
   const videos = [
     createReadyVideo('background-video'),
@@ -260,6 +292,33 @@ async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
   assertEqual(assigned, true, 'Expected video segment assignment to succeed');
   assertEqual(patches[0]?.media?.durationSeconds, 4.56, 'Expected assigned video segment to send canonical Approval duration');
   assertEqual(updateOptions[0]?.render, false, 'Expected video segment assignment to avoid a full editor rerender that can reset selection');
+  assertDeepEqual(patches[0]?.media?.foregroundTransform, { x: 0, y: 0, scale: 1 }, 'Expected assigned video segment to initialize foreground transform defaults');
+}
+
+function testApprovalSnapshotPersistsVideoForegroundTransform() {
+  const snapshot = {
+    contractVersion: 'approval-editor-service-v1',
+    projectId: 'approval-project-1',
+    snapshotHash: 'hash-before',
+    assets: {},
+    rows: [{ id: 'seg-009', rowId: 'seg-009', startTime: 10, endTime: 13, selectedAssetId: 'image.jpg', media: { kind: 'image' } }],
+  };
+
+  const next = applyContractOperations(snapshot, [{
+    type: 'setRowVideoSegment',
+    rowId: 'seg-009',
+    sourceVideoAssetId: 'video-1',
+    sourceVideoSrc: 'clip.mp4',
+    sourceInSeconds: 2,
+    durationSeconds: 3,
+    foregroundTransform: { x: -30, y: 14, scale: 1.22 },
+  }]);
+
+  assertDeepEqual(
+    next.rows[0].media.foregroundTransform,
+    { x: -30, y: 14, scale: 1.22 },
+    'Expected Approval snapshot video operation to persist foreground transform in row media',
+  );
 }
 
 export async function runVideoSegmentStabilityCheck() {
@@ -267,10 +326,12 @@ export async function runVideoSegmentStabilityCheck() {
   await testStaleBoundaryTransitionRetriesAgainstLatestSnapshot();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
+  testPreviewPlanAppliesForegroundTransformOnlyToSourceLayer();
   testSelectorPreviewKeepsDecorativeEffectsAtLocalStart();
   testSelectorPreviewDoesNotReseekPlayingDecorativeEffects();
   testVideoSegmentDurationUsesCanonicalApprovalSnapshotRow();
   await testAssignVideoSegmentSendsCanonicalApprovalDuration();
+  testApprovalSnapshotPersistsVideoForegroundTransform();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

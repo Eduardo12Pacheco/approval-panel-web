@@ -117,9 +117,16 @@ export function runEditorRowCapabilitiesCheck() {
   assertIncludes(imageMarkup, 'data-action="update-row-logo"', 'Expected image layers panel to include logo controls');
   assertNotIncludes(imageMarkup, 'data-action="update-row-newspaper"', 'Expected image rows not to show newspaper motion controls');
 
-  const videoMarkup = buildEditorEffectTabs({ row: { id: 'row-video', media: { kind: 'video-segment', sourceInSeconds: 1.5, durationSeconds: 3 } }, detail: createDetail(), activeTab: 'framing' });
+  const videoMarkup = buildEditorEffectTabs({ row: { id: 'row-video', media: { kind: 'video-segment', sourceInSeconds: 1.5, durationSeconds: 3, foregroundTransform: { x: -25, y: 12, scale: 1.2 } } }, detail: createDetail(), activeTab: 'framing' });
   assertIncludes(videoMarkup, '<strong>Video</strong>', 'Expected video rows to display Video as the current content type');
   assertIncludes(videoMarkup, 'Ventana de video', 'Expected video framing panel to show video window context');
+  assertIncludes(videoMarkup, 'data-action="update-row-video-foreground"', 'Expected video framing panel to expose foreground video transform controls');
+  assertIncludes(videoMarkup, 'data-video-foreground-field="x"', 'Expected video framing panel to expose foreground X control');
+  assertIncludes(videoMarkup, 'data-video-foreground-field="y"', 'Expected video framing panel to expose foreground Y control');
+  assertIncludes(videoMarkup, 'data-video-foreground-field="scale"', 'Expected video framing panel to expose foreground scale control');
+  assertIncludes(videoMarkup, 'value="-25"', 'Expected video foreground X control to hydrate from media transform');
+  assertIncludes(videoMarkup, 'value="12"', 'Expected video foreground Y control to hydrate from media transform');
+  assertIncludes(videoMarkup, 'value="1.2"', 'Expected video foreground scale control to hydrate from media transform');
   assertIncludes(videoMarkup, 'data-action="upload-row-video"', 'Expected video content panel to expose video picker/upload');
   assertNotIncludes(videoMarkup, 'data-action="update-row-motion"', 'Expected video rows not to show normal image motion');
   assertNotIncludes(videoMarkup, 'data-action="update-row-newspaper"', 'Expected video rows not to show newspaper controls');
