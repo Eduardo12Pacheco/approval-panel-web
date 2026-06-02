@@ -308,6 +308,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     persistEditorState,
     isApprovalServiceMode: approval.isApprovalServiceMode,
     createApprovalServiceClient: approval.createApprovalServiceClient,
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
     renderSelectedVideoProject,
   });
 

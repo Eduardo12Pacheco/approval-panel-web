@@ -223,6 +223,46 @@ export function createApprovalSnapshotOperations({
     }, debounceMs);
   }
 
+  async function flushPendingApprovalDrafts(project) {
+    if (approvalMotionSaveTimer !== null) {
+      clearTimeout(approvalMotionSaveTimer);
+      approvalMotionSaveTimer = null;
+    }
+
+    const pending = Array.from(pendingApprovalMotionOperations.entries());
+    if (!pending.length) {
+      await approvalCommitQueue.catch(() => {});
+      return {
+        flushedOperations: 0,
+        snapshotHash: project?.editor_state?.snapshot_hash || project?.editor_state?.approval_contract_snapshot?.snapshotHash || '',
+      };
+    }
+
+    pendingApprovalMotionOperations.clear();
+    const operations = pending.map(([, entry]) => entry.operation).filter(Boolean);
+    if (!operations.length) {
+      await approvalCommitQueue.catch(() => {});
+      return {
+        flushedOperations: 0,
+        snapshotHash: project?.editor_state?.snapshot_hash || project?.editor_state?.approval_contract_snapshot?.snapshotHash || '',
+      };
+    }
+
+    await queueApprovalSnapshotOperations(project, operations, { phase: 'editing_dirty' });
+    pending.forEach(([operationKey, entry]) => {
+      const rowId = entry.rowId || operationKey;
+      const currentDraft = pendingApprovalMotionDrafts.get(rowId);
+      if (currentDraft?.revision === entry.revision) pendingApprovalMotionDrafts.delete(rowId);
+      const currentSnapshotDraft = pendingApprovalSnapshotDrafts.get(operationKey);
+      if (currentSnapshotDraft?.revision === entry.revision) pendingApprovalSnapshotDrafts.delete(operationKey);
+    });
+
+    return {
+      flushedOperations: operations.length,
+      snapshotHash: project?.editor_state?.snapshot_hash || project?.editor_state?.approval_contract_snapshot?.snapshotHash || '',
+    };
+  }
+
   function resolveOperationErrorContext(operation = {}) {
     if (operation?.type === 'setAudio') return `Audio ${operation.kind === 'voice' ? 'voice' : 'music'}`;
     if (operation?.rowId) return `Fila ${operation.rowId}`;
@@ -250,6 +290,7 @@ export function createApprovalSnapshotOperations({
     commitApprovalSnapshotOperations,
     queueApprovalSnapshotOperations,
     scheduleApprovalMotionPersistence,
+    flushPendingApprovalDrafts,
     cancelPendingApprovalDrafts,
     createMotionDraft,
     createSnapshotDraft,

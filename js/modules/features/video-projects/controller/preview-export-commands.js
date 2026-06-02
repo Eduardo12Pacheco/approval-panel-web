@@ -44,6 +44,7 @@ export function createPreviewExportCommands({
   persistEditorState,
   isApprovalServiceMode,
   createApprovalServiceClient,
+  flushPendingApprovalDrafts,
   renderSelectedVideoProject,
   renderFinalPollDelayMs,
   renderFinalMaxPolls,
@@ -180,8 +181,11 @@ export function createPreviewExportCommands({
     if (isApprovalServiceMode(project)) {
       const client = createApprovalServiceClient(project);
       const projectId = project.editor_state?.remotion_project_id;
-      const snapshotHash = project.editor_state?.snapshot_hash;
       try {
+        if (typeof flushPendingApprovalDrafts === 'function') {
+          await flushPendingApprovalDrafts(project);
+        }
+        const snapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash;
         await persistEditorState(project, { phase: 'final_rendering', export_status: 'rendering', error: '' });
         renderSelectedVideoProject();
         const started = await client.renderFinal(projectId, { snapshotHash, async: true });
