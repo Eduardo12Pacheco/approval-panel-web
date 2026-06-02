@@ -161,6 +161,111 @@ test('exportFinal persists browser image geometry through setRowMotion when no a
   assert.equal(finalPersist.lastRenderedHash, 'hash-after-geometry');
 });
 
+test('exportFinal persists automatic boundary transitions before renderFinal', async () => {
+  const calls = [];
+  const rows = Array.from({ length: 15 }, (_, index) => {
+    const rowNumber = index + 1;
+    const rowId = `seg-${String(rowNumber).padStart(3, '0')}`;
+    return {
+      id: rowId,
+      rowId,
+      phrase: `Fila ${rowNumber}`,
+      selectedAssetId: `https://cdn.example.com/image-${rowNumber}.jpg`,
+      media: { kind: 'image' },
+      motionPresetId: 'custom',
+      motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1 },
+      ...(rowNumber === 7 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-008', transition: 'glitch-1', transitionSource: 'auto' } : {}),
+      ...(rowNumber === 14 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-015', transition: 'glitch-2', transitionSource: 'auto' } : {}),
+    };
+  });
+  const snapshotRows = rows.map(({ transition, transitionSource, transitionConfig, sfx, ...row }) => row);
+  const project = {
+    _editorRows: rows,
+    editor_state: {
+      dirty: false,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://127.0.0.1:3042',
+      approval_contract_snapshot: {
+        contractVersion: 'approval-editor-service-v1',
+        snapshotHash: 'hash-before-auto-boundaries',
+        rows: snapshotRows,
+        assets: Object.fromEntries(rows.map((row) => [row.selectedAssetId, { assetId: row.selectedAssetId, renderPath: `images/${row.rowId}.jpg`, status: 'ready' }])),
+      },
+      remotion_project_id: 'approval-project-auto-boundaries',
+      snapshot_hash: 'hash-before-auto-boundaries',
+    },
+  };
+  const store = { getState: () => ({ selectedVideoProject: project, settings: {} }) };
+  const client = {
+    updateSnapshot: async (projectId, payload) => {
+      calls.push({ type: 'updateSnapshot', projectId, payload });
+      const transitionByRowId = new Map(payload.operations
+        .filter((operation) => operation.type === 'setBoundaryTransition')
+        .map((operation) => [operation.rowId, operation]));
+      return {
+        snapshot: {
+          ...project.editor_state.approval_contract_snapshot,
+          snapshotHash: 'hash-after-auto-boundaries',
+          rows: snapshotRows.map((row) => {
+            const operation = transitionByRowId.get(row.rowId);
+            return operation ? { ...row, paragraphBoundaryAfter: true, nextRowId: operation.nextRowId, transition: operation.transition, transitionSource: operation.transitionSource } : row;
+          }),
+        },
+      };
+    },
+    renderFinal: async (projectId, payload) => {
+      calls.push({ type: 'renderFinal', projectId, payload });
+      return { render: { status: 'rendered', outputPath: 'output/video-final.mp4' }, lastRenderedSnapshotHash: payload.snapshotHash };
+    },
+    finalDownloadUrl: () => '/api/projects/approval-project-auto-boundaries/final',
+  };
+  const approval = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    renderSelectedVideoProject() {},
+    updateSelectedVideoProjectCompositionPreview: () => false,
+    debounceMs: 0,
+  });
+
+  const commands = createPreviewExportCommands({
+    api: {},
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    isApprovalServiceMode: () => true,
+    createApprovalServiceClient: () => client,
+    renderSelectedVideoProject() {},
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
+    captureApprovalRenderGeometry: () => Object.fromEntries(rows.map((row) => [row.rowId, {
+      imageWidth: 951,
+      imageHeight: 1171,
+      panViewportWidth: 950.53125,
+      panViewportHeight: 533.796875,
+    }])),
+    renderFinalPollDelayMs: 0,
+    renderFinalMaxPolls: 0,
+  });
+
+  await commands.exportFinal();
+
+  const updateCall = calls.find((call) => call.type === 'updateSnapshot');
+  const boundaryOperations = updateCall.payload.operations.filter((operation) => operation.type === 'setBoundaryTransition');
+  assert.deepEqual(boundaryOperations, [
+    { type: 'setBoundaryTransition', rowId: 'seg-007', nextRowId: 'seg-008', paragraphBoundaryAfter: true, transition: 'glitch-1', transitionSource: 'auto' },
+    { type: 'setBoundaryTransition', rowId: 'seg-014', nextRowId: 'seg-015', paragraphBoundaryAfter: true, transition: 'glitch-2', transitionSource: 'auto' },
+  ]);
+  const renderCall = calls.find((call) => call.type === 'renderFinal');
+  assert.deepEqual(renderCall.payload, { snapshotHash: 'hash-after-auto-boundaries', async: true });
+});
+
 test('exportFinal persists browser image geometry for every image row, including non-visible later rows', async () => {
   const calls = [];
   const rows = Array.from({ length: 7 }, (_, index) => {

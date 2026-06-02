@@ -124,6 +124,36 @@ function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
   assertEqual(project._editorRows[1].paragraphBoundaryAfter, undefined, 'Expected rows without paragraph break to stay ineligible');
 }
 
+function runHydratedThreeParagraphAutoBoundaryMarkupCheck() {
+  const timedRows = Array.from({ length: 15 }, (_, index) => {
+    const rowNumber = index + 1;
+    const rowId = `seg-${String(rowNumber).padStart(3, '0')}`;
+    return { id: rowId, rowId, phrase: `Fila ${rowNumber}`, startTime: index, endTime: index + 1, transition: 'none' };
+  });
+  const guionBlocks = timedRows.map((row, index) => `${row.phrase}${index === 6 || index === 13 ? '\n\n' : ''}`);
+  const project = {
+    guion_piped: guionBlocks.join('|'),
+    editor_state: { timed_rows: timedRows, global_audio: {} },
+  };
+
+  hydrateSelectedProjectState(project);
+
+  assertEqual(project._editorRows[6].paragraphBoundaryAfter, true, 'Expected first paragraph boundary at row 7 to be derived');
+  assertEqual(project._editorRows[6].nextRowId, 'seg-008', 'Expected row 7 boundary to target row 8');
+  assertEqual(project._editorRows[6].transition, 'glitch-1', 'Expected row 7 boundary to receive automatic Glitch 1');
+  assertEqual(project._editorRows[6].transitionSource, 'auto', 'Expected row 7 automatic Glitch 1 provenance');
+  assertEqual(project._editorRows[13].paragraphBoundaryAfter, true, 'Expected second paragraph boundary at row 14 to be derived');
+  assertEqual(project._editorRows[13].nextRowId, 'seg-015', 'Expected row 14 boundary to target row 15');
+  assertEqual(project._editorRows[13].transition, 'glitch-2', 'Expected row 14 boundary to receive automatic Glitch 2');
+  assertEqual(project._editorRows[13].transitionSource, 'auto', 'Expected row 14 automatic Glitch 2 provenance');
+
+  const markup = buildEditorRowsTable(project._editorRows, { selectedRowId: 'seg-007', project });
+  assert(markup.includes('data-row-id="seg-007"'), 'Expected row 7 connector controls to render');
+  assert(markup.includes('data-row-id="seg-014"'), 'Expected row 14 connector controls to render');
+  assert(markup.includes('data-row-id="seg-007" data-next-row-id="seg-008" data-transition="glitch-1" aria-pressed="true"'), 'Expected automatic row 7 Glitch 1 button to be active');
+  assert(markup.includes('data-row-id="seg-014" data-next-row-id="seg-015" data-transition="glitch-2" aria-pressed="true"'), 'Expected automatic row 14 Glitch 2 button to be active');
+}
+
 async function runBoundaryConnectorHydrationCheck() {
   const listeners = new Map();
   const button = {
@@ -239,6 +269,7 @@ export async function runEditorBoundaryTransitionCheck() {
   runAutomaticBoundaryTransitionDefaultsCheck();
   runManualBoundaryTransitionPreservationCheck();
   runHydratedRowsDeriveBoundaryMetadataFromGuionCheck();
+  runHydratedThreeParagraphAutoBoundaryMarkupCheck();
   await runBoundaryConnectorHydrationCheck();
   await runApprovalBoundaryTransitionOperationCheck();
 }

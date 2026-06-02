@@ -2,6 +2,8 @@ import { normalizePreparedContractRows } from '../data/contract-pipeline-client.
 import { normalizeEditorState, normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { applyPendingMotionDrafts } from './row-commands.js';
 
+const AUTOMATIC_BOUNDARY_TRANSITIONS = new Set(['glitch-1', 'glitch-2']);
+
 function toPositiveFiniteNumber(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : null;
@@ -25,6 +27,47 @@ function hasCompleteRenderGeometry(motion = {}) {
     && toPositiveFiniteNumber(motion?.panViewportWidth)
     && toPositiveFiniteNumber(motion?.panViewportHeight),
   );
+}
+
+function isAutomaticBoundaryTransitionRow(row = {}) {
+  return Boolean(
+    row?.paragraphBoundaryAfter === true
+    && (row?.nextRowId || '').toString().trim()
+    && row?.transitionSource === 'auto'
+    && AUTOMATIC_BOUNDARY_TRANSITIONS.has((row?.transition || '').toString().trim()),
+  );
+}
+
+function hasSameAutomaticBoundaryTransition(snapshotRow = {}, editorRow = {}) {
+  return snapshotRow?.paragraphBoundaryAfter === true
+    && (snapshotRow?.nextRowId || '').toString().trim() === (editorRow?.nextRowId || '').toString().trim()
+    && snapshotRow?.transitionSource === 'auto'
+    && (snapshotRow?.transition || '').toString().trim() === (editorRow?.transition || '').toString().trim();
+}
+
+export function buildAutomaticBoundaryTransitionOperations(project = {}) {
+  const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
+  if (!rows.length) return [];
+  const snapshotRows = Array.isArray(project?.editor_state?.approval_contract_snapshot?.rows)
+    ? project.editor_state.approval_contract_snapshot.rows
+    : [];
+  const snapshotRowsById = new Map(
+    snapshotRows
+      .map((row) => [resolveEditorRowId(row), row])
+      .filter(([rowId]) => rowId),
+  );
+
+  return rows
+    .filter(isAutomaticBoundaryTransitionRow)
+    .filter((row) => !hasSameAutomaticBoundaryTransition(snapshotRowsById.get(resolveEditorRowId(row)), row))
+    .map((row) => ({
+      type: 'setBoundaryTransition',
+      rowId: resolveEditorRowId(row),
+      nextRowId: (row.nextRowId || '').toString().trim(),
+      paragraphBoundaryAfter: true,
+      transition: row.transition,
+      transitionSource: 'auto',
+    }));
 }
 
 export function buildApprovalRenderGeometryMotionOperations(project = {}, renderGeometryByRowId = {}) {
@@ -290,7 +333,8 @@ export function createApprovalSnapshotOperations({
 
     const pending = Array.from(pendingApprovalMotionOperations.entries());
     const geometryOperations = buildApprovalRenderGeometryMotionOperations(project, renderGeometryByRowId);
-    if (!pending.length && !geometryOperations.length) {
+    const automaticBoundaryOperations = buildAutomaticBoundaryTransitionOperations(project);
+    if (!pending.length && !geometryOperations.length && !automaticBoundaryOperations.length) {
       await approvalCommitQueue.catch(() => {});
       return {
         flushedOperations: 0,
@@ -302,6 +346,7 @@ export function createApprovalSnapshotOperations({
     const operations = [
       ...pending.map(([, entry]) => entry.operation).filter(Boolean),
       ...geometryOperations,
+      ...automaticBoundaryOperations,
     ];
     if (!operations.length) {
       await approvalCommitQueue.catch(() => {});
