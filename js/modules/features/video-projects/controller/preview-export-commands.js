@@ -123,9 +123,20 @@ export function createPreviewExportCommands({
     if (!project) return;
 
     if (isApprovalServiceMode(project)) {
-      await persistEditorState(project, { phase: 'preview_ready', dirty: false, error: '', last_preview_hash: project.editor_state.snapshot_hash });
-      renderSelectedVideoProject();
-      ui.toast('Preview actualizada desde snapshot canónico');
+      try {
+        if (typeof flushPendingApprovalDrafts === 'function') {
+          await flushPendingApprovalDrafts(project, { includeRenderGeometry: false });
+        }
+        const snapshotHash = project.editor_state?.snapshot_hash || project.editor_state?.approval_contract_snapshot?.snapshotHash || '';
+        await persistEditorState(project, { phase: 'preview_ready', dirty: false, error: '', last_preview_hash: snapshotHash });
+        renderSelectedVideoProject();
+        ui.toast('Preview actualizada desde snapshot canónico');
+      } catch (err) {
+        console.error(err);
+        await persistEditorState(project, { phase: 'error', error: err?.message || 'No se pudo actualizar preview' });
+        renderSelectedVideoProject();
+        ui.toast('Error actualizando preview');
+      }
       return;
     }
 

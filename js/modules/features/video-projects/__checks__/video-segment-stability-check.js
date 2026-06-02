@@ -375,7 +375,20 @@ function testApprovalSnapshotPersistsVideoForegroundTransform() {
     projectId: 'approval-project-1',
     snapshotHash: 'hash-before',
     assets: {},
-    rows: [{ id: 'seg-009', rowId: 'seg-009', startTime: 10, endTime: 13, selectedAssetId: 'image.jpg', media: { kind: 'image' } }],
+    rows: [{
+      id: 'seg-009',
+      rowId: 'seg-009',
+      startTime: 10,
+      endTime: 13,
+      selectedAssetId: 'image.jpg',
+      media: {
+        kind: 'video-segment',
+        sourceVideoAssetId: 'video-1',
+        sourceInSeconds: 2,
+        durationSeconds: 3,
+        foregroundTransform: { x: 0, y: 0, scale: 1 },
+      },
+    }],
   };
 
   const next = applyContractOperations(snapshot, [{
@@ -393,6 +406,9 @@ function testApprovalSnapshotPersistsVideoForegroundTransform() {
     { x: -30, y: 14, scale: 1.22 },
     'Expected Approval snapshot video operation to persist foreground transform in row media',
   );
+  assertEqual(next.rows[0].media.sourceVideoAssetId, 'video-1', 'Expected foreground-only video operation to preserve source asset id');
+  assertEqual(next.rows[0].media.sourceInSeconds, 2, 'Expected foreground-only video operation to preserve source in seconds');
+  assertEqual(next.rows[0].media.durationSeconds, 3, 'Expected foreground-only video operation to preserve segment duration');
 }
 
 export async function runVideoSegmentStabilityCheck() {

@@ -9,6 +9,11 @@ function toPositiveFiniteNumber(value) {
   return Number.isFinite(number) && number > 0 ? number : null;
 }
 
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
 function resolveEditorRowId(row = {}) {
   return (row?.id || row?.rowId || '').toString().trim();
 }
@@ -68,6 +73,76 @@ export function buildAutomaticBoundaryTransitionOperations(project = {}) {
       transition: row.transition,
       transitionSource: 'auto',
     }));
+}
+
+function normalizeForegroundTransform(value) {
+  if (!value || typeof value !== 'object') return null;
+  const rawScale = Number(value.scale || 1);
+  return {
+    x: toFiniteNumber(value.x, 0),
+    y: toFiniteNumber(value.y, 0),
+    scale: Math.max(0.1, Number.isFinite(rawScale) ? rawScale : 1),
+  };
+}
+
+function hasSameForegroundTransform(left, right) {
+  const normalizedLeft = normalizeForegroundTransform(left);
+  const normalizedRight = normalizeForegroundTransform(right);
+  if (!normalizedLeft || !normalizedRight) return false;
+  return Math.abs(normalizedLeft.x - normalizedRight.x) < 0.000001
+    && Math.abs(normalizedLeft.y - normalizedRight.y) < 0.000001
+    && Math.abs(normalizedLeft.scale - normalizedRight.scale) < 0.000001;
+}
+
+function resolveVideoSegmentDuration(row = {}, media = {}) {
+  const mediaDuration = toPositiveFiniteNumber(media.durationSeconds);
+  if (mediaDuration) return mediaDuration;
+  const startTime = toFiniteNumber(row.startTime, 0);
+  const endTime = Number.isFinite(Number(row.effectiveEndTime)) ? Number(row.effectiveEndTime) : Number(row.endTime);
+  const rowDuration = endTime - startTime;
+  return Number.isFinite(rowDuration) && rowDuration > 0 ? rowDuration : null;
+}
+
+export function buildApprovalVideoForegroundTransformOperations(project = {}) {
+  const rows = Array.isArray(project?._editorRows) && project._editorRows.length
+    ? normalizePreparedContractRows(project._editorRows)
+    : normalizePreparedContractRows(project?.editor_state?.timed_rows);
+  if (!rows.length) return [];
+  const snapshotRows = Array.isArray(project?.editor_state?.approval_contract_snapshot?.rows)
+    ? project.editor_state.approval_contract_snapshot.rows
+    : [];
+  const snapshotRowsById = new Map(
+    snapshotRows
+      .map((row) => [resolveEditorRowId(row), row])
+      .filter(([rowId]) => rowId),
+  );
+
+  const operations = [];
+  for (const row of rows) {
+    const rowId = resolveEditorRowId(row);
+    const media = row?.media || {};
+    const localTransform = normalizeForegroundTransform(media.foregroundTransform);
+    if (!rowId || media.kind !== 'video-segment' || !localTransform) continue;
+
+    const snapshotRow = snapshotRowsById.get(rowId);
+    if (hasSameForegroundTransform(localTransform, snapshotRow?.media?.foregroundTransform)) continue;
+
+    const sourceVideoAssetId = (media.sourceVideoAssetId || media.assetId || snapshotRow?.media?.sourceVideoAssetId || '').toString().trim();
+    const sourceVideoSrc = (media.sourceVideoSrc || media.previewUrl || media.renderPath || media.publicUrl || snapshotRow?.media?.sourceVideoSrc || '').toString().trim();
+    const durationSeconds = resolveVideoSegmentDuration(row, media);
+    if ((!sourceVideoAssetId && !sourceVideoSrc) || !durationSeconds) continue;
+
+    operations.push({
+      type: 'setRowVideoSegment',
+      rowId,
+      sourceVideoAssetId,
+      sourceVideoSrc,
+      sourceInSeconds: Math.max(0, toFiniteNumber(media.sourceInSeconds, 0)),
+      durationSeconds,
+      foregroundTransform: localTransform,
+    });
+  }
+  return operations;
 }
 
 export function buildApprovalRenderGeometryMotionOperations(project = {}, renderGeometryByRowId = {}) {
@@ -325,16 +400,19 @@ export function createApprovalSnapshotOperations({
     }, debounceMs);
   }
 
-  async function flushPendingApprovalDrafts(project, { renderGeometryByRowId = {} } = {}) {
+  async function flushPendingApprovalDrafts(project, { renderGeometryByRowId = {}, includeRenderGeometry = true } = {}) {
     if (approvalMotionSaveTimer !== null) {
       clearTimeout(approvalMotionSaveTimer);
       approvalMotionSaveTimer = null;
     }
 
     const pending = Array.from(pendingApprovalMotionOperations.entries());
-    const geometryOperations = buildApprovalRenderGeometryMotionOperations(project, renderGeometryByRowId);
+    const pendingOperationKeys = new Set(pending.map(([operationKey]) => operationKey));
+    const geometryOperations = includeRenderGeometry ? buildApprovalRenderGeometryMotionOperations(project, renderGeometryByRowId) : [];
     const automaticBoundaryOperations = buildAutomaticBoundaryTransitionOperations(project);
-    if (!pending.length && !geometryOperations.length && !automaticBoundaryOperations.length) {
+    const videoForegroundOperations = buildApprovalVideoForegroundTransformOperations(project)
+      .filter((operation) => !pendingOperationKeys.has(`${operation.rowId}:video-foreground`));
+    if (!pending.length && !geometryOperations.length && !automaticBoundaryOperations.length && !videoForegroundOperations.length) {
       await approvalCommitQueue.catch(() => {});
       return {
         flushedOperations: 0,
@@ -345,6 +423,7 @@ export function createApprovalSnapshotOperations({
     pendingApprovalMotionOperations.clear();
     const operations = [
       ...pending.map(([, entry]) => entry.operation).filter(Boolean),
+      ...videoForegroundOperations,
       ...geometryOperations,
       ...automaticBoundaryOperations,
     ];

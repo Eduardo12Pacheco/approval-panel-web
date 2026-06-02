@@ -161,6 +161,151 @@ test('exportFinal persists browser image geometry through setRowMotion when no a
   assert.equal(finalPersist.lastRenderedHash, 'hash-after-geometry');
 });
 
+test('exportFinal reconciles local video foreground transform before renderFinal when the pending draft queue is empty', async () => {
+  const calls = [];
+  const localVideoRow = {
+    id: 'seg-002',
+    rowId: 'seg-002',
+    startTime: 10,
+    endTime: 13,
+    media: {
+      kind: 'video-segment',
+      sourceVideoAssetId: 'clip-1',
+      sourceVideoSrc: 'https://cdn.example.com/clip-1.mp4',
+      sourceInSeconds: 31.95,
+      durationSeconds: 3,
+      foregroundTransform: { x: 180, y: -24, scale: 1.65 },
+    },
+  };
+  const snapshotVideoRow = { ...localVideoRow, media: { kind: 'video-segment', sourceVideoAssetId: 'clip-1', sourceInSeconds: 31.95, durationSeconds: 3 } };
+  const project = {
+    _editorRows: [localVideoRow],
+    editor_state: {
+      dirty: false,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://127.0.0.1:3042',
+      approval_contract_snapshot: { contractVersion: 'approval-editor-service-v1', snapshotHash: 'hash-before-video-foreground', rows: [snapshotVideoRow], assets: {} },
+      remotion_project_id: 'approval-project-video-foreground',
+      snapshot_hash: 'hash-before-video-foreground',
+    },
+  };
+  const store = { getState: () => ({ selectedVideoProject: project, settings: {} }) };
+  const client = {
+    updateSnapshot: async (projectId, payload) => {
+      calls.push({ type: 'updateSnapshot', projectId, payload });
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-after-video-foreground', rows: [{ ...snapshotVideoRow, media: { ...snapshotVideoRow.media, sourceVideoSrc: payload.operations[0].sourceVideoSrc, foregroundTransform: payload.operations[0].foregroundTransform } }] } };
+    },
+    renderFinal: async (projectId, payload) => {
+      calls.push({ type: 'renderFinal', projectId, payload });
+      return { render: { status: 'rendered', outputPath: 'output/video-final.mp4' }, lastRenderedSnapshotHash: payload.snapshotHash };
+    },
+    finalDownloadUrl: () => '/api/projects/approval-project-video-foreground/final',
+  };
+  const approval = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    renderSelectedVideoProject() {},
+    updateSelectedVideoProjectCompositionPreview: () => false,
+    debounceMs: 0,
+  });
+  const commands = createPreviewExportCommands({
+    api: {},
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastRenderedHash: patch.last_rendered_hash });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    isApprovalServiceMode: () => true,
+    createApprovalServiceClient: () => client,
+    renderSelectedVideoProject() {},
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
+    captureApprovalRenderGeometry: () => ({}),
+    renderFinalPollDelayMs: 0,
+    renderFinalMaxPolls: 0,
+  });
+
+  await commands.exportFinal();
+
+  const updateCall = calls.find((call) => call.type === 'updateSnapshot');
+  assert.deepEqual(updateCall.payload, {
+    baseSnapshotHash: 'hash-before-video-foreground',
+    operations: [{ type: 'setRowVideoSegment', rowId: 'seg-002', sourceVideoAssetId: 'clip-1', sourceVideoSrc: 'https://cdn.example.com/clip-1.mp4', sourceInSeconds: 31.95, durationSeconds: 3, foregroundTransform: { x: 180, y: -24, scale: 1.65 } }],
+  });
+  const renderCall = calls.find((call) => call.type === 'renderFinal');
+  assert.deepEqual(renderCall.payload, { snapshotHash: 'hash-after-video-foreground', async: true });
+  const finalPersist = calls.find((call) => call.type === 'persist' && call.phase === 'final_ready');
+  assert.equal(finalPersist.lastRenderedHash, 'hash-after-video-foreground');
+});
+
+test('refreshPreview reconciles local video foreground transform before marking Approval preview clean', async () => {
+  const calls = [];
+  const videoRow = {
+    id: 'seg-003',
+    rowId: 'seg-003',
+    startTime: 20,
+    endTime: 24,
+    media: { kind: 'video-segment', sourceVideoAssetId: 'clip-3', sourceVideoSrc: 'https://cdn.example.com/clip-3.mp4', sourceInSeconds: 8, durationSeconds: 4, foregroundTransform: { x: -90, y: 32, scale: 1.4 } },
+  };
+  const snapshotVideoRow = { ...videoRow, media: { ...videoRow.media, foregroundTransform: undefined } };
+  const project = {
+    _editorRows: [videoRow],
+    editor_state: {
+      dirty: true,
+      pipeline_provider: 'approval',
+      pipeline_base_url: 'http://127.0.0.1:3042',
+      approval_contract_snapshot: { contractVersion: 'approval-editor-service-v1', snapshotHash: 'hash-before-refresh-video-foreground', rows: [snapshotVideoRow], assets: {} },
+      remotion_project_id: 'approval-project-refresh-video-foreground',
+      snapshot_hash: 'hash-before-refresh-video-foreground',
+    },
+  };
+  const store = { getState: () => ({ selectedVideoProject: project, settings: {} }) };
+  const client = {
+    updateSnapshot: async (projectId, payload) => {
+      calls.push({ type: 'updateSnapshot', projectId, payload });
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-after-refresh-video-foreground', rows: [{ ...snapshotVideoRow, media: { ...snapshotVideoRow.media, foregroundTransform: payload.operations[0].foregroundTransform } }] } };
+    },
+  };
+  const approval = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastPreviewHash: patch.last_preview_hash, error: patch.error });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    renderSelectedVideoProject() {},
+    updateSelectedVideoProjectCompositionPreview: () => false,
+    debounceMs: 0,
+  });
+  const commands = createPreviewExportCommands({
+    api: {},
+    store,
+    ui: { toast() {} },
+    persistEditorState: async (persistProject, patch) => {
+      calls.push({ type: 'persist', phase: patch.phase, snapshotHash: patch.snapshot_hash, lastPreviewHash: patch.last_preview_hash, error: patch.error });
+      persistProject.editor_state = { ...persistProject.editor_state, ...patch };
+    },
+    isApprovalServiceMode: () => true,
+    createApprovalServiceClient: () => client,
+    renderSelectedVideoProject() {},
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
+  });
+
+  await commands.refreshPreview();
+
+  const updateCall = calls.find((call) => call.type === 'updateSnapshot');
+  assert.deepEqual(updateCall.payload.operations, [{ type: 'setRowVideoSegment', rowId: 'seg-003', sourceVideoAssetId: 'clip-3', sourceVideoSrc: 'https://cdn.example.com/clip-3.mp4', sourceInSeconds: 8, durationSeconds: 4, foregroundTransform: { x: -90, y: 32, scale: 1.4 } }]);
+  const cleanPersist = calls.find((call) => call.type === 'persist' && call.phase === 'preview_ready' && call.lastPreviewHash);
+  assert.equal(cleanPersist.lastPreviewHash, 'hash-after-refresh-video-foreground');
+  assert.equal(calls.some((call) => call.phase === 'error'), false);
+});
+
 test('exportFinal persists automatic boundary transitions before renderFinal', async () => {
   const calls = [];
   const rows = Array.from({ length: 15 }, (_, index) => {
