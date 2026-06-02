@@ -451,7 +451,7 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
           foregroundTransform: {
             x: readField('x'),
             y: readField('y'),
-            scale: Math.max(0.1, readField('scale', 1)),
+            scale: Math.max(0.1, readField('scalePercent', 100) / 100),
           },
         },
       });

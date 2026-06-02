@@ -240,8 +240,7 @@ export function hydrateVideoSelectorControls({
         if (renderer) renderer.seek(rowStartTime);
       }
       updateSelectedVideoProjectCompositionPreview?.({ project });
-      if (assigned && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
-      else renderSelectedVideoProject?.();
+      renderSelectedVideoProject?.();
     });
   });
 

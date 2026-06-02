@@ -848,6 +848,14 @@ function runManualMotionHandlerSourceCheck() {
     true,
     'Expected manual motion scrubber to use pointer capture when available',
   );
+
+  const videoForegroundBlock = renderSource.match(/const updateVideoForeground = \(\) => \{[\s\S]*?hydrateMotionScrubberInput\(input\);/);
+  if (!videoForegroundBlock) throw new Error('Expected video foreground hydration block to be present');
+  assertEqual(
+    videoForegroundBlock[0].includes("readField('scalePercent', 100) / 100"),
+    true,
+    'Expected video foreground scale percent input 150 to be stored as ratio 1.5',
+  );
 }
 
 function runManualMotionScrubValueCheck() {
@@ -928,6 +936,20 @@ function runManualMotionScrubBehaviorCheck() {
     assertEqual(documentRef.body.style.userSelect, 'text', 'Expected body user-select guard to restore previous value after pointerup');
     assertDeepEqual(input.pointerReleaseCalls, [8], 'Expected pointer capture release after active pointerup');
     assertDeepEqual(documentRef.removeCalls, ['pointermove', 'pointerup', 'pointercancel'], 'Expected document-level pointer listeners to be removed after pointerup');
+  }
+
+  {
+    const input = createFakeMotionScrubInput({ value: '150', motionField: '' });
+    input.dataset.videoForegroundField = 'scalePercent';
+    const documentRef = createFakeMotionScrubDocument();
+    const handlers = createMotionScrubHandlers({ input, documentRef });
+
+    handlers.pointerdown(createPointerEvent({ pointerId: 10, clientX: 10 }));
+    documentRef.dispatchPointer('pointermove', createPointerEvent({ pointerId: 10, clientX: 22 }));
+    documentRef.dispatchPointer('pointerup', createPointerEvent({ pointerId: 10, clientX: 22 }));
+
+    assertEqual(input.value, '153', 'Expected video foreground scale percent scrub to use scale sensitivity');
+    assertDeepEqual(input.dispatchedEvents, ['input', 'change'], 'Expected video foreground scale scrub to dispatch live and final updates');
   }
 
   {

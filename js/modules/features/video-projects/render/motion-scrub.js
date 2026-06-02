@@ -11,7 +11,8 @@ export function resolveMotionScrubValue({ startValue = 0, deltaX = 0, kind = 'po
 }
 
 function resolveMotionScrubKind(input) {
-  return (input?.dataset?.motionField || '').includes('ScalePercent') ? 'scalePercent' : 'position';
+  const field = (input?.dataset?.motionField || input?.dataset?.videoForegroundField || '').toString().toLowerCase();
+  return field.includes('scalepercent') ? 'scalePercent' : 'position';
 }
 
 export function createMotionScrubHandlers({ input, documentRef = globalThis.document } = {}) {

@@ -5,6 +5,7 @@ import { buildVideoSegmentPreviewLayerPlan } from '../composition/renderer/video
 import { createApprovalSnapshotOperations } from '../controller/approval-snapshot-operations.js';
 import { createRowVideoCommands, resolveVideoSegmentDurationSeconds } from '../data/row-video-commands.js';
 import { syncVideoSelectorPreviewLayers } from '../render/preview-lifecycle.js';
+import { hydrateVideoSelectorControls } from '../render/video-selector-hydration.js';
 
 const require = createRequire(import.meta.url);
 const { applyContractOperations } = require('../../../../../services/approval-editor/lib/contract-updates.js');
@@ -62,6 +63,39 @@ function createApprovalProject({ rows = [] } = {}) {
       phase: 'preview_ready',
     },
     _editorRows: rows,
+  };
+}
+
+function createFakeCommitButton({ rowId, videoId, sourceIn = 0 }) {
+  const listeners = new Map();
+  return {
+    dataset: { rowId, videoId, sourceIn: String(sourceIn) },
+    addEventListener(type, handler) {
+      listeners.set(type, handler);
+    },
+    async click() {
+      await listeners.get('click')?.();
+    },
+  };
+}
+
+function createVideoSelectorCommitRoot(commitButton) {
+  const body = { querySelector: () => null, appendChild() {}, dataset: {}, classList: { add() {}, remove() {} }, style: {} };
+  const doc = {
+    body,
+    documentElement: { dataset: {}, classList: { add() {}, remove() {} }, style: {} },
+    createElement() { return { setAttribute() {}, replaceChildren() {} }; },
+    defaultView: { scrollTo() {}, scrollY: 0 },
+  };
+  return {
+    ownerDocument: doc,
+    querySelectorAll(selector) {
+      if (selector === '[data-action="commit-video-segment"]') return [commitButton];
+      return [];
+    },
+    querySelector() {
+      return null;
+    },
   };
 }
 
@@ -295,6 +329,46 @@ async function testAssignVideoSegmentSendsCanonicalApprovalDuration() {
   assertDeepEqual(patches[0]?.media?.foregroundTransform, { x: 0, y: 0, scale: 1 }, 'Expected assigned video segment to initialize foreground transform defaults');
 }
 
+async function testCommittedVideoSegmentKeepsTargetSelectionAndRefreshesTable() {
+  const rows = [
+    { id: 'seg-001', startTime: 0, endTime: 2.66, selectedAssetId: 'image-1.jpg', media: { kind: 'image' } },
+    { id: 'seg-002', startTime: 2.66, endTime: 5.32, selectedAssetId: 'image-2.jpg', media: { kind: 'image' } },
+    { id: 'seg-003', startTime: 7.96, endTime: 10.62, selectedAssetId: 'image-3.jpg', media: { kind: 'image' } },
+  ];
+  const project = createApprovalProject({ rows });
+  project.video_assets = [{ id: 'clip-1', src: 'clip.mp4', durationSeconds: 12 }];
+  project._selectedEditorRowId = 'seg-001';
+  const commitButton = createFakeCommitButton({ rowId: 'seg-003', videoId: 'clip-1', sourceIn: 7.96 });
+  const root = createVideoSelectorCommitRoot(commitButton);
+  const refreshCalls = [];
+  const renderCalls = [];
+  const previewUpdates = [];
+
+  hydrateVideoSelectorControls({
+    root,
+    project,
+    editorRows: rows,
+    renderSelectedVideoProject: () => renderCalls.push({ selectedRowId: project._selectedEditorRowId, mediaKind: project._editorRows[2]?.media?.kind }),
+    refreshEditorSelectionOnly: (rowId) => refreshCalls.push(rowId),
+    assignVideoSegmentToRow: async (rowId, video, sourceInSeconds) => {
+      project._editorRows = project._editorRows.map((row) => (row.id === rowId
+        ? { ...row, media: { kind: 'video-segment', sourceVideoAssetId: video.id, sourceVideoSrc: video.src, sourceInSeconds, durationSeconds: 2.66, foregroundTransform: { x: 0, y: 0, scale: 1 } } }
+        : row));
+      return true;
+    },
+    updateSelectedVideoProjectCompositionPreview: ({ project: updatedProject }) => previewUpdates.push({ selectedRowId: updatedProject._selectedEditorRowId, seekTime: updatedProject._previewSeekTime }),
+  });
+
+  await commitButton.click();
+
+  assertEqual(project._selectedEditorRowId, 'seg-003', 'Expected committed video segment to keep target row selected');
+  assertEqual(project._previewSeekTime, 7.96, 'Expected committed video segment to seek preview to target row start');
+  assertEqual(project._editorRows[2].media.kind, 'video-segment', 'Expected committed row to become a video segment before rendering');
+  assertDeepEqual(refreshCalls, [], 'Expected committed video segment not to use selection-only refresh that leaves table thumbnails stale');
+  assertDeepEqual(renderCalls, [{ selectedRowId: 'seg-003', mediaKind: 'video-segment' }], 'Expected committed video segment to trigger one full editor/table render for the selected target row');
+  assertDeepEqual(previewUpdates, [{ selectedRowId: 'seg-003', seekTime: 7.96 }], 'Expected preview update to stay aligned with the committed target row');
+}
+
 function testApprovalSnapshotPersistsVideoForegroundTransform() {
   const snapshot = {
     contractVersion: 'approval-editor-service-v1',
@@ -331,6 +405,7 @@ export async function runVideoSegmentStabilityCheck() {
   testSelectorPreviewDoesNotReseekPlayingDecorativeEffects();
   testVideoSegmentDurationUsesCanonicalApprovalSnapshotRow();
   await testAssignVideoSegmentSendsCanonicalApprovalDuration();
+  await testCommittedVideoSegmentKeepsTargetSelectionAndRefreshesTable();
   testApprovalSnapshotPersistsVideoForegroundTransform();
 }
 

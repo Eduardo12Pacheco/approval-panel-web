@@ -319,6 +319,7 @@ function buildVideoFramingPanel({ row }) {
   const x = Number.isFinite(Number(transform.x)) ? Number(transform.x) : 0;
   const y = Number.isFinite(Number(transform.y)) ? Number(transform.y) : 0;
   const scale = Number.isFinite(Number(transform.scale)) && Number(transform.scale) > 0 ? Number(transform.scale) : 1;
+  const scalePercent = Math.round(scale * 100);
   return `
     <div class="video-editor-control video-editor-control--effect-panel">
       <h4>Ventana de video</h4>
@@ -337,17 +338,18 @@ function buildVideoFramingPanel({ row }) {
       <div class="video-motion-manual__fields">
         ${buildVideoForegroundNumberInput({ field: 'x', label: 'X', value: x })}
         ${buildVideoForegroundNumberInput({ field: 'y', label: 'Y', value: y })}
-        ${buildVideoForegroundNumberInput({ field: 'scale', label: 'Escala', value: scale, step: 0.01 })}
+        ${buildVideoForegroundNumberInput({ field: 'scalePercent', label: 'Escala %', value: scalePercent, min: 10, step: 1 })}
       </div>
     </div>
   `;
 }
 
-function buildVideoForegroundNumberInput({ field, label, value, step = 1 }) {
+function buildVideoForegroundNumberInput({ field, label, value, min = null, step = 1 }) {
+  const minAttribute = min === null ? '' : ` min="${escapeHtmlCore(min.toString())}"`;
   return `
     <label class="video-motion-manual__field">
       <span>${escapeHtmlCore(label)}</span>
-      <input type="number" step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-video-foreground" data-video-foreground-field="${escapeHtmlCore(field)}" />
+      <input type="number"${minAttribute} step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-video-foreground" data-video-foreground-field="${escapeHtmlCore(field)}" />
     </label>
   `;
 }
