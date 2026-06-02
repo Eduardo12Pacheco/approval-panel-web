@@ -195,6 +195,14 @@ function runChangeImageNavigationCheck() {
   assert(detailMarkup.includes('video-editor-detail__image-card'), 'Expected detail rail to render larger right-side image card');
   assert(detailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail to keep row image as larger context image');
   assert(detailMarkup.includes('data-start-time="16.76"'), 'Expected detail rail content type buttons to carry the selected row start time');
+
+  const videoDetailMarkup = buildEditorDetailRail({
+    row: { ...row, media: { kind: 'video-segment', sourceVideoSrc: 'https://cdn.example.com/video.mp4' } },
+    project: makeProject(),
+  });
+  assert(videoDetailMarkup.includes('video-editor-row__video-card--detail'), 'Expected detail rail video rows to show the same video card placeholder as the table');
+  assert(videoDetailMarkup.includes('video-editor-row__video-badge'), 'Expected detail rail video rows to show a Video badge');
+  assert(!videoDetailMarkup.includes('video-editor-detail__thumb'), 'Expected detail rail video rows not to show the stale selected image thumbnail');
 }
 
 function createSelectableRow(rowId, startTime) {

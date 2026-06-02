@@ -36,6 +36,17 @@ export function buildPreviewTimeline(rows = [], selectedRowId = null, { totalDur
   `;
 }
 
+function buildVideoThumbnailMarkup({ videoSrc = '', detail = false, forceFallback = false } = {}) {
+  const cardClass = detail
+    ? 'video-editor-row__video-card video-editor-row__video-card--detail'
+    : 'video-editor-row__video-card';
+  const thumbMarkup = videoSrc && !forceFallback
+    ? `<video class="video-editor-row__thumb video-editor-row__thumb--video" src="${escapeHtmlCore(videoSrc)}" muted playsinline preload="metadata"></video>`
+    : '<span class="video-editor-row__thumb video-editor-row__thumb--video video-editor-row__thumb--video-fallback" aria-hidden="true">▶</span>';
+
+  return `<span class="${cardClass}">${thumbMarkup}<span class="video-editor-row__video-badge">Video</span></span>`;
+}
+
 export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploading, project = {} } = {}) {
   if (!rows.length) {
     return '<p class="video-projects-empty">Sin filas cronometradas todavía.</p>';
@@ -79,7 +90,7 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                 <td class="video-editor-row__phrase">${escapeHtmlCore(phrase)}</td>
                 <td class="video-editor-row__image">
                   ${mediaKind === 'video-segment'
-                    ? `<span class="video-editor-row__video-card">${videoSrc ? `<video class="video-editor-row__thumb video-editor-row__thumb--video" src="${escapeHtmlCore(videoSrc)}" muted playsinline preload="metadata"></video>` : '<span class="video-editor-row__thumb video-editor-row__thumb--video video-editor-row__thumb--video-fallback" aria-hidden="true">▶</span>'}<span class="video-editor-row__video-badge">Video</span></span>`
+                    ? buildVideoThumbnailMarkup({ videoSrc })
                     : imageUrl
                     ? `<img class="video-editor-row__thumb video-editor-row__thumb--swap" src="${escapeHtmlCore(imageUrl)}" alt="${escapeHtmlCore(thumbAlt)}" loading="lazy" draggable="true" data-action="swap-row-image" data-row-id="${escapeHtmlCore(row.id)}" data-asset-id="${escapeHtmlCore(imageSwapAssetId)}" />`
                     : '<span class="video-editor-row__thumb video-editor-row__thumb--missing">Sin foto</span>'}
@@ -108,6 +119,7 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
 export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex = 0 } = {}) {
   const detail = buildEditorDetailRailViewModel({ row, globalAudio, project, rowIndex });
   const { detailImageUrl } = detail;
+  const isVideoSegment = row?.media?.kind === 'video-segment';
 
   const rowControls = row
     ? `
@@ -119,7 +131,9 @@ export function buildEditorDetailRail({ row, globalAudio, project = {}, rowIndex
             <p class="video-editor-detail__time">${escapeHtmlCore(detail.timeLabel)}</p>
           </div>
           <div class="video-editor-detail__image-card">
-            ${detailImageUrl
+            ${isVideoSegment
+              ? buildVideoThumbnailMarkup({ detail: true, forceFallback: true })
+              : detailImageUrl
               ? `<img class="video-editor-detail__thumb" src="${escapeHtmlCore(detailImageUrl)}" alt="Imagen seleccionada" loading="lazy" />`
               : `<span class="video-editor-row__image-tag video-editor-row__image-tag--missing">${escapeHtmlCore(detail.missingAssetLabel)}</span>`}
           </div>
