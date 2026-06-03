@@ -113,6 +113,18 @@ function preservePreviewSeekDuringNextRender(project) {
   project._skipNextPreviewSeekCapture = true;
 }
 
+function restorePreservedPreviewSelection(project, selectedRowId, seekTime) {
+  if (!project) return;
+  project._selectedEditorRowId = selectedRowId;
+  if (Number.isFinite(seekTime)) project._previewSeekTime = seekTime;
+}
+
+async function renderWithPreservedPreviewSelection(project, renderSelectedVideoProject, selectedRowId, seekTime) {
+  preservePreviewSeekDuringNextRender(project);
+  await renderSelectedVideoProject();
+  restorePreservedPreviewSelection(project, selectedRowId, seekTime);
+}
+
 function resolveMotionPatchForApprovalService(motion) {
   if (motion && typeof motion === 'object') {
     const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
@@ -303,14 +315,11 @@ export function createRowCommands({
         throw err;
       } finally {
         if (preserveSelection) {
-          project._selectedEditorRowId = preservedSelectedRowId;
-          if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+          restorePreservedPreviewSelection(project, preservedSelectedRowId, preservedSeekTime);
         }
-        if (preserveSelection && !suppressRender) preservePreviewSeekDuringNextRender(project);
-        if (!suppressRender) renderSelectedVideoProject();
-        if (preserveSelection) {
-          project._selectedEditorRowId = preservedSelectedRowId;
-          if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+        if (!suppressRender) {
+          if (preserveSelection) await renderWithPreservedPreviewSelection(project, renderSelectedVideoProject, preservedSelectedRowId, preservedSeekTime);
+          else await renderSelectedVideoProject();
         }
       }
       return;
@@ -327,12 +336,11 @@ export function createRowCommands({
 
     if (suppressRender || patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else {
-      if (preserveSelection) preservePreviewSeekDuringNextRender(project);
-      renderSelectedVideoProject();
+      if (preserveSelection) await renderWithPreservedPreviewSelection(project, renderSelectedVideoProject, preservedSelectedRowId, preservedSeekTime);
+      else await renderSelectedVideoProject();
     }
     if (preserveSelection) {
-      project._selectedEditorRowId = preservedSelectedRowId;
-      if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+      restorePreservedPreviewSelection(project, preservedSelectedRowId, preservedSeekTime);
     }
 
     clearPendingEditorSave();
