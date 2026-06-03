@@ -354,7 +354,7 @@ async function runPendingImageAssignmentAppliesRememberedMediaModeCheck() {
     getProject: () => project,
     resolveProjectKey: () => 'draft-1',
     renderSelectedVideoProject: () => {},
-    updateRow: async (rowId, patch) => patches.push({ rowId, patch }),
+    updateRow: async (rowId, patch, options) => patches.push({ rowId, patch, options }),
   });
 
   await commands.assignExistingImageToRow('row-news', 'https://cdn.example.com/news.jpg');
@@ -364,7 +364,9 @@ async function runPendingImageAssignmentAppliesRememberedMediaModeCheck() {
   assertEqual(patches[0].patch.selectedAssetId, 'https://cdn.example.com/news.jpg', 'Expected newspaper assignment to persist selected image');
   assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected pending newspaper assignment to persist newspaper mode only on asset acceptance');
   assertEqual(patches[0].patch.media?.kind, 'image', 'Expected pending newspaper assignment to remain image-driven');
+  assertEqual(patches[0].options?.preserveSelection, true, 'Expected pending newspaper assignment to preserve selected row and preview seek during rerender');
   assertEqual(patches[1].patch.mediaMode, 'image', 'Expected pending image assignment to convert video/newspaper rows back to image mode');
+  assertEqual(patches[1].options?.preserveSelection, true, 'Expected pending image assignment to preserve selected row and preview seek during rerender');
   assertEqual(project._editorContentTypeByRow?.['row-news'], undefined, 'Expected pending newspaper mode to clear after assignment');
   assertEqual(project._editorContentTypeByRow?.['row-image'], undefined, 'Expected pending image mode to clear after assignment');
   assertEqual(toasts.length, 2, 'Expected assignment toast to remain user-visible after each accepted image');

@@ -180,6 +180,7 @@ export function createRowCommands({
 
   async function updateRow(rowId, patch, options = {}) {
     const suppressRender = options?.render === false;
+    const preserveSelection = options?.preserveSelection === true;
     const state = store.getState();
     const project = state.selectedVideoProject;
     if (!project || !rowId) return;
@@ -193,6 +194,10 @@ export function createRowCommands({
     project._editorRows = rows;
     const index = rows.findIndex((r) => r.id === rowId);
     if (index === -1) return;
+    const preservedSelectedRowId = preserveSelection ? rowId : project._selectedEditorRowId;
+    const preservedSeekTime = preserveSelection
+      ? Number(rows[index]?.startTime ?? project._previewSeekTime ?? 0)
+      : project._previewSeekTime;
     const meaningfulChange = rowsWouldChange(rows, rowId, patch);
     if (!meaningfulChange) return;
     notifyBeforeMutate('update-row', project, { rowId, patch });
@@ -291,6 +296,10 @@ export function createRowCommands({
         ui.toast('Error actualizando snapshot');
         throw err;
       } finally {
+        if (preserveSelection) {
+          project._selectedEditorRowId = preservedSelectedRowId;
+          if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+        }
         if (!suppressRender) renderSelectedVideoProject();
       }
       return;

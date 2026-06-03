@@ -34,7 +34,7 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
     const project = getProject();
     const cleanUrl = (imageUrl || '').toString().trim();
     if (!rowId || !cleanUrl) return;
-    await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, cleanUrl));
+    await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, cleanUrl), { preserveSelection: true });
     clearPendingContentType(project, rowId);
     ui.toast('Imagen asignada a la fila');
   }
@@ -97,7 +97,7 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
 
       // Auto-assign the newly uploaded image to the row by its public URL
       const newPublicUrl = upload.storage_public_url || '';
-      await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, newPublicUrl));
+      await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, newPublicUrl), { preserveSelection: true });
       clearPendingContentType(project, rowId);
       ui.toast('Imagen asignada a la fila');
     } catch (err) {
