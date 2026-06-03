@@ -171,6 +171,13 @@ export function runCompositionCoverPanCheck() {
   if (/async\s+#startAudioForToken/.test(compositionRendererSource) || /await\s+this\.#audio\.init\(\)/.test(compositionRendererSource)) {
     throw new Error('Expected preview audio startup to remain synchronous with the play gesture so browser autoplay policy does not silence voice/music');
   }
+  const videoSegmentBranch = compositionRendererSource.match(/if \(isVideoSegment\) \{[\s\S]*?\n    \}/)?.[0] || '';
+  if (/layers\.logo(?:Video|Canvas)?\.style\.visibility\s*=\s*'hidden'/.test(videoSegmentBranch) || /return;/.test(videoSegmentBranch)) {
+    throw new Error('Expected video segment preview to keep flowing into the shared logo renderer instead of hiding logos early');
+  }
+  if (!/const dustEnabled = !isVideoSegment && !isNewspaperMode && segment\.dust\?\.enabled !== false;/.test(compositionRendererSource)) {
+    throw new Error('Expected video segment preview to keep dust disabled while allowing the shared logo renderer');
+  }
 
   assertEqual(
     resolvePreparedMediaUrl('/api/projects/demo/files/audio/voice-preview.mp3', 'https://api.example.test/approval'),

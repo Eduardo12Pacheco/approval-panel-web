@@ -589,10 +589,6 @@ export class CompositionRenderer {
     if (isVideoSegment) {
       layers.dust.style.visibility = 'hidden';
       layers.dustFallback.style.visibility = 'hidden';
-      layers.logo.style.visibility = 'hidden';
-      layers.logoVideo.style.visibility = 'hidden';
-      layers.logoCanvas.style.visibility = 'hidden';
-      return;
     }
 
     if (isNewspaperMode) {
@@ -637,7 +633,7 @@ export class CompositionRenderer {
     const viewportHeight = this.#viewportHeight;
     const layer = resolveCoverPanLayer({ viewportWidth, viewportHeight, imageWidth, imageHeight, scale, x, y });
     const imageStyle = resolveCoverPanImageStyle(layer);
-    if (!isNewspaperMode) {
+    if (!isVideoSegment && !isNewspaperMode) {
       layers.image.style.width = imageStyle.width;
       layers.image.style.height = imageStyle.height;
       layers.image.style.left = imageStyle.left;
@@ -649,9 +645,11 @@ export class CompositionRenderer {
     }
 
     const filterEnabled = segment.filter?.enabled !== false;
-    layers.image.style.filter = filterEnabled ? 'contrast(1.06) saturate(0.92)' : 'none';
+    if (!isVideoSegment) {
+      layers.image.style.filter = filterEnabled ? 'contrast(1.06) saturate(0.92)' : 'none';
+    }
 
-    const dustEnabled = !isNewspaperMode && segment.dust?.enabled !== false;
+    const dustEnabled = !isVideoSegment && !isNewspaperMode && segment.dust?.enabled !== false;
     if (dustEnabled) {
       const dustSrc = segment.dust?.src || this._dustWebmUrl;
       if (dustSrc) {
