@@ -108,6 +108,11 @@ function rowsWouldChange(rows = [], rowId, patch = {}) {
   return stableJson(nextRows) !== stableJson(rows);
 }
 
+function preservePreviewSeekDuringNextRender(project) {
+  if (!project) return;
+  project._skipNextPreviewSeekCapture = true;
+}
+
 function resolveMotionPatchForApprovalService(motion) {
   if (motion && typeof motion === 'object') {
     const motionPresetId = (motion.presetName || motion.name || 'custom').toString();
@@ -301,6 +306,7 @@ export function createRowCommands({
           project._selectedEditorRowId = preservedSelectedRowId;
           if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
         }
+        if (preserveSelection && !suppressRender) preservePreviewSeekDuringNextRender(project);
         if (!suppressRender) renderSelectedVideoProject();
         if (preserveSelection) {
           project._selectedEditorRowId = preservedSelectedRowId;
@@ -320,7 +326,10 @@ export function createRowCommands({
     project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: isDirty, phase: isDirty ? 'editing_dirty' : (project.editor_state?.phase || 'preview_ready') });
 
     if (suppressRender || patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
-    else renderSelectedVideoProject();
+    else {
+      if (preserveSelection) preservePreviewSeekDuringNextRender(project);
+      renderSelectedVideoProject();
+    }
     if (preserveSelection) {
       project._selectedEditorRowId = preservedSelectedRowId;
       if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;

@@ -60,7 +60,11 @@ export function renderSelectedVideoProjectView({
     : buildSetupPhaseContent({ project, viewModel });
   const shouldRenderSide = Boolean(sideContent && !editorShellMode);
 
-  captureCompositionPreviewSeekTime(project);
+  if (project?._skipNextPreviewSeekCapture) {
+    delete project._skipNextPreviewSeekCapture;
+  } else {
+    captureCompositionPreviewSeekTime(project);
+  }
   el.videoProjectDetail.innerHTML = `
     <header class="video-project-detail__header">
       <div>

@@ -13,6 +13,7 @@ import { createRowCommands } from '../controller/row-commands.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
+const selectedProjectViewPath = resolve(currentDir, '../render/selected-project-view.js');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -134,6 +135,13 @@ function runProjectCardBottomAnchoringStyleCheck() {
   assertAnyCssDeclaration(cardRules, 'grid-template-rows', 'auto 1fr auto', 'Expected project cards to reserve flexible space between long titles and bottom actions');
   assertAnyCssDeclaration(cardRules, 'align-content', 'stretch', 'Expected project cards to stretch rows so metadata/actions can anchor to the bottom');
   assertAnyCssDeclaration(bodyRules, 'align-self', 'end', 'Expected project card image/info block to stay attached to the bottom action area');
+}
+
+function runPreviewSeekCaptureGuardSourceCheck() {
+  const source = readFileSync(selectedProjectViewPath, 'utf8');
+  assert(source.includes('_skipNextPreviewSeekCapture'), 'Expected selected project rerender to support skipping stale preview seek capture');
+  assert(source.includes('delete project._skipNextPreviewSeekCapture'), 'Expected stale preview seek capture guard to be one-shot');
+  assert(source.includes('captureCompositionPreviewSeekTime(project)'), 'Expected normal rerenders to keep capturing the live preview seek time');
 }
 
 function runVideoSelectorViewportModalCheck() {
@@ -772,6 +780,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
   runProjectCardBottomAnchoringStyleCheck();
+  runPreviewSeekCaptureGuardSourceCheck();
   runVideoSelectorViewportModalCheck();
   runVideoSelectorScrollLockLifecycleCheck();
   runChangeImageNavigationCheck();
