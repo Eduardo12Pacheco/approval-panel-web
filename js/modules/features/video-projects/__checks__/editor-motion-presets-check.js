@@ -6,6 +6,7 @@ import { findMotionPreset, MOTION_PRESET_CATEGORIES, MOTION_PRESETS } from '../d
 import { buildEditorEffectTabs } from '../render/editor-effect-tabs.js';
 import { hydrateEditorPhaseInteractions } from '../render/editor-hydration.js';
 import { buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
+import { setActiveFramingKeyframe, syncFramingKeyframeActiveState } from '../render/framing-keyframe-state.js';
 import { buildMotionPicker, buildMotionViewportPreviewStyle } from '../render/editor-motion-picker.js';
 
 function assert(condition, message) {
@@ -116,11 +117,66 @@ function runManualMotionControlsCheck() {
   assert(markup.includes('data-motion-editor-panel="presets"'), 'Expected presets panel to render');
   assert(markup.includes('Ajuste manual'), 'Expected manual motion controls to render');
   assert(markup.includes('data-action="seek-motion-keyframe"'), 'Expected Start/End seek controls');
+  assert(markup.includes('data-framing-keyframe-controls'), 'Expected manual image framing to opt into active keyframe UX');
+  assert(markup.includes('data-keyframe-group="start"'), 'Expected manual image framing Start group to be targetable');
+  assert(markup.includes('data-keyframe-group="end"'), 'Expected manual image framing End group to be targetable');
+  assert(markup.includes('aria-pressed="false"'), 'Expected keyframe buttons to stay enabled and expose pressed state');
+  assert(!markup.includes('disabled'), 'Expected manual image keyframe buttons not to render disabled');
   assert(markup.includes('data-action="update-row-motion-keyframe"'), 'Expected autosave keyframe inputs');
   assert(markup.includes('data-motion-field="toX"'), 'Expected end X keyframe input');
   assert(markup.includes('value="125"'), 'Expected scale percent values in controls');
   assert(manualMarkup.includes('data-motion-editor-panel="manual"'), 'Expected manual panel to render');
   assert(manualMarkup.includes('data-motion-editor-panel="presets" hidden'), 'Expected presets panel to hide when manual tab is active');
+}
+
+function createClassList() {
+  const values = new Set();
+  return {
+    values,
+    toggle(name, enabled) {
+      if (enabled) values.add(name);
+      else values.delete(name);
+    },
+    contains(name) { return values.has(name); },
+  };
+}
+
+function createKeyframeElement(dataset = {}) {
+  return {
+    dataset: { ...dataset },
+    classList: createClassList(),
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+  };
+}
+
+function runActiveKeyframeStateCheck() {
+  const startButton = createKeyframeElement({ keyframe: 'start', keyframeTime: '10' });
+  const endButton = createKeyframeElement({ keyframe: 'end', keyframeTime: '14.95' });
+  const startGroup = createKeyframeElement({ keyframeGroup: 'start' });
+  const endGroup = createKeyframeElement({ keyframeGroup: 'end' });
+  const panel = {
+    dataset: { rowId: 'row-1' },
+    querySelectorAll(selector) {
+      if (selector === '[data-keyframe-button]') return [startButton, endButton];
+      if (selector === '[data-keyframe-group]') return [startGroup, endGroup];
+      return [];
+    },
+  };
+  const root = { querySelectorAll: (selector) => (selector === '[data-framing-keyframe-controls]' ? [panel] : []) };
+  const project = { _previewSeekTime: 10 };
+
+  setActiveFramingKeyframe(project, { rowId: 'row-1', keyframe: 'start' });
+  syncFramingKeyframeActiveState(root, project, 10);
+  assert(startButton.classList.contains('is-active'), 'Expected Start button to be active at selected start keyframe time');
+  assert(!endButton.classList.contains('is-active'), 'Expected End button to remain inactive when Start is active');
+  assert(startGroup.classList.contains('is-active'), 'Expected Start input group to be marked active');
+  assert(endGroup.classList.contains('is-muted'), 'Expected End input group to be visually muted while Start is active');
+  assertEqual(startButton.attributes['aria-pressed'], 'true', 'Expected active Start keyframe to set aria-pressed');
+
+  syncFramingKeyframeActiveState(root, project, 11);
+  assert(!startButton.classList.contains('is-active'), 'Expected Start button active state to clear away from keyframe time');
+  assert(!endGroup.classList.contains('is-muted'), 'Expected inactive keyframe group muted state to clear away from keyframe time');
 }
 
 function runPresetSelectionSyncsManualControlsCheck() {
@@ -226,6 +282,7 @@ export function runEditorMotionPresetsCheck() {
   runMotionPickerMarkupCheck();
   runViewportSemanticsCheck();
   runManualMotionControlsCheck();
+  runActiveKeyframeStateCheck();
   runPresetSelectionSyncsManualControlsCheck();
   runDefaultZoom150PreviewNormalizationCheck();
 }

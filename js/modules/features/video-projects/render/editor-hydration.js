@@ -6,6 +6,7 @@ import {
   normalizeVideoForegroundViewport,
 } from '../composition/renderer/video-layers.js';
 import { resolveEditorEffectTab } from './editor-effect-tabs.js';
+import { setActiveFramingKeyframe, syncFramingKeyframeActiveState } from './framing-keyframe-state.js';
 import { buildEditorDetailRail } from './editor-markup.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
 import { destroyCompositionRenderer, hydrateCompositionPreview, hydratePreviewTransport, getCompositionRendererForPreview } from './preview-lifecycle.js';
@@ -346,14 +347,19 @@ function hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline
       if (rowId) project._selectedEditorRowId = rowId;
       if (!Number.isFinite(seekTime)) return;
       project._previewSeekTime = seekTime;
+      if (button.closest('[data-framing-keyframe-controls]')) {
+        setActiveFramingKeyframe(project, { rowId, keyframe: button.dataset.keyframe || '' });
+      }
       const renderer = getCompositionRendererForPreview();
       if (renderer) { renderer.seek(seekTime); updatePreviewTimeline?.(seekTime, renderer.duration); }
       else {
         const previewVideo = root.querySelector('[data-preview-video]');
         if (previewVideo) { previewVideo.currentTime = seekTime; updatePreviewTimeline?.(seekTime, previewVideo.duration); }
       }
+      syncFramingKeyframeActiveState(root, project, seekTime);
     });
   });
+  syncFramingKeyframeActiveState(root, project, project?._previewSeekTime);
   root.querySelectorAll('[data-action="update-row-motion-keyframe"]').forEach((input) => {
     const updateManualMotionKeyframe = () => {
       const panel = input.closest('[data-motion-manual]');

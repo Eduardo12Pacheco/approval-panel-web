@@ -125,19 +125,19 @@ function buildManualMotionControls({ row, manualMotion }) {
   const endTime = Math.max(startTime, Number(row.endTime || startTime) - 0.05);
 
   return `
-    <div class="video-motion-manual" data-motion-manual data-row-id="${rowId}" data-motion-preset="${escapeHtmlCore(manualMotion.presetName)}">
+    <div class="video-motion-manual" data-motion-manual data-framing-keyframe-controls data-row-id="${rowId}" data-motion-preset="${escapeHtmlCore(manualMotion.presetName)}">
       <div class="video-motion-manual__header">
         <div>
           <h4>Ajuste manual</h4>
           <p>Corregí posición y escala del inicio o final del movimiento.</p>
         </div>
         <div class="video-motion-manual__seek">
-          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-seek-time="${escapeHtmlCore(startTime.toString())}">Start</button>
-          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-seek-time="${escapeHtmlCore(endTime.toString())}">End</button>
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-keyframe-button data-keyframe="start" data-keyframe-time="${escapeHtmlCore(startTime.toString())}" data-seek-time="${escapeHtmlCore(startTime.toString())}" aria-pressed="false">Start</button>
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-keyframe-button data-keyframe="end" data-keyframe-time="${escapeHtmlCore(endTime.toString())}" data-seek-time="${escapeHtmlCore(endTime.toString())}" aria-pressed="false">End</button>
         </div>
       </div>
       <div class="video-motion-manual__grid">
-        <section class="video-motion-manual__keyframe">
+        <section class="video-motion-manual__keyframe" data-keyframe-group="start">
           <h5>Start</h5>
           <div class="video-motion-manual__fields">
             ${buildManualMotionInput({ field: 'fromX', label: 'X', value: manualMotion.fromX })}
@@ -145,7 +145,7 @@ function buildManualMotionControls({ row, manualMotion }) {
             ${buildManualMotionInput({ field: 'fromScalePercent', label: 'Escala %', value: manualMotion.fromScalePercent })}
           </div>
         </section>
-        <section class="video-motion-manual__keyframe">
+        <section class="video-motion-manual__keyframe" data-keyframe-group="end">
           <h5>End</h5>
           <div class="video-motion-manual__fields">
             ${buildManualMotionInput({ field: 'toX', label: 'X', value: manualMotion.toX })}
@@ -370,16 +370,23 @@ function buildNewspaperPanel({ row, detail }) {
   if (row.mediaMode !== 'newspaper') return '<p class="video-projects-empty">Esta sección se activa cuando la fila está en formato periódico.</p>';
   const rowId = escapeHtmlCore(row.id || '');
   const newspaper = detail.newspaper || {};
+  const startTime = Number(row.startTime || 0);
+  const endTime = Math.max(startTime, Number(row.endTime || startTime) - 0.05);
   return `
-    <div class="video-motion-manual" data-newspaper-controls data-row-id="${rowId}">
+    <div class="video-motion-manual" data-newspaper-controls data-framing-keyframe-controls data-row-id="${rowId}">
       <div class="video-motion-manual__header">
         <div>
           <h4>Periódico</h4>
           <p>Mové libremente la imagen central. El fondo difuminado cubre el espacio que quede alrededor.</p>
         </div>
+        <div class="video-motion-manual__seek">
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-keyframe-button data-keyframe="start" data-keyframe-time="${escapeHtmlCore(startTime.toString())}" data-seek-time="${escapeHtmlCore(startTime.toString())}" aria-pressed="false">Start</button>
+          <button type="button" data-action="seek-motion-keyframe" data-row-id="${rowId}" data-keyframe-button data-keyframe="end" data-keyframe-time="${escapeHtmlCore(endTime.toString())}" data-seek-time="${escapeHtmlCore(endTime.toString())}" aria-pressed="false">End</button>
+        </div>
       </div>
+      ${buildNewspaperLabelControl({ row, detail })}
       <div class="video-motion-manual__grid">
-        <section class="video-motion-manual__keyframe">
+        <section class="video-motion-manual__keyframe" data-keyframe-group="start">
           <h5>Start</h5>
           <div class="video-motion-manual__fields">
             ${buildNewspaperNumberInput({ field: 'fromX', label: 'X', value: newspaper.fromX })}
@@ -387,7 +394,7 @@ function buildNewspaperPanel({ row, detail }) {
             ${buildNewspaperNumberInput({ field: 'fromScalePercent', label: 'Escala %', value: newspaper.fromScalePercent })}
           </div>
         </section>
-        <section class="video-motion-manual__keyframe">
+        <section class="video-motion-manual__keyframe" data-keyframe-group="end">
           <h5>End</h5>
           <div class="video-motion-manual__fields">
             ${buildNewspaperNumberInput({ field: 'toX', label: 'X', value: newspaper.toX })}

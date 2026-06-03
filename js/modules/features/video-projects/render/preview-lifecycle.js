@@ -3,6 +3,7 @@ import { normalizeVideoForegroundViewport } from '../composition/renderer/video-
 import { buildCompositionPreviewAssets } from '../composition/composition-view-model.js';
 import { DEFAULT_MUSIC_VOLUME } from '../domain/editor-state.js';
 import { formatSeconds } from '../domain/formatters.js';
+import { syncFramingKeyframeActiveState } from './framing-keyframe-state.js';
 
 let compositionRenderer = null;
 let compositionRendererContainer = null;
@@ -234,6 +235,7 @@ export function hydratePreviewTransport({ root, project, editorRows, selectEdito
     if (progressEl) progressEl.style.width = `${pct}%`;
     if (playheadEl) playheadEl.style.left = `${pct}%`;
     if (currentTimeEl) currentTimeEl.textContent = formatSeconds(currentTime || 0);
+    syncFramingKeyframeActiveState(root, project, currentTime);
     const currentRow = findRowAtTime(Number(currentTime || 0));
     const currentId = currentRow?.id;
     for (let i = 0; i < timelineMarkers.length; i++) {

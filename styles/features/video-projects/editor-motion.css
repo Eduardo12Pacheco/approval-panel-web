@@ -182,6 +182,12 @@
   outline: none;
 }
 
+.video-motion-manual__seek button.is-active {
+  border-color: rgba(0, 232, 143, 0.86);
+  box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.34), 0 0 18px rgba(0, 232, 143, 0.18);
+  color: var(--accent);
+}
+
 .video-motion-manual__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -192,6 +198,12 @@
   display: grid;
   gap: 8px;
   min-width: 0;
+  transition: opacity 0.16s ease, filter 0.16s ease;
+}
+
+.video-motion-manual__keyframe.is-muted {
+  opacity: 0.42;
+  filter: saturate(0.6);
 }
 
 .video-motion-manual__keyframe h5 {
