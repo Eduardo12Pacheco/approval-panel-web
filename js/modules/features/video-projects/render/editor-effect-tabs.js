@@ -370,6 +370,7 @@ function buildVideoFramingPanel({ row, detail = {} }) {
         ${buildVideoForegroundNumberInput({ field: 'y', label: 'Y', value: y })}
         ${buildVideoForegroundNumberInput({ field: 'scalePercent', label: 'Escala %', value: scalePercent, min: 10, step: 1 })}
       </div>
+      ${buildFramingDefaultsHint()}
     </div>
   `;
 }
@@ -381,6 +382,15 @@ function buildVideoForegroundNumberInput({ field, label, value, min = null, step
       <span>${escapeHtmlCore(label)}</span>
       <input type="number"${minAttribute} step="${escapeHtmlCore(step.toString())}" value="${escapeHtmlCore(value.toString())}" data-action="update-row-video-foreground" data-video-foreground-field="${escapeHtmlCore(field)}" />
     </label>
+  `;
+}
+
+function buildFramingDefaultsHint() {
+  return `
+    <div class="video-motion-defaults-hint" aria-label="Guía de encuadre base">
+      <span class="video-motion-defaults-hint__icon" aria-hidden="true">i</span>
+      <span>Para volver al encuadre base, ingresá X: 0, Y: 0 y Escala: 100%.</span>
+    </div>
   `;
 }
 
@@ -431,6 +441,7 @@ function buildNewspaperPanel({ row, detail }) {
           </div>
         </section>
       </div>
+      ${buildFramingDefaultsHint()}
     </div>
   `;
 }

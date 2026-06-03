@@ -259,6 +259,31 @@
   box-shadow: 0 0 0 1px rgba(0, 232, 143, 0.2);
 }
 
+.video-motion-defaults-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.video-motion-defaults-hint__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(0, 232, 143, 0.42);
+  border-radius: 999px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 900;
+  font-style: italic;
+}
+
 body.is-motion-scrubbing {
   cursor: ew-resize;
   user-select: none;

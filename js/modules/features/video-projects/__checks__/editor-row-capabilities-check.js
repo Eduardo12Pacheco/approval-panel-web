@@ -168,6 +168,7 @@ export function runEditorRowCapabilitiesCheck() {
   assertIncludes(videoMarkup, 'min="10"', 'Expected video foreground scale percent to have a safe minimum');
   assertIncludes(videoMarkup, 'step="1"', 'Expected video foreground scale percent to use whole-percent steps');
   assertIncludes(videoMarkup, 'value="150"', 'Expected stored foreground scale ratio 1.5 to display as 150 percent');
+  assertIncludes(videoMarkup, 'Para volver al encuadre base', 'Expected video foreground panel to include default framing guidance');
   assertIncludes(videoMarkup, 'data-action="upload-row-video"', 'Expected video content panel to expose video picker/upload');
   assertNotIncludes(videoMarkup, 'data-framing-keyframe-controls', 'Expected video foreground X/Y/scale controls not to opt into image/newspaper keyframe UX');
   assertNotIncludes(videoMarkup, 'data-action="update-row-motion"', 'Expected video rows not to show normal image motion');
@@ -179,6 +180,7 @@ export function runEditorRowCapabilitiesCheck() {
   assertIncludes(newspaperMarkup, '<strong>Periódico</strong>', 'Expected newspaper rows to display Periódico as the current content type');
   assertIncludes(newspaperMarkup, 'data-action="upload-assets-image"', 'Expected newspaper content panel to expose base image picker/upload');
   assertIncludes(newspaperMarkup, 'data-action="update-row-newspaper"', 'Expected newspaper framing panel to expose foreground motion controls');
+  assertIncludes(newspaperMarkup, 'Para volver al encuadre base', 'Expected newspaper framing panel to include default framing guidance');
   assertIncludes(newspaperMarkup, 'data-keyframe="start"', 'Expected newspaper framing panel to expose a Start keyframe seek control');
   assertIncludes(newspaperMarkup, 'data-keyframe="end"', 'Expected newspaper framing panel to expose an End keyframe seek control');
   assertIncludes(newspaperMarkup, 'Mostrar “Recreación artística”', 'Expected newspaper framing panel to include the artistic recreation toggle');
