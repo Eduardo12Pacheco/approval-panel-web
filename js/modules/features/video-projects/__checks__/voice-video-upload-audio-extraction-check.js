@@ -4,6 +4,7 @@ import { createAudioSetupCommands } from '../audio/commands.js';
 import { createApprovalPipelineClient } from '../data/approval-pipeline-client.js';
 import { buildSetupPhaseContent } from '../render/setup-view.js';
 import { isVoiceVideoAudioInput } from '../audio/voice-video-extraction.js';
+import { createVideoProjectsController } from '../controller/create-video-projects-controller.js';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -153,12 +154,54 @@ async function assertExtractionClientPostsBinaryAndReturnsAudioFile() {
   assertEqual(extracted.type, 'audio/mp4', 'Expected extracted master to be audio/mp4');
 }
 
+async function assertControllerWiresVoiceVideoExtractionClient() {
+  const calls = [];
+  const project = {
+    draft_id: 'draft-controller',
+    voice_audio: {},
+    background_audio: { name: 'music.wav', public_url: 'https://cdn.example.com/music.wav' },
+    editor_state: { pipeline_base_url: 'http://approval.from-project' },
+  };
+  const controller = createVideoProjectsController({
+    api: {
+      createApprovalPipelineClient({ resolveBaseUrl }) {
+        calls.push(`client:${resolveBaseUrl()}`);
+        return {
+          async extractVoiceAudioFromVideo({ file }) {
+            calls.push(`extract:${file.name}:${file.type}`);
+            return new File(['m4a-bytes'], 'controller-voice.m4a', { type: 'audio/mp4' });
+          },
+        };
+      },
+      async uploadAudioFile({ draftId, kind, file }) {
+        calls.push(`upload:${draftId}:${kind}:${file.name}:${file.type}`);
+        return { kind, public_url: `https://cdn.example.com/${file.name}`, name: file.name, mime_type: file.type };
+      },
+      async saveVideoProjectAudio({ voiceAudio, backgroundAudio }) {
+        calls.push(`save:${voiceAudio.name}:${backgroundAudio.name}`);
+        return { voice_audio: voiceAudio, background_audio: backgroundAudio };
+      },
+    },
+    store: { getState: () => ({ selectedVideoProject: project, settings: { approvalPipelineBaseUrl: 'http://approval.from-settings' } }) },
+    ui: { toast(message) { calls.push(`toast:${message}`); } },
+    callbacks: { renderVideoProjects() {}, renderSelectedVideoProject() {}, updateSelectedVideoProjectCompositionPreview() { return true; } },
+  });
+
+  await controller.uploadProjectAudio('voice', makeFile({ name: 'camera.mp4', type: 'video/mp4' }));
+
+  assert(calls.includes('client:http://approval.from-project'), 'Expected controller to resolve Approval Pipeline client for voice MP4 extraction');
+  assert(calls.includes('extract:camera.mp4:video/mp4'), 'Expected controller audio API to expose extraction method');
+  assert(calls.includes('upload:draft-controller:voice:controller-voice.m4a:audio/mp4'), 'Expected controller to upload extracted master through existing audio path');
+  assert(calls.includes('save:controller-voice.m4a:music.wav'), 'Expected controller to save extracted voice audio metadata normally');
+}
+
 export async function runVoiceVideoUploadAudioExtractionCheck() {
   assertVoiceAcceptsMp4ButBackgroundStaysAudioOnly();
   assertVoiceVideoInputDetectionIsVoiceOnlyMp4();
   await assertRegularAudioUploadPathRemainsUnchanged();
   await assertVoiceMp4ExtractsThenUsesExistingUploadAndSave();
   await assertExtractionClientPostsBinaryAndReturnsAudioFile();
+  await assertControllerWiresVoiceVideoExtractionClient();
   return { ok: true };
 }
 

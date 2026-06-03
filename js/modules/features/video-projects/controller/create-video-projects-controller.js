@@ -123,6 +123,25 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
 
   const { persistEditorState } = createEditorStatePersistence({ api, resolveProjectKey: resolveVideoProjectKey });
 
+  function resolveVoiceAudioExtractionClient() {
+    const state = store.getState?.() || {};
+    const project = state.selectedVideoProject;
+    const baseUrl = (project?.editor_state?.pipeline_base_url || state.settings?.approvalPipelineBaseUrl || '').toString().trim();
+    if (!baseUrl || typeof api?.createApprovalPipelineClient !== 'function') return null;
+    return api.createApprovalPipelineClient({ resolveBaseUrl: () => baseUrl });
+  }
+
+  const audioApi = {
+    ...api,
+    async extractVoiceAudioFromVideo(input) {
+      const client = resolveVoiceAudioExtractionClient();
+      if (typeof client?.extractVoiceAudioFromVideo !== 'function') {
+        throw new Error('Approval Pipeline no disponible para extraer audio del video');
+      }
+      return client.extractVoiceAudioFromVideo(input);
+    },
+  };
+
   const approval = createApprovalSnapshotOperations({
     api,
     store,
@@ -240,7 +259,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
   }
 
   const audioSetup = createAudioSetupCommands({
-    api,
+    api: audioApi,
     ui,
     getProject: () => store.getState().selectedVideoProject,
     resolveProjectKey: resolveVideoProjectKey,
