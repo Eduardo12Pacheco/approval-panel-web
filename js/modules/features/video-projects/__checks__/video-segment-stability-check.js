@@ -184,6 +184,88 @@ async function testStaleBoundaryTransitionRetriesAgainstLatestSnapshot() {
   assertEqual(savedStates.length, 1, 'Expected successful boundary retry to persist editor state once');
 }
 
+async function testStaleImageMediaModeRetriesAgainstLatestSnapshot() {
+  const rows = [{ id: 'seg-002', startTime: 1, endTime: 4, selectedAssetId: 'old-image.jpg', media: { kind: 'image' }, mediaMode: 'image' }];
+  const latestRows = rows.map((row) => ({ ...row }));
+  const newspaperRows = [{ ...rows[0], selectedAssetId: 'news-image.png', media: { kind: 'image' }, mediaMode: 'newspaper' }];
+  const project = createApprovalProject({ rows });
+  const calls = [];
+  const savedStates = [];
+  const latestSnapshot = { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-latest', rows: latestRows };
+  const client = {
+    async snapshot() {
+      throw new Error('Expected retry to use latest snapshot from conflict payload without refetching');
+    },
+    async updateSnapshot(projectId, payload) {
+      calls.push({ projectId, payload });
+      if (payload.baseSnapshotHash === 'hash-latest') {
+        return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-newspaper', rows: newspaperRows } };
+      }
+      const error = new Error('version conflict');
+      error.code = 'version_conflict';
+      error.status = 409;
+      error.details = { expected_version: 204, received_version: 203, latest: { snapshot: latestSnapshot } };
+      throw error;
+    },
+  };
+  const operations = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'http://approval.local' } }) },
+    ui: { toast() {} },
+    persistEditorState: async (_project, patch) => savedStates.push(patch),
+    renderSelectedVideoProject() {},
+  });
+
+  await operations.commitApprovalSnapshotOperations(project, [
+    { type: 'setRowImage', rowId: 'seg-002', asset: { publicUrl: 'news-image.png' }, mediaMode: 'newspaper' },
+    { type: 'setRowMediaMode', rowId: 'seg-002', mediaMode: 'newspaper', media: { kind: 'image' } },
+  ]);
+
+  assertEqual(calls.length, 2, 'Expected stale image/newspaper assignment to retry once over latest snapshot');
+  assertEqual(calls[0].payload.baseSnapshotHash, 'hash-stale', 'Expected first image write to use local stale hash');
+  assertEqual(calls[1].payload.baseSnapshotHash, 'hash-latest', 'Expected image retry to use latest canonical hash from conflict payload');
+  assertEqual(project.editor_state.snapshot_hash, 'hash-newspaper', 'Expected retried newspaper assignment to apply returned canonical snapshot hash');
+  assertEqual(project._editorRows[0].mediaMode, 'newspaper', 'Expected retried assignment to apply canonical newspaper mode');
+  assertEqual(project._editorRows[0].selectedAssetId, 'news-image.png', 'Expected retried assignment to apply canonical selected image');
+  assertEqual(savedStates.length, 1, 'Expected successful image retry to persist editor state once');
+}
+
+async function testStaleBrandSelectionRetriesAgainstLatestSnapshot() {
+  const rows = [{ id: 'seg-001', startTime: 0, endTime: 2, selectedAssetId: 'image.jpg', media: { kind: 'image' } }];
+  const project = createApprovalProject({ rows });
+  const calls = [];
+  const savedStates = [];
+  const client = {
+    async snapshot() {
+      return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-latest', brandChannel: 'pelotazo-colombia', rows } };
+    },
+    async updateSnapshot(projectId, payload) {
+      calls.push({ projectId, payload });
+      if (payload.baseSnapshotHash === 'hash-latest') {
+        return { snapshot: { ...project.editor_state.approval_contract_snapshot, snapshotHash: 'hash-brand', brandChannel: 'final-mundial', rows } };
+      }
+      const error = new Error('version conflict');
+      error.code = 'version_conflict';
+      error.status = 409;
+      throw error;
+    },
+  };
+  const operations = createApprovalSnapshotOperations({
+    api: { createApprovalPipelineClient: () => client },
+    store: { getState: () => ({ settings: { approvalPipelineBaseUrl: 'http://approval.local' } }) },
+    ui: { toast() {} },
+    persistEditorState: async (_project, patch) => savedStates.push(patch),
+    renderSelectedVideoProject() {},
+  });
+
+  await operations.commitApprovalSnapshotOperations(project, [{ type: 'setBrandChannel', brandChannel: 'final-mundial' }]);
+
+  assertEqual(calls.length, 2, 'Expected stale brand selection to retry once over latest snapshot');
+  assertEqual(calls[1].payload.baseSnapshotHash, 'hash-latest', 'Expected brand retry to use latest canonical hash');
+  assertEqual(project.editor_state.approval_contract_snapshot.brandChannel, 'final-mundial', 'Expected retried brand selection to apply canonical brand');
+  assertEqual(savedStates.length, 1, 'Expected successful brand retry to persist editor state once');
+}
+
 async function testRejectedVideoSegmentDoesNotToastSuccess() {
   const toasts = [];
   const project = createApprovalProject({ rows: [{ id: 'seg-002', startTime: 0, endTime: 2, selectedAssetId: 'image.jpg' }] });
@@ -414,6 +496,8 @@ function testApprovalSnapshotPersistsVideoForegroundTransform() {
 export async function runVideoSegmentStabilityCheck() {
   await testStaleVideoSegmentRetriesAgainstLatestSnapshot();
   await testStaleBoundaryTransitionRetriesAgainstLatestSnapshot();
+  await testStaleImageMediaModeRetriesAgainstLatestSnapshot();
+  await testStaleBrandSelectionRetriesAgainstLatestSnapshot();
   await testRejectedVideoSegmentDoesNotToastSuccess();
   testPreviewPlanSeparatesSourceTrimFromDecorativeEffects();
   testPreviewPlanAppliesForegroundTransformOnlyToSourceLayer();

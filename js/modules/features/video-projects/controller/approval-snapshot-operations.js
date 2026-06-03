@@ -246,10 +246,12 @@ export function createApprovalSnapshotOperations({
     return Array.isArray(operations)
       && operations.length > 0
       && operations.every((operation) => operation?.type === 'setRowImage'
+        || operation?.type === 'setRowMediaMode'
         || operation?.type === 'setRowMotion'
         || operation?.type === 'setRowNewspaper'
         || operation?.type === 'setRowVideoSegment'
-        || operation?.type === 'setBoundaryTransition');
+        || operation?.type === 'setBoundaryTransition'
+        || operation?.type === 'setBrandChannel');
   }
 
   function toConflictState(error, localBaseSnapshotHash) {
@@ -270,6 +272,10 @@ export function createApprovalSnapshotOperations({
     return payload?.snapshot || payload?.data?.snapshot || null;
   }
 
+  function extractLatestConflictSnapshot(error) {
+    return error?.details?.latest?.snapshot || error?.details?.latest?.data?.snapshot || null;
+  }
+
   async function fetchLatestApprovalSnapshot(client, projectId) {
     if (typeof client?.snapshot !== 'function') return null;
     const latest = await client.snapshot(projectId);
@@ -288,7 +294,7 @@ export function createApprovalSnapshotOperations({
       result = await updateWithHash(baseSnapshotHash);
     } catch (err) {
       if (isStaleBaseSnapshotHashError(err) && canAutoRetryStaleSnapshotOperations(operations)) {
-        const latestSnapshot = await fetchLatestApprovalSnapshot(client, projectId).catch(() => null);
+        const latestSnapshot = extractLatestConflictSnapshot(err) || await fetchLatestApprovalSnapshot(client, projectId).catch(() => null);
         const latestHash = latestSnapshot?.snapshotHash || '';
         if (latestHash && latestHash !== baseSnapshotHash) {
           applyCanonicalSnapshot(project, latestSnapshot, { dirty: true, phase });
