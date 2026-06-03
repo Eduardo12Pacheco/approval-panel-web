@@ -6,7 +6,7 @@ import { buildEditorVideoPicker } from './editor-video-picker.js';
 
 export const EDITOR_EFFECT_TABS = [
   { id: 'content', label: 'Contenido' },
-  { id: 'framing', label: 'Encuadre' },
+  { id: 'framing', label: 'Movimiento' },
   { id: 'layers', label: 'Capas' },
   { id: 'audio', label: 'Audio' },
 ];
@@ -387,9 +387,9 @@ function buildVideoForegroundNumberInput({ field, label, value, min = null, step
 
 function buildFramingDefaultsHint() {
   return `
-    <div class="video-motion-defaults-hint" aria-label="Guía de encuadre base">
+    <div class="video-motion-defaults-hint" aria-label="Guía de ajuste base">
       <span class="video-motion-defaults-hint__icon" aria-hidden="true">i</span>
-      <span>Para volver al encuadre base, ingresá X: 0, Y: 0 y Escala: 100%.</span>
+      <span>Para volver al ajuste base, ingresá X: 0, Y: 0 y Escala: 100%.</span>
     </div>
   `;
 }
