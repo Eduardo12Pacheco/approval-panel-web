@@ -1,7 +1,7 @@
 import {
-  CUSTOM_IMAGE_ALLOWED_MIME_TYPES,
   CUSTOM_IMAGE_MAX_SIZE_BYTES,
   detectImageDimensions,
+  normalizeCustomImageMimeType,
 } from '../domain/image-files.js';
 
 export function createCustomImageCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject }) {
@@ -20,13 +20,13 @@ export function createCustomImageCommands({ api, ui, getProject, resolveProjectK
 
     const acceptedFiles = [];
     for (const file of inputFiles) {
-      if (!CUSTOM_IMAGE_ALLOWED_MIME_TYPES.has((file?.type || '').toLowerCase())) continue;
+      if (!normalizeCustomImageMimeType(file)) continue;
       if (Number(file?.size || 0) <= 0 || Number(file?.size || 0) > CUSTOM_IMAGE_MAX_SIZE_BYTES) continue;
       acceptedFiles.push(file);
     }
 
     if (!acceptedFiles.length) {
-      project._customImageUploadError = 'Solo JPG/PNG/WebP de hasta 15MB.';
+      project._customImageUploadError = 'Solo JPG/PNG/WebP/JFIF de hasta 15MB.';
       ui.toast('Formato inválido o archivo demasiado pesado');
       renderSelectedVideoProject();
       return;
@@ -41,6 +41,7 @@ export function createCustomImageCommands({ api, ui, getProject, resolveProjectK
       for (const file of acceptedFiles) {
         const dimensions = await detectImageDimensions(file);
         const upload = await api.uploadCustomImageFile({ draftId, file });
+        const mimeType = normalizeCustomImageMimeType(file);
         candidates.push({
           provider: 'user-upload',
           source: 'user-upload',
@@ -49,7 +50,7 @@ export function createCustomImageCommands({ api, ui, getProject, resolveProjectK
           storage_bucket: upload.storage_bucket,
           storage_path: upload.storage_path,
           storage_public_url: upload.storage_public_url,
-          mime_type: file.type,
+          mime_type: mimeType,
           image_width: dimensions.width,
           image_height: dimensions.height,
           file_size: Number(file.size || 0),

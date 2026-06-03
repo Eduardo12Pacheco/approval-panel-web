@@ -18,6 +18,7 @@ import {
   resolveSharedReadModelUrl,
   resolveVideoProjectsSharedReadPath,
 } from '../../../core/http/shared-read-models.js';
+import { normalizeCustomImageMimeType } from '../domain/image-files.js';
 
 const VIDEO_PROJECTS_RPC = '/rest/v1/rpc/get_video_edit_projects';
 const SAVE_AUDIO_RPC = '/rest/v1/rpc/save_video_project_audio';
@@ -141,6 +142,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
 
     const projectStorageKey = md5ProjectStorageKey(id);
     const path = buildCustomImagePath({ draftId: id, file });
+    const mimeType = normalizeCustomImageMimeType(file) || file.type || 'application/octet-stream';
     const response = await fetchImpl(
       `${SUPABASE_URL}/storage/v1/object/${VIDEO_CANDIDATES_TEMP_BUCKET}/${encodeStoragePath(path)}`,
       {
@@ -148,7 +150,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
         headers: {
           apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Type': mimeType,
           'x-upsert': 'false',
         },
         body: file,

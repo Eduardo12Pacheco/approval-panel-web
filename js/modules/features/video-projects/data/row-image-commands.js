@@ -1,7 +1,7 @@
 import {
-  CUSTOM_IMAGE_ALLOWED_MIME_TYPES,
   CUSTOM_IMAGE_MAX_SIZE_BYTES,
   detectImageDimensions,
+  normalizeCustomImageMimeType,
 } from '../domain/image-files.js';
 
 export function createRowImageCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject, updateRow, beforeMutate }) {
@@ -49,8 +49,9 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
       return;
     }
 
-    if (!CUSTOM_IMAGE_ALLOWED_MIME_TYPES.has((file?.type || '').toLowerCase())) {
-      ui.toast('Solo JPG/PNG/WebP');
+    const mimeType = normalizeCustomImageMimeType(file);
+    if (!mimeType) {
+      ui.toast('Solo JPG/PNG/WebP/JFIF');
       return;
     }
     if (Number(file?.size || 0) <= 0 || Number(file?.size || 0) > CUSTOM_IMAGE_MAX_SIZE_BYTES) {
@@ -72,7 +73,7 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
         storage_bucket: upload.storage_bucket,
         storage_path: upload.storage_path,
         storage_public_url: upload.storage_public_url,
-        mime_type: file.type,
+        mime_type: mimeType,
         image_width: dimensions.width,
         image_height: dimensions.height,
         file_size: Number(file.size || 0),

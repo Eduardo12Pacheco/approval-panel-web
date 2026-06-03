@@ -11,14 +11,14 @@ function toTrimmedString(value = '') {
   return (value || '').toString().trim();
 }
 
-function normalizeImageLookupKey(value = '') {
+export function normalizeImageLookupKey(value = '') {
   return String(value || '')
     .trim()
     .toLowerCase()
     .split(/[?#]/)[0]
     .split('/')
     .pop()
-    .replace(/\.(png|jpe?g|webp|gif|avif)$/i, '')
+    .replace(/\.(png|jpe?g|jfif|webp|gif|avif)$/i, '')
     .replace(/[^a-z0-9]+/g, '-');
 }
 

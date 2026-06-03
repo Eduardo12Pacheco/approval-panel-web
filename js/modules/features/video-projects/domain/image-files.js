@@ -1,6 +1,18 @@
 export const CUSTOM_IMAGE_MAX_SIZE_BYTES = 15 * 1024 * 1024;
 export const CUSTOM_IMAGE_ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+export function normalizeCustomImageMimeType(file) {
+  const mimeType = (file?.type || '').toString().trim().toLowerCase();
+  if (CUSTOM_IMAGE_ALLOWED_MIME_TYPES.has(mimeType)) return mimeType;
+  if (mimeType === 'image/pjpeg') return 'image/jpeg';
+  if (!mimeType && /\.jfif$/i.test((file?.name || '').toString().trim())) return 'image/jpeg';
+  return '';
+}
+
+export function isAllowedCustomImageFile(file) {
+  return Boolean(normalizeCustomImageMimeType(file));
+}
+
 export function detectImageDimensions(file) {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
