@@ -12,7 +12,9 @@ function resolveEditorRowId(row = {}) {
 }
 
 function hasParagraphBreakAroundDelimiter(currentBlock = '', nextBlock = '') {
-  return /(?:\r?\n[\t ]*){2,}$/.test(currentBlock) || /^(?:[\t ]*\r?\n){2,}/.test(nextBlock);
+  return /(?:\r?\n[\t ]*){2,}$/.test(currentBlock)
+    || /^(?:[\t ]*\r?\n){2,}/.test(nextBlock)
+    || /\r?\n[\t ]*$/.test(currentBlock) && /^[\t ]*\r?\n/.test(nextBlock);
 }
 
 export function deriveParagraphBoundaryMetadataFromGuion(rawGuion = '', rows = []) {

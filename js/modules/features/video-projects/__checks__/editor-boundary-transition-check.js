@@ -154,6 +154,25 @@ function runHydratedThreeParagraphAutoBoundaryMarkupCheck() {
   assert(markup.includes('data-row-id="seg-014" data-next-row-id="seg-015" data-transition="glitch-2" aria-pressed="true"'), 'Expected automatic row 14 Glitch 2 button to be active');
 }
 
+function runHydratedPipeOwnLineAutoBoundaryMarkupCheck() {
+  const timedRows = [
+    { id: 'seg-001', rowId: 'seg-001', phrase: 'Primer párrafo', startTime: 0, endTime: 1, transition: 'none' },
+    { id: 'seg-002', rowId: 'seg-002', phrase: 'Segundo párrafo', startTime: 1, endTime: 2, transition: 'none' },
+    { id: 'seg-003', rowId: 'seg-003', phrase: 'Tercer párrafo', startTime: 2, endTime: 3, transition: 'none' },
+  ];
+  const project = {
+    guion_piped: 'Primer párrafo \n|\n Segundo párrafo \n|\n Tercer párrafo',
+    editor_state: { timed_rows: timedRows, global_audio: {} },
+  };
+
+  hydrateSelectedProjectState(project);
+
+  assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected pipe alone on a line to derive first paragraph boundary');
+  assertEqual(project._editorRows[0].transition, 'glitch-1', 'Expected first pipe-line boundary to receive automatic Glitch 1');
+  assertEqual(project._editorRows[1].paragraphBoundaryAfter, true, 'Expected second pipe alone on a line to derive second paragraph boundary');
+  assertEqual(project._editorRows[1].transition, 'glitch-2', 'Expected second pipe-line boundary to receive automatic Glitch 2');
+}
+
 async function runBoundaryConnectorHydrationCheck() {
   const listeners = new Map();
   const button = {
@@ -270,6 +289,7 @@ export async function runEditorBoundaryTransitionCheck() {
   runManualBoundaryTransitionPreservationCheck();
   runHydratedRowsDeriveBoundaryMetadataFromGuionCheck();
   runHydratedThreeParagraphAutoBoundaryMarkupCheck();
+  runHydratedPipeOwnLineAutoBoundaryMarkupCheck();
   await runBoundaryConnectorHydrationCheck();
   await runApprovalBoundaryTransitionOperationCheck();
 }
