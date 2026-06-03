@@ -392,7 +392,7 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
       filterDefault: true,
     },
     audio: {
-      music: { volume: Number(snapshot?.audio?.music?.volume ?? 0.15), muted: Boolean(snapshot?.audio?.music?.muted) },
+      music: { volume: Number(snapshot?.audio?.music?.volume ?? 0.8), muted: Boolean(snapshot?.audio?.music?.muted) },
       voice: { volume: Number(snapshot?.audio?.voice?.volume ?? 1), muted: Boolean(snapshot?.audio?.voice?.muted) },
     },
     rows,
