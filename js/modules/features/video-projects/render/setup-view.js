@@ -56,8 +56,8 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
   const publicUrl = escapeHtmlCore((audio?.public_url || '').toString());
   const sizeMb = Number(audio?.size || 0) > 0 ? `${(Number(audio.size) / 1024 / 1024).toFixed(1)} MB` : '';
   const selectedDefaultTrackId = (audio?.default_track_id || '').toString();
-  const uploadTitle = kind === 'background' ? 'Agregar música' : 'Agregar voz';
-  const uploadHelp = kind === 'background' ? 'Opcional: subí una pista propia o elegí una música del sistema.' : 'Subí o reemplazá el audio de voz para sincronizarlo con los segmentos. También podés subir un MP4 de cámara: se extrae solo el audio.';
+  const uploadTitle = kind === 'background' ? 'Agregar música' : 'Agregar voz o video';
+  const uploadHelp = kind === 'background' ? 'Opcional: subí una pista propia o elegí una música del sistema.' : 'Subí audio de voz o un MP4 de cámara; extraemos el audio automáticamente.';
   const accept = kind === 'voice' ? 'audio/*,video/mp4,.mp4' : 'audio/*';
   const defaultMusicSelector = kind === 'background' ? `
     <label class="video-audio-card__default-select">

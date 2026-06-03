@@ -56,6 +56,8 @@ function assertVoiceAcceptsMp4ButBackgroundStaysAudioOnly() {
   assert(voiceAccept.includes('audio/*'), 'Expected voice upload to preserve normal audio accept support');
   assert(voiceAccept.includes('video/mp4'), 'Expected voice upload to accept MP4 camera video containers');
   assertEqual(backgroundAccept, 'audio/*', 'Expected background music upload to remain audio-only');
+  assert(markup.includes('Agregar voz o video'), 'Expected voice upload CTA to clarify that MP4 video is accepted');
+  assert(markup.includes('Subí audio de voz o un MP4 de cámara; extraemos el audio automáticamente.'), 'Expected voice upload help text to explain automatic audio extraction');
 }
 
 function assertVoiceVideoInputDetectionIsVoiceOnlyMp4() {
