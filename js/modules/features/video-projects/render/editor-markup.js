@@ -97,13 +97,13 @@ export function buildEditorRowsTable(rows = [], { selectedRowId, rowImageUploadi
                 </td>
                 <td class="video-editor-row__transition">${connectorMarkup}</td>
                 <td class="video-editor-row__actions">
-                  <button class="video-editor-row__upload-label" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
+                  <button class="video-editor-row__upload-label" type="button" data-action="open-assets-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-content-type-switch="image" data-target-effect-tab="content">
                     <span>${uploadLabel}</span>
                   </button>
-                  <button class="video-editor-row__upload-label" type="button" data-action="open-videos-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
+                  <button class="video-editor-row__upload-label" type="button" data-action="open-videos-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-content-type-switch="video" data-target-effect-tab="content">
                     <span>Cambiar a video</span>
                   </button>
-                  <button class="video-editor-row__upload-label" type="button" data-action="open-newspaper-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}">
+                  <button class="video-editor-row__upload-label" type="button" data-action="open-newspaper-tab" data-row-id="${escapeHtmlCore(row.id)}" data-start-time="${escapeHtmlCore(startTimeValue)}" data-content-type-switch="newspaper" data-target-effect-tab="content">
                     <span>Cambiar a periódico</span>
                   </button>
                 </td>

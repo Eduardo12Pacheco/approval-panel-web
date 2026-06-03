@@ -246,12 +246,11 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     return rowId;
   };
   root.querySelectorAll('[data-action="open-assets-tab"]').forEach((button) => {
-    button.addEventListener('click', async () => {
+    button.addEventListener('click', () => {
       const rowId = syncSelectedRowFromButton(button);
       project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
       if (button.dataset.contentTypeSwitch === 'image') {
         rememberContentType(rowId, 'image');
-        await updateRow?.(rowId, { mediaMode: 'image', media: { kind: 'image' } }, { render: false });
       }
       if (rowId && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
       else renderSelectedVideoProject?.();
@@ -267,11 +266,10 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     });
   });
   root.querySelectorAll('[data-action="open-newspaper-tab"]').forEach((button) => {
-    button.addEventListener('click', async () => {
+    button.addEventListener('click', () => {
       const rowId = syncSelectedRowFromButton(button);
       rememberContentType(rowId, 'newspaper');
-      project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'framing');
-      await updateRow?.(rowId, { mediaMode: 'newspaper', media: { kind: 'image' } }, { render: false });
+      project._editorEffectTab = resolveEditorEffectTab(button.dataset.targetEffectTab || 'content');
       if (rowId && typeof refreshEditorSelectionOnly === 'function') refreshEditorSelectionOnly(rowId);
       else renderSelectedVideoProject?.();
     });

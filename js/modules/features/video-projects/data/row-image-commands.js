@@ -9,10 +9,33 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
     if (typeof beforeMutate === 'function') beforeMutate({ label, project, ...details });
   }
 
+  function resolveImageAssignmentPatch(project, rowId, selectedAssetId) {
+    const pendingByRow = project?._editorContentTypeByRow && typeof project._editorContentTypeByRow === 'object'
+      ? project._editorContentTypeByRow
+      : {};
+    const pendingType = pendingByRow[rowId];
+    const patch = { selectedAssetId };
+    if (pendingType === 'image' || pendingType === 'newspaper') {
+      patch.mediaMode = pendingType;
+      patch.media = { kind: 'image' };
+    }
+    return patch;
+  }
+
+  function clearPendingContentType(project, rowId) {
+    if (!project?._editorContentTypeByRow || typeof project._editorContentTypeByRow !== 'object') return;
+    if (!Object.prototype.hasOwnProperty.call(project._editorContentTypeByRow, rowId)) return;
+    const next = { ...project._editorContentTypeByRow };
+    delete next[rowId];
+    project._editorContentTypeByRow = next;
+  }
+
   async function assignExistingImageToRow(rowId, imageUrl) {
+    const project = getProject();
     const cleanUrl = (imageUrl || '').toString().trim();
     if (!rowId || !cleanUrl) return;
-    await updateRow(rowId, { selectedAssetId: cleanUrl });
+    await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, cleanUrl));
+    clearPendingContentType(project, rowId);
     ui.toast('Imagen asignada a la fila');
   }
 
@@ -74,7 +97,8 @@ export function createRowImageCommands({ api, ui, getProject, resolveProjectKey,
 
       // Auto-assign the newly uploaded image to the row by its public URL
       const newPublicUrl = upload.storage_public_url || '';
-      updateRow(rowId, { selectedAssetId: newPublicUrl });
+      await updateRow(rowId, resolveImageAssignmentPatch(project, rowId, newPublicUrl));
+      clearPendingContentType(project, rowId);
       ui.toast('Imagen asignada a la fila');
     } catch (err) {
       console.error(err);

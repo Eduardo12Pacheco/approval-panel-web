@@ -8,6 +8,7 @@ import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-eff
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
 import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 import { hydrateVideoSelectorControls, lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
+import { createRowImageCommands } from '../data/row-image-commands.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -187,6 +188,9 @@ function runChangeImageNavigationCheck() {
   const detailMarkup = buildEditorDetailRail({ row, project: makeProject() });
 
   assert(tableMarkup.includes('data-action="open-assets-tab"'), 'Expected table Cambiar action to open Imágenes tab');
+  assert(tableMarkup.includes('data-content-type-switch="image"'), 'Expected table Imagen action to remember pending image mode without mutating immediately');
+  assert(tableMarkup.includes('data-content-type-switch="video"'), 'Expected table Video action to remember pending video mode without mutating immediately');
+  assert(tableMarkup.includes('data-content-type-switch="newspaper"'), 'Expected table Periódico action to remember pending newspaper mode without mutating immediately');
   assert(tableMarkup.includes('data-action="open-newspaper-tab"'), 'Expected table to expose Cambiar a periódico as a first-class row action');
   assert(tableMarkup.includes('Cambiar a periódico'), 'Expected newspaper row action to use the requested visible label');
   assert(!tableMarkup.includes('data-action="upload-row-image"'), 'Expected table Cambiar action not to open file picker');
@@ -272,7 +276,7 @@ async function runTableRowSelectionKeepsDetailRailAlignedCheck() {
 async function runNewspaperNavigationHydrationCheck() {
   const listeners = new Map();
   const newspaperButton = {
-    dataset: { rowId: 'row-news', startTime: '12.5' },
+    dataset: { rowId: 'row-news', startTime: '12.5', contentTypeSwitch: 'newspaper', targetEffectTab: 'content' },
     addEventListener(type, listener) { listeners.set(type, listener); },
   };
   const project = { _selectedEditorRowId: null, _editorEffectTab: 'layers', _previewSeekTime: 0 };
@@ -300,12 +304,9 @@ async function runNewspaperNavigationHydrationCheck() {
 
   assertEqual(project._selectedEditorRowId, 'row-news', 'Expected newspaper action to select the clicked row');
   assertEqual(project._previewSeekTime, 12.5, 'Expected newspaper action to seek to the row start time');
-  assertEqual(project._editorEffectTab, 'framing', 'Expected newspaper action to route to newspaper framing controls');
-  assertEqual(patches.length, 1, 'Expected newspaper action to persist a row mode patch');
-  assertEqual(patches[0].rowId, 'row-news', 'Expected newspaper mode patch to target the clicked row');
-  assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected newspaper action to persist first-class mediaMode');
-  assertEqual(patches[0].patch.media?.kind, 'image', 'Expected newspaper mode to remain image-driven');
-  assertEqual(patches[0].options?.render, false, 'Expected newspaper mode patch to suppress full editor rerender');
+  assertEqual(project._editorEffectTab, 'content', 'Expected newspaper action to route to the asset selector before assignment');
+  assertEqual(project._editorContentTypeByRow?.['row-news'], 'newspaper', 'Expected newspaper action to remember newspaper mode before assignment');
+  assertEqual(patches.length, 0, 'Expected newspaper navigation not to persist a row mode patch before an image is chosen');
   assertEqual(renderCount, 0, 'Expected newspaper action to avoid a full editor rerender');
 }
 
@@ -341,6 +342,32 @@ async function runContentTypeSwitcherHydrationCheck() {
   assertEqual(project._editorEffectTab, 'content', 'Expected content type switch to keep the Contenido panel open');
   assertEqual(project._editorContentTypeByRow?.['row-content'], 'video', 'Expected video switch to remember video picker visibility before assignment');
   assertEqual(renderCount, 0, 'Expected video content type switch to avoid a full editor rerender');
+}
+
+async function runPendingImageAssignmentAppliesRememberedMediaModeCheck() {
+  const project = { _editorContentTypeByRow: { 'row-news': 'newspaper', 'row-image': 'image' } };
+  const patches = [];
+  const toasts = [];
+  const commands = createRowImageCommands({
+    api: {},
+    ui: { toast: (message) => toasts.push(message) },
+    getProject: () => project,
+    resolveProjectKey: () => 'draft-1',
+    renderSelectedVideoProject: () => {},
+    updateRow: async (rowId, patch) => patches.push({ rowId, patch }),
+  });
+
+  await commands.assignExistingImageToRow('row-news', 'https://cdn.example.com/news.jpg');
+  await commands.assignExistingImageToRow('row-image', 'https://cdn.example.com/image.jpg');
+
+  assertEqual(patches[0].rowId, 'row-news', 'Expected pending newspaper assignment to target the requested row');
+  assertEqual(patches[0].patch.selectedAssetId, 'https://cdn.example.com/news.jpg', 'Expected newspaper assignment to persist selected image');
+  assertEqual(patches[0].patch.mediaMode, 'newspaper', 'Expected pending newspaper assignment to persist newspaper mode only on asset acceptance');
+  assertEqual(patches[0].patch.media?.kind, 'image', 'Expected pending newspaper assignment to remain image-driven');
+  assertEqual(patches[1].patch.mediaMode, 'image', 'Expected pending image assignment to convert video/newspaper rows back to image mode');
+  assertEqual(project._editorContentTypeByRow?.['row-news'], undefined, 'Expected pending newspaper mode to clear after assignment');
+  assertEqual(project._editorContentTypeByRow?.['row-image'], undefined, 'Expected pending image mode to clear after assignment');
+  assertEqual(toasts.length, 2, 'Expected assignment toast to remain user-visible after each accepted image');
 }
 
 async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
@@ -640,6 +667,7 @@ export async function runEditorAssetsTabCheck() {
   await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
+  await runPendingImageAssignmentAppliesRememberedMediaModeCheck();
   await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
   runVideoSelectorOwnerRowGuardCheck();
   await runVideoSelectorRejectsMismatchedCommitCheck();
