@@ -108,6 +108,28 @@ function rowsWouldChange(rows = [], rowId, patch = {}) {
   return stableJson(nextRows) !== stableJson(rows);
 }
 
+function isImageDustRow(row = {}) {
+  return Boolean(row) && row?.media?.kind !== 'video-segment' && row?.mediaMode !== 'newspaper';
+}
+
+function normalizeDustPatch(dustType = 'none') {
+  const cleanType = ['dust-1', 'dust-2'].includes(dustType) ? dustType : 'none';
+  return {
+    enabled: cleanType !== 'none',
+    type: cleanType === 'none' ? 'dust-1' : cleanType,
+    assetId: cleanType === 'none' ? null : cleanType,
+  };
+}
+
+export function applyDustToImageRows(rows = [], dustType = 'none') {
+  const dust = normalizeDustPatch(dustType);
+  return (Array.isArray(rows) ? rows : []).map((row) => (
+    isImageDustRow(row)
+      ? mergeLocalEditorRowPatch(row, { dust })
+      : row
+  ));
+}
+
 function preservePreviewSeekDuringNextRender(project) {
   if (!project) return;
   project._skipNextPreviewSeekCapture = true;
@@ -405,7 +427,46 @@ export function createRowCommands({
     }, debounceMs));
   }
 
-  return { updateRow, swapRowImages };
+  async function applyDustToAllImageRows(dustType = 'none') {
+    const state = store.getState();
+    const project = state.selectedVideoProject;
+    if (!project) return;
+
+    const rows = applyAlternatingBoundaryTransitionDefaults(
+      mergeDerivedParagraphBoundaryMetadata(
+        Array.isArray(project._editorRows) ? project._editorRows : [],
+        project.guion_piped || project.editor_state?.guion_piped || '',
+      ),
+    );
+    const imageRows = rows.filter(isImageDustRow);
+    if (!imageRows.length) return;
+    const dust = normalizeDustPatch(dustType);
+    const nextRows = applyDustToImageRows(rows, dustType);
+    if (stableJson(nextRows) === stableJson(rows)) return;
+
+    notifyBeforeMutate('apply-dust-to-all-image-rows', project, { dustType });
+    project._editorRows = nextRows;
+    project.editor_state = normalizeEditorState({ ...project.editor_state, timed_rows: project._editorRows, dirty: true, phase: 'editing_dirty' });
+
+    if (isApprovalServiceMode(project)) {
+      imageRows.forEach((row) => {
+        createMotionDraft(row.id, { type: 'setRowDust', rowId: row.id, enabled: dust.enabled, dustType: dust.type }, { dust }, `${row.id}:dust`);
+      });
+      updateSelectedVideoProjectCompositionPreview({ project });
+      scheduleApprovalMotionPersistence(project);
+      return;
+    }
+
+    const compositionHash = computeCompositionHash(project);
+    project.editor_state = normalizeEditorState({ ...project.editor_state, dirty: true, phase: 'editing_dirty' });
+    updateSelectedVideoProjectCompositionPreview({ project });
+    clearPendingEditorSave();
+    setSaveTimer(setTimeout(() => {
+      void persistEditorState(project, { timed_rows: project._editorRows, composition_hash: compositionHash, dirty: true, phase: 'editing_dirty' });
+    }, debounceMs));
+  }
+
+  return { updateRow, swapRowImages, applyDustToAllImageRows };
 }
 
 export function normalizeRowsForPreview(project) {

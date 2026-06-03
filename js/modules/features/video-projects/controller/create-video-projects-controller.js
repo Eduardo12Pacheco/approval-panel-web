@@ -266,7 +266,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     setVideoProjectStep,
   });
 
-  const { updateRow, swapRowImages } = createRowCommands({
+  const { updateRow, swapRowImages, applyDustToAllImageRows } = createRowCommands({
     store,
     ui,
     persistEditorState,
@@ -351,6 +351,12 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     return result;
   }
 
+  function applyDustToAllImageRowsWithPresence(...args) {
+    const result = applyDustToAllImageRows(...args);
+    void reportEditorPresence({ mode: 'editing' });
+    return result;
+  }
+
   const controller = {
     refreshVideoProjects: projectLoading.refreshVideoProjects,
     openVideoProject: openVideoProjectWithPresence,
@@ -368,6 +374,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     exportFinal: previewExport.exportFinal,
     updateRow: updateRowWithPresence,
     swapRowImages,
+    applyDustToAllImageRows: applyDustToAllImageRowsWithPresence,
     assignExistingImageToRow: rowImages.assignExistingImageToRow,
     uploadAndAssignImage: rowImages.uploadAndAssignImage,
     uploadVideoToLibrary: rowVideos.uploadVideoToLibrary,

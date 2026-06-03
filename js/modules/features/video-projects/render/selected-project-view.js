@@ -27,6 +27,7 @@ export function renderSelectedVideoProjectView({
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
   swapRowImages,
+  applyDustToAllImageRows,
   undoEditorChange,
   showToast,
 }) {
@@ -109,6 +110,7 @@ export function renderSelectedVideoProjectView({
     updateBrandChannel,
     updateRow,
     swapRowImages,
+    applyDustToAllImageRows,
     renderSelectedVideoProject,
     updateSelectedVideoProjectCompositionPreview,
     showToast,

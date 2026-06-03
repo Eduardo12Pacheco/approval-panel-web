@@ -409,6 +409,7 @@ function createVideoProjectsStub() {
     exportFinal() {},
     updateRow() {},
     swapRowImages() {},
+    applyDustToAllImageRows() {},
     assignExistingImageToRow() {},
     uploadAndAssignImage() {},
     uploadVideoToLibrary() {},

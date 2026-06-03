@@ -5,7 +5,7 @@ import {
   convertVideoForegroundTransformToRender,
   normalizeVideoForegroundViewport,
 } from '../composition/renderer/video-layers.js';
-import { resolveEditorEffectTab } from './editor-effect-tabs.js';
+import { resolveDustApplyAllState, resolveEditorEffectTab } from './editor-effect-tabs.js';
 import { setActiveFramingKeyframe, syncFramingKeyframeActiveState } from './framing-keyframe-state.js';
 import { buildEditorDetailRail } from './editor-markup.js';
 import { hydrateMotionScrubberInput } from './motion-scrub.js';
@@ -49,6 +49,7 @@ export function hydrateEditorPhaseInteractions({
   updateGlobalAudio,
   updateBrandChannel,
   updateRow,
+  applyDustToAllImageRows,
   swapRowImages,
   renderSelectedVideoProject,
   updateSelectedVideoProjectCompositionPreview,
@@ -83,7 +84,7 @@ export function hydrateEditorPhaseInteractions({
     hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
     hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
     hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
-    hydrateEffectAndAudioControls({ root: detailHost, project, updateRow, updateGlobalAudio, updateBrandChannel });
+    hydrateEffectAndAudioControls({ root: detailHost, project, updateRow, applyDustToAllImageRows, updateGlobalAudio, updateBrandChannel });
   };
   const selectEditorRow = (rowId, startTime, options = {}) => {
     if (!rowId) return;
@@ -113,7 +114,7 @@ export function hydrateEditorPhaseInteractions({
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
   hydrateVideoSelectorControls({ root, project, editorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
   hydrateMotionControls({ root, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
-  hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalAudio, updateBrandChannel });
+  hydrateEffectAndAudioControls({ root, project, updateRow, applyDustToAllImageRows, updateGlobalAudio, updateBrandChannel });
   root.querySelector('[data-action="retry-prepare-preview"]')?.addEventListener('click', () => preparePreview?.());
   root.querySelector('[data-action="return-to-audio-step"]')?.addEventListener('click', () => {
     if (project?.editor_state?.phase === 'error') {
@@ -410,11 +411,21 @@ function updateManualMotionPanelValues(root, rowId, preset, presetName = '') {
   setFieldValue('toScalePercent', Math.round(Number(preset.toScale ?? 1) * 100));
 }
 
-function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalAudio, updateBrandChannel }) {
+export function hydrateEffectAndAudioControls({ root, project, updateRow, applyDustToAllImageRows, updateGlobalAudio, updateBrandChannel }) {
   root.querySelectorAll('[data-action="update-row-dust"]').forEach((select) => {
-    select.addEventListener('change', () => {
+    select.addEventListener('change', async () => {
       const rowId = select.dataset.rowId;
-      if (rowId) updateRow?.(rowId, { dust: { enabled: select.value !== 'none', type: select.value === 'none' ? 'dust-1' : select.value } });
+      if (rowId) await updateRow?.(rowId, { dust: { enabled: select.value !== 'none', type: select.value === 'none' ? 'dust-1' : select.value } });
+      syncDustApplyAllButtons({ root, project, selectedRowId: rowId, selectedDustType: select.value });
+    });
+  });
+  root.querySelectorAll('[data-action="apply-row-dust-all"]').forEach((button) => {
+    button.addEventListener('click', async (event) => {
+      event.preventDefault?.();
+      if (button.disabled) return;
+      await applyDustToAllImageRows?.(button.dataset.dustType || 'none');
+      button.disabled = true;
+      button.setAttribute?.('aria-disabled', 'true');
     });
   });
   root.querySelectorAll('[data-action="update-row-logo"]').forEach((select) => {
@@ -510,6 +521,18 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
       if (field === 'muted') patch.muted = input.checked;
       updateGlobalAudio?.(kind, patch);
     });
+  });
+}
+
+function syncDustApplyAllButtons({ root, project, selectedRowId, selectedDustType }) {
+  const rows = Array.isArray(project?._editorRows) ? project._editorRows : [];
+  const row = rows.find((item) => item?.id === selectedRowId || item?.rowId === selectedRowId) || null;
+  root.querySelectorAll('[data-action="apply-row-dust-all"]').forEach((button) => {
+    if (button.dataset.rowId && button.dataset.rowId !== selectedRowId) return;
+    button.dataset.dustType = selectedDustType || 'none';
+    const state = resolveDustApplyAllState(row, { dustType: selectedDustType || 'none', editorRows: rows });
+    button.disabled = state.disabled;
+    button.setAttribute?.('aria-disabled', state.disabled ? 'true' : 'false');
   });
 }
 

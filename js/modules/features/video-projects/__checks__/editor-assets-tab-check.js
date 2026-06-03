@@ -6,7 +6,7 @@ import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
 import { buildEditorVideoPicker } from '../render/editor-video-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
 import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-markup.js';
-import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
+import { hydrateEditorPhaseInteractions, hydrateEffectAndAudioControls, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 import { hydrateVideoSelectorControls, lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
 import { createRowImageCommands } from '../data/row-image-commands.js';
 import { createRowCommands } from '../controller/row-commands.js';
@@ -835,6 +835,34 @@ async function runRowImageSwapHydrationCheck() {
   assertEqual(calls.some((call) => call.blocked), true, 'Expected video rows to be blocked from image swap drag');
 }
 
+async function runDustApplyAllHydrationCheck() {
+  const listeners = new Map();
+  const button = {
+    dataset: { dustType: 'dust-2' },
+    disabled: false,
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const calls = [];
+
+  hydrateEffectAndAudioControls({
+    root: {
+      querySelectorAll(selector) {
+        return selector === '[data-action="apply-row-dust-all"]' ? [button] : [];
+      },
+    },
+    project: {},
+    applyDustToAllImageRows: async (dustType) => calls.push(dustType),
+  });
+  await listeners.get('click')({ preventDefault() {} });
+
+  assertEqual(calls.length, 1, 'Expected apply-all dust click to invoke the batch command once');
+  assertEqual(calls[0], 'dust-2', 'Expected apply-all dust click to use the selected dust value from the button');
+
+  button.disabled = true;
+  await listeners.get('click')({ preventDefault() {} });
+  assertEqual(calls.length, 1, 'Expected disabled apply-all dust button not to invoke the batch command');
+}
+
 export async function runEditorAssetsTabCheck() {
   runAssetsViewModelCheck();
   runAssetsTabResolutionCheck();
@@ -858,6 +886,7 @@ export async function runEditorAssetsTabCheck() {
   await runVideoSelectorRejectsMismatchedCommitCheck();
   await runAcceptVideoSegmentKeepsSelectedRowCheck();
   runLayersTabLabelAndSeparationCheck();
+  await runDustApplyAllHydrationCheck();
   await runRowImageSwapHydrationCheck();
 }
 

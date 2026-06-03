@@ -3,6 +3,7 @@ import {
   EDITOR_EFFECT_TABS,
   buildEditorEffectTabs,
   deriveRowSettingsCapabilities,
+  resolveDustApplyAllState,
   resolveEditorEffectTab,
 } from '../render/editor-effect-tabs.js';
 
@@ -59,7 +60,44 @@ function createDetail(overrides = {}) {
   };
 }
 
+function runDustApplyAllMarkupCheck() {
+  const imageRows = [
+    { id: 'row-image-a', mediaMode: 'image', dust: { enabled: true, type: 'dust-2' } },
+    { id: 'row-image-b', mediaMode: 'image', dust: { enabled: false, type: 'dust-1' } },
+    { id: 'row-news', mediaMode: 'newspaper', dust: { enabled: true, type: 'dust-1' } },
+    { id: 'row-video', media: { kind: 'video-segment' }, dust: { enabled: true, type: 'dust-1' } },
+  ];
+  const enabledState = resolveDustApplyAllState(imageRows[0], createDetail({ dustType: 'dust-2', editorRows: imageRows }));
+  assertDeepEqual(
+    enabledState,
+    { visible: true, disabled: false, imageRowCount: 2, selectedDustType: 'dust-2' },
+    'Expected dust apply-all state to enable when another image row has different dust',
+  );
+
+  const enabledMarkup = buildEditorEffectTabs({ row: imageRows[0], detail: createDetail({ dustType: 'dust-2', editorRows: imageRows }), activeTab: 'layers' });
+  assertIncludes(enabledMarkup, 'data-action="apply-row-dust-all"', 'Expected image dust controls to include an apply-all button');
+  assertIncludes(enabledMarkup, 'Aplicar a todos', 'Expected image dust apply-all button to use the requested label');
+  assertNotIncludes(enabledMarkup, 'data-action="apply-row-dust-all" disabled', 'Expected apply-all button to be enabled when image rows differ');
+
+  const syncedRows = imageRows.map((row) => row.mediaMode === 'image' ? { ...row, dust: { enabled: true, type: 'dust-2' } } : row);
+  const disabledState = resolveDustApplyAllState(syncedRows[0], createDetail({ dustType: 'dust-2', editorRows: syncedRows }));
+  assertDeepEqual(
+    disabledState,
+    { visible: true, disabled: true, imageRowCount: 2, selectedDustType: 'dust-2' },
+    'Expected dust apply-all state to disable when all image rows match the selected dust',
+  );
+  const disabledMarkup = buildEditorEffectTabs({ row: syncedRows[0], detail: createDetail({ dustType: 'dust-2', editorRows: syncedRows }), activeTab: 'layers' });
+  assertIncludes(disabledMarkup, 'data-action="apply-row-dust-all"', 'Expected disabled apply-all button to still render for image rows');
+  assertIncludes(disabledMarkup, 'disabled aria-disabled="true"', 'Expected apply-all button to be disabled when image rows are synchronized');
+
+  const newspaperMarkup = buildEditorEffectTabs({ row: imageRows[2], detail: createDetail({ editorRows: imageRows }), activeTab: 'layers' });
+  const videoMarkup = buildEditorEffectTabs({ row: imageRows[3], detail: createDetail({ editorRows: imageRows }), activeTab: 'layers' });
+  assertNotIncludes(newspaperMarkup, 'data-action="apply-row-dust-all"', 'Expected newspaper rows not to show image dust apply-all');
+  assertNotIncludes(videoMarkup, 'data-action="apply-row-dust-all"', 'Expected video rows not to show image dust apply-all');
+}
+
 export function runEditorRowCapabilitiesCheck() {
+  runDustApplyAllMarkupCheck();
   assertDeepEqual(
     EDITOR_EFFECT_TABS.map((tab) => tab.id),
     ['content', 'framing', 'layers', 'audio'],

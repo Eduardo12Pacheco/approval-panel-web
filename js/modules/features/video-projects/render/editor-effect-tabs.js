@@ -55,6 +55,22 @@ export function deriveRowSettingsCapabilities(row = null) {
   };
 }
 
+function isImageDustRow(row = null) {
+  return Boolean(row) && row?.media?.kind !== 'video-segment' && row?.mediaMode !== 'newspaper';
+}
+
+function resolveRowDustType(row = null) {
+  return row?.dust?.enabled ? (row?.dust?.type || 'dust-1') : 'none';
+}
+
+export function resolveDustApplyAllState(row = null, detail = {}) {
+  const selectedDustType = detail.dustType || resolveRowDustType(row);
+  const imageRows = (Array.isArray(detail.editorRows) ? detail.editorRows : []).filter(isImageDustRow);
+  if (!isImageDustRow(row)) return { visible: false, disabled: true, imageRowCount: imageRows.length, selectedDustType };
+  const disabled = imageRows.length > 0 && imageRows.every((item) => resolveRowDustType(item) === selectedDustType);
+  return { visible: true, disabled, imageRowCount: imageRows.length, selectedDustType };
+}
+
 function buildEffectTabsNav(activeTab) {
   return `
     <div class="video-editor-effect-tabs" role="tablist" aria-label="Detalles de efectos">
@@ -201,6 +217,16 @@ function buildProjectBrandControls({ detail }) {
 }
 
 function buildDustControl({ row, detail }) {
+  const applyAll = resolveDustApplyAllState(row, detail);
+  const applyAllButton = applyAll.visible ? `
+      <button
+        class="video-editor-apply-all-button"
+        type="button"
+        data-action="apply-row-dust-all"
+        ${applyAll.disabled ? 'disabled aria-disabled="true"' : 'aria-disabled="false"'}
+        data-row-id="${escapeHtmlCore(row.id)}"
+        data-dust-type="${escapeHtmlCore(applyAll.selectedDustType)}"
+      >Aplicar a todos</button>` : '';
   return `
     <div class="video-editor-control">
       <label>Polvo</label>
@@ -209,6 +235,7 @@ function buildDustControl({ row, detail }) {
         <option value="dust-1" ${detail.dustType === 'dust-1' ? 'selected' : ''}>Polvo 1</option>
         <option value="dust-2" ${detail.dustType === 'dust-2' ? 'selected' : ''}>Polvo 2</option>
       </select>
+      ${applyAllButton}
     </div>
   `;
 }

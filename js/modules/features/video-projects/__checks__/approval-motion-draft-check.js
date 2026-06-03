@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import {
   applyPendingMotionDrafts,
+  applyDustToImageRows,
   createVideoProjectsFeature,
   mergeLocalEditorRowPatch,
   patchLocalEditorRows,
@@ -430,6 +431,64 @@ function runCanonicalDraftProtectionCheck() {
   assertEqual(protectedRows[0].motion.toX, 99, 'Expected newer local draft to win over older canonical snapshot');
   assertEqual(protectedRows[0].motion.toScale, 1.35, 'Expected newer local scale draft to win over older canonical snapshot');
   assertEqual(protectedRows[1].motion.toX, 20, 'Expected canonical row without a draft to remain canonical');
+}
+
+function runApplyDustToImageRowsPureCheck() {
+  const rows = [
+    { id: 'row-image-a', mediaMode: 'image', dust: { enabled: false, type: 'dust-1' } },
+    { id: 'row-news', mediaMode: 'newspaper', dust: { enabled: true, type: 'dust-1' } },
+    { id: 'row-video', media: { kind: 'video-segment' }, dust: { enabled: true, type: 'dust-1' } },
+    { id: 'row-image-b', mediaMode: 'image', dust: { enabled: true, type: 'dust-1' } },
+  ];
+
+  const nextRows = applyDustToImageRows(rows, 'dust-2');
+
+  assertDeepEqual(
+    nextRows.map((row) => ({ id: row.id, dust: row.dust })),
+    [
+      { id: 'row-image-a', dust: { enabled: true, type: 'dust-2', assetId: 'dust-2' } },
+      { id: 'row-news', dust: { enabled: true, type: 'dust-1' } },
+      { id: 'row-video', dust: { enabled: true, type: 'dust-1' } },
+      { id: 'row-image-b', dust: { enabled: true, type: 'dust-2', assetId: 'dust-2' } },
+    ],
+    'Expected apply-all dust to patch only normal image rows',
+  );
+}
+
+async function runApprovalApplyDustAllQueuesImageRowsOnlyCheck() {
+  const timers = createFakeTimers();
+  try {
+    const { feature, state, updateSnapshotCalls, previewUpdateEvents } = createApprovalMotionHarness();
+    state.selectedVideoProject._editorRows = [
+      { id: 'row-1', mediaMode: 'image', dust: { enabled: false, type: 'dust-1' }, selectedAssetId: 'asset-a' },
+      { id: 'row-news', mediaMode: 'newspaper', dust: { enabled: false, type: 'dust-1' }, selectedAssetId: 'asset-b' },
+      { id: 'row-video', media: { kind: 'video-segment' }, dust: { enabled: false, type: 'dust-1' } },
+      { id: 'row-2', mediaMode: 'image', dust: { enabled: false, type: 'dust-1' }, selectedAssetId: 'asset-b' },
+    ];
+
+    await feature.applyDustToAllImageRows('dust-2');
+
+    assertEqual(state.selectedVideoProject._editorRows[0].dust.type, 'dust-2', 'Expected first image row to receive selected dust immediately');
+    assertEqual(state.selectedVideoProject._editorRows[1].dust.type, 'dust-1', 'Expected newspaper row dust to stay unchanged');
+    assertEqual(state.selectedVideoProject._editorRows[2].dust.type, 'dust-1', 'Expected video row dust to stay unchanged');
+    assertEqual(state.selectedVideoProject._editorRows[3].dust.type, 'dust-2', 'Expected second image row to receive selected dust immediately');
+    assertEqual(updateSnapshotCalls.length, 0, 'Expected approval apply-all dust to wait for debounce before remote persistence');
+    assertEqual(previewUpdateEvents.length, 1, 'Expected apply-all dust to update the existing composition preview once');
+
+    timers.runPending();
+    await flushMicrotasks();
+
+    assertDeepEqual(
+      updateSnapshotCalls[0].payload.operations,
+      [
+        { type: 'setRowDust', rowId: 'row-1', enabled: true, dustType: 'dust-2' },
+        { type: 'setRowDust', rowId: 'row-2', enabled: true, dustType: 'dust-2' },
+      ],
+      'Expected approval apply-all dust to queue setRowDust only for image rows',
+    );
+  } finally {
+    timers.restore();
+  }
 }
 
 async function runApprovalUpdateRowOptimisticPatchCheck() {
@@ -1068,7 +1127,9 @@ export async function runApprovalMotionDraftCheck() {
   runLocalMotionPatchMergeCheck();
   runPatchLocalRowsCheck();
   runCanonicalDraftProtectionCheck();
+  runApplyDustToImageRowsPureCheck();
   await runApprovalRowImageSwapPreservesAssetUrlsCheck();
+  await runApprovalApplyDustAllQueuesImageRowsOnlyCheck();
   await runApprovalUpdateRowOptimisticPatchCheck();
   await runApprovalPresetMotionUsesOptimisticDraftCheck();
   await runApprovalGlobalRowLayerUsesOptimisticDraftCheck();

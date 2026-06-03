@@ -915,6 +915,7 @@ async function renderSelectedVideoProject() {
     exportFinal: videoProjectsFeature.exportFinal,
     updateRow: videoProjectsFeature.updateRow,
     swapRowImages: videoProjectsFeature.swapRowImages,
+    applyDustToAllImageRows: videoProjectsFeature.applyDustToAllImageRows,
     assignExistingImageToRow: videoProjectsFeature.assignExistingImageToRow,
     uploadAndAssignImage: videoProjectsFeature.uploadAndAssignImage,
     uploadVideoToLibrary: videoProjectsFeature.uploadVideoToLibrary,

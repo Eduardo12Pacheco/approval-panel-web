@@ -4,6 +4,7 @@ export { resolveVideoProjectKey, resolveVideoProjectTitle } from './domain/proje
 export { normalizeVideoProjectRows } from './data/video-project-rows.js';
 export {
   applyPendingMotionDrafts,
+  applyDustToImageRows,
   mergeLocalEditorRowPatch,
   patchLocalEditorRows,
   shouldFallbackApprovalSnapshotOperationError,
