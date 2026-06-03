@@ -57,7 +57,8 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
   const sizeMb = Number(audio?.size || 0) > 0 ? `${(Number(audio.size) / 1024 / 1024).toFixed(1)} MB` : '';
   const selectedDefaultTrackId = (audio?.default_track_id || '').toString();
   const uploadTitle = kind === 'background' ? 'Agregar música' : 'Agregar voz';
-  const uploadHelp = kind === 'background' ? 'Opcional: subí una pista propia o elegí una música del sistema.' : 'Subí o reemplazá el audio de voz para sincronizarlo con los segmentos.';
+  const uploadHelp = kind === 'background' ? 'Opcional: subí una pista propia o elegí una música del sistema.' : 'Subí o reemplazá el audio de voz para sincronizarlo con los segmentos. También podés subir un MP4 de cámara: se extrae solo el audio.';
+  const accept = kind === 'voice' ? 'audio/*,video/mp4,.mp4' : 'audio/*';
   const defaultMusicSelector = kind === 'background' ? `
     <label class="video-audio-card__default-select">
       <span>Música por defecto</span>
@@ -71,7 +72,7 @@ function buildAudioAssetCard({ kind, label, help, audio = {}, uploading = false 
       <div class="video-audio-card__copy"><span class="video-projects-eyebrow">${escapeHtmlCore(label)}</span><strong>${fileName}</strong><p>${escapeHtmlCore(help)}</p>${hasAudio ? `<small>Subido${sizeMb ? ` · ${escapeHtmlCore(sizeMb)}` : ''}</small>` : '<small>Pendiente</small>'}</div>
       ${hasAudio && publicUrl ? `<audio controls src="${publicUrl}"></audio>` : ''}
       ${defaultMusicSelector}
-      <label class="video-audio-card__upload"><input type="file" accept="audio/*" data-action="upload-project-audio" data-audio-kind="${escapeHtmlCore(kind)}" ${uploading ? 'disabled' : ''} /><span class="video-audio-card__dropzone"><span class="video-audio-card__dropzone-plus">+</span><strong>${uploading ? 'Subiendo…' : hasAudio ? `Reemplazar ${escapeHtmlCore(label.toLowerCase())}` : escapeHtmlCore(uploadTitle)}</strong><small>${escapeHtmlCore(uploadHelp)}</small></span></label>
+      <label class="video-audio-card__upload"><input type="file" accept="${escapeHtmlCore(accept)}" data-action="upload-project-audio" data-audio-kind="${escapeHtmlCore(kind)}" ${uploading ? 'disabled' : ''} /><span class="video-audio-card__dropzone"><span class="video-audio-card__dropzone-plus">+</span><strong>${uploading ? 'Subiendo…' : hasAudio ? `Reemplazar ${escapeHtmlCore(label.toLowerCase())}` : escapeHtmlCore(uploadTitle)}</strong><small>${escapeHtmlCore(uploadHelp)}</small></span></label>
     </article>`;
 }
 

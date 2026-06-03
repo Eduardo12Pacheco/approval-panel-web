@@ -1,4 +1,5 @@
 const http = require("http");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const { buildApprovalContractPipeline, computeApprovalSnapshotHash, parseGuionSegments, validateApprovalTimeline } = require("../../../03-Contracts-Core/approval-contract-pipeline");
@@ -8,13 +9,15 @@ const { findMotionPreset } = require("./lib/motion-presets");
 const { resolveAssetUrl } = require("./lib/asset-resolver");
 const { prepareRealVoiceAlignment } = require("./lib/real-alignment");
 const { prepareAudioPreviewDerivative, audioContentType } = require("./lib/audio-preview");
+const { extractVoiceAudioFromMp4, resolveVoiceExtractionErrorStatus } = require("./lib/voice-video-audio-extraction");
 const { createVideoEngineRenderAdapter } = require("./lib/video-engine-render-adapter");
 const { applyAlternatingBoundaryTransitionDefaults, addBoundaryTransitionAssets } = require("./lib/boundary-transitions");
 
 function sendJson(response, status, payload) {
   response.writeHead(status, {
     "access-control-allow-origin": "*",
-    "access-control-allow-headers": "content-type,range",
+    "access-control-allow-headers": "content-type,range,x-control-panel-shell-version",
+    "access-control-expose-headers": "x-audio-filename,content-type",
     "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
     "content-type": "application/json; charset=utf-8",
   });
@@ -48,6 +51,7 @@ function markRenderStatus(store, projectId, latest, renderPatch) {
 }
 
 function errorStatus(error) {
+  if (["unsupported_voice_video", "voice_video_no_audio_stream", "voice_video_too_large", "voice_audio_output_too_large", "ffmpeg_unavailable", "voice_audio_extraction_failed"].includes(error.code)) return resolveVoiceExtractionErrorStatus(error);
   if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "invalid_boundary_transition", "invalid_timeline", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
   if (["stale_snapshot", "version_conflict"].includes(error.code)) return 409;
@@ -66,6 +70,38 @@ function readBody(request) {
       try { resolve(JSON.parse(raw)); } catch (error) { error.code = "invalid_json"; reject(error); }
     });
   });
+}
+
+function readBinaryBody(request, { maxBytes = 250 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    request.on("data", (chunk) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        const error = new Error("El video de voz supera el límite de tamaño permitido.");
+        error.code = "voice_video_too_large";
+        request.destroy(error);
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on("error", reject);
+    request.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+function sendAudio(response, status, bytes, { fileName = "voice-from-video.m4a", contentType = "audio/mp4" } = {}) {
+  response.writeHead(status, {
+    "access-control-allow-origin": "*",
+    "access-control-allow-headers": "content-type,range,x-control-panel-shell-version",
+    "access-control-expose-headers": "x-audio-filename,content-type",
+    "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
+    "content-type": contentType,
+    "content-length": bytes.length,
+    "x-audio-filename": fileName,
+  });
+  response.end(bytes);
 }
 
 const ESTIMATED_SECONDS_PER_WORD = 0.55;
@@ -451,7 +487,7 @@ function resolveRenderedOutputPath(rendered) {
   return error;
 }
 
-function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter, renderCommandRunner, alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, env = process.env, fetchImpl = globalThis.fetch } = {}) {
+function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "projects"), renderAdapter, renderCommandRunner, alignVoiceAudio = prepareRealVoiceAlignment, prepareAudioPreview = prepareAudioPreviewDerivative, extractVoiceAudio = extractVoiceAudioFromMp4, env = process.env, fetchImpl = globalThis.fetch } = {}) {
   const store = createContractStore({ projectsRoot });
   const finalRenderAdapter = renderAdapter || createRenderAdapterFromEnv(env, renderCommandRunner, fetchImpl);
   const renderJobs = new Map();
@@ -493,6 +529,24 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         const filePath = resolvePublicOverlayFile(decodeURIComponent(url.pathname.split("/").pop() || ""));
         if (!filePath) throw Object.assign(new Error("unknown overlay"), { code: "unknown_asset" });
         return sendFile(request, response, filePath);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/audio/extract-voice") {
+        const sourceBytes = await readBinaryBody(request);
+        const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "approval-voice-video-"));
+        try {
+          const extracted = await extractVoiceAudio({
+            sourceBytes,
+            sourceName: "camera.mp4",
+            sourceMimeType: request.headers["content-type"] || "video/mp4",
+            workDir,
+            env,
+          });
+          const bytes = fs.readFileSync(extracted.outputPath);
+          return sendAudio(response, 200, bytes, { fileName: extracted.fileName, contentType: extracted.contentType });
+        } finally {
+          fs.rmSync(workDir, { recursive: true, force: true });
+        }
       }
 
       if (request.method === "POST" && url.pathname === "/api/projects/create-from-approval") {

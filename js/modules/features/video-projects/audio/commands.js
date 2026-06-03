@@ -1,4 +1,5 @@
 import { createBackgroundMusicAudioFromTrack, findDefaultBackgroundMusicTrack } from './default-background-music.js';
+import { isVoiceVideoAudioInput } from './voice-video-extraction.js';
 
 const AUDIO_KINDS = new Set(['voice', 'background']);
 
@@ -16,7 +17,8 @@ export function createAudioSetupCommands({ api, ui, getProject, resolveProjectKe
     renderSelectedVideoProject();
 
     try {
-      const audio = await api.uploadAudioFile({ draftId, kind, file });
+      const uploadFile = isVoiceVideoAudioInput(kind, file) ? await api.extractVoiceAudioFromVideo({ file }) : file;
+      const audio = await api.uploadAudioFile({ draftId, kind, file: uploadFile });
       if (kind === 'background') {
         project.background_audio = audio;
       } else {
