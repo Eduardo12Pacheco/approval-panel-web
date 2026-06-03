@@ -40,7 +40,7 @@ function createDetail(overrides = {}) {
     motion: 'Zoom 150',
     motionPresetGroups: [{ category: 'Base', presets: [{ name: 'Zoom 150', label: 'Zoom 150' }] }],
     manualMotion: { presetName: 'Zoom 150', fromX: 0, fromY: 0, toX: 0, toY: 0, fromScalePercent: 100, toScalePercent: 150 },
-    newspaper: { labelEnabled: true, fromX: 0, fromY: 0, toX: 10, toY: -10, fromScalePercent: 100, toScalePercent: 125 },
+    newspaper: { labelEnabled: true, fromX: 0, fromY: 0, toX: 10, toY: -10, fromScalePercent: 100, toScalePercent: 110 },
     assets: [{ id: 'asset-a', url: 'https://cdn.example.com/a.jpg', title: 'Imagen A', isSelected: true }],
     videos: [{ id: 'video-a', src: 'https://cdn.example.com/a.mp4', title: 'Video A', durationSeconds: 8 }],
     videoSelector: null,

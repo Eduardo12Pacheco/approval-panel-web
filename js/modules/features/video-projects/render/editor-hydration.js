@@ -431,7 +431,7 @@ function hydrateEffectAndAudioControls({ root, project, updateRow, updateGlobalA
             toX: readField('toX'),
             toY: readField('toY'),
             fromScale: Math.max(0.1, readField('fromScalePercent', 100) / 100),
-            toScale: Math.max(0.1, readField('toScalePercent', 125) / 100),
+            toScale: Math.max(0.1, readField('toScalePercent', 110) / 100),
             easing: 'linear',
           },
         },

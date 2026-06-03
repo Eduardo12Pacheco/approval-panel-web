@@ -242,7 +242,9 @@
   border: 1px solid var(--border-strong);
   background: #050505;
   color: var(--text);
-  font: inherit;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 900;
   box-sizing: border-box;
   cursor: ew-resize;
 }

@@ -1,5 +1,5 @@
 const ZOOM_SLOW_IN = { from: 1.0, to: 1.25 };
-const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.25 };
+const NEWSPAPER_FOREGROUND_ZOOM = { from: 1.0, to: 1.1 };
 const NEWSPAPER_BACKGROUND_BLUR = 15;
 const NEWSPAPER_LABEL_FONT_FAMILY = '"Versa Versa", Versa, VERSA, Inter, Arial, sans-serif';
 const NEWSPAPER_LABEL_FONT_SIZE = 18;

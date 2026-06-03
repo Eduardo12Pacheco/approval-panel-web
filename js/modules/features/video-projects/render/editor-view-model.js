@@ -104,7 +104,7 @@ function resolveNewspaperViewModel(row = {}) {
   const newspaper = row?.newspaper && typeof row.newspaper === 'object' ? row.newspaper : {};
   const motion = newspaper.foregroundMotion && typeof newspaper.foregroundMotion === 'object' ? newspaper.foregroundMotion : {};
   const fromScale = resolveMotionNumber(motion.fromScale, 1);
-  const toScale = resolveMotionNumber(motion.toScale, 1.25);
+  const toScale = resolveMotionNumber(motion.toScale, 1.1);
   return {
     labelEnabled: newspaper.labelEnabled !== false,
     fromX: resolveMotionNumber(motion.fromX, 0),

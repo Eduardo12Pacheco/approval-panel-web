@@ -612,8 +612,8 @@ async function runBrandChannelPreviewAssetReloadCheck() {
     assertEqual(renderer.currentTime, 1.25, 'Expected Mundial brand asset reload to preserve preview seek time');
     const stage = container.children[0];
     const logoLayer = stage.children.find((child) => child.className === 'composition-layer composition-layer--logo');
-    assertEqual(logoLayer?.style.left, '-8px', 'Expected Mundial PNG logo to move left into the approved preview position');
-    assertEqual(logoLayer?.style.top, '28px', 'Expected Mundial PNG logo to keep the approved preview top position');
+    assertEqual(logoLayer?.style.left, '20px', 'Expected Mundial PNG logo to move right into the approved preview position');
+    assertEqual(logoLayer?.style.top, '14px', 'Expected Mundial PNG logo to move up into the approved preview position');
     assertEqual(logoLayer?.style.width, '275px', 'Expected Mundial PNG logo to render 1.25x wider than the generic logo slot');
     assertEqual(logoLayer?.style.height, '155px', 'Expected Mundial PNG logo to render 1.25x taller than the generic logo slot');
   } finally {
