@@ -44,7 +44,8 @@ export function normalizeEditorState(editorState = {}) {
 }
 
 export function normalizeBrandChannel(value = 'pelotazo-ecuador') {
-  return (value || '').toString().trim().toLowerCase() === 'pelotazo-colombia' ? 'pelotazo-colombia' : 'pelotazo-ecuador';
+  const normalized = (value || '').toString().trim().toLowerCase();
+  return ['pelotazo-colombia', 'final-mundial'].includes(normalized) ? normalized : 'pelotazo-ecuador';
 }
 
 export function normalizeGlobalAudioState(globalAudio = {}) {

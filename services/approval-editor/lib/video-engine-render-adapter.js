@@ -268,6 +268,7 @@ function inferBrandChannel(snapshot = {}) {
     ...Object.keys(snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {}),
   ].map((value) => String(value || "").toLowerCase());
 
+  if (candidates.some((value) => value.includes("mundial"))) return "final-mundial";
   if (candidates.some((value) => value.includes("colombia"))) return "pelotazo-colombia";
   if (candidates.some((value) => value.includes("ecuador"))) return "pelotazo-ecuador";
   return normalizeBrandChannel(null);

@@ -42,6 +42,23 @@ export const BRAND_CHANNEL_ASSETS = {
       label: 'Pelotazo Colombia',
     },
   },
+  'final-mundial': {
+    channel: 'final-mundial',
+    label: 'Final Mundial',
+    logo: {
+      assetId: 'brand-logo-mundial',
+      previewPath: 'logo-mundial.png',
+      renderPath: 'overlays/logo-mundial.png',
+      source: 'logo-mundial.png',
+    },
+    outro: {
+      assetId: 'brand-outro-mundial',
+      previewPath: 'final-mundial.webm',
+      renderPath: 'overlays/final-mundial.mp4',
+      durationSeconds: 29.3,
+      label: 'Final Mundial',
+    },
+  },
 };
 
 export function normalizeBrandChannel(value = DEFAULT_BRAND_CHANNEL) {

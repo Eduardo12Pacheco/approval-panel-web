@@ -579,6 +579,32 @@ async function runBrandChannelPreviewAssetReloadCheck() {
     assertEqual(renderer._logoUrl, './assets/logo-colombia.webm', 'Expected brand change to reload Colombia logo without full rerender');
     assertEqual(renderer._outroUrl, './assets/final-colombia.webm', 'Expected brand change to reload Colombia outro without full rerender');
     assertEqual(renderer.currentTime, 1.25, 'Expected brand asset reload to preserve preview seek time');
+
+    project.editor_state = {
+      ...project.editor_state,
+      brandChannel: 'final-mundial',
+      approval_contract_snapshot: {
+        brandChannel: 'final-mundial',
+        rows: [],
+        assets: {
+          'brand-logo-mundial': { assetId: 'brand-logo-mundial', previewUrl: './assets/logo-mundial.png' },
+          'brand-outro-mundial': { assetId: 'brand-outro-mundial', previewUrl: './assets/final-mundial.webm' },
+        },
+        globalLayers: {
+          logo: { enabled: true, source: 'logo-mundial.png', assetId: 'brand-logo-mundial' },
+          outro: { enabled: true, assetId: 'brand-outro-mundial' },
+        },
+      },
+    };
+
+    const mundialUpdated = updateSelectedVideoProjectCompositionPreview({ project });
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    assertEqual(mundialUpdated, true, 'Expected lightweight preview update to run for Mundial brand asset changes');
+    assertEqual(renderer._logoUrl, './assets/logo-mundial.png', 'Expected brand change to reload Mundial PNG logo without full rerender');
+    assertEqual(renderer._outroUrl, './assets/final-mundial.webm', 'Expected brand change to reload Mundial outro without full rerender');
+    assertEqual(renderer.currentTime, 1.25, 'Expected Mundial brand asset reload to preserve preview seek time');
   } finally {
     destroyCompositionRenderer();
     restoreDom();

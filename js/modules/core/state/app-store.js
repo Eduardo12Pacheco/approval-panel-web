@@ -122,7 +122,7 @@ function isLegacyStoredSettings(rawValue = {}) {
 
 function normalizeBrandChannel(rawValue) {
   const value = (rawValue || '').toString().trim().toLowerCase();
-  return value === 'pelotazo-colombia' ? 'pelotazo-colombia' : DEFAULT_BRAND_CHANNEL;
+  return ['pelotazo-colombia', 'final-mundial'].includes(value) ? value : DEFAULT_BRAND_CHANNEL;
 }
 
 export function defaultSettingsFactory() {

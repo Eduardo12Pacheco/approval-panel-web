@@ -193,6 +193,7 @@ function buildProjectBrandControls({ detail }) {
         <select data-action="update-brand-channel">
           <option value="pelotazo-ecuador" ${detail.brandChannel === 'pelotazo-ecuador' ? 'selected' : ''}>Pelotazo Ecuador</option>
           <option value="pelotazo-colombia" ${detail.brandChannel === 'pelotazo-colombia' ? 'selected' : ''}>Pelotazo Colombia</option>
+          <option value="final-mundial" ${detail.brandChannel === 'final-mundial' ? 'selected' : ''}>Final Mundial</option>
         </select>
       </div>
     </div>
