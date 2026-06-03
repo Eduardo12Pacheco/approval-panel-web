@@ -9,6 +9,7 @@ import { buildEditorDetailRail, buildEditorRowsTable } from '../render/editor-ma
 import { hydrateEditorPhaseInteractions, hydrateRowImageSwapControls } from '../render/editor-hydration.js';
 import { hydrateVideoSelectorControls, lockVideoSelectorPageScroll, unlockVideoSelectorPageScroll } from '../render/video-selector-hydration.js';
 import { createRowImageCommands } from '../data/row-image-commands.js';
+import { createRowCommands } from '../controller/row-commands.js';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const videoProjectsStylesPath = resolve(currentDir, '../../../../../styles/features/video-projects/index.css');
@@ -372,6 +373,47 @@ async function runPendingImageAssignmentAppliesRememberedMediaModeCheck() {
   assertEqual(toasts.length, 2, 'Expected assignment toast to remain user-visible after each accepted image');
 }
 
+async function runPreserveSelectionKeepsCurrentPreviewSeekCheck() {
+  const project = {
+    _selectedEditorRowId: 'row-2',
+    _previewSeekTime: 37.5,
+    _editorRows: [
+      { id: 'row-1', startTime: 0, endTime: 12.5, selectedAssetId: 'old-1.jpg' },
+      { id: 'row-2', startTime: 12.5, endTime: 50, selectedAssetId: 'old-2.jpg' },
+    ],
+    editor_state: { phase: 'preview_ready', composition_hash: 'previous' },
+  };
+  let renderCount = 0;
+  let saveTimer = null;
+  const commands = createRowCommands({
+    store: { getState: () => ({ selectedVideoProject: project }) },
+    ui: { toast() {} },
+    persistEditorState: async () => {},
+    isApprovalServiceMode: () => false,
+    queueApprovalSnapshotOperations: async () => {},
+    scheduleApprovalMotionPersistence: () => {},
+    createMotionDraft: () => {},
+    updateSelectedVideoProjectCompositionPreview: () => {},
+    renderSelectedVideoProject: () => {
+      renderCount += 1;
+      project._selectedEditorRowId = 'row-1';
+      project._previewSeekTime = 0;
+    },
+    getSaveTimer: () => saveTimer,
+    setSaveTimer: (timer) => { saveTimer = timer; },
+    cancelPendingEditorSave: () => { if (saveTimer) clearTimeout(saveTimer); saveTimer = null; },
+    beforeMutate: () => {},
+    debounceMs: 1000,
+  });
+
+  await commands.updateRow('row-2', { selectedAssetId: 'new-2.jpg' }, { preserveSelection: true });
+  if (saveTimer) clearTimeout(saveTimer);
+
+  assertEqual(renderCount, 1, 'Expected image assignment to rerender the editor once');
+  assertEqual(project._selectedEditorRowId, 'row-2', 'Expected image assignment to keep the edited row selected after rerender');
+  assertEqual(project._previewSeekTime, 37.5, 'Expected image assignment to keep the current timeline position, not jump to the row start');
+}
+
 async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   const rowA = createSelectableRow('seg-001', 0);
   const rowB = createSelectableRow('seg-002', 6.54);
@@ -670,6 +712,7 @@ export async function runEditorAssetsTabCheck() {
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
   await runPendingImageAssignmentAppliesRememberedMediaModeCheck();
+  await runPreserveSelectionKeepsCurrentPreviewSeekCheck();
   await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
   runVideoSelectorOwnerRowGuardCheck();
   await runVideoSelectorRejectsMismatchedCommitCheck();

@@ -195,8 +195,9 @@ export function createRowCommands({
     const index = rows.findIndex((r) => r.id === rowId);
     if (index === -1) return;
     const preservedSelectedRowId = preserveSelection ? rowId : project._selectedEditorRowId;
+    const currentPreviewSeekTime = Number(project._previewSeekTime);
     const preservedSeekTime = preserveSelection
-      ? Number(rows[index]?.startTime ?? project._previewSeekTime ?? 0)
+      ? (Number.isFinite(currentPreviewSeekTime) ? currentPreviewSeekTime : Number(rows[index]?.startTime ?? 0))
       : project._previewSeekTime;
     const meaningfulChange = rowsWouldChange(rows, rowId, patch);
     if (!meaningfulChange) return;
@@ -316,6 +317,10 @@ export function createRowCommands({
 
     if (suppressRender || patch.manualMotionDraft === true || isMotionRowPatch(patch) || isNewspaperRowPatch(patch)) updateSelectedVideoProjectCompositionPreview({ project });
     else renderSelectedVideoProject();
+    if (preserveSelection) {
+      project._selectedEditorRowId = preservedSelectedRowId;
+      if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+    }
 
     clearPendingEditorSave();
     setSaveTimer(setTimeout(() => {
