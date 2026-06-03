@@ -79,7 +79,7 @@ export function hydrateEditorPhaseInteractions({
     const detailHost = root.querySelector('.video-editor-shell__right');
     if (!detailHost) return;
     detailHost.innerHTML = buildEditorDetailRail({ row: selectedRow, globalAudio: project._globalAudio || {}, project, rowIndex: Math.max(0, selectedIndex) });
-    hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly });
+    hydrateEditorTabs({ root: detailHost, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly, getCurrentEditorRows });
     hydrateAssetCommands({ root: detailHost, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
     hydrateVideoSelectorControls({ root: detailHost, project, editorRows: currentEditorRows, renderSelectedVideoProject, refreshEditorSelectionOnly: renderEditorSelectionOnly, assignVideoSegmentToRow, updateSelectedVideoProjectCompositionPreview, showToast });
     hydrateMotionControls({ root: detailHost, project, updateRow, updatePreviewTimeline: previewControls?.updatePreviewTimeline });
@@ -107,7 +107,7 @@ export function hydrateEditorPhaseInteractions({
     else renderSelectedVideoProject?.();
   };
   previewControls = hydratePreviewTransport({ root, project, editorRows, selectEditorRow });
-  hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly });
+  hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly: renderEditorSelectionOnly, getCurrentEditorRows });
   hydrateRowImageSwapControls({ root, editorRows, updateRow, swapRowImages });
   hydrateBoundaryTransitionControls({ root, updateRow, renderSelectedVideoProject });
   hydrateAssetCommands({ root, assignExistingImageToRow, uploadAndAssignImage, uploadVideoToLibrary, project });
@@ -204,7 +204,7 @@ export function hydrateRowImageSwapControls({ root, editorRows = [], updateRow, 
   return thumbs.length;
 }
 
-function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly }) {
+function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRow, refreshEditorSelectionOnly, getCurrentEditorRows }) {
   root.querySelectorAll('[data-action="switch-effect-tab"]').forEach((button) => {
     button.addEventListener('click', () => {
       const activeTab = resolveEditorEffectTab(button.dataset.effectTab);
@@ -232,14 +232,26 @@ function hydrateEditorTabs({ root, project, renderSelectedVideoProject, updateRo
     const rowId = button.dataset.rowId;
     const startTime = Number(button.dataset.startTime);
     if (rowId) project._selectedEditorRowId = rowId;
-    if (Number.isFinite(startTime)) {
-      project._previewSeekTime = startTime;
+    const currentPreviewSeekTime = Number(project?._previewSeekTime);
+    const currentRows = getCurrentEditorRows();
+    const targetRow = currentRows.find((row) => row?.id === rowId || row?.rowId === rowId);
+    const targetStart = Number(targetRow?.startTime ?? startTime);
+    const targetEnd = Number(targetRow?.effectiveEndTime ?? targetRow?.endTime ?? 0);
+    const currentTimeIsInsideTargetRow = Number.isFinite(currentPreviewSeekTime)
+      && Number.isFinite(targetStart)
+      && currentPreviewSeekTime >= targetStart
+      && (!Number.isFinite(targetEnd) || targetEnd <= targetStart || currentPreviewSeekTime < targetEnd);
+    const nextTime = rowId && rowId === project?._selectedEditorRowId && currentTimeIsInsideTargetRow
+      ? currentPreviewSeekTime
+      : startTime;
+    if (Number.isFinite(nextTime)) {
+      project._previewSeekTime = nextTime;
       const renderer = getCompositionRendererForPreview();
-      if (renderer) renderer.seek(startTime);
+      if (renderer) renderer.seek(nextTime);
       else {
         const previewVideo = root.querySelector('[data-preview-video]');
         if (previewVideo) {
-          try { previewVideo.currentTime = startTime; } catch {}
+          try { previewVideo.currentTime = nextTime; } catch {}
         }
       }
     }

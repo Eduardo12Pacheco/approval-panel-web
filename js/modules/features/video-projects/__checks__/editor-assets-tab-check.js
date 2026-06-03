@@ -376,6 +376,40 @@ async function runContentTypeSwitcherHydrationCheck() {
   assertEqual(renderCount, 0, 'Expected video content type switch to avoid a full editor rerender');
 }
 
+async function runContentTypeSwitcherKeepsCurrentPreviewTimeCheck() {
+  const listeners = new Map();
+  const newspaperButton = {
+    dataset: { rowId: 'row-content', contentTypeSwitch: 'newspaper', targetEffectTab: 'content', startTime: '4.25' },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+  };
+  const project = { _selectedEditorRowId: 'row-content', _editorEffectTab: 'layers', _previewSeekTime: 5.5 };
+  const editorRows = [{ id: 'row-content', startTime: 4.25, endTime: 9.75, effectiveEndTime: 9.75, phrase: 'Fila actual' }];
+  let renderCount = 0;
+
+  const root = {
+    querySelectorAll(selector) {
+      if (selector === '[data-action="open-newspaper-tab"]') return [newspaperButton];
+      return [];
+    },
+    querySelector() { return null; },
+  };
+
+  hydrateEditorPhaseInteractions({
+    root,
+    project,
+    editorPhase: 'preview_ready',
+    editorRows,
+    renderSelectedVideoProject: () => { renderCount += 1; },
+  });
+
+  listeners.get('click')();
+
+  assertEqual(project._selectedEditorRowId, 'row-content', 'Expected content type switch to keep the current row selected');
+  assertEqual(project._previewSeekTime, 5.5, 'Expected content type switch to preserve current preview time when already inside the target row');
+  assertEqual(project._editorContentTypeByRow?.['row-content'], 'newspaper', 'Expected newspaper switch to remember pending newspaper mode');
+  assertEqual(renderCount, 0, 'Expected content type switch to avoid a full editor rerender');
+}
+
 async function runPendingImageAssignmentAppliesRememberedMediaModeCheck() {
   const project = { _editorContentTypeByRow: { 'row-news': 'newspaper', 'row-image': 'image' } };
   const patches = [];
@@ -787,6 +821,7 @@ export async function runEditorAssetsTabCheck() {
   await runTableRowSelectionKeepsDetailRailAlignedCheck();
   await runNewspaperNavigationHydrationCheck();
   await runContentTypeSwitcherHydrationCheck();
+  await runContentTypeSwitcherKeepsCurrentPreviewTimeCheck();
   await runPendingImageAssignmentAppliesRememberedMediaModeCheck();
   await runPreserveSelectionKeepsCurrentPreviewSeekCheck();
   await runApprovalImageAssignmentKeepsCurrentPreviewSeekCheck();
