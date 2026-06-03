@@ -389,6 +389,43 @@ export async function runContractPipelineClientCheck() {
     throw new Error('Expected minimal provider metadata to be present');
   }
 
+  const invalidTimelineApi = {
+    createRemotionClient() {
+      return {
+        async createFromApproval() {
+          return {
+            alignmentStatus: { status: 'ready' },
+            projectId: 'invalid-timeline-project',
+            snapshot: {
+              contractVersion: 'approval-editor-service-v1',
+              projectId: 'invalid-timeline-project',
+              rows: [
+                { rowId: 'seg-018', id: 'seg-018', index: 0, phrase: 'Fila 18', startTime: 97.7, endTime: 98.7, effectiveEndTime: 88.74, selectedAssetId: 'asset-18' },
+                { rowId: 'seg-019', id: 'seg-019', index: 1, phrase: 'Fila 19', startTime: 88.74, endTime: 93.64, effectiveEndTime: 93.64, selectedAssetId: 'asset-19' },
+              ],
+            },
+          };
+        },
+        async status() {
+          return { snapshot: null, previewAssets: { assets: {} } };
+        },
+      };
+    },
+  };
+  let invalidTimelineError = '';
+  try {
+    await prepareVideoCompositionContract({
+      project: baseProject(),
+      settings: { remotionApiUrl: 'https://remotion.local' },
+      api: invalidTimelineApi,
+    });
+  } catch (error) {
+    invalidTimelineError = error?.message || '';
+  }
+  if (!/Invalid timeline:.*seg-018 effectiveEndTime 88\.74 is before endTime 98\.7.*seg-019 starts at 88\.74 before previous row seg-018 endTime 98\.7/is.test(invalidTimelineError)) {
+    throw new Error(`Expected prepared editor client to reject invalid returned rows, got: ${invalidTimelineError}`);
+  }
+
   const boundarySnapshot = {
     contractVersion: 'approval-editor-service-v1',
     projectId: 'approval-boundary-preview',

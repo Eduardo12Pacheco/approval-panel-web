@@ -1,7 +1,7 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
-const { buildApprovalContractPipeline, computeApprovalSnapshotHash, parseGuionSegments } = require("../../../03-Contracts-Core/approval-contract-pipeline");
+const { buildApprovalContractPipeline, computeApprovalSnapshotHash, parseGuionSegments, validateApprovalTimeline } = require("../../../03-Contracts-Core/approval-contract-pipeline");
 const { createContractStore, safeProjectId } = require("./lib/contract-store");
 const { applyContractOperations } = require("./lib/contract-updates");
 const { findMotionPreset } = require("./lib/motion-presets");
@@ -36,6 +36,11 @@ function persistLatestSnapshot(store, projectId, latest) {
   fs.writeFileSync(path.join(store.projectDir(projectId), "latest-snapshot.json"), JSON.stringify(latest, null, 2));
 }
 
+function assertValidSnapshotTimeline(snapshot, label) {
+  validateApprovalTimeline(Array.isArray(snapshot?.rows) ? snapshot.rows : snapshot?.segments, { label });
+  return snapshot;
+}
+
 function markRenderStatus(store, projectId, latest, renderPatch) {
   latest.snapshot.render = { ...(latest.snapshot.render || {}), ...renderPatch, updatedAt: new Date().toISOString() };
   persistLatestSnapshot(store, projectId, latest);
@@ -43,7 +48,7 @@ function markRenderStatus(store, projectId, latest, renderPatch) {
 }
 
 function errorStatus(error) {
-  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "invalid_boundary_transition", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
+  if (["invalid_json", "missing_audio", "unsupported_operation", "invalid_dust_type", "invalid_asset", "invalid_video_segment", "invalid_video_segment_duration", "invalid_boundary_transition", "invalid_timeline", "missing_voice_audio", "invalid_remote_audio_url"].includes(error.code)) return 400;
   if (["unknown_project", "unknown_row", "unknown_asset"].includes(error.code)) return 404;
   if (["stale_snapshot", "version_conflict"].includes(error.code)) return 409;
   if (["lease_held"].includes(error.code)) return 423;
@@ -553,6 +558,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
         applyAudioPreviewUrls(pipeline, { voicePreviewUrl, musicPreviewUrl });
         pipeline.contract = addBoundaryTransitionAssets(pipeline.contract);
         pipeline.contract.snapshotHash = computeApprovalSnapshotHash(pipeline.contract);
+        assertValidSnapshotTimeline(pipeline.contract, `project ${projectId} create-from-approval snapshot`);
         for (const [assetId, asset] of Object.entries(pipeline.contract.assets || {})) {
           if (asset?.role === "boundary-transition") pipeline.manifest.assets[assetId] = asset;
         }
@@ -582,6 +588,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           const actor = readActor(request);
           assertLeaseAvailable(store, projectId, body.lease_id || body.leaseId, actor);
           const nextSnapshot = applyContractOperations(latest.snapshot, Array.isArray(body.operations) ? body.operations : []);
+          assertValidSnapshotTimeline(nextSnapshot, `project ${projectId} snapshot update`);
           const audit = buildAudit({ request, action: "snapshot.update", targetId: projectId, baseSnapshotHash, baseVersion: latest.version || 1, newVersion: (latest.version || 1) + 1, leaseId: body.lease_id || body.leaseId || "" });
           const record = store.saveSnapshot(nextSnapshot, { audit });
           return ok(response, toResponseSnapshot(record));
@@ -590,6 +597,7 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
           const body = await readBody(request);
           request.bodyActor = body.audit_actor;
           if (body.snapshotHash !== latest.snapshotHash) throw createVersionConflict({ latest, receivedHash: body.snapshotHash });
+          assertValidSnapshotTimeline(latest.snapshot, `project ${projectId} final render snapshot`);
           if (body.async === true) {
             const currentRender = latest.snapshot.render || {};
             if (currentRender.status === "rendering" && currentRender.lastRenderedSnapshotHash === latest.snapshotHash) {

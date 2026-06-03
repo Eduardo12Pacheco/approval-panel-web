@@ -29,6 +29,7 @@ export function normalizePreparedContractRows(rows = []) {
       phrase: (row?.phrase || row?.caption || '').toString(),
       startTime: Number(row?.startTime ?? 0),
       endTime: Number(row?.endTime ?? 0),
+      ...(Object.prototype.hasOwnProperty.call(row || {}, 'effectiveEndTime') ? { effectiveEndTime: Number(row.effectiveEndTime) } : {}),
       selectedAssetId: isVideoSegment ? null : (row?.selectedAssetId || null),
       mediaMode,
       newspaper: row?.newspaper && typeof row.newspaper === 'object' ? { ...row.newspaper } : { labelEnabled: true },
@@ -47,6 +48,50 @@ export function normalizePreparedContractRows(rows = []) {
     };
   }).filter((row) => row.id);
   return applyAlternatingBoundaryTransitionDefaults(normalizedRows);
+}
+
+function timelineRowId(row = {}, index = 0) {
+  return (row?.rowId || row?.id || `row-${index + 1}`).toString();
+}
+
+function timelineNumber(row = {}, field) {
+  const value = Number(row?.[field]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatTimelineNumber(value) {
+  return Number(value).toString();
+}
+
+export function assertPreparedTimelineRows(rows = [], label = 'prepared editor rows') {
+  if (!Array.isArray(rows)) throw new Error(`Invalid timeline: ${label} rows must be an array`);
+  const violations = [];
+  let previous = null;
+
+  rows.forEach((row, index) => {
+    const rowId = timelineRowId(row, index);
+    const startTime = timelineNumber(row, 'startTime');
+    const endTime = timelineNumber(row, 'endTime');
+    const hasEffectiveEndTime = Object.prototype.hasOwnProperty.call(row || {}, 'effectiveEndTime');
+    const effectiveEndTime = hasEffectiveEndTime ? timelineNumber(row, 'effectiveEndTime') : null;
+
+    if (startTime === null) violations.push(`row ${rowId} has invalid startTime ${row?.startTime}`);
+    if (endTime === null) violations.push(`row ${rowId} has invalid endTime ${row?.endTime}`);
+    if (hasEffectiveEndTime && effectiveEndTime === null) violations.push(`row ${rowId} has invalid effectiveEndTime ${row?.effectiveEndTime}`);
+    if (startTime !== null && endTime !== null && endTime <= startTime) violations.push(`row ${rowId} endTime ${formatTimelineNumber(endTime)} is not after startTime ${formatTimelineNumber(startTime)}`);
+    if (startTime !== null && effectiveEndTime !== null && effectiveEndTime < startTime) violations.push(`row ${rowId} effectiveEndTime ${formatTimelineNumber(effectiveEndTime)} is before startTime ${formatTimelineNumber(startTime)}`);
+    if (endTime !== null && effectiveEndTime !== null && effectiveEndTime < endTime) violations.push(`row ${rowId} effectiveEndTime ${formatTimelineNumber(effectiveEndTime)} is before endTime ${formatTimelineNumber(endTime)}`);
+
+    if (previous && startTime !== null) {
+      if (previous.startTime !== null && startTime < previous.startTime) violations.push(`row ${rowId} starts at ${formatTimelineNumber(startTime)} before previous row ${previous.rowId} startTime ${formatTimelineNumber(previous.startTime)}`);
+      if (previous.endTime !== null && startTime < previous.endTime) violations.push(`row ${rowId} starts at ${formatTimelineNumber(startTime)} before previous row ${previous.rowId} endTime ${formatTimelineNumber(previous.endTime)}`);
+      if (previous.effectiveEndTime !== null && startTime < previous.effectiveEndTime) violations.push(`row ${rowId} starts at ${formatTimelineNumber(startTime)} before previous row ${previous.rowId} effectiveEndTime ${formatTimelineNumber(previous.effectiveEndTime)}`);
+    }
+    previous = { rowId, startTime, endTime, effectiveEndTime };
+  });
+
+  if (violations.length) throw new Error(`Invalid timeline: ${violations.join('; ')}`);
+  return rows;
 }
 
 function buildBoundaryTransitionAssetRecord(transition) {
@@ -194,6 +239,7 @@ export async function prepareVideoCompositionContract({ project, settings, api }
     const statusRows = normalizePreparedContractRows(statusSnapshot?.rows || status?.project?.rows);
     const timedRows = applyPreparedEditorDustDefaults(createdRows.length ? createdRows : statusRows);
     if (!timedRows.length) throw new Error('Remotion no devolvió filas cronometradas para el editor.');
+    assertPreparedTimelineRows(timedRows, `prepared rows from ${providerId}`);
 
     return {
       compositionProjectId,
