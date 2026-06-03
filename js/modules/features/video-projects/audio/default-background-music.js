@@ -22,6 +22,11 @@ export const DEFAULT_BACKGROUND_MUSIC_TRACKS = [
     fileName: 'musica-pelotazo-rapida.wav',
   }),
   buildDefaultTrack({
+    id: 'musica-emotiva-pelotazo',
+    label: 'Musica Emotiva Pelotazo',
+    fileName: 'musica-emotiva-pelotazo.wav',
+  }),
+  buildDefaultTrack({
     id: 'trap-boxing',
     label: 'Trap Boxing',
     fileName: 'Trap-Boxing.wav',
