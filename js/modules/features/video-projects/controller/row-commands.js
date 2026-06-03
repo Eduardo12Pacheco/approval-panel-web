@@ -302,6 +302,10 @@ export function createRowCommands({
           if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
         }
         if (!suppressRender) renderSelectedVideoProject();
+        if (preserveSelection) {
+          project._selectedEditorRowId = preservedSelectedRowId;
+          if (Number.isFinite(preservedSeekTime)) project._previewSeekTime = preservedSeekTime;
+        }
       }
       return;
     }

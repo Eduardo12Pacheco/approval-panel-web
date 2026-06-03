@@ -437,6 +437,49 @@ async function runPreserveSelectionKeepsCurrentPreviewSeekCheck() {
   assertEqual(project._previewSeekTime, 37.5, 'Expected image assignment to keep the current timeline position, not jump to the row start');
 }
 
+async function runApprovalImageAssignmentKeepsCurrentPreviewSeekCheck() {
+  const project = {
+    _selectedEditorRowId: 'row-9',
+    _previewSeekTime: 45.25,
+    _editorRows: [
+      { id: 'row-1', startTime: 0, endTime: 12.5, selectedAssetId: 'old-1.jpg', mediaMode: 'image' },
+      { id: 'row-9', startTime: 43.78, endTime: 47.36, selectedAssetId: 'old-9.jpg', mediaMode: 'newspaper', media: { kind: 'image' } },
+    ],
+    editor_state: {
+      phase: 'preview_ready',
+      approval_contract_snapshot: { contractVersion: 1, assets: {} },
+      composition_hash: 'previous',
+    },
+  };
+  let renderCount = 0;
+  const commands = createRowCommands({
+    store: { getState: () => ({ selectedVideoProject: project }) },
+    ui: { toast() {} },
+    persistEditorState: async () => {},
+    isApprovalServiceMode: () => true,
+    queueApprovalSnapshotOperations: async () => {},
+    scheduleApprovalMotionPersistence: () => {},
+    createMotionDraft: () => {},
+    updateSelectedVideoProjectCompositionPreview: () => {},
+    renderSelectedVideoProject: () => {
+      renderCount += 1;
+      project._selectedEditorRowId = 'row-1';
+      project._previewSeekTime = 0;
+    },
+    getSaveTimer: () => null,
+    setSaveTimer: () => {},
+    cancelPendingEditorSave: () => {},
+    beforeMutate: () => {},
+    debounceMs: 1000,
+  });
+
+  await commands.updateRow('row-9', { selectedAssetId: 'newspaper-9.jpg', mediaMode: 'newspaper', media: { kind: 'image' } }, { preserveSelection: true });
+
+  assertEqual(renderCount, 1, 'Expected Approval image assignment to rerender the editor once');
+  assertEqual(project._selectedEditorRowId, 'row-9', 'Expected Approval newspaper image selection to keep the edited row selected after rerender');
+  assertEqual(project._previewSeekTime, 45.25, 'Expected Approval newspaper image selection to keep the current timeline position, not jump to the beginning');
+}
+
 async function runRightRailVideoContentSwitchKeepsRowSelectionCheck() {
   const rowA = createSelectableRow('seg-001', 0);
   const rowB = createSelectableRow('seg-002', 6.54);
@@ -737,6 +780,7 @@ export async function runEditorAssetsTabCheck() {
   await runContentTypeSwitcherHydrationCheck();
   await runPendingImageAssignmentAppliesRememberedMediaModeCheck();
   await runPreserveSelectionKeepsCurrentPreviewSeekCheck();
+  await runApprovalImageAssignmentKeepsCurrentPreviewSeekCheck();
   await runRightRailVideoContentSwitchKeepsRowSelectionCheck();
   runVideoSelectorOwnerRowGuardCheck();
   await runVideoSelectorRejectsMismatchedCommitCheck();
