@@ -216,6 +216,20 @@ function sanitizeProviderHealthMetadata(healthPayload) {
   return Object.keys(sanitized).length ? sanitized : null;
 }
 
+function isLikelyNetworkPreparationFailure(error) {
+  const message = (error?.message || error || '').toString();
+  return /failed to fetch|no se pudo conectar|cors|network|timeout|timed out|504/i.test(message);
+}
+
+function createApprovalPreparationInFlightError(error) {
+  const causeMessage = (error?.message || error || '').toString().trim();
+  const message = 'No se pudo confirmar la preparación del editor con Approval. La preparación puede seguir corriendo en el servidor; esperá unos minutos y reintentá o revisá el estado antes de iniciar otra preparación.';
+  const wrapped = new Error(causeMessage ? `${message} Detalle técnico: ${causeMessage}` : message);
+  wrapped.cause = error;
+  wrapped.code = 'approval_prepare_maybe_in_flight';
+  return wrapped;
+}
+
 export async function prepareVideoCompositionContract({ project, settings, api }) {
   validateContractPreparationInputs(project);
 
@@ -291,16 +305,9 @@ export async function prepareVideoCompositionContract({ project, settings, api }
       },
     });
   } catch (error) {
-    const message = (error?.message || '').toString();
-    const shouldFallbackToRemotion = /failed to fetch|no se pudo conectar|cors|network/i.test(message);
-    if (!shouldFallbackToRemotion) throw error;
-    return executePreparation({
-      ...remotionProvider,
-      providerMetadata: {
-        ...remotionProvider.providerMetadata,
-        fallbackFrom: 'approval',
-        health: sanitizedApprovalHealth,
-      },
-    });
+    if (isLikelyNetworkPreparationFailure(error)) {
+      throw createApprovalPreparationInFlightError(error);
+    }
+    throw error;
   }
 }

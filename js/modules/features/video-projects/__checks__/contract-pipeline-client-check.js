@@ -332,6 +332,57 @@ export async function runContractPipelineClientCheck() {
     }
   });
 
+  const healthyApprovalTimeoutCalls = [];
+  const healthyApprovalTimeoutApi = {
+    createApprovalPipelineClient() {
+      return {
+        async health() {
+          healthyApprovalTimeoutCalls.push({ type: 'approval-health' });
+          return { ok: true, status: 'ready' };
+        },
+        async createFromApproval() {
+          healthyApprovalTimeoutCalls.push({ type: 'approval-create' });
+          throw new TypeError('Failed to fetch');
+        },
+        async status() {
+          healthyApprovalTimeoutCalls.push({ type: 'approval-status' });
+          throw new Error('Approval status should not run after failed create');
+        },
+      };
+    },
+    createRemotionClient() {
+      return {
+        async createFromApproval() {
+          healthyApprovalTimeoutCalls.push({ type: 'remotion-create' });
+          throw new Error('Remotion fallback should not run after healthy Approval create timeout');
+        },
+        async status() {
+          healthyApprovalTimeoutCalls.push({ type: 'remotion-status' });
+          throw new Error('Remotion fallback should not run after healthy Approval create timeout');
+        },
+      };
+    },
+  };
+  let healthyApprovalTimeoutError = '';
+  try {
+    await prepareVideoCompositionContract({
+      project: baseProject(),
+      settings: { remotionApiUrl: 'https://remotion.local', approvalPipelineBaseUrl: 'https://approval.local' },
+      api: healthyApprovalTimeoutApi,
+    });
+  } catch (error) {
+    healthyApprovalTimeoutError = error?.message || '';
+  }
+  if (!healthyApprovalTimeoutError.includes('puede seguir corriendo en el servidor')) {
+    throw new Error(`Expected healthy Approval create timeout to surface in-flight guidance, got: ${healthyApprovalTimeoutError}`);
+  }
+  if (healthyApprovalTimeoutCalls.some((call) => call.type.startsWith('remotion-'))) {
+    throw new Error('Expected healthy Approval create timeout not to fallback to Remotion preparation');
+  }
+  if (!healthyApprovalTimeoutCalls.some((call) => call.type === 'approval-create')) {
+    throw new Error('Expected healthy Approval create path to be attempted before surfacing timeout guidance');
+  }
+
   const calls = [];
   const fakeAdapter = {
     async createFromApproval(seed) {
