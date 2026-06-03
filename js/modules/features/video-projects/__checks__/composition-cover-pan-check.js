@@ -111,8 +111,8 @@ export function runCompositionCoverPanCheck() {
   assertEqual(newspaperStart.foreground.transformOrigin, 'center center', 'Expected newspaper foreground zoom origin to stay centered');
   assertEqual(newspaperStart.foreground.transform, 'translate3d(0px, 0px, 0) scale(1)', 'Expected newspaper foreground to start at 100%');
   assertEqual(newspaperEnd.foreground.transform, 'translate3d(0px, 0px, 0) scale(1.1)', 'Expected newspaper foreground default motion to match final render');
-  const newspaperZoom150 = resolveNewspaperImageStyles({ progress: 1, motion: { fromScale: 1, toScale: 1.5 } });
-  assertEqual(newspaperZoom150.foreground.transform, 'translate3d(0px, 0px, 0) scale(1.5)', 'Expected newspaper foreground to honor explicit Zoom 150 motion');
+  const newspaperIgnoresRowMotion = resolveNewspaperImageStyles({ progress: 1, motion: { fromScale: 1, toScale: 1.5 } });
+  assertEqual(newspaperIgnoresRowMotion.foreground.transform, 'translate3d(0px, 0px, 0) scale(1.1)', 'Expected newspaper foreground to ignore stale image row motion defaults');
   const newspaperFreeMove = resolveNewspaperImageStyles({ progress: 1, newspaper: { foregroundMotion: { fromScale: 1, toScale: 1.4, fromX: 0, fromY: 0, toX: 180, toY: -90 } } });
   assertEqual(newspaperFreeMove.foreground.transform, 'translate3d(180px, -90px, 0) scale(1.4)', 'Expected newspaper foreground to move freely without cover-pan clamping');
   const hiddenLabel = resolveNewspaperImageStyles({ progress: 0, newspaper: { labelEnabled: false } });

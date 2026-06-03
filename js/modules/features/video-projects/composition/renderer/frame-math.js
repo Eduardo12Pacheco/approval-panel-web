@@ -144,7 +144,7 @@ export function resolveNewspaperMotion() {
 function resolveNewspaperForegroundMotion({ motion, newspaper } = {}) {
   const explicit = newspaper?.foregroundMotion && typeof newspaper.foregroundMotion === 'object'
     ? newspaper.foregroundMotion
-    : motion;
+    : null;
   return explicit ? resolveZoomRange(explicit) : resolveNewspaperMotion();
 }
 
