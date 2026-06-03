@@ -44,9 +44,22 @@ function getCssRule(styles, selector) {
   return match?.[1] || '';
 }
 
+function getCssRules(styles, selector) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return Array.from(styles.matchAll(new RegExp(`${escapedSelector}\\s*\\{([^}]*)\\}`, 'g')), (match) => match?.[1] || '');
+}
+
 function assertCssDeclaration(rule, property, expectedValue, message) {
   const match = rule.match(new RegExp(`${property}\\s*:\\s*([^;]+);`));
   assertEqual(match?.[1]?.trim(), expectedValue, message);
+}
+
+function assertAnyCssDeclaration(rules, property, expectedValue, message) {
+  const found = rules.some((rule) => {
+    const match = rule.match(new RegExp(`${property}\\s*:\\s*([^;]+);`));
+    return match?.[1]?.trim() === expectedValue;
+  });
+  assert(found, `${message}: expected at least one rule with ${property}: ${expectedValue}`);
 }
 
 function makeProject() {
@@ -111,6 +124,16 @@ function runAssetsThumbnailStyleCheck() {
   assertCssDeclaration(detailCardRule, 'overflow', 'hidden', 'Expected detail rail image card to prevent tall assets pushing tabs down');
   assertCssDeclaration(detailThumbRule, 'object-fit', 'contain', 'Expected detail rail thumbnail to preserve vertical asset aspect ratio');
   assertCssDeclaration(detailThumbRule, 'max-height', '142px', 'Expected detail rail thumbnail to stay compact above settings tabs');
+}
+
+function runProjectCardBottomAnchoringStyleCheck() {
+  const styles = readVideoProjectsStyles();
+  const cardRules = getCssRules(styles, '.video-project-card');
+  const bodyRules = getCssRules(styles, '.video-project-card__body');
+
+  assertAnyCssDeclaration(cardRules, 'grid-template-rows', 'auto 1fr auto', 'Expected project cards to reserve flexible space between long titles and bottom actions');
+  assertAnyCssDeclaration(cardRules, 'align-content', 'stretch', 'Expected project cards to stretch rows so metadata/actions can anchor to the bottom');
+  assertAnyCssDeclaration(bodyRules, 'align-self', 'end', 'Expected project card image/info block to stay attached to the bottom action area');
 }
 
 function runVideoSelectorViewportModalCheck() {
@@ -705,6 +728,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsTabResolutionCheck();
   runAssetsMarkupCheck();
   runAssetsThumbnailStyleCheck();
+  runProjectCardBottomAnchoringStyleCheck();
   runVideoSelectorViewportModalCheck();
   runVideoSelectorScrollLockLifecycleCheck();
   runChangeImageNavigationCheck();
