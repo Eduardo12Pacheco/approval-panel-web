@@ -8,6 +8,17 @@ export function createSelectionCommands({
   debounceMs,
   setVideoProjectStep,
 }) {
+  function resetViewportToProjectTop() {
+    if (typeof window === 'undefined') return;
+    const reset = () => {
+      window.scrollTo?.({ top: 0, left: 0, behavior: 'auto' });
+      if (typeof document !== 'undefined' && document?.documentElement) document.documentElement.scrollTop = 0;
+      if (typeof document !== 'undefined' && document?.body) document.body.scrollTop = 0;
+    };
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(reset);
+    else setTimeout(reset, 0);
+  }
+
   function toggleImageSelection(candidateImageUrl) {
     const state = store.getState();
     const project = state.selectedVideoProject;
@@ -48,6 +59,7 @@ export function createSelectionCommands({
     if (!project) return;
     setVideoProjectStep(project, 'audio');
     renderSelectedVideoProject();
+    resetViewportToProjectTop();
   }
 
   function goToImagesStep() {
@@ -55,6 +67,7 @@ export function createSelectionCommands({
     if (!project) return;
     setVideoProjectStep(project, 'images');
     renderSelectedVideoProject();
+    resetViewportToProjectTop();
   }
 
   return {
