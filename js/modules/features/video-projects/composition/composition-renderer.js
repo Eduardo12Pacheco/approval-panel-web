@@ -25,6 +25,7 @@ import {
   resolveCoverPanLayer,
   resolveMediaMode,
   resolveNewspaperImageStyles,
+  resolveLogoImageLayout,
   resolveWhipPreviewFrame,
   resolveZoomRange,
   shouldChromaKeyLogo,
@@ -693,9 +694,14 @@ export class CompositionRenderer {
         }
         if (chromaKey) drawChromaKeyVideoFrame(layers.logoVideo, layers.logoCanvas);
       } else {
+        const logoLayout = resolveLogoImageLayout(this._logoUrl);
         layers.logoVideo.style.visibility = 'hidden';
         layers.logoCanvas.style.visibility = 'hidden';
         layers.logo.style.visibility = 'visible';
+        layers.logo.style.left = `${logoLayout.left}px`;
+        layers.logo.style.top = `${logoLayout.top}px`;
+        layers.logo.style.width = `${logoLayout.width}px`;
+        layers.logo.style.height = `${logoLayout.height}px`;
         if (layers.logo.getAttribute('src') !== this._logoUrl) {
           layers.logo.src = this._logoUrl;
         }
