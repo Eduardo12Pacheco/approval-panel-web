@@ -328,8 +328,17 @@ export function buildEditorDetailRailViewModel({ row, globalAudio, project = {},
 }
 
 export function buildEditorShellViewModel(project = {}, { editorRows = [], selectedRowId = null } = {}) {
-  const activeSelectedRowId = selectedRowId || editorRows[0]?.id || null;
-  const selectedRow = editorRows.find((row) => row.id === activeSelectedRowId) || null;
+  const requestedSelectedRow = selectedRowId ? editorRows.find((row) => row.id === selectedRowId) : null;
+  const previewSeekTime = Number(project?._previewSeekTime);
+  const rowAtPreviewTime = Number.isFinite(previewSeekTime)
+    ? editorRows.find((row) => {
+      const start = Number(row?.startTime ?? 0);
+      const end = Number(row?.effectiveEndTime ?? row?.endTime ?? 0);
+      return previewSeekTime >= start && (!Number.isFinite(end) || end <= start || previewSeekTime < end);
+    })
+    : null;
+  const selectedRow = requestedSelectedRow || rowAtPreviewTime || editorRows[0] || null;
+  const activeSelectedRowId = selectedRow?.id || null;
   const selectedRowIndex = Math.max(0, editorRows.findIndex((row) => row.id === activeSelectedRowId));
 
   return {

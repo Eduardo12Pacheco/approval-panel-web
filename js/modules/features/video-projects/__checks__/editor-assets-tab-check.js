@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel } from '../render/editor-view-model.js';
+import { buildEditorAssetsViewModel, buildEditorDetailRailViewModel, buildEditorShellViewModel } from '../render/editor-view-model.js';
 import { buildEditorAssetsPicker } from '../render/editor-assets-picker.js';
 import { buildEditorVideoPicker } from '../render/editor-video-picker.js';
 import { EDITOR_EFFECT_TABS, resolveEditorEffectTab } from '../render/editor-effect-tabs.js';
@@ -142,6 +142,33 @@ function runPreviewSeekCaptureGuardSourceCheck() {
   assert(source.includes('_skipNextPreviewSeekCapture'), 'Expected selected project rerender to support skipping stale preview seek capture');
   assert(source.includes('delete project._skipNextPreviewSeekCapture'), 'Expected stale preview seek capture guard to be one-shot');
   assert(source.includes('captureCompositionPreviewSeekTime(project)'), 'Expected normal rerenders to keep capturing the live preview seek time');
+}
+
+function runEditorShellSelectionFallsBackToPreviewTimeCheck() {
+  const editorRows = [
+    { id: 'row-1', startTime: 0, endTime: 4, effectiveEndTime: 4, phrase: 'Primera fila' },
+    { id: 'row-9', startTime: 43.78, endTime: 47.36, effectiveEndTime: 47.36, phrase: 'Fila nueve' },
+  ];
+  const shell = buildEditorShellViewModel(
+    { _previewSeekTime: 45.25 },
+    { editorRows, selectedRowId: null },
+  );
+
+  assertEqual(shell.activeSelectedRowId, 'row-9', 'Expected editor shell rerender to select the row containing the preserved preview time');
+  assertEqual(shell.selectedRow?.phrase, 'Fila nueve', 'Expected editor shell detail rail not to fall back to the first row when preview time points elsewhere');
+  assertEqual(shell.selectedRowIndex, 1, 'Expected editor shell selected index to match the preview-time row');
+
+  const invalidSelectionShell = buildEditorShellViewModel(
+    { _previewSeekTime: 45.25 },
+    { editorRows, selectedRowId: 'missing-row' },
+  );
+  assertEqual(invalidSelectionShell.activeSelectedRowId, 'row-9', 'Expected invalid selected row ids to recover from the preserved preview time instead of falling back to row one');
+
+  const explicitSelectionShell = buildEditorShellViewModel(
+    { _previewSeekTime: 45.25 },
+    { editorRows, selectedRowId: 'row-1' },
+  );
+  assertEqual(explicitSelectionShell.activeSelectedRowId, 'row-1', 'Expected a valid explicit selected row to win over preview-time fallback');
 }
 
 function runVideoSelectorViewportModalCheck() {
@@ -815,6 +842,7 @@ export async function runEditorAssetsTabCheck() {
   runAssetsThumbnailStyleCheck();
   runProjectCardBottomAnchoringStyleCheck();
   runPreviewSeekCaptureGuardSourceCheck();
+  runEditorShellSelectionFallsBackToPreviewTimeCheck();
   runVideoSelectorViewportModalCheck();
   runVideoSelectorScrollLockLifecycleCheck();
   runChangeImageNavigationCheck();
