@@ -67,6 +67,7 @@ export function createBrandCommands({
   commitApprovalSnapshotOperations,
   createSnapshotDraft,
   scheduleApprovalMotionPersistence,
+  flushPendingApprovalDrafts,
   updateSelectedVideoProjectCompositionPreview,
   renderSelectedVideoProject,
   getSaveTimer,
@@ -102,9 +103,14 @@ export function createBrandCommands({
         ? project._editorRows.map((row) => ({ ...row, logo: { ...(row.logo || {}), enabled: row.logo?.enabled !== false, source: snapshot.globalLayers.logo.source, assetId: snapshot.globalLayers.logo.assetId } }))
         : project._editorRows;
       project.editor_state = normalizeEditorState({ ...project.editor_state, approval_contract_snapshot: snapshot, timed_rows: project._editorRows, brandChannel, brand_channel: brandChannel, dirty: true, phase: 'editing_dirty' });
-      createSnapshotDraft('brandChannel', { type: 'setBrandChannel', brandChannel }, (canonicalSnapshot) => applyLocalBrandChannelSnapshot(canonicalSnapshot, brandChannel));
       updateSelectedVideoProjectCompositionPreview({ project });
-      scheduleApprovalMotionPersistence(project);
+      try {
+        if (typeof flushPendingApprovalDrafts === 'function') await flushPendingApprovalDrafts(project, { includeRenderGeometry: false });
+        await commitApprovalSnapshotOperations(project, [{ type: 'setBrandChannel', brandChannel }], { phase: 'editing_dirty' });
+      } catch (err) {
+        console.error(err);
+        project.editor_state = normalizeEditorState({ ...project.editor_state, phase: 'error', error: err?.message || 'No se pudo actualizar proyecto' });
+      }
       return;
     }
 

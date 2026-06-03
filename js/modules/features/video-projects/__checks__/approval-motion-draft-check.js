@@ -284,14 +284,18 @@ function createApprovalMotionHarness({ snapshotRows = [], failSnapshotUpdate = f
         async updateSnapshot(projectId, payload) {
           updateSnapshotCalls.push({ projectId, payload });
           if (failSnapshotUpdate) throw new Error('remote snapshot unavailable');
+          const currentSnapshot = state.selectedVideoProject.editor_state.approval_contract_snapshot || {};
+          const brandOperation = payload.operations?.find((operation) => operation?.type === 'setBrandChannel');
           return {
             snapshot: {
+              ...currentSnapshot,
               contractVersion: 'approval-editor-service-v1',
               projectId,
               snapshotId: `snapshot-${updateSnapshotCalls.length}`,
               snapshotHash: `hash-${updateSnapshotCalls.length}`,
+              brandChannel: brandOperation?.brandChannel || currentSnapshot.brandChannel,
               rows: snapshotRows.length ? snapshotRows : state.selectedVideoProject._editorRows,
-              audio: {},
+              audio: currentSnapshot.audio || {},
             },
           };
         },
@@ -496,7 +500,7 @@ async function runApprovalGlobalRowLayerUsesOptimisticDraftCheck() {
 async function runApprovalBrandChannelUsesOptimisticDraftCheck() {
   const timers = createFakeTimers();
   try {
-    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents, toasts } = createApprovalMotionHarness({ failSnapshotUpdate: true });
+    const { feature, state, updateSnapshotCalls, renderEvents, previewUpdateEvents, toasts } = createApprovalMotionHarness();
 
     await feature.updateBrandChannel('pelotazo-colombia');
 
@@ -505,7 +509,8 @@ async function runApprovalBrandChannelUsesOptimisticDraftCheck() {
     assertEqual(snapshot.brandChannel, 'pelotazo-colombia', 'Expected project selection to patch canonical snapshot brand immediately');
     assertEqual(snapshot.globalLayers.logo.assetId, 'brand-logo-colombia', 'Expected Colombia selection to apply Colombia logo asset immediately');
     assertEqual(state.selectedVideoProject._editorRows[0].logo.source, 'logo-colombia.webm', 'Expected Colombia selection to apply row logo source immediately');
-    assertEqual(updateSnapshotCalls.length, 0, 'Expected project selection to use debounced snapshot persistence, not immediate remote update');
+    assertEqual(updateSnapshotCalls.length, 1, 'Expected project selection to persist immediately so hard refresh keeps the chosen brand');
+    assertDeepEqual(updateSnapshotCalls[0].payload.operations, [{ type: 'setBrandChannel', brandChannel: 'pelotazo-colombia' }], 'Expected immediate project persistence to send only the brand operation');
     assertEqual(previewUpdateEvents.length, 1, 'Expected project selection to update the existing composition preview immediately');
     assertEqual(renderEvents.length, 0, 'Expected project selection not to trigger a full detail render before debounce persistence');
     assertDeepEqual(toasts, [], 'Expected no snapshot error toast before debounced project persistence runs');
@@ -607,8 +612,8 @@ async function runBrandChannelPreviewAssetReloadCheck() {
     assertEqual(renderer.currentTime, 1.25, 'Expected Mundial brand asset reload to preserve preview seek time');
     const stage = container.children[0];
     const logoLayer = stage.children.find((child) => child.className === 'composition-layer composition-layer--logo');
-    assertEqual(logoLayer?.style.left, '-16px', 'Expected Mundial PNG logo to move left into the approved preview position');
-    assertEqual(logoLayer?.style.top, '35px', 'Expected Mundial PNG logo to keep the approved preview top position');
+    assertEqual(logoLayer?.style.left, '-8px', 'Expected Mundial PNG logo to move left into the approved preview position');
+    assertEqual(logoLayer?.style.top, '28px', 'Expected Mundial PNG logo to keep the approved preview top position');
     assertEqual(logoLayer?.style.width, '275px', 'Expected Mundial PNG logo to render 1.25x wider than the generic logo slot');
     assertEqual(logoLayer?.style.height, '155px', 'Expected Mundial PNG logo to render 1.25x taller than the generic logo slot');
   } finally {
@@ -761,21 +766,21 @@ async function runApprovalGlobalDraftsPersistAfterDebounceCheck() {
     await feature.updateRow('row-1', { logo: { enabled: false } });
     await feature.updateBrandChannel('pelotazo-colombia');
 
-    assertEqual(updateSnapshotCalls.length, 0, 'Expected global drafts to wait for debounce before remote persistence');
-    timers.runPending();
-    await flushMicrotasks();
-    await flushMicrotasks();
-
-    assertEqual(updateSnapshotCalls.length, 1, 'Expected global drafts to persist with one debounced remote snapshot update');
+    assertEqual(updateSnapshotCalls.length, 2, 'Expected brand selection to flush pending global drafts and then persist the brand immediately');
     assertDeepEqual(
       updateSnapshotCalls[0].payload.operations,
       [
         { type: 'setRowDust', rowId: 'row-1', enabled: true, dustType: 'dust-2' },
         { type: 'setLogo', enabled: false, source: 'logo-alpha.webm', assetId: 'brand-logo-ecuador' },
-        { type: 'setBrandChannel', brandChannel: 'pelotazo-colombia' },
       ],
-      'Expected debounced remote persistence to include dust, logo, and project operations in order',
+      'Expected pending global drafts to flush before project brand persistence',
     );
+    assertDeepEqual(updateSnapshotCalls[1].payload.operations, [{ type: 'setBrandChannel', brandChannel: 'pelotazo-colombia' }], 'Expected brand operation to persist after pending drafts');
+    timers.runPending();
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    assertEqual(updateSnapshotCalls.length, 2, 'Expected no extra debounced save after brand persistence flushed pending drafts');
     assertDeepEqual(toasts, [], 'Expected successful global debounce persistence not to show snapshot errors');
   } finally {
     timers.restore();

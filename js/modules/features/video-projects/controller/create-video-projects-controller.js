@@ -332,6 +332,7 @@ export function createVideoProjectsController({ api, store, ui, callbacks }) {
     commitApprovalSnapshotOperations: approval.commitApprovalSnapshotOperations,
     createSnapshotDraft: approval.createSnapshotDraft,
     scheduleApprovalMotionPersistence: approval.scheduleApprovalMotionPersistence,
+    flushPendingApprovalDrafts: approval.flushPendingApprovalDrafts,
     updateSelectedVideoProjectCompositionPreview,
     renderSelectedVideoProject,
     beforeMutate: captureBeforeEditorMutation,
