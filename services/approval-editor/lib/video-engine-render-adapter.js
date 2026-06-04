@@ -31,6 +31,10 @@ const AUTHORITATIVE_DUST_ASSETS = {
 };
 
 const DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS = [250, 1000];
+const DEFAULT_RENDER_ASSET_REQUEST_HEADERS = {
+  "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  accept: "image/jpeg,image/png,image/*,*/*;q=0.8",
+};
 
 function nowIso() {
   return new Date().toISOString();
@@ -282,7 +286,7 @@ async function materializeAsset({ source, outputPath, fetchImpl, retryDelaysMs =
     let lastError = null;
     for (let attempt = 0; attempt <= delays.length; attempt += 1) {
       try {
-        const response = await fetchImpl(source);
+        const response = await fetchImpl(source, { headers: DEFAULT_RENDER_ASSET_REQUEST_HEADERS });
         lastStatus = response?.status ?? null;
         if (response?.ok) {
           const bytes = Buffer.from(await response.arrayBuffer());
