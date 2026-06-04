@@ -30,6 +30,8 @@ const AUTHORITATIVE_DUST_ASSETS = {
   },
 };
 
+const DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS = [250, 1000];
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -39,6 +41,24 @@ function createAdapterError(code, message, details) {
   error.code = code;
   if (details !== undefined) error.details = details;
   return error;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function normalizeRetryDelays(value) {
+  if (!Array.isArray(value)) return DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS;
+  return value
+    .map((entry) => Number(entry))
+    .filter((entry) => Number.isFinite(entry) && entry >= 0);
+}
+
+function shouldRetryAssetDownloadStatus(status) {
+  if (!Number.isFinite(Number(status))) return true;
+  const numericStatus = Number(status);
+  if (numericStatus === 404) return false;
+  return numericStatus === 408 || numericStatus === 409 || numericStatus === 425 || numericStatus === 429 || numericStatus === 403 || numericStatus >= 500;
 }
 
 function resolveProjectId(projectId, snapshot = {}) {
@@ -225,15 +245,30 @@ function repairVideoSegmentAssets(snapshot = {}) {
   return changed ? { ...snapshot, rows: repairedRows, assets } : snapshot;
 }
 
-async function materializeAsset({ source, outputPath, fetchImpl }) {
+async function materializeAsset({ source, outputPath, fetchImpl, retryDelaysMs = DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS }) {
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   if (isHttpUrl(source)) {
     if (typeof fetchImpl !== "function") throw createAdapterError("asset_localization_unavailable", `Cannot localize remote render asset without fetch support: ${source}`, { source });
-    const response = await fetchImpl(source);
-    if (!response?.ok) throw createAdapterError("asset_localization_failed", `Failed to download render asset: ${source}`, { source, status: response?.status });
-    const bytes = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(outputPath, bytes);
-    return;
+    const delays = normalizeRetryDelays(retryDelaysMs);
+    let lastStatus = null;
+    let lastError = null;
+    for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+      try {
+        const response = await fetchImpl(source);
+        lastStatus = response?.status ?? null;
+        if (response?.ok) {
+          const bytes = Buffer.from(await response.arrayBuffer());
+          fs.writeFileSync(outputPath, bytes);
+          return;
+        }
+        if (!shouldRetryAssetDownloadStatus(response?.status) || attempt >= delays.length) break;
+      } catch (error) {
+        lastError = error;
+        if (attempt >= delays.length) break;
+      }
+      await sleep(delays[attempt]);
+    }
+    throw createAdapterError("asset_localization_failed", `Failed to download render asset: ${source}`, { source, status: lastStatus, attempts: delays.length + 1, error: lastError?.message || null });
   }
   fs.copyFileSync(source, outputPath);
 }
@@ -274,7 +309,7 @@ function inferBrandChannel(snapshot = {}) {
   return normalizeBrandChannel(null);
 }
 
-async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl = globalThis.fetch } = {}) {
+async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl = globalThis.fetch, retryDelaysMs = DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS } = {}) {
   const contract = { ...(snapshot || {}) };
   const sourceAssets = snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {};
   const localizedAssets = {};
@@ -306,7 +341,7 @@ async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fe
     const fileName = `${sanitizeAssetId(asset.id || assetId, assetId)}${extensionFromSource(source, asset)}`;
     const relativePath = path.posix.join("generated", folder, fileName);
     const outputPath = path.join(projectRoot, "public", "generated", folder, fileName);
-    await materializeAsset({ source, outputPath, fetchImpl });
+    await materializeAsset({ source, outputPath, fetchImpl, retryDelaysMs });
     localizedAssets[assetId] = {
       ...asset,
       renderPath: relativePath,
@@ -404,7 +439,7 @@ function buildMinimalRenderScaffold({ projectId, title, snapshot = {} }) {
   };
 }
 
-async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot }) {
+async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot, retryDelaysMs }) {
   const projectRoot = path.join(projectsRoot, projectId);
   fs.mkdirSync(path.join(projectRoot, "guion"), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "output"), { recursive: true });
@@ -452,7 +487,7 @@ async function persistSnapshotForVideoEngine({ projectsRoot, projectId, snapshot
       label: channelAssets.outro.label,
     },
   });
-  const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot: snapshotWithAuthoritativeBrandAssets, fetchImpl });
+  const localizedSnapshot = await localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot: snapshotWithAuthoritativeBrandAssets, fetchImpl, retryDelaysMs });
   const contract = { ...localizedSnapshot, snapshotHash: snapshotHash || repairedSnapshot.snapshotHash };
   writeJson(path.join(projectRoot, "composition-contract.json"), {
     version: 1,
@@ -486,6 +521,7 @@ function createVideoEngineRenderAdapter({
   env = process.env,
   runCommand = defaultRunCommand,
   fetchImpl = globalThis.fetch,
+  renderAssetRetryDelaysMs = DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS,
 } = {}) {
   const resolvedVideoEngineRoot = path.resolve(videoEngineRoot || env.APPROVAL_EDITOR_VIDEO_ENGINE_ROOT || path.join(__dirname, "..", "..", "..", "..", "02-Video-Engine"));
   const resolvedProjectsRoot = path.resolve(projectsRoot || env.APPROVAL_EDITOR_VIDEO_ENGINE_PROJECTS_ROOT || env.REMOTION_EDITOR_PROJECTS_ROOT || path.join(resolvedVideoEngineRoot, "projects"));
@@ -496,7 +532,7 @@ function createVideoEngineRenderAdapter({
       throw createAdapterError("render_command_missing", `02-Video-Engine render command not found: ${scriptPath}`, { scriptPath });
     }
     const videoProjectId = resolveProjectId(projectId, snapshot);
-    const projectRoot = await persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot: path.join(resolvedVideoEngineRoot, "assets") });
+    const projectRoot = await persistSnapshotForVideoEngine({ projectsRoot: resolvedProjectsRoot, projectId: videoProjectId, snapshot, snapshotHash, fetchImpl, assetSourceRoot: path.join(resolvedVideoEngineRoot, "assets"), retryDelaysMs: renderAssetRetryDelaysMs });
     const outputPath = path.join(projectRoot, "output", "video-final.mp4");
     const command = {
       scriptPath,
