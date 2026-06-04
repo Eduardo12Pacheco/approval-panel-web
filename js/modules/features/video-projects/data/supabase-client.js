@@ -26,6 +26,8 @@ const ADD_CUSTOM_IMAGES_RPC = '/rest/v1/rpc/add_video_project_custom_images';
 const SAVE_EDITOR_STATE_RPC = '/rest/v1/rpc/save_video_project_editor_state';
 const SAVE_SELECTIONS_RPC = '/rest/v1/rpc/save_video_project_selections';
 const DISABLE_PROJECT_RPC = '/rest/v1/rpc/disable_video_edit_project';
+const VOICE_SOURCE_TUS_UPLOAD_URL = 'https://ulzcthcdakjfretjdakd.storage.supabase.co/storage/v1/upload/resumable';
+const VOICE_SOURCE_TUS_CHUNK_SIZE = 6 * 1024 * 1024;
 
 function normalizeRpcPayload(payload = {}) {
   return {
@@ -48,6 +50,26 @@ async function parseResponseBody(response) {
 
 function responseErrorMessage(data, fallback) {
   return data?.message || data?.error || data?.raw || fallback;
+}
+
+function encodeTusMetadataValue(value = '') {
+  const input = String(value);
+  if (typeof btoa === 'function') {
+    return btoa(unescape(encodeURIComponent(input)));
+  }
+  return Buffer.from(input, 'utf8').toString('base64');
+}
+
+function buildTusUploadMetadata(metadata = {}) {
+  return Object.entries(metadata)
+    .map(([key, value]) => `${key} ${encodeTusMetadataValue(value)}`)
+    .join(',');
+}
+
+function resolveHeader(headers, name) {
+  if (!headers) return '';
+  if (typeof headers.get === 'function') return headers.get(name) || '';
+  return headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()] || '';
 }
 
 export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
@@ -199,6 +221,71 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     return buildVideoUploadMetadata({ path, file, durationSeconds });
   }
 
+  async function uploadVoiceSourceVideoFile({ draftId, file }) {
+    const id = (draftId || '').toString().trim();
+    if (!id) throw new Error('draftId is required');
+    if (!file) throw new Error('video file is required');
+
+    const path = buildVideoUploadPath({ draftId: id, file });
+    const contentType = file.type || 'video/mp4';
+    const createResponse = await fetchImpl(VOICE_SOURCE_TUS_UPLOAD_URL, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Tus-Resumable': '1.0.0',
+        'Upload-Length': String(Number(file.size || 0)),
+        'Upload-Metadata': buildTusUploadMetadata({
+          bucketName: VIDEO_PROJECT_VIDEO_BUCKET,
+          objectName: path,
+          contentType,
+          cacheControl: '3600',
+        }),
+        'x-upsert': 'false',
+      },
+    });
+
+    if (!createResponse.ok) {
+      const data = await parseResponseBody(createResponse);
+      const message = responseErrorMessage(data, `Voice source video upload ${createResponse.status}`);
+      throw new Error(message);
+    }
+
+    const location = resolveHeader(createResponse.headers, 'location');
+    if (!location) throw new Error('Voice source video upload location missing');
+    const uploadUrl = new URL(location, VOICE_SOURCE_TUS_UPLOAD_URL).href;
+    let offset = 0;
+    const size = Number(file.size || 0);
+
+    while (offset < size) {
+      const nextOffset = Math.min(offset + VOICE_SOURCE_TUS_CHUNK_SIZE, size);
+      const chunk = file.slice(offset, nextOffset, contentType);
+      const patchResponse = await fetchImpl(uploadUrl, {
+        method: 'PATCH',
+        headers: {
+          'Tus-Resumable': '1.0.0',
+          'Upload-Offset': String(offset),
+          'Content-Type': 'application/offset+octet-stream',
+        },
+        body: chunk,
+      });
+
+      if (!patchResponse.ok) {
+        const data = await parseResponseBody(patchResponse);
+        const message = responseErrorMessage(data, `Voice source video chunk upload ${patchResponse.status}`);
+        throw new Error(message);
+      }
+
+      const responseOffset = Number(resolveHeader(patchResponse.headers, 'upload-offset'));
+      if (!Number.isFinite(responseOffset) || responseOffset !== nextOffset) {
+        throw new Error('Voice source video upload offset mismatch');
+      }
+      offset = responseOffset;
+    }
+
+    return buildVideoUploadMetadata({ path, file, durationSeconds: 0 });
+  }
+
   async function addVideoProjectCustomImages({ draftId, customCandidates = [] } = {}) {
     const id = (draftId || '').toString().trim();
     if (!id) throw new Error('draftId is required');
@@ -301,6 +388,7 @@ export function createSupabaseVideoProjectsClient({ fetchImpl = fetch } = {}) {
     saveVideoProjectEditorState,
     uploadCustomImageFile,
     uploadProjectVideoFile,
+    uploadVoiceSourceVideoFile,
     addVideoProjectCustomImages,
     disableVideoProject,
   };

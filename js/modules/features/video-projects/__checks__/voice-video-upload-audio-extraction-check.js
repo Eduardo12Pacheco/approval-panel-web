@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 import { createAudioSetupCommands } from '../audio/commands.js';
 import { createApprovalPipelineClient } from '../data/approval-pipeline-client.js';
+import { createSupabaseVideoProjectsClient } from '../data/supabase-client.js';
 import { buildSetupPhaseContent } from '../render/setup-view.js';
 import { isVoiceVideoAudioInput } from '../audio/voice-video-extraction.js';
 import { createVideoProjectsController } from '../controller/create-video-projects-controller.js';
@@ -97,13 +98,17 @@ async function assertRegularAudioUploadPathRemainsUnchanged() {
   assertEqual(project.voice_audio.name, 'voice.wav', 'Expected normal audio metadata to remain from original upload');
 }
 
-async function assertVoiceMp4ExtractsThenUsesExistingUploadAndSave() {
+async function assertVoiceMp4ExtractsThenUsesResumableSourceUploadAndSave() {
   const project = { voice_audio: {}, background_audio: { name: 'music.wav', public_url: 'https://cdn.example.com/music.wav' } };
   const calls = [];
   const commands = createAudioSetupCommands({
     api: {
-      async uploadProjectVideoFile({ draftId, file, durationSeconds }) {
-        calls.push(`source-upload:${draftId}:${file.name}:${file.type}:${durationSeconds}`);
+      async uploadProjectVideoFile() {
+        calls.push('standard-video-upload');
+        throw new Error('voice MP4 source upload must not use the standard video upload path');
+      },
+      async uploadVoiceSourceVideoFile({ draftId, file }) {
+        calls.push(`voice-source-upload:${draftId}:${file.name}:${file.type}`);
         return { public_url: `https://storage.example.com/${file.name}`, storage_path: `projects/draft-video/videos/${file.name}`, bucket: 'video-project-videos', name: file.name, size: file.size, mime_type: file.type };
       },
       async extractVoiceAudioFromVideo({ source }) {
@@ -127,11 +132,98 @@ async function assertVoiceMp4ExtractsThenUsesExistingUploadAndSave() {
 
   await commands.uploadProjectAudio('voice', makeFile({ name: 'camera.mp4', type: 'video/mp4' }));
 
-  assert(calls.includes('source-upload:draft-video:camera.mp4:video/mp4:0'), 'Expected voice MP4 source to upload to storage before extraction');
+  assertEqual(calls.includes('standard-video-upload'), false, 'Expected voice MP4 source not to use standard Supabase object upload');
+  assert(calls.includes('voice-source-upload:draft-video:camera.mp4:video/mp4'), 'Expected voice MP4 source to upload through the dedicated resumable storage API before extraction');
   assert(calls.includes('extract-source:https://storage.example.com/camera.mp4:camera.mp4:video/mp4:5'), 'Expected extraction to receive source storage metadata instead of the MP4 binary body');
   assert(calls.includes('upload:draft-video:voice:camera-voice.m4a:audio/mp4'), 'Expected extracted M4A master to use existing audio upload path');
   assert(calls.includes('save:camera-voice.m4a:music.wav'), 'Expected extracted audio metadata to be saved through existing audio RPC path');
   assertEqual(project.voice_audio.mime_type, 'audio/mp4', 'Expected project voice audio to remain normal audio metadata');
+}
+
+async function assertVoiceSourceUploadUsesSupabaseTusResumableChunks() {
+  const requests = [];
+  const uploadLocation = 'https://ulzcthcdakjfretjdakd.storage.supabase.co/storage/v1/upload/resumable/upload-id-1';
+  const sourceFile = makeFile({
+    name: 'large-camera.mp4',
+    type: 'video/mp4',
+    content: new Uint8Array((6 * 1024 * 1024) + 17),
+  });
+  const client = createSupabaseVideoProjectsClient({
+    fetchImpl: async (url, init = {}) => {
+      const bodySize = init.body ? (await init.body.arrayBuffer()).byteLength : 0;
+      requests.push({ url: String(url), init, bodySize });
+
+      if (init.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          headers: { get: (name) => (String(name).toLowerCase() === 'location' ? uploadLocation : '') },
+          text: async () => '',
+        };
+      }
+
+      const currentOffset = Number(init.headers['Upload-Offset']);
+      return {
+        ok: true,
+        status: 204,
+        headers: { get: (name) => (String(name).toLowerCase() === 'upload-offset' ? String(currentOffset + bodySize) : '') },
+        text: async () => '',
+      };
+    },
+  });
+
+  const metadata = await client.uploadVoiceSourceVideoFile({ draftId: 'draft-resumable', file: sourceFile });
+  const createRequest = requests[0];
+  const firstPatch = requests[1];
+  const secondPatch = requests[2];
+  const decodedMetadata = Object.fromEntries(
+    createRequest.init.headers['Upload-Metadata'].split(',').map((part) => {
+      const [key, value] = part.trim().split(' ');
+      return [key, Buffer.from(value, 'base64').toString('utf8')];
+    }),
+  );
+
+  assertEqual(createRequest.url, 'https://ulzcthcdakjfretjdakd.storage.supabase.co/storage/v1/upload/resumable', 'Expected voice source upload to create TUS upload on direct Supabase Storage hostname');
+  assertEqual(createRequest.init.method, 'POST', 'Expected TUS create request to use POST');
+  assertEqual(createRequest.init.headers['Tus-Resumable'], '1.0.0', 'Expected TUS create request to include protocol version');
+  assertEqual(createRequest.init.headers['Upload-Length'], String(sourceFile.size), 'Expected TUS create request to declare file size');
+  assertEqual(createRequest.init.headers.apikey, 'sb_publishable_RDUiyePyvXCkdU5k17Ue6g_nmxgSsQf', 'Expected TUS create request to include Supabase apikey header');
+  assertEqual(createRequest.init.headers.Authorization, 'Bearer sb_publishable_RDUiyePyvXCkdU5k17Ue6g_nmxgSsQf', 'Expected TUS create request to include bearer publishable key');
+  assertEqual(createRequest.init.headers['x-upsert'], 'false', 'Expected TUS create request to preserve no-upsert behavior');
+  assertEqual(decodedMetadata.bucketName, 'video-project-videos', 'Expected TUS metadata to target the video project videos bucket');
+  assert(decodedMetadata.objectName.startsWith('projects/'), 'Expected TUS metadata to include the generated storage path');
+  assert(decodedMetadata.objectName.endsWith('-large-camera.mp4'), 'Expected TUS metadata to preserve the sanitized source file name');
+  assertEqual(decodedMetadata.contentType, 'video/mp4', 'Expected TUS metadata to preserve MP4 content type');
+  assertEqual(decodedMetadata.cacheControl, '3600', 'Expected TUS metadata to include cache control');
+  assertEqual(firstPatch.url, uploadLocation, 'Expected first chunk to PATCH the returned TUS upload URL');
+  assertEqual(firstPatch.init.method, 'PATCH', 'Expected chunks to upload with PATCH');
+  assertEqual(firstPatch.init.headers['Upload-Offset'], '0', 'Expected first chunk offset to start at zero');
+  assertEqual(firstPatch.init.headers['Content-Type'], 'application/offset+octet-stream', 'Expected chunks to use TUS octet-stream content type');
+  assertEqual(firstPatch.bodySize, 6 * 1024 * 1024, 'Expected first chunk size to be exactly 6 MiB');
+  assertEqual(secondPatch.init.headers['Upload-Offset'], String(6 * 1024 * 1024), 'Expected second chunk to continue from the first chunk offset');
+  assertEqual(secondPatch.bodySize, 17, 'Expected final chunk to contain remaining bytes');
+  assertEqual(metadata.bucket, 'video-project-videos', 'Expected voice source upload to return existing video upload metadata shape');
+  assertEqual(metadata.storage_path, decodedMetadata.objectName, 'Expected returned metadata path to match uploaded TUS objectName');
+  assertEqual(metadata.duration_seconds, 0, 'Expected source voice MP4 metadata duration to remain zero');
+}
+
+async function assertEditorVideoUploadKeepsStandardStorageObjectPath() {
+  const requests = [];
+  const client = createSupabaseVideoProjectsClient({
+    fetchImpl: async (url, init = {}) => {
+      requests.push({ url: String(url), init });
+      return { ok: true, status: 200, text: async () => '{}' };
+    },
+  });
+  const file = makeFile({ name: 'library-video.mp4', type: 'video/mp4' });
+
+  const metadata = await client.uploadProjectVideoFile({ draftId: 'draft-editor-video', file, durationSeconds: 12 });
+
+  assertEqual(requests.length, 1, 'Expected regular editor video upload to perform a single standard storage request');
+  assert(requests[0].url.includes('/storage/v1/object/video-project-videos/'), 'Expected regular editor video upload to keep Supabase standard object endpoint');
+  assertEqual(requests[0].init.method, 'POST', 'Expected regular editor video upload to keep POST method');
+  assertEqual(requests[0].init.body, file, 'Expected regular editor video upload to send the original file body');
+  assertEqual(metadata.duration_seconds, 12, 'Expected regular editor video upload metadata to preserve duration seconds');
 }
 
 async function assertExtractionClientPostsStorageMetadataAndReturnsAudioFile() {
@@ -214,8 +306,12 @@ async function assertControllerWiresVoiceVideoExtractionClient() {
           },
         };
       },
-      async uploadProjectVideoFile({ draftId, file, durationSeconds }) {
-        calls.push(`source-upload:${draftId}:${file.name}:${file.type}:${durationSeconds}`);
+      async uploadProjectVideoFile() {
+        calls.push('standard-video-upload');
+        throw new Error('voice MP4 source upload must not use standard video upload');
+      },
+      async uploadVoiceSourceVideoFile({ draftId, file }) {
+        calls.push(`voice-source-upload:${draftId}:${file.name}:${file.type}`);
         return { public_url: `https://storage.example.com/${file.name}`, storage_path: `projects/draft-controller/videos/${file.name}`, bucket: 'video-project-videos', name: file.name, size: file.size, mime_type: file.type };
       },
       async uploadAudioFile({ draftId, kind, file }) {
@@ -235,7 +331,8 @@ async function assertControllerWiresVoiceVideoExtractionClient() {
   await controller.uploadProjectAudio('voice', makeFile({ name: 'camera.mp4', type: 'video/mp4' }));
 
   assert(calls.includes('client:http://approval.from-project'), 'Expected controller to resolve Approval Pipeline client for voice MP4 extraction');
-  assert(calls.includes('source-upload:draft-controller:camera.mp4:video/mp4:0'), 'Expected controller to upload source MP4 through lower-level storage API');
+  assertEqual(calls.includes('standard-video-upload'), false, 'Expected controller not to use standard video upload for voice MP4 source');
+  assert(calls.includes('voice-source-upload:draft-controller:camera.mp4:video/mp4'), 'Expected controller to upload source MP4 through dedicated resumable lower-level storage API');
   assert(calls.includes('extract-source:https://storage.example.com/camera.mp4:camera.mp4:video/mp4'), 'Expected controller audio API to pass storage metadata to extraction method');
   assert(calls.includes('upload:draft-controller:voice:controller-voice.m4a:audio/mp4'), 'Expected controller to upload extracted master through existing audio path');
   assert(calls.includes('save:controller-voice.m4a:music.wav'), 'Expected controller to save extracted voice audio metadata normally');
@@ -245,7 +342,9 @@ export async function runVoiceVideoUploadAudioExtractionCheck() {
   assertVoiceAcceptsMp4ButBackgroundStaysAudioOnly();
   assertVoiceVideoInputDetectionIsVoiceOnlyMp4();
   await assertRegularAudioUploadPathRemainsUnchanged();
-  await assertVoiceMp4ExtractsThenUsesExistingUploadAndSave();
+  await assertVoiceMp4ExtractsThenUsesResumableSourceUploadAndSave();
+  await assertVoiceSourceUploadUsesSupabaseTusResumableChunks();
+  await assertEditorVideoUploadKeepsStandardStorageObjectPath();
   await assertExtractionClientPostsStorageMetadataAndReturnsAudioFile();
   await assertExtractionClientRetainsBinaryBackCompatAndReturnsAudioFile();
   await assertControllerWiresVoiceVideoExtractionClient();

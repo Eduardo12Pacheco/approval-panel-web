@@ -15,10 +15,10 @@ function buildVoiceVideoExtractionSource(upload = {}, file) {
 }
 
 async function extractVoiceAudioFromStorageBackedVideo({ api, draftId, file }) {
-  if (typeof api.uploadProjectVideoFile !== 'function') {
+  if (typeof api.uploadVoiceSourceVideoFile !== 'function') {
     throw new Error('No se pudo preparar el MP4 de voz para extraer audio');
   }
-  const sourceUpload = await api.uploadProjectVideoFile({ draftId, file, durationSeconds: 0 });
+  const sourceUpload = await api.uploadVoiceSourceVideoFile({ draftId, file });
   const source = buildVoiceVideoExtractionSource(sourceUpload, file);
   return api.extractVoiceAudioFromVideo({ source });
 }
