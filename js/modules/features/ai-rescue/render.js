@@ -151,7 +151,8 @@ function renderRejectionGroup(group) {
 function renderRejectionItem(item) {
   const meta = [item.targetLabel, item.sourceLabel].filter(Boolean).join(' · ');
   const country = item.targetLabel || 'Sin país específico';
-  const reason = item.reason ? `<small>Motivo técnico: ${escapeHtml(item.reason)}</small>` : '';
+  const reasonLabel = item.displayStatus || item.reason || '';
+  const reason = reasonLabel ? `<small>Motivo técnico: ${escapeHtml(reasonLabel)}</small>` : '';
   return `<section class="ai-rescue-rejection-item"><strong>${escapeHtml(country)}</strong><p>${escapeHtml(item.detailText || 'Sin detalle adicional.')}</p>${reason}<small>${escapeHtml(meta)}</small></section>`;
 }
 
@@ -168,5 +169,6 @@ export function renderAiRescueQueue({ el, queue }) {
 
 function renderQueueItem(rawItem) {
   const item = normalizeAiRescueQueueItem(rawItem);
-  return `<article class="ai-rescue-queue-item"><span>${escapeHtml(item.statusLabel)}</span><strong>${escapeHtml(item.videoId || 'Video pendiente')}</strong><small>${escapeHtml([item.sourceLabel, item.attemptCount ? `Intentos ${item.attemptCount}` : '', item.nextAttemptAt ? `Próximo ${item.nextAttemptAt}` : '', item.lastError].filter(Boolean).join(' · '))}</small></article>`;
+  const statusLabel = item.displayStatus || item.statusLabel;
+  return `<article class="ai-rescue-queue-item"><span>${escapeHtml(statusLabel)}</span><strong>${escapeHtml(item.videoId || 'Video pendiente')}</strong><small>${escapeHtml([item.sourceLabel, item.attemptCount ? `Intentos ${item.attemptCount}` : '', item.nextAttemptAt ? `Próximo ${item.nextAttemptAt}` : ''].filter(Boolean).join(' · '))}</small></article>`;
 }

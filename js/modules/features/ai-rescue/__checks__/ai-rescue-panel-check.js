@@ -265,7 +265,7 @@ function runRenderCheck() {
       current: { video_id: 'now', status: 'processing', source_country_label: 'Ecuador' },
       upcoming: [
         { video_id: 'wait', status: 'waiting', source_country_label: 'Colombia' },
-        { video_id: 'retry', status: 'retry', attempt_count: 2, next_attempt_at: '2026-05-22T12:00:00Z' },
+        { video_id: 'retry', status: 'retry', attempt_count: 2, next_attempt_at: '2026-05-22T12:00:00Z', display_status: 'TIMEOUT', failure_code: 'opencode_timeout' },
       ],
       counts: { waiting: 1, retry: 1 },
     },
@@ -274,6 +274,8 @@ function runRenderCheck() {
   assertIncludes(queueEl.innerHTML, 'Videos próximos', 'queue upcoming header drift');
   assertIncludes(queueEl.innerHTML, 'En espera', 'waiting state drift');
   assertIncludes(queueEl.innerHTML, 'Reintento', 'retry state drift');
+  assertIncludes(queueEl.innerHTML, 'TIMEOUT', 'queue should render backend Spanish failure label');
+  assertNotIncludes(queueEl.innerHTML, 'opencode_timeout', 'queue should not expose raw provider code as the main visible label');
 }
 
 async function runApiClientCheck() {
