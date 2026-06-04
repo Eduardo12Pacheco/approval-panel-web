@@ -42,19 +42,24 @@ export function createApprovalPipelineClient({ fetchImpl = fetch, resolveBaseUrl
   };
 
   const extractVoiceAudioFromVideo = async (input) => {
+    const source = input?.source && typeof input.source === 'object' ? input.source : null;
     const file = input?.file || input;
     const baseUrl = ensureBaseUrl();
     const url = `${baseUrl}/api/audio/extract-voice`;
+    const headers = source
+      ? { 'Content-Type': 'application/json' }
+      : { 'Content-Type': file?.type || 'video/mp4' };
+    const body = source ? JSON.stringify({ source }) : file;
     let response;
     try {
       response = await fetchImpl(url, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': file?.type || 'video/mp4',
+          ...headers,
           ...(getShellVersion() ? { 'x-control-panel-shell-version': getShellVersion() } : {}),
         },
-        body: file,
+        body,
       });
     } catch (error) {
       const reason = error?.message ? ` ${error.message}` : '';

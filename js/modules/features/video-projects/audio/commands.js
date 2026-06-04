@@ -3,6 +3,26 @@ import { isVoiceVideoAudioInput } from './voice-video-extraction.js';
 
 const AUDIO_KINDS = new Set(['voice', 'background']);
 
+function buildVoiceVideoExtractionSource(upload = {}, file) {
+  return {
+    publicUrl: upload.public_url || upload.publicUrl || upload.storage_public_url || '',
+    name: upload.name || file?.name || 'camera.mp4',
+    mimeType: upload.mime_type || upload.mimeType || file?.type || 'video/mp4',
+    size: Number(upload.size ?? file?.size ?? 0),
+    bucket: upload.bucket || upload.storage_bucket || '',
+    storagePath: upload.storage_path || upload.storagePath || '',
+  };
+}
+
+async function extractVoiceAudioFromStorageBackedVideo({ api, draftId, file }) {
+  if (typeof api.uploadProjectVideoFile !== 'function') {
+    throw new Error('No se pudo preparar el MP4 de voz para extraer audio');
+  }
+  const sourceUpload = await api.uploadProjectVideoFile({ draftId, file, durationSeconds: 0 });
+  const source = buildVoiceVideoExtractionSource(sourceUpload, file);
+  return api.extractVoiceAudioFromVideo({ source });
+}
+
 export function createAudioSetupCommands({ api, ui, getProject, resolveProjectKey, renderSelectedVideoProject }) {
   async function uploadProjectAudio(kind, file) {
     const project = getProject();
@@ -17,7 +37,9 @@ export function createAudioSetupCommands({ api, ui, getProject, resolveProjectKe
     renderSelectedVideoProject();
 
     try {
-      const uploadFile = isVoiceVideoAudioInput(kind, file) ? await api.extractVoiceAudioFromVideo({ file }) : file;
+      const uploadFile = isVoiceVideoAudioInput(kind, file)
+        ? await extractVoiceAudioFromStorageBackedVideo({ api, draftId, file })
+        : file;
       const audio = await api.uploadAudioFile({ draftId, kind, file: uploadFile });
       if (kind === 'background') {
         project.background_audio = audio;

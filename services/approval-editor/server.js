@@ -91,6 +91,58 @@ function readBinaryBody(request, { maxBytes = 250 * 1024 * 1024 } = {}) {
   });
 }
 
+function normalizeVoiceVideoSourceMetadata(source = {}) {
+  const publicUrl = String(source.publicUrl || source.public_url || source.url || source.storage_public_url || "").trim();
+  if (!/^https?:\/\//i.test(publicUrl)) {
+    const error = new Error("voice video source publicUrl is required");
+    error.code = "invalid_remote_audio_url";
+    throw error;
+  }
+  return {
+    publicUrl,
+    name: String(source.name || source.fileName || path.basename(new URL(publicUrl).pathname) || "camera.mp4").trim() || "camera.mp4",
+    mimeType: String(source.mimeType || source.mime_type || source.contentType || "video/mp4").trim() || "video/mp4",
+    size: Number(source.size || 0),
+    bucket: String(source.bucket || source.storage_bucket || "").trim(),
+    storagePath: String(source.storagePath || source.storage_path || "").trim(),
+  };
+}
+
+async function downloadVoiceVideoSource(source, { fetchImpl, maxBytes = 250 * 1024 * 1024 } = {}) {
+  const response = await fetchImpl(source.publicUrl);
+  if (!response?.ok) {
+    const error = new Error(`No se pudo descargar el MP4 de voz desde Storage (${response?.status || "network"}).`);
+    error.code = "invalid_remote_audio_url";
+    throw error;
+  }
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > maxBytes) {
+    const error = new Error("El video de voz supera el límite de tamaño permitido.");
+    error.code = "voice_video_too_large";
+    error.details = { size: bytes.length, maxBytes };
+    throw error;
+  }
+  return {
+    sourceBytes: bytes,
+    sourceName: source.name,
+    sourceMimeType: source.mimeType || response.headers?.get?.("content-type") || "video/mp4",
+  };
+}
+
+async function resolveVoiceVideoExtractionInput(request, { fetchImpl } = {}) {
+  const contentType = String(request.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
+  if (contentType === "application/json") {
+    const body = await readBody(request);
+    const source = normalizeVoiceVideoSourceMetadata(body?.source || body);
+    return downloadVoiceVideoSource(source, { fetchImpl });
+  }
+  return {
+    sourceBytes: await readBinaryBody(request),
+    sourceName: "camera.mp4",
+    sourceMimeType: request.headers["content-type"] || "video/mp4",
+  };
+}
+
 function sendAudio(response, status, bytes, { fileName = "voice-from-video.m4a", contentType = "audio/mp4" } = {}) {
   response.writeHead(status, {
     "access-control-allow-origin": "*",
@@ -532,13 +584,11 @@ function createApprovalEditorService({ projectsRoot = path.resolve(__dirname, "p
       }
 
       if (request.method === "POST" && url.pathname === "/api/audio/extract-voice") {
-        const sourceBytes = await readBinaryBody(request);
+        const extractionInput = await resolveVoiceVideoExtractionInput(request, { fetchImpl });
         const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "approval-voice-video-"));
         try {
           const extracted = await extractVoiceAudio({
-            sourceBytes,
-            sourceName: "camera.mp4",
-            sourceMimeType: request.headers["content-type"] || "video/mp4",
+            ...extractionInput,
             workDir,
             env,
           });

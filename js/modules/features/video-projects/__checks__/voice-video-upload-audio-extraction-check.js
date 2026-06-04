@@ -102,8 +102,12 @@ async function assertVoiceMp4ExtractsThenUsesExistingUploadAndSave() {
   const calls = [];
   const commands = createAudioSetupCommands({
     api: {
-      async extractVoiceAudioFromVideo({ file }) {
-        calls.push(`extract:${file.name}:${file.type}`);
+      async uploadProjectVideoFile({ draftId, file, durationSeconds }) {
+        calls.push(`source-upload:${draftId}:${file.name}:${file.type}:${durationSeconds}`);
+        return { public_url: `https://storage.example.com/${file.name}`, storage_path: `projects/draft-video/videos/${file.name}`, bucket: 'video-project-videos', name: file.name, size: file.size, mime_type: file.type };
+      },
+      async extractVoiceAudioFromVideo({ source }) {
+        calls.push(`extract-source:${source.publicUrl}:${source.name}:${source.mimeType}:${source.size}`);
         return new File(['m4a-bytes'], 'camera-voice.m4a', { type: 'audio/mp4' });
       },
       async uploadAudioFile({ draftId, kind, file }) {
@@ -123,13 +127,50 @@ async function assertVoiceMp4ExtractsThenUsesExistingUploadAndSave() {
 
   await commands.uploadProjectAudio('voice', makeFile({ name: 'camera.mp4', type: 'video/mp4' }));
 
-  assert(calls.includes('extract:camera.mp4:video/mp4'), 'Expected voice MP4 to be sent to extraction endpoint before upload');
+  assert(calls.includes('source-upload:draft-video:camera.mp4:video/mp4:0'), 'Expected voice MP4 source to upload to storage before extraction');
+  assert(calls.includes('extract-source:https://storage.example.com/camera.mp4:camera.mp4:video/mp4:5'), 'Expected extraction to receive source storage metadata instead of the MP4 binary body');
   assert(calls.includes('upload:draft-video:voice:camera-voice.m4a:audio/mp4'), 'Expected extracted M4A master to use existing audio upload path');
   assert(calls.includes('save:camera-voice.m4a:music.wav'), 'Expected extracted audio metadata to be saved through existing audio RPC path');
   assertEqual(project.voice_audio.mime_type, 'audio/mp4', 'Expected project voice audio to remain normal audio metadata');
 }
 
-async function assertExtractionClientPostsBinaryAndReturnsAudioFile() {
+async function assertExtractionClientPostsStorageMetadataAndReturnsAudioFile() {
+  const requests = [];
+  const client = createApprovalPipelineClient({
+    resolveBaseUrl: () => 'http://approval.test',
+    fetchImpl: async (url, init = {}) => {
+      requests.push({ url, init });
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: (name) => ({ 'content-type': 'audio/mp4', 'x-audio-filename': 'voice-from-storage.m4a' }[String(name).toLowerCase()] || '') },
+        blob: async () => new Blob(['m4a-bytes'], { type: 'audio/mp4' }),
+      };
+    },
+  });
+
+  const extracted = await client.extractVoiceAudioFromVideo({
+    source: {
+      publicUrl: 'https://storage.example.com/projects/draft/videos/camera.mp4',
+      name: 'camera.mp4',
+      mimeType: 'video/mp4',
+      size: 129610226,
+      bucket: 'video-project-videos',
+      storagePath: 'projects/draft/videos/camera.mp4',
+    },
+  });
+
+  const body = JSON.parse(requests[0].init.body);
+  assertEqual(requests[0].url, 'http://approval.test/api/audio/extract-voice', 'Expected extraction client endpoint to use Approval Editor /api route');
+  assertEqual(requests[0].init.method, 'POST', 'Expected extraction client to POST source metadata');
+  assertEqual(requests[0].init.headers['Content-Type'], 'application/json', 'Expected storage-backed extraction to send JSON, not MP4 binary');
+  assertEqual(body.source.publicUrl, 'https://storage.example.com/projects/draft/videos/camera.mp4', 'Expected JSON body to include source public URL');
+  assertEqual(body.source.size, 129610226, 'Expected JSON body to include source size metadata for diagnostics');
+  assertEqual(extracted.name, 'voice-from-storage.m4a', 'Expected extracted file name to come from server header');
+  assertEqual(extracted.type, 'audio/mp4', 'Expected extracted master to be audio/mp4');
+}
+
+async function assertExtractionClientRetainsBinaryBackCompatAndReturnsAudioFile() {
   const requests = [];
   const client = createApprovalPipelineClient({
     resolveBaseUrl: () => 'http://approval.test',
@@ -167,11 +208,15 @@ async function assertControllerWiresVoiceVideoExtractionClient() {
       createApprovalPipelineClient({ resolveBaseUrl }) {
         calls.push(`client:${resolveBaseUrl()}`);
         return {
-          async extractVoiceAudioFromVideo({ file }) {
-            calls.push(`extract:${file.name}:${file.type}`);
+          async extractVoiceAudioFromVideo({ source }) {
+            calls.push(`extract-source:${source.publicUrl}:${source.name}:${source.mimeType}`);
             return new File(['m4a-bytes'], 'controller-voice.m4a', { type: 'audio/mp4' });
           },
         };
+      },
+      async uploadProjectVideoFile({ draftId, file, durationSeconds }) {
+        calls.push(`source-upload:${draftId}:${file.name}:${file.type}:${durationSeconds}`);
+        return { public_url: `https://storage.example.com/${file.name}`, storage_path: `projects/draft-controller/videos/${file.name}`, bucket: 'video-project-videos', name: file.name, size: file.size, mime_type: file.type };
       },
       async uploadAudioFile({ draftId, kind, file }) {
         calls.push(`upload:${draftId}:${kind}:${file.name}:${file.type}`);
@@ -190,7 +235,8 @@ async function assertControllerWiresVoiceVideoExtractionClient() {
   await controller.uploadProjectAudio('voice', makeFile({ name: 'camera.mp4', type: 'video/mp4' }));
 
   assert(calls.includes('client:http://approval.from-project'), 'Expected controller to resolve Approval Pipeline client for voice MP4 extraction');
-  assert(calls.includes('extract:camera.mp4:video/mp4'), 'Expected controller audio API to expose extraction method');
+  assert(calls.includes('source-upload:draft-controller:camera.mp4:video/mp4:0'), 'Expected controller to upload source MP4 through lower-level storage API');
+  assert(calls.includes('extract-source:https://storage.example.com/camera.mp4:camera.mp4:video/mp4'), 'Expected controller audio API to pass storage metadata to extraction method');
   assert(calls.includes('upload:draft-controller:voice:controller-voice.m4a:audio/mp4'), 'Expected controller to upload extracted master through existing audio path');
   assert(calls.includes('save:controller-voice.m4a:music.wav'), 'Expected controller to save extracted voice audio metadata normally');
 }
@@ -200,7 +246,8 @@ export async function runVoiceVideoUploadAudioExtractionCheck() {
   assertVoiceVideoInputDetectionIsVoiceOnlyMp4();
   await assertRegularAudioUploadPathRemainsUnchanged();
   await assertVoiceMp4ExtractsThenUsesExistingUploadAndSave();
-  await assertExtractionClientPostsBinaryAndReturnsAudioFile();
+  await assertExtractionClientPostsStorageMetadataAndReturnsAudioFile();
+  await assertExtractionClientRetainsBinaryBackCompatAndReturnsAudioFile();
   await assertControllerWiresVoiceVideoExtractionClient();
   return { ok: true };
 }

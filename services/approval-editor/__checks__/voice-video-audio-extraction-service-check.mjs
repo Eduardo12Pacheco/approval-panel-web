@@ -7,6 +7,9 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const {
+  createApprovalEditorService,
+} = require('../server.js');
+const {
   extractVoiceAudioFromMp4,
   resolveVoiceExtractionErrorStatus,
 } = require('../lib/voice-video-audio-extraction.js');
@@ -17,6 +20,17 @@ async function withTempDir(run) {
     return await run(dir);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+async function withService(options, run) {
+  const service = createApprovalEditorService(options);
+  await new Promise((resolve) => service.listen(0, '127.0.0.1', resolve));
+  const address = service.address();
+  try {
+    return await run(`http://127.0.0.1:${address.port}`);
+  } finally {
+    await new Promise((resolve, reject) => service.close((error) => (error ? reject(error) : resolve())));
   }
 }
 
@@ -93,5 +107,77 @@ test('extractVoiceAudioFromMp4 rejects unsupported video, missing FFmpeg, and mi
       }),
       (error) => error.code === 'voice_video_no_audio_stream' && resolveVoiceExtractionErrorStatus(error) === 422,
     );
+  });
+});
+
+test('extract voice route accepts storage source metadata, downloads MP4 server-side, and returns M4A audio', async () => {
+  await withTempDir(async (projectsRoot) => {
+    const calls = [];
+    await withService({
+      projectsRoot,
+      fetchImpl: async (url) => {
+        calls.push(`download:${url}`);
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: (name) => ({ 'content-type': 'video/mp4' }[String(name).toLowerCase()] || '') },
+          arrayBuffer: async () => Buffer.from('server-downloaded-mp4'),
+        };
+      },
+      extractVoiceAudio: async ({ sourceBytes, sourceName, sourceMimeType, workDir }) => {
+        calls.push(`extract:${sourceBytes.toString('utf8')}:${sourceName}:${sourceMimeType}`);
+        const outputPath = path.join(workDir, 'downloaded-voice.m4a');
+        await writeFile(outputPath, Buffer.from('downloaded-m4a'));
+        return { outputPath, fileName: 'downloaded-voice.m4a', contentType: 'audio/mp4' };
+      },
+    }, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/audio/extract-voice`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          source: {
+            publicUrl: 'https://storage.example.com/projects/draft/videos/camera.mp4',
+            name: 'camera.mp4',
+            mimeType: 'video/mp4',
+            size: 129610226,
+          },
+        }),
+      });
+
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('content-type'), 'audio/mp4');
+      assert.equal(response.headers.get('x-audio-filename'), 'downloaded-voice.m4a');
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from('downloaded-m4a'));
+      assert.deepEqual(calls, [
+        'download:https://storage.example.com/projects/draft/videos/camera.mp4',
+        'extract:server-downloaded-mp4:camera.mp4:video/mp4',
+      ]);
+    });
+  });
+});
+
+test('extract voice route retains binary MP4 backwards compatibility', async () => {
+  await withTempDir(async (projectsRoot) => {
+    const calls = [];
+    await withService({
+      projectsRoot,
+      extractVoiceAudio: async ({ sourceBytes, sourceName, sourceMimeType, workDir }) => {
+        calls.push(`extract:${sourceBytes.toString('utf8')}:${sourceName}:${sourceMimeType}`);
+        const outputPath = path.join(workDir, 'binary-voice.m4a');
+        await writeFile(outputPath, Buffer.from('binary-m4a'));
+        return { outputPath, fileName: 'binary-voice.m4a', contentType: 'audio/mp4' };
+      },
+    }, async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/audio/extract-voice`, {
+        method: 'POST',
+        headers: { 'content-type': 'video/mp4' },
+        body: Buffer.from('browser-binary-mp4'),
+      });
+
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get('x-audio-filename'), 'binary-voice.m4a');
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from('binary-m4a'));
+      assert.deepEqual(calls, ['extract:browser-binary-mp4:camera.mp4:video/mp4']);
+    });
   });
 });
