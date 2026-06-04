@@ -198,6 +198,34 @@ function firstMaterializableExternalSource(asset = {}) {
     });
 }
 
+function addAssetReference(references, value) {
+  const normalized = String(value || "").trim();
+  if (normalized) references.add(normalized);
+}
+
+function collectRenderReferencedAssetIds(snapshot = {}) {
+  const references = new Set();
+  const audio = snapshot?.audio || {};
+  addAssetReference(references, audio?.voice?.assetId || audio?.voiceAssetId);
+  addAssetReference(references, audio?.music?.assetId || audio?.musicAssetId);
+
+  const globalLayers = snapshot?.globalLayers || {};
+  addAssetReference(references, globalLayers.logoAssetId || globalLayers.logo?.assetId);
+  addAssetReference(references, globalLayers.outroAssetId || globalLayers.outro?.assetId);
+  addAssetReference(references, snapshot?.outro?.assetId);
+
+  for (const row of Array.isArray(snapshot?.rows) ? snapshot.rows : []) {
+    addAssetReference(references, row?.selectedAssetId);
+    addAssetReference(references, row?.dust?.assetId || row?.dust?.type);
+    addAssetReference(references, row?.transitionConfig?.assetId);
+    const media = row?.media || {};
+    addAssetReference(references, media.sourceVideoAssetId);
+    addAssetReference(references, media.effect1AssetId);
+    addAssetReference(references, media.effect2AssetId);
+  }
+  return references;
+}
+
 function resolveVideoSegmentAssetSource(media = {}) {
   const explicitSource = [media.sourceVideoSrc, media.previewUrl, media.renderPath, media.publicUrl, media.publicPath, media.localPath]
     .find((entry) => typeof entry === "string" && entry.trim());
@@ -312,9 +340,14 @@ function inferBrandChannel(snapshot = {}) {
 async function localizeRenderAssets({ projectRoot, assetSourceRoot, snapshot, fetchImpl = globalThis.fetch, retryDelaysMs = DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS } = {}) {
   const contract = { ...(snapshot || {}) };
   const sourceAssets = snapshot?.assets && typeof snapshot.assets === "object" ? snapshot.assets : {};
+  const referencedAssetIds = collectRenderReferencedAssetIds(contract);
   const localizedAssets = {};
   for (const [assetId, asset] of Object.entries(sourceAssets)) {
     if (!asset || typeof asset !== "object") {
+      localizedAssets[assetId] = asset;
+      continue;
+    }
+    if (referencedAssetIds.size && !referencedAssetIds.has(String(assetId))) {
       localizedAssets[assetId] = asset;
       continue;
     }
