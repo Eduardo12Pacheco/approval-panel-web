@@ -134,6 +134,22 @@ def test_ai_rescue_confirm_dialog_has_accessible_labels_for_candidate_dismissal(
     assert 'aria-describedby="aiRescueConfirmMessage"' in template
 
 
+def test_ai_rescue_is_not_exposed_as_a_shell_view():
+    index_source = INDEX_HTML_PATH.read_text(encoding="utf-8")
+    script = r"""
+import { normalizeShellView } from './js/modules/app-shell/navigation.js';
+
+if (normalizeShellView('ai-rescue') !== 'approval') {
+  throw new Error('AI Rescue must normalize to the safe default view');
+}
+"""
+    result = _run_node(script)
+
+    assert 'data-view="ai-rescue"' not in index_source
+    assert 'Prensa IA' not in index_source
+    assert result.returncode == 0, result.stderr
+
+
 def test_radar_and_ai_rescue_gateway_requests_include_session_credentials():
     script = r"""
 import { createRadarApiClient } from './js/modules/features/radar/api-client.js';
