@@ -35,6 +35,7 @@ export function createAiRescueState() {
     error: '',
     activePollingTimer: null,
     queuePollingTimer: null,
+    active: false,
     refreshInFlight: false,
     queueInFlight: false,
   };

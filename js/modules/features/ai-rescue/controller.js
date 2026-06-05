@@ -15,15 +15,18 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   function render() { renderAiRescueCandidates({ el, state }); }
 
   async function activate() {
+    if (state.active && state.activePollingTimer) return;
+    state.active = true;
     const runId = ++activationRunId;
     stopActivePolling();
     await refreshAll();
-    if (runId !== activationRunId) return;
+    if (runId !== activationRunId || !state.active) return;
     stopActivePolling();
     state.activePollingTimer = setIntervalImpl(() => refreshAll({ silent: true }), POLL_INTERVAL_MS);
   }
 
   function deactivate() {
+    state.active = false;
     activationRunId += 1;
     queueOpenRunId += 1;
     stopActivePolling();
