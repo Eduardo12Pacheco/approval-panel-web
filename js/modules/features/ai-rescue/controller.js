@@ -70,7 +70,10 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       await api.preflight?.();
       const shouldFetchRejections = includeRejections || state.selectedTab === 'rejected';
       const requests = [api.candidates(state.selectedTab && state.selectedTab !== 'rejected' ? state.selectedTab : '')];
-      if (shouldFetchRejections) requests.push(api.rejections({ limit: 50, offset: 0 }));
+      if (shouldFetchRejections) {
+        const loadedRejectionCount = Math.max(50, Number(state.rejections?.length || 0));
+        requests.push(api.rejections({ limit: loadedRejectionCount, offset: 0 }));
+      }
       const [candidatesPayload, rejectionsPayload] = await Promise.all(requests);
       state.candidates = Array.isArray(candidatesPayload?.items) ? candidatesPayload.items : [];
       if (shouldFetchRejections) {
