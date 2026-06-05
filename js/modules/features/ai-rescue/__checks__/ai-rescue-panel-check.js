@@ -425,6 +425,7 @@ async function runControllerCheck() {
   await controller.activate();
   await controller.activate();
   assertEqual(timers.length, 1, 'repeated activate must not create duplicate polling timers');
+  assertEqual(calls.filter((entry) => entry === 'preflight').length, 1, 'repeated activate must not duplicate initial preflight');
   assertEqual(timers[0].delay, 10000, 'active view polling interval drift');
   assertEqual(calls[0], 'preflight', 'activate should run preflight first');
   if (!calls.some((entry) => entry.type === 'candidates')) throw new Error(`activate should fetch candidates: ${JSON.stringify(calls)}`);

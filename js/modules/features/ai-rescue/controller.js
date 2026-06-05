@@ -15,7 +15,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   function render() { renderAiRescueCandidates({ el, state }); }
 
   async function activate() {
-    if (state.active && state.activePollingTimer) return;
+    if (state.active) return;
     state.active = true;
     const runId = ++activationRunId;
     stopActivePolling();
