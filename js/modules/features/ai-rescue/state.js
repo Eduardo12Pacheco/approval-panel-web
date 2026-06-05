@@ -28,6 +28,7 @@ export function createAiRescueState() {
     selectedTab: 'ecuador',
     candidates: [],
     rejections: [],
+    rejectionPagination: { total: 0, limit: 50, offset: 0, hasMore: false },
     rejectionVisibleGroupCount: AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
     rejectionsLoaded: false,
     queue: { current: null, upcoming: [], counts: {} },
@@ -37,6 +38,7 @@ export function createAiRescueState() {
     queuePollingTimer: null,
     active: false,
     refreshInFlight: false,
+    rejectionsInFlight: false,
     queueInFlight: false,
   };
 }

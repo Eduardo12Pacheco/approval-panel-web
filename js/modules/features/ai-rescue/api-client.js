@@ -72,7 +72,7 @@ export function createAiRescueApiClient({ getSettings, fetchImpl = fetch, locati
     queue: () => request('/api/monitor/ai-rescue/queue'),
     candidates: (targetCountry = '') => request(`/api/monitor/ai-rescue/candidates${targetCountry ? `?target_country=${encodeURIComponent(targetCountry)}` : ''}`),
     candidateDetail: (candidateId) => request(`/api/monitor/ai-rescue/candidates/${encodeURIComponent(candidateId)}`),
-    rejections: () => request('/api/monitor/ai-rescue/rejections'),
+    rejections: ({ limit = 50, offset = 0 } = {}) => request(`/api/monitor/ai-rescue/rejections?limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`),
     refresh: () => request('/api/monitor/ai-rescue/refresh', { method: 'POST' }),
     dismissCandidate: ({ surface = 'ai-rescue-candidate', targetContext, videoId, candidateId, reason = 'operator-dismissed', dismissedBy = 'control-panel' } = {}) => request('/api/monitor/card-dismissals', {
       method: 'POST',

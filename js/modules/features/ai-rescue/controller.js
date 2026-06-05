@@ -14,6 +14,34 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   function toast(message) { ui.toast?.(message); }
   function render() { renderAiRescueCandidates({ el, state }); }
 
+  function applyRejectionsPayload(payload, { append = false } = {}) {
+    const items = Array.isArray(payload?.items) ? payload.items.map(normalizeAiRescueRejection) : [];
+    state.rejections = append ? [...state.rejections, ...items] : items;
+    const pagination = payload?.pagination && typeof payload.pagination === 'object' ? payload.pagination : {};
+    state.rejectionPagination = {
+      total: Number(pagination.total ?? state.rejections.length),
+      limit: Number(pagination.limit ?? 50),
+      offset: Number(pagination.offset ?? 0),
+      hasMore: Boolean(pagination.has_more ?? pagination.hasMore),
+    };
+    state.rejectionsLoaded = true;
+  }
+
+  async function loadNextRejectionsPage() {
+    if (state.rejectionsInFlight) return;
+    state.rejectionsInFlight = true;
+    try {
+      const limit = Number(state.rejectionPagination?.limit || 50);
+      const payload = await api.rejections({ limit, offset: state.rejections.length });
+      applyRejectionsPayload(payload, { append: true });
+    } catch (error) {
+      toast(error?.message || 'No pude cargar más rechazados IA');
+    } finally {
+      state.rejectionsInFlight = false;
+      render();
+    }
+  }
+
   async function activate() {
     if (state.active) return;
     state.active = true;
@@ -42,12 +70,11 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       await api.preflight?.();
       const shouldFetchRejections = includeRejections || state.selectedTab === 'rejected';
       const requests = [api.candidates(state.selectedTab && state.selectedTab !== 'rejected' ? state.selectedTab : '')];
-      if (shouldFetchRejections) requests.push(api.rejections());
+      if (shouldFetchRejections) requests.push(api.rejections({ limit: 50, offset: 0 }));
       const [candidatesPayload, rejectionsPayload] = await Promise.all(requests);
       state.candidates = Array.isArray(candidatesPayload?.items) ? candidatesPayload.items : [];
       if (shouldFetchRejections) {
-        state.rejections = Array.isArray(rejectionsPayload?.items) ? rejectionsPayload.items.map(normalizeAiRescueRejection) : [];
-        state.rejectionsLoaded = true;
+        applyRejectionsPayload(rejectionsPayload);
       }
       state.status = 'ready';
       state.error = '';
@@ -179,10 +206,14 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       const action = button.dataset.aiRescueAction;
       const candidateId = Number(button.dataset.aiRescueCandidateId || 0);
       if (action === 'load-more-rejections') {
-        state.rejectionVisibleGroupCount = Math.max(
+        const nextVisibleCount = Math.max(
           AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
           Number(state.rejectionVisibleGroupCount || AI_RESCUE_REJECTION_GROUP_BATCH_SIZE) + AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
         );
+        state.rejectionVisibleGroupCount = nextVisibleCount;
+        if (nextVisibleCount > state.rejections.length && state.rejectionPagination?.hasMore) {
+          void loadNextRejectionsPage();
+        }
         render();
         return;
       }

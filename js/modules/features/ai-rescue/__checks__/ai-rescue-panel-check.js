@@ -325,7 +325,7 @@ async function runApiClientCheck() {
       if (url.endsWith('/candidates/2/reject')) return new Response(JSON.stringify({ status: 'rejected' }), { status: 200 });
       if (url.endsWith('/card-dismissals') && options.method === 'POST') return new Response(JSON.stringify({ status: 'dismissed', context_key: 'ai-rescue-candidate:argentina:2' }), { status: 200 });
       if (url.endsWith('/candidates/2')) return new Response(JSON.stringify({ ...sampleCandidates[0], evidence: [] }), { status: 200 });
-      if (url.endsWith('/rejections')) return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      if (url.includes('/rejections')) return new Response(JSON.stringify({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }), { status: 200 });
       if (url.endsWith('/refresh')) return new Response(JSON.stringify({ status: 'ok', enqueued_count: 1 }), { status: 200 });
       return new Response(JSON.stringify({ message: 'bad shared-secret failure' }), { status: 403 });
     },
