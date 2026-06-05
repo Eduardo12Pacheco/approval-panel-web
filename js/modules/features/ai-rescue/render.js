@@ -1,5 +1,6 @@
 import {
   AI_RESCUE_COUNTRY_TABS,
+  AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
   getAiRescueVisibleCandidates,
   getAiRescueRejectionGroups,
   normalizeAiRescueCandidate,
@@ -31,7 +32,7 @@ function formatDate(value = '') {
 export function renderAiRescueCandidates({ el, state }) {
   renderAiRescueTabs({ el, selectedTab: state.selectedTab });
   if (state.selectedTab === 'rejected') {
-    renderAiRescueRejections({ el, rejections: state.rejections });
+    renderAiRescueRejections({ el, rejections: state.rejections, visibleGroupCount: state.rejectionVisibleGroupCount });
     return;
   }
   if (el.aiRescueStatus) {
@@ -119,12 +120,19 @@ function renderEvidenceList(evidence = []) {
   return evidence.map((item) => `<article class="ai-rescue-evidence-item"><strong>${formatTimestamp(item.start_ms)}-${formatTimestamp(item.end_ms)}</strong><p>${escapeHtml(item.text || '')}</p><p>${escapeHtml(item.translation_es || '')}</p><small>${escapeHtml(item.explanation_es || '')}</small></article>`).join('');
 }
 
-export function renderAiRescueRejections({ el, rejections = [] }) {
+export function renderAiRescueRejections({ el, rejections = [], visibleGroupCount = AI_RESCUE_REJECTION_GROUP_BATCH_SIZE }) {
   if (!el.aiRescueList) return;
   const groups = getAiRescueRejectionGroups(rejections);
+  const safeVisibleCount = Math.max(1, Number(visibleGroupCount || AI_RESCUE_REJECTION_GROUP_BATCH_SIZE));
+  const visibleGroups = groups.slice(0, safeVisibleCount);
+  const hasMore = visibleGroups.length < groups.length;
   el.aiRescueList.innerHTML = groups.length
-    ? `<div class="ai-rescue-rejection-scroll">${groups.map(renderRejectionGroup).join('')}</div>`
+    ? `<div class="ai-rescue-rejection-scroll">${visibleGroups.map(renderRejectionGroup).join('')}${hasMore ? renderRejectionLoadMore({ visibleCount: visibleGroups.length, totalCount: groups.length }) : ''}</div>`
     : '<article class="ai-rescue-empty">Sin rechazados IA para calibrar.</article>';
+}
+
+function renderRejectionLoadMore({ visibleCount, totalCount }) {
+  return `<button class="ai-rescue-load-more" type="button" data-ai-rescue-action="load-more-rejections">Cargar más rechazados IA (${escapeHtml(visibleCount)}/${escapeHtml(totalCount)})</button>`;
 }
 
 function renderRejectionGroup(group) {

@@ -1,4 +1,4 @@
-import { normalizeAiRescueQueue, normalizeAiRescueRejection } from './state.js';
+import { AI_RESCUE_REJECTION_GROUP_BATCH_SIZE, normalizeAiRescueQueue, normalizeAiRescueRejection } from './state.js';
 import { renderAiRescueCandidates, renderAiRescueDetail, renderAiRescueQueue } from './render.js';
 
 const POLL_INTERVAL_MS = 10000;
@@ -8,34 +8,44 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   const clearIntervalImpl = browser.clearInterval || clearInterval;
   const windowImpl = browser.window || globalThis.window;
   const confirmImpl = browser.confirm || globalThis.confirm || (() => true);
+  let activationRunId = 0;
+  let queueOpenRunId = 0;
 
   function toast(message) { ui.toast?.(message); }
   function render() { renderAiRescueCandidates({ el, state }); }
 
   async function activate() {
+    const runId = ++activationRunId;
     stopActivePolling();
     await refreshAll();
-    state.activePollingTimer = setIntervalImpl(() => { void refreshAll({ silent: true }); }, POLL_INTERVAL_MS);
+    if (runId !== activationRunId) return;
+    stopActivePolling();
+    state.activePollingTimer = setIntervalImpl(() => refreshAll({ silent: true }), POLL_INTERVAL_MS);
   }
 
   function deactivate() {
+    activationRunId += 1;
+    queueOpenRunId += 1;
     stopActivePolling();
     stopQueuePolling();
   }
 
-  async function refreshAll({ silent = false } = {}) {
+  async function refreshAll({ silent = false, includeRejections = false } = {}) {
     if (state.refreshInFlight) return;
     state.refreshInFlight = true;
     state.status = silent ? state.status : 'loading';
     render();
     try {
       await api.preflight?.();
-      const [candidatesPayload, rejectionsPayload] = await Promise.all([
-        api.candidates(state.selectedTab && state.selectedTab !== 'rejected' ? state.selectedTab : ''),
-        api.rejections(),
-      ]);
+      const shouldFetchRejections = includeRejections || state.selectedTab === 'rejected';
+      const requests = [api.candidates(state.selectedTab && state.selectedTab !== 'rejected' ? state.selectedTab : '')];
+      if (shouldFetchRejections) requests.push(api.rejections());
+      const [candidatesPayload, rejectionsPayload] = await Promise.all(requests);
       state.candidates = Array.isArray(candidatesPayload?.items) ? candidatesPayload.items : [];
-      state.rejections = Array.isArray(rejectionsPayload?.items) ? rejectionsPayload.items.map(normalizeAiRescueRejection) : [];
+      if (shouldFetchRejections) {
+        state.rejections = Array.isArray(rejectionsPayload?.items) ? rejectionsPayload.items.map(normalizeAiRescueRejection) : [];
+        state.rejectionsLoaded = true;
+      }
       state.status = 'ready';
       state.error = '';
     } catch (error) {
@@ -52,7 +62,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
     try {
       const result = await api.refresh();
       toast(result?.status === 'disabled' ? 'Prensa IA está deshabilitado.' : `Prensa IA actualizado: ${Number(result?.enqueued_count || 0)} nuevos en cola.`);
-      await refreshAll();
+      await refreshAll({ includeRejections: true });
     } catch (error) {
       toast(error?.message || 'No pude actualizar Prensa IA');
     }
@@ -72,13 +82,17 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
   }
 
   async function openQueue() {
+    const runId = ++queueOpenRunId;
     el.aiRescueQueueDialog?.showModal?.();
-    await refreshQueue();
     stopQueuePolling();
-    state.queuePollingTimer = setIntervalImpl(() => { void refreshQueue(); }, POLL_INTERVAL_MS);
+    await refreshQueue();
+    if (runId !== queueOpenRunId) return;
+    stopQueuePolling();
+    state.queuePollingTimer = setIntervalImpl(() => refreshQueue(), POLL_INTERVAL_MS);
   }
 
   function closeQueue() {
+    queueOpenRunId += 1;
     el.aiRescueQueueDialog?.close?.();
     stopQueuePolling();
   }
@@ -104,7 +118,7 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
       else await api.rejectCandidate(candidateId, { confirmed: true, reviewer: 'control-panel', reason });
       el.aiRescueConfirmDialog?.close?.();
       el.aiRescueDetailDialog?.close?.();
-      await refreshAll();
+      await refreshAll({ includeRejections: action === 'reject' });
     };
     el.aiRescueConfirmDialog?.showModal?.();
   }
@@ -149,15 +163,26 @@ export function createAiRescueController({ state, el, api, ui = {}, browser = {}
     el.aiRescueTabs?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-ai-rescue-tab]');
       if (!button) return;
-      state.selectedTab = button.dataset.aiRescueTab || 'ecuador';
+      const nextTab = button.dataset.aiRescueTab || 'ecuador';
+      if (state.selectedTab === nextTab) return;
+      state.selectedTab = nextTab;
+      if (nextTab === 'rejected') state.rejectionVisibleGroupCount = AI_RESCUE_REJECTION_GROUP_BATCH_SIZE;
       render();
-      void refreshAll({ silent: true });
+      void refreshAll({ silent: true, includeRejections: nextTab === 'rejected' });
     });
     el.aiRescueList?.addEventListener?.('click', (event) => {
       const button = event.target?.closest?.('[data-ai-rescue-action]');
       if (!button || button.disabled) return;
       const action = button.dataset.aiRescueAction;
       const candidateId = Number(button.dataset.aiRescueCandidateId || 0);
+      if (action === 'load-more-rejections') {
+        state.rejectionVisibleGroupCount = Math.max(
+          AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
+          Number(state.rejectionVisibleGroupCount || AI_RESCUE_REJECTION_GROUP_BATCH_SIZE) + AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
+        );
+        render();
+        return;
+      }
       if (action === 'open-link') openLink(button.dataset.aiRescueUrl);
       if (action === 'summary' && candidateId) void openDetail(candidateId);
       if (action === 'dismiss-candidate') {

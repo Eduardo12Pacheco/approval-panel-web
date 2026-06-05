@@ -9,6 +9,7 @@ import {
 } from '../render.js';
 import {
   AI_RESCUE_COUNTRY_TABS,
+  AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
   createAiRescueState,
   getAiRescueVisibleCandidates,
   normalizeAiRescueCandidate,
@@ -127,6 +128,8 @@ function runStateCheck() {
   assertEqual(state.status, 'idle', 'initial status drift');
   assertEqual(state.selectedTab, 'ecuador', 'initial selected tab drift');
   assertDeepEqual(state.candidates, [], 'initial candidate list drift');
+  assertEqual(state.rejectionVisibleGroupCount, AI_RESCUE_REJECTION_GROUP_BATCH_SIZE, 'initial rejection render batch size drift');
+  assertEqual(state.rejectionsLoaded, false, 'rejections should start unloaded');
 
   const normalized = normalizeAiRescueCandidate({ ...sampleCandidates[0], score: '91' });
   assertEqual(normalized.score, 91, 'candidate score should normalize to number');
@@ -232,6 +235,37 @@ function runRenderCheck() {
   assertNotIncludes(rejectedEl.innerHTML, 'Resumen global sin candidatos', 'global no-candidates row should not duplicate country details when per-country rows exist');
   assertNotIncludes(rejectedEl.innerHTML, 'raw', 'normal rejection details must not render raw JSON keys');
   assertIncludes(rejectedEl.innerHTML, 'Timed text unavailable', 'rejection detail should render for calibration');
+
+  const manyRejectedEl = makeElement();
+  renderAiRescueRejections({
+    el: { aiRescueList: manyRejectedEl },
+    rejections: Array.from({ length: AI_RESCUE_REJECTION_GROUP_BATCH_SIZE + 3 }, (_, index) => ({
+      id: index + 1,
+      video_id: `bulk-${index + 1}`,
+      source: 'human',
+      reason: 'weak-evidence',
+      created_at: `2026-05-${String(20 + (index % 8)).padStart(2, '0')}T09:00:00Z`,
+      details: { note: `Detalle ${index + 1}` },
+    })),
+  });
+  assertEqual(countOccurrences(manyRejectedEl.innerHTML, 'class="ai-rescue-rejection-card"'), AI_RESCUE_REJECTION_GROUP_BATCH_SIZE, 'rejections should render only the initial batch');
+  assertIncludes(manyRejectedEl.innerHTML, 'data-ai-rescue-action="load-more-rejections"', 'rejections should expose a load-more action when more groups exist');
+
+  const expandedRejectedEl = makeElement();
+  renderAiRescueRejections({
+    el: { aiRescueList: expandedRejectedEl },
+    visibleGroupCount: AI_RESCUE_REJECTION_GROUP_BATCH_SIZE * 2,
+    rejections: Array.from({ length: AI_RESCUE_REJECTION_GROUP_BATCH_SIZE + 3 }, (_, index) => ({
+      id: index + 1,
+      video_id: `bulk-${index + 1}`,
+      source: 'human',
+      reason: 'weak-evidence',
+      created_at: `2026-05-${String(20 + (index % 8)).padStart(2, '0')}T09:00:00Z`,
+      details: { note: `Detalle ${index + 1}` },
+    })),
+  });
+  assertEqual(countOccurrences(expandedRejectedEl.innerHTML, 'class="ai-rescue-rejection-card"'), AI_RESCUE_REJECTION_GROUP_BATCH_SIZE + 3, 'expanded rejections should render additional batches');
+  assertNotIncludes(expandedRejectedEl.innerHTML, 'data-ai-rescue-action="load-more-rejections"', 'load-more should disappear after all groups render');
 
   const detailEl = makeElement();
   renderAiRescueDetail({
@@ -392,10 +426,26 @@ async function runControllerCheck() {
   assertEqual(timers[0].delay, 10000, 'active view polling interval drift');
   assertEqual(calls[0], 'preflight', 'activate should run preflight first');
   if (!calls.some((entry) => entry.type === 'candidates')) throw new Error(`activate should fetch candidates: ${JSON.stringify(calls)}`);
+  assertEqual(calls.includes('rejections'), false, 'candidate tab activation should not fetch full rejection history');
   await timers[0].callback();
   if (calls.filter((entry) => entry.type === 'candidates').length < 2) throw new Error(`active poll should refresh candidates: ${JSON.stringify(calls)}`);
+  assertEqual(calls.includes('rejections'), false, 'candidate tab polling should not fetch full rejection history');
   controller.deactivate();
   assertEqual(cleared[0], 1, 'deactivate should stop active-view polling');
+
+  state.selectedTab = 'rejected';
+  await controller.refreshAll({ silent: true });
+  assertEqual(calls.includes('rejections'), true, 'rejected tab refresh should fetch rejection history');
+  assertEqual(state.rejectionsLoaded, true, 'rejected tab refresh should mark rejections as loaded');
+  const rejectionsBeforeSameTabClick = calls.filter((entry) => entry === 'rejections').length;
+  el.aiRescueTabs.listeners.get('click')?.({ target: { closest: () => ({ dataset: { aiRescueTab: 'rejected' } }) } });
+  assertEqual(calls.filter((entry) => entry === 'rejections').length, rejectionsBeforeSameTabClick, 'clicking the already-selected tab should not schedule a redundant refresh');
+
+  const visibleBeforeLoadMore = state.rejectionVisibleGroupCount;
+  el.aiRescueList.listeners.get('click')?.({ target: { closest: () => ({ disabled: false, dataset: { aiRescueAction: 'load-more-rejections' } }) } });
+  assertEqual(state.rejectionVisibleGroupCount, visibleBeforeLoadMore + AI_RESCUE_REJECTION_GROUP_BATCH_SIZE, 'load-more action should increase rejection render limit without fetching');
+  assertEqual(calls.filter((entry) => entry === 'rejections').length, rejectionsBeforeSameTabClick, 'load-more action should not refetch rejection history');
+  state.selectedTab = 'ecuador';
 
   await controller.openQueue();
   assertEqual(timers[1].delay, 10000, 'queue modal polling interval drift');
@@ -407,6 +457,7 @@ async function runControllerCheck() {
 
   await controller.manualRefresh();
   if (!calls.includes('refresh')) throw new Error(`manual refresh should call refresh endpoint: ${JSON.stringify(calls)}`);
+  if (!calls.includes('rejections')) throw new Error(`manual refresh should refresh rejection history for calibration: ${JSON.stringify(calls)}`);
 
   await controller.openDetail(2);
   if (!calls.some((entry) => entry.type === 'detail' && entry.candidateId === 2)) throw new Error(`summary modal should fetch candidate detail: ${JSON.stringify(calls)}`);

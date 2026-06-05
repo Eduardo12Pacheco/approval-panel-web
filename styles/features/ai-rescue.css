@@ -276,6 +276,23 @@
   background: #062216;
 }
 
+#viewAiRescue .ai-rescue-load-more {
+  min-height: 40px;
+  border: 1px solid #00E88F55;
+  background: #03140D;
+  color: #00E88F;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#viewAiRescue .ai-rescue-load-more:hover {
+  border-color: #00E88F;
+  background: #062216;
+}
+
 #viewAiRescue .ai-rescue-rejection-card__items {
   display: grid;
   gap: 12px;

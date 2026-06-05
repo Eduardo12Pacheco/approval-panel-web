@@ -8,6 +8,8 @@ export const AI_RESCUE_COUNTRY_TABS = [
   { value: 'rejected', label: 'Rechazados IA' },
 ];
 
+export const AI_RESCUE_REJECTION_GROUP_BATCH_SIZE = 25;
+
 const COUNTRY_LABELS = new Map(AI_RESCUE_COUNTRY_TABS.filter((tab) => tab.value !== 'rejected').map((tab) => [tab.value, tab.label]));
 const QUEUE_STATUS_LABELS = {
   waiting: 'En espera',
@@ -26,6 +28,8 @@ export function createAiRescueState() {
     selectedTab: 'ecuador',
     candidates: [],
     rejections: [],
+    rejectionVisibleGroupCount: AI_RESCUE_REJECTION_GROUP_BATCH_SIZE,
+    rejectionsLoaded: false,
     queue: { current: null, upcoming: [], counts: {} },
     selectedCandidate: null,
     error: '',
