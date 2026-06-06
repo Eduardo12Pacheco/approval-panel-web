@@ -20,7 +20,7 @@ import {
 import { bindCoreEvents } from '../core/bootstrap.js';
 import {
   buildApprovalNewsCardMarkup,
-  orderApprovalItemsForNewsView,
+  orderApprovalItemsByLowestAvg,
   renderApprovalTopicDetail,
   renderQueueMonitor,
   resolveApprovalSourceLink,
@@ -785,7 +785,6 @@ function filteredItems() {
   const queryTokens = tokenizeApprovalSearchQuery(el.searchInput.value);
   const country = el.countryFilter.value;
   const minSources = Number(el.sourcesFilter.value || 0);
-  const orderMode = el.approvalOrderSelect?.value || 'relevance';
 
   const filtered = state.items.filter((item) => {
     const searchMatch = approvalItemMatchesSearch(item, queryTokens);
@@ -794,7 +793,7 @@ function filteredItems() {
     return searchMatch && countryMatch && sourcesMatch;
   });
 
-  return orderApprovalItemsForNewsView(filtered, orderMode);
+  return orderApprovalItemsByLowestAvg(filtered);
 }
 
 function renderCards() {

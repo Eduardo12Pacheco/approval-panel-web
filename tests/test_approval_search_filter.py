@@ -4,8 +4,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = ROOT / "index.html"
-SELECTORS_PATH = ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js"
-BOOTSTRAP_PATH = ROOT / "js" / "modules" / "core" / "bootstrap.js"
 
 
 def _run_node(script: str):
@@ -50,19 +48,12 @@ if (approvalItemMatchesSearch(item, 'messi')) {
     assert result.returncode == 0, result.stderr
 
 
-def test_approval_visible_news_filters_expose_order_selector_and_bind_input_events():
+def test_approval_visible_news_filters_do_not_show_prensa_order_selector():
     index_source = INDEX_HTML_PATH.read_text(encoding="utf-8")
-    selectors_source = SELECTORS_PATH.read_text(encoding="utf-8")
-    bootstrap_source = BOOTSTRAP_PATH.read_text(encoding="utf-8")
 
     approval_view = index_source[index_source.index('id="viewApproval"'):index_source.index('id="viewRadar"')]
-
-    assert 'id="approvalOrderSelect"' in approval_view
-    assert '<span class="control-label">Orden</span>' in approval_view
-    assert '<option value="relevance" selected>Relevancia</option>' in approval_view
-    assert '<option value="recent">Recientes</option>' in approval_view
-    assert "approvalOrderSelect: doc.getElementById('approvalOrderSelect')" in selectors_source
-    assert '[el.searchInput, el.countryFilter, el.sourcesFilter, el.approvalOrderSelect]' in bootstrap_source
+    assert 'id="approvalOrderSelect"' not in approval_view
+    assert '<span class="control-label">Orden</span>' not in approval_view
 
 
 def test_approval_search_matches_channel_and_source_fields():
@@ -118,38 +109,6 @@ if (!approvalItemMatchesSearch(item, 'pizarra tv')) {
 
 if (approvalItemMatchesSearch(item, 'maldini colombia')) {
   throw new Error('expected nested source search to still require all terms');
-}
-"""
-
-    result = _run_node(script)
-
-    assert result.returncode == 0, result.stderr
-
-
-def test_approval_recent_order_keeps_priority_groups_and_recency_with_stable_ties():
-    script = r"""
-import { orderApprovalItemsForNewsView } from './js/modules/features/approval/index.js';
-
-const relevant = [
-  { cluster_id: 'normal-new', tema_principal: 'Normal new', avg: 1, published_at: '2026-05-23T12:00:00Z' },
-  { cluster_id: 'priority-old', tema_principal: 'Priority old', avg: 2, channel_priority_rank: 11, published_at: '2026-05-20T12:00:00Z' },
-  { cluster_id: 'priority-new', tema_principal: 'Priority new', avg: 3, channel_priority_rank: 1, published_at: '2026-05-22T12:00:00Z' },
-  { cluster_id: 'normal-created', tema_principal: 'Normal created', avg: 4, published_at: 'not-a-date', fecha_creacion_cluster: '2026-05-24T12:00:00Z' },
-  { cluster_id: 'normal-invalid', tema_principal: 'Normal invalid', avg: 5, published_at: 'not-a-date' },
-  { cluster_id: 'tie-first', tema_principal: 'Tie A', avg: 6, created_at: '2026-05-21T12:00:00Z' },
-  { cluster_id: 'tie-second', tema_principal: 'Tie B', avg: 7, fecha_publicacion: '2026-05-21T12:00:00Z' },
-];
-
-const recentIds = orderApprovalItemsForNewsView(relevant, 'recent').map((item) => item.cluster_id);
-const expectedRecent = ['priority-new', 'priority-old', 'normal-created', 'normal-new', 'tie-first', 'tie-second', 'normal-invalid'];
-if (JSON.stringify(recentIds) !== JSON.stringify(expectedRecent)) {
-  throw new Error(`recent order drift: ${JSON.stringify(recentIds)}`);
-}
-
-const relevanceIds = orderApprovalItemsForNewsView([...relevant].reverse(), 'relevance').map((item) => item.cluster_id);
-const expectedRelevance = ['normal-new', 'priority-old', 'priority-new', 'normal-created', 'normal-invalid', 'tie-first', 'tie-second'];
-if (JSON.stringify(relevanceIds) !== JSON.stringify(expectedRelevance)) {
-  throw new Error(`relevance order drift: ${JSON.stringify(relevanceIds)}`);
 }
 """
 

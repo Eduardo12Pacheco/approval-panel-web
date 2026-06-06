@@ -133,7 +133,7 @@ export function bindCoreEvents({
   });
 
   let searchDebounceTimer = 0;
-  [el.searchInput, el.countryFilter, el.sourcesFilter, el.approvalOrderSelect].forEach((inputEl) => {
+  [el.searchInput, el.countryFilter, el.sourcesFilter].forEach((inputEl) => {
     if (!inputEl) return;
     inputEl.addEventListener('input', () => {
       window.clearTimeout(searchDebounceTimer);

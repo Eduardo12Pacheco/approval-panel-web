@@ -12,7 +12,6 @@ export function getDomSelectors(doc = document) {
     searchInput: doc.getElementById('searchInput'),
     countryFilter: doc.getElementById('countryFilter'),
     sourcesFilter: doc.getElementById('sourcesFilter'),
-    approvalOrderSelect: doc.getElementById('approvalOrderSelect'),
     searchRefreshWindow: doc.getElementById('searchRefreshWindow'),
     searchRefreshBtn: doc.getElementById('searchRefreshBtn'),
     searchRefreshStatus: doc.getElementById('searchRefreshStatus'),

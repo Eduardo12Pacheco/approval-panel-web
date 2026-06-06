@@ -46,15 +46,6 @@ const APPROVAL_AVG_FIELD_PRIORITY = [
 ];
 
 const APPROVAL_DYNAMIC_AVG_FIELD_REGEX = /(^|_|-)(avg|average|promedio|media|mean)($|_|-)/i;
-const APPROVAL_RECENCY_FIELDS = [
-  'published_at',
-  'fecha_publicacion',
-  'created_at',
-  'fecha_creacion_cluster',
-  'cluster_created_at',
-  'updated_at',
-  'fecha_actualizacion',
-];
 
 function toFiniteOrNull(value) {
   const parsed = Number(value);
@@ -109,42 +100,6 @@ export function orderApprovalItemsByLowestAvg(items = []) {
       return left.index - right.index;
     })
     .map(({ item }) => item);
-}
-
-function hasApprovalPriorityRank(item = {}) {
-  return item.channel_priority_rank !== null
-    && item.channel_priority_rank !== undefined
-    && Number.isFinite(Number(item.channel_priority_rank));
-}
-
-function resolveApprovalRecencyTimestamp(item = {}) {
-  for (const field of APPROVAL_RECENCY_FIELDS) {
-    const timestamp = Date.parse(item?.[field] || '');
-    if (Number.isFinite(timestamp)) return timestamp;
-  }
-  return Number.NEGATIVE_INFINITY;
-}
-
-export function orderApprovalItemsByRecent(items = []) {
-  return items
-    .map((item, index) => ({ item, index }))
-    .sort((left, right) => {
-      const leftPriority = hasApprovalPriorityRank(left.item);
-      const rightPriority = hasApprovalPriorityRank(right.item);
-      if (leftPriority !== rightPriority) return leftPriority ? -1 : 1;
-
-      const leftTimestamp = resolveApprovalRecencyTimestamp(left.item);
-      const rightTimestamp = resolveApprovalRecencyTimestamp(right.item);
-      if (leftTimestamp !== rightTimestamp) return rightTimestamp - leftTimestamp;
-
-      return left.index - right.index;
-    })
-    .map(({ item }) => item);
-}
-
-export function orderApprovalItemsForNewsView(items = [], orderMode = 'relevance') {
-  const relevantItems = orderApprovalItemsByLowestAvg(items);
-  return orderMode === 'recent' ? orderApprovalItemsByRecent(relevantItems) : relevantItems;
 }
 
 export function resolveApprovalSourceLink(source = {}) {
