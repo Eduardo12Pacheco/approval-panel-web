@@ -338,6 +338,14 @@ export function createRadarController({ state, el, api, ui = {}, browser = {} })
     el.radarConfirmCancelBtn?.addEventListener('click', () => el.radarConfirmDialog?.close?.());
     el.radarSubmitBtn?.addEventListener('click', () => { void submitCurrentJob(); });
     el.radarMonitorRefreshBtn?.addEventListener('click', () => { void refreshMonitor(); });
+    el.radarMonitorSearchInput?.addEventListener('input', (event) => {
+      state.monitorSearchQuery = event.target?.value || '';
+      renderAll();
+    });
+    el.radarMonitorSortSelect?.addEventListener('change', (event) => {
+      state.monitorSortMode = event.target?.value === 'recent' ? 'recent' : 'relevance';
+      renderAll();
+    });
     el.radarBasuraBtn?.addEventListener('click', () => { void showBasura(); });
     el.radarBasuraCloseBtn?.addEventListener('click', () => el.radarBasuraDialog?.close?.());
     el.radarCountryBar?.addEventListener?.('click', (event) => {

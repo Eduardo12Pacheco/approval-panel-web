@@ -61,6 +61,17 @@
   gap: 12px;
 }
 
+#viewRadar .radar-monitor-controls {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#viewRadar .radar-monitor-controls .audio-field--grow {
+  flex: 1 1 260px;
+}
+
 #viewRadar .radar-country-card {
   display: grid;
   place-items: center;

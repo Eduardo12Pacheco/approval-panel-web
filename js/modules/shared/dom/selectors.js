@@ -118,6 +118,8 @@ export function getDomSelectors(doc = document) {
     radarQueueList: doc.getElementById('radarQueueList'),
     radarMonitorStatus: doc.getElementById('radarMonitorStatus'),
     radarMonitorRefreshBtn: doc.getElementById('radarMonitorRefreshBtn'),
+    radarMonitorSearchInput: doc.getElementById('radarMonitorSearchInput'),
+    radarMonitorSortSelect: doc.getElementById('radarMonitorSortSelect'),
     radarBasuraBtn: doc.getElementById('radarBasuraBtn'),
     radarBasuraCount: doc.getElementById('radarBasuraCount'),
     radarBasuraDialog: doc.getElementById('radarBasuraDialog'),

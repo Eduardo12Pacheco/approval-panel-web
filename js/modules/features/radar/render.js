@@ -1,4 +1,4 @@
-import { RADAR_COUNTRIES, filterMonitorCards, mapMonitorCard, normalizeMonitorCardStatus } from './state.js';
+import { RADAR_COUNTRIES, getVisibleMonitorCards, mapMonitorCard, normalizeMonitorCardStatus } from './state.js';
 import { formatEcuadorDateTimeWithZone } from '../../shared/time/ecuador-time.js';
 
 const COUNTRY_LABELS = new Map([
@@ -172,7 +172,11 @@ export function renderRadarHistory({ el, history = [] }) {
 export function renderRadarMonitor({ el, state }) {
   if (!el.radarMonitorList) return;
   const status = state.monitorStatus || 'idle';
-  const visibleCards = filterMonitorCards(state.monitorCards || [], state.selectedCountry || '');
+  const visibleCards = getVisibleMonitorCards(state.monitorCards || [], {
+    country: state.selectedCountry || '',
+    query: state.monitorSearchQuery || '',
+    sortMode: state.monitorSortMode || 'relevance',
+  });
   if (el.radarMonitorStatus) {
     el.radarMonitorStatus.textContent = monitorStatusText({ status, total: state.monitorCards?.length || 0, visible: visibleCards.length, error: state.monitorError });
   }

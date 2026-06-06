@@ -25,6 +25,19 @@ export const radarViewHTML = `\
                 <button class="radar-country-card" type="button" data-radar-country-option="mexico" aria-pressed="false"><span>06 / M\u00e9xico</span></button>
                 <button class="radar-country-card" type="button" data-radar-country-option="important" aria-pressed="false"><span>07 / IMPORTANTES</span></button>
               </nav>
+              <div class="radar-monitor-controls" aria-label="Filtros del Buscador de Prensa">
+                <label class="editor-label audio-field audio-field--grow">
+                  <span>Buscar</span>
+                  <input id="radarMonitorSearchInput" placeholder="T\u00edtulo, tema o canal" autocomplete="off" />
+                </label>
+                <label class="editor-label audio-field">
+                  <span>Orden</span>
+                  <select id="radarMonitorSortSelect">
+                    <option value="relevance" selected>Relevancia</option>
+                    <option value="recent">Recientes</option>
+                  </select>
+                </label>
+              </div>
               <section id="radarMonitorList" class="radar-monitor-list is-empty">Cargando videos monitoreados.</section>
             </section>
           </section>

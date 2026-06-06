@@ -24,6 +24,8 @@ export function createRadarState() {
     basuraCount: 0,
     monitorError: '',
     selectedCountry: '',
+    monitorSearchQuery: '',
+    monitorSortMode: 'relevance',
     summaryByJobId: {},
     pollingTimer: null,
     pollingInFlight: false,
@@ -45,6 +47,60 @@ export function filterMonitorCards(cards = [], country = '') {
   const selected = normalizeCountryKey(country);
   if (!selected) return [...cards];
   return cards.filter((card) => normalizeCountryKey(card.target_country || card.country) === selected);
+}
+
+export function getVisibleMonitorCards(cards = [], { country = '', query = '', sortMode = 'relevance' } = {}) {
+  const filteredByCountry = filterMonitorCards(cards, country);
+  const normalizedQuery = normalizeSearchText(query);
+  const filteredBySearch = normalizedQuery
+    ? filteredByCountry.filter((card) => monitorCardSearchText(card).includes(normalizedQuery))
+    : filteredByCountry;
+  if (sortMode !== 'recent') return filteredBySearch;
+  return filteredBySearch
+    .map((card, index) => ({ card, index }))
+    .sort(compareMonitorCardByRecent)
+    .map((item) => item.card);
+}
+
+function compareMonitorCardByRecent(left, right) {
+  const leftPriority = hasChannelPriority(left.card);
+  const rightPriority = hasChannelPriority(right.card);
+  if (leftPriority !== rightPriority) return leftPriority ? -1 : 1;
+  const leftTime = monitorCardTime(left.card);
+  const rightTime = monitorCardTime(right.card);
+  if (leftTime !== rightTime) return rightTime - leftTime;
+  return left.index - right.index;
+}
+
+function hasChannelPriority(card = {}) {
+  return card.channel_priority_rank !== null && card.channel_priority_rank !== undefined && Number.isFinite(Number(card.channel_priority_rank));
+}
+
+function monitorCardTime(card = {}) {
+  for (const value of [card.published_at, card.created_at, card.uploaded_at]) {
+    const timestamp = Date.parse(value || '');
+    if (Number.isFinite(timestamp)) return timestamp;
+  }
+  return Number.NEGATIVE_INFINITY;
+}
+
+function monitorCardSearchText(card = {}) {
+  return [
+    card.title,
+    card.topic,
+    card.topic_label,
+    card.target_country_label,
+    card.source_country_label,
+    card.channel_label,
+    card.channel_name,
+    card.channel,
+    card.source_name,
+    card.source,
+  ].map(normalizeSearchText).filter(Boolean).join(' ');
+}
+
+function normalizeSearchText(value = '') {
+  return (value || '').toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 export function mapMonitorCard(card = {}, summaryColumns = []) {

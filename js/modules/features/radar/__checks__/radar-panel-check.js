@@ -12,6 +12,7 @@ import {
   buildRadarJobPayload,
   createRadarState,
   filterMonitorCards,
+  getVisibleMonitorCards,
   mapMonitorCard,
   normalizeMonitorSummary,
   parseRadarKeywords,
@@ -248,6 +249,48 @@ function runStateAndRenderCheck() {
     { video_id: 'important-source', target_country: 'important' },
     { video_id: 'mx-country', target_country: 'mexico' },
   ], 'important'), [{ video_id: 'important-source', target_country: 'important' }], 'important filter should not replace real country filtering');
+
+  const searchableCards = [
+    { video_id: 'mundo-old', title: 'Análisis táctico', target_country: 'ecuador', channel_label: 'Mundo Maldini', published_at: '2026-05-20T12:00:00Z', channel_priority_rank: 11 },
+    { video_id: 'normal-new', title: 'Ecuador gana', target_country: 'ecuador', channel_label: 'Normal TV', published_at: '2026-05-22T12:00:00Z' },
+    { video_id: 'accent-topic', title: 'Mexico previo', target_country: 'mexico', channel_label: 'Canal MX', topic: 'Selección Sub 20', published_at: '2026-05-21T12:00:00Z' },
+  ];
+  assertDeepEqual(
+    getVisibleMonitorCards(searchableCards, { country: 'ecuador', query: 'mundo maldini', sortMode: 'relevance' }).map((card) => card.video_id),
+    ['mundo-old'],
+    'monitor search should match channel/source names together with country filter',
+  );
+  assertDeepEqual(
+    getVisibleMonitorCards(searchableCards, { query: 'seleccion', sortMode: 'relevance' }).map((card) => card.video_id),
+    ['accent-topic'],
+    'monitor search should be accent-insensitive across title/topic text',
+  );
+  assertDeepEqual(
+    getVisibleMonitorCards([
+      { video_id: 'normal-new', title: 'Normal new', channel_label: 'Normal TV', published_at: '2026-05-23T12:00:00Z' },
+      { video_id: 'priority-old', title: 'Priority old', channel_label: 'Mundo Maldini', channel_priority_rank: 11, published_at: '2026-05-20T12:00:00Z' },
+      { video_id: 'priority-new', title: 'Priority new', channel_label: 'NSports', channel_priority_rank: 1, published_at: '2026-05-22T12:00:00Z' },
+      { video_id: 'normal-invalid', title: 'Normal invalid', channel_label: 'Normal TV', published_at: 'not-a-date' },
+    ], { sortMode: 'recent' }).map((card) => card.video_id),
+    ['priority-new', 'priority-old', 'normal-new', 'normal-invalid'],
+    'recent sort should keep priority channels first and sort each group by recency with invalid dates last',
+  );
+  assertDeepEqual(
+    getVisibleMonitorCards([
+      { video_id: 'first-tie', channel_priority_rank: 5, published_at: '2026-05-22T12:00:00Z' },
+      { video_id: 'second-tie', channel_priority_rank: 3, published_at: '2026-05-22T12:00:00Z' },
+    ], { sortMode: 'recent' }).map((card) => card.video_id),
+    ['first-tie', 'second-tie'],
+    'recent sort date ties should preserve existing relevance order',
+  );
+  assertDeepEqual(
+    getVisibleMonitorCards([
+      { video_id: 'fallback-created', published_at: 'invalid-date', created_at: '2026-05-24T12:00:00Z' },
+      { video_id: 'published-valid', published_at: '2026-05-23T12:00:00Z', created_at: '2026-05-25T12:00:00Z' },
+    ], { sortMode: 'recent' }).map((card) => card.video_id),
+    ['fallback-created', 'published-valid'],
+    'recent sort should fall back to created_at when published_at is invalid',
+  );
 
   const pendingMexicoCard = mapMonitorCard({ video_id: 'mx-1', country: 'México' }, []);
   assertDeepEqual(pendingMexicoCard.mentionCounts, [
@@ -516,6 +559,8 @@ async function runControllerCheck() {
     radarMonitorList: makeElement(),
     radarCountryBar: makeElement(),
     radarMonitorRefreshBtn: makeElement(),
+    radarMonitorSearchInput: makeElement(),
+    radarMonitorSortSelect: makeElement({ value: 'relevance' }),
     radarNewJobDialog: { showModal() { calls.push('showModal'); }, close() { calls.push('closeModal'); } },
     radarSummaryDialog: { showModal() { calls.push('summaryModal'); }, close() {} },
     radarSummaryBody: makeElement(),
@@ -580,8 +625,15 @@ async function runControllerCheck() {
     },
   });
 
+  controller.bindEvents();
   await controller.refreshHealth();
   await controller.refreshMonitor();
+  el.radarMonitorSearchInput.value = 'tyc';
+  el.radarMonitorSearchInput.listeners.get('input')?.({ target: el.radarMonitorSearchInput });
+  if (!el.radarMonitorList.innerHTML.includes('Final')) throw new Error(`search input should keep matching channel cards visible: ${el.radarMonitorList.innerHTML}`);
+  el.radarMonitorSortSelect.value = 'recent';
+  el.radarMonitorSortSelect.listeners.get('change')?.({ target: el.radarMonitorSortSelect });
+  assertEqual(state.monitorSortMode, 'recent', 'sort select should update monitor sort mode');
   state.selectedCountry = 'important';
   await controller.refreshMonitor();
   state.selectedCountry = '';
