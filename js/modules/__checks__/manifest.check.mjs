@@ -38,7 +38,6 @@ test('feature-owned manifest entries point to owner check implementations behind
     ['js/modules/__checks__/app-shell-seams.check.mjs', 'js/modules/app-shell/__checks__/app-shell-seams.check.mjs'],
     ['js/modules/__checks__/subtitles-controller-seams.check.mjs', 'js/modules/features/subtitles/__checks__/subtitles-controller-seams.check.mjs'],
     ['js/modules/__checks__/radar-panel-check.js', 'js/modules/features/radar/__checks__/radar-panel-check.js'],
-    ['js/modules/__checks__/ai-rescue-panel-check.js', 'js/modules/features/ai-rescue/__checks__/ai-rescue-panel-check.js'],
     ['js/modules/__checks__/video-segment-picker-ux.check.mjs', 'js/modules/features/video-projects/__checks__/video-segment-picker-ux.check.mjs'],
     ['js/modules/__checks__/composition-renderer-helpers.check.mjs', 'js/modules/features/video-projects/__checks__/composition-renderer-helpers.check.mjs'],
     ['js/modules/__checks__/video-projects-controller-seams.check.mjs', 'js/modules/features/video-projects/__checks__/video-projects-controller-seams.check.mjs'],
@@ -65,7 +64,6 @@ test('assertion inventory reads moved implementation source instead of thin faca
     ['js/modules/__checks__/app-shell-seams.check.mjs', 'app-shell lifecycle replay preserves public boot'],
     ['js/modules/__checks__/subtitles-controller-seams.check.mjs', 'subtitles public facades keep stable exports'],
     ['js/modules/__checks__/radar-panel-check.js', 'monitor cards payload drift'],
-    ['js/modules/__checks__/ai-rescue-panel-check.js', 'candidate order must preserve descending score'],
     ['js/modules/__checks__/video-projects-composition-payload.check.mjs', 'buildCompositionPayloadForCheck'],
   ]);
 

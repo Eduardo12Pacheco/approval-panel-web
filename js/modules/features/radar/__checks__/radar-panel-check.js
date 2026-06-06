@@ -359,12 +359,12 @@ function runStateAndRenderCheck() {
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },
     state: {
       monitorStatus: 'ready',
-      monitorCards: [{ video_id: 'rescued-video', title: 'Rescatado', country: 'ecuador', status: 'aprobado', display_status: 'RESCATADO IA', approval_source: 'ai_rescue' }],
+      monitorCards: [{ video_id: 'editor-approved-video', title: 'Aprobado editorial', country: 'ecuador', status: 'aprobado', display_status: 'VISTO EDITORIAL', approval_source: 'manual_review' }],
       selectedCountry: '',
     },
   });
-  if (!monitorEl.innerHTML.includes('RESCATADO IA') || !monitorEl.innerHTML.includes('is-info')) throw new Error(`rescued AI status chip drift: ${monitorEl.innerHTML}`);
-  if (monitorEl.innerHTML.includes('TRANSCRIPCIÓN" disabled') && monitorEl.innerHTML.includes('data-radar-action="open-link" disabled')) throw new Error(`rescued AI card should keep approved interactions functional: ${monitorEl.innerHTML}`);
+  if (!monitorEl.innerHTML.includes('VISTO EDITORIAL') || !monitorEl.innerHTML.includes('is-info')) throw new Error(`editorial approved status chip drift: ${monitorEl.innerHTML}`);
+  if (monitorEl.innerHTML.includes('TRANSCRIPCIÓN" disabled') && monitorEl.innerHTML.includes('data-radar-action="open-link" disabled')) throw new Error(`editorial approved card should keep approved interactions functional: ${monitorEl.innerHTML}`);
 
   renderRadarMonitor({
     el: { radarMonitorList: monitorEl, radarMonitorStatus: monitorStatusEl },

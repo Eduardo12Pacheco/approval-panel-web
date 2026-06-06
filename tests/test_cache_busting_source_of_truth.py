@@ -69,9 +69,6 @@ def test_lazy_module_boundaries_use_central_versioned_import_helper():
         "../features/radar/state.js",
         "../features/radar/api-client.js",
         "../features/radar/controller.js",
-        "../features/ai-rescue/state.js",
-        "../features/ai-rescue/api-client.js",
-        "../features/ai-rescue/controller.js",
     ]:
         assert f"import(versionedModule('{lazy_specifier}', import.meta.url))" in composition
 

@@ -5,7 +5,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML_PATH = ROOT / "index.html"
 RADAR_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "radar-view.js"
-AI_RESCUE_TEMPLATE_PATH = ROOT / "js" / "modules" / "app-shell" / "views" / "templates" / "ai-rescue-view.js"
 APP_SHELL_PATH = ROOT / "js" / "modules" / "app-shell.js"
 BOOTSTRAP_PATH = ROOT / "js" / "modules" / "core" / "bootstrap.js"
 SELECTORS_PATH = ROOT / "js" / "modules" / "shared" / "dom" / "selectors.js"
@@ -126,14 +125,6 @@ def test_radar_runtime_contract_uses_injected_fetch_clipboard_and_thin_client_mo
     assert result.returncode == 0, result.stderr
 
 
-def test_ai_rescue_confirm_dialog_has_accessible_labels_for_candidate_dismissal():
-    template = AI_RESCUE_TEMPLATE_PATH.read_text(encoding="utf-8")
-
-    assert 'id="aiRescueConfirmDialog"' in template
-    assert 'aria-labelledby="aiRescueConfirmTitle"' in template
-    assert 'aria-describedby="aiRescueConfirmMessage"' in template
-
-
 def test_ai_rescue_is_not_exposed_as_a_shell_view():
     index_source = INDEX_HTML_PATH.read_text(encoding="utf-8")
     script = r"""
@@ -150,10 +141,9 @@ if (normalizeShellView('ai-rescue') !== 'approval') {
     assert result.returncode == 0, result.stderr
 
 
-def test_radar_and_ai_rescue_gateway_requests_include_session_credentials():
+def test_radar_gateway_requests_include_session_credentials():
     script = r"""
 import { createRadarApiClient } from './js/modules/features/radar/api-client.js';
-import { createAiRescueApiClient } from './js/modules/features/ai-rescue/api-client.js';
 
 const settings = {
   apiProfileMode: 'unified',
@@ -173,8 +163,6 @@ const radar = createRadarApiClient({ getSettings: () => settings, fetchImpl, loc
 await radar.monitorCards();
 await radar.health();
 
-const ai = createAiRescueApiClient({ getSettings: () => settings, fetchImpl, locationLike: { hostname: 'approval-panel-web.pages.dev' } });
-await ai.preflight();
 
 for (const call of calls) {
   if (call.options.credentials !== 'include') {

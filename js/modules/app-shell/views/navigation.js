@@ -12,7 +12,6 @@ const VIEW_TO_TEMPLATE = Object.freeze({
   scripts: { containerId: 'viewScripts', module: './templates/scripts-view.js', exportName: 'scriptsViewHTML' },
   audio: { containerId: 'viewAudio', module: './templates/audio-view.js', exportName: 'audioViewHTML' },
   radar: { containerId: 'viewRadar', module: './templates/radar-view.js', exportName: 'radarViewHTML' },
-  'ai-rescue': { containerId: 'viewAiRescue', module: './templates/ai-rescue-view.js', exportName: 'aiRescueViewHTML' },
   'errors-audit': { containerId: 'viewErrorsAudit', module: './templates/errors-audit-view.js', exportName: 'errorsAuditViewHTML' },
   'active-users': { containerId: 'viewActiveUsers', module: './templates/active-users-view.js', exportName: 'activeUsersViewHTML' },
   subtitulos2: { containerId: 'viewSubtitulos2', module: './templates/subtitles-view.js', exportName: 'subtitlesViewHTML' },
@@ -26,7 +25,6 @@ const VIEW_TO_CSS = Object.freeze({
   scripts: 'scripts',
   audio: 'audio',
   radar: 'radar',
-  'ai-rescue': 'ai-rescue',
   'errors-audit': 'errors-audit',
   'active-users': 'active-users',
   subtitulos2: 'subtitulos2',
@@ -39,7 +37,6 @@ const VIEW_TO_CSS = Object.freeze({
  */
 const VIEW_TO_CSS_DEPS = Object.freeze({
   radar: ['audio'],
-  'ai-rescue': ['audio'],
 });
 
 export function createShellNavigationController({
@@ -49,7 +46,6 @@ export function createShellNavigationController({
   audioFeature,
   subtitlesController,
   radarController,
-  aiRescueController,
   errorsAuditController,
   activeUsersController,
   approvalFeature,
@@ -64,7 +60,6 @@ export function createShellNavigationController({
   _ensureAudioFeature,
   _ensureSubtitlesFeature,
   _ensureRadarFeature,
-  _ensureAiRescueFeature,
   _ensureErrorsAuditFeature,
   _ensureActiveUsersFeature,
   _cssLoaded,
@@ -135,9 +130,6 @@ export function createShellNavigationController({
       case 'radar':
         await _ensureRadarFeature();
         break;
-      case 'ai-rescue':
-        await _ensureAiRescueFeature();
-        break;
       case 'errors-audit':
         await _ensureErrorsAuditFeature();
         break;
@@ -161,7 +153,6 @@ export function createShellNavigationController({
       scripts: el.viewScripts,
       audio: el.viewAudio,
       radar: el.viewRadar,
-      'ai-rescue': el.viewAiRescue,
       'errors-audit': el.viewErrorsAudit,
       'active-users': el.viewActiveUsers,
       subtitulos2: el.viewSubtitulos2,
@@ -181,8 +172,6 @@ export function createShellNavigationController({
         break;
       case 'radar':
         if (radarController.activate) radarController.activate(container);
-        break;
-      case 'ai-rescue':
         break;
       case 'errors-audit':
         break;
@@ -206,7 +195,6 @@ export function createShellNavigationController({
     if (el.viewScripts) el.viewScripts.style.visibility = 'hidden';
     if (el.viewAudio) el.viewAudio.style.visibility = 'hidden';
     if (el.viewRadar) el.viewRadar.style.visibility = 'hidden';
-    if (el.viewAiRescue) el.viewAiRescue.style.visibility = 'hidden';
     if (el.viewErrorsAudit) el.viewErrorsAudit.style.visibility = 'hidden';
     if (el.viewActiveUsers) el.viewActiveUsers.style.visibility = 'hidden';
     if (el.viewSubtitulos2) el.viewSubtitulos2.style.visibility = 'hidden';
@@ -229,7 +217,6 @@ export function createShellNavigationController({
     const isScripts = nextView === 'scripts';
     const isAudio = nextView === 'audio';
     const isRadar = nextView === 'radar';
-    const isAiRescue = nextView === 'ai-rescue';
     const isErrorsAudit = nextView === 'errors-audit';
     const isActiveUsers = nextView === 'active-users';
     const isSubtitulos2 = nextView === 'subtitulos2';
@@ -245,7 +232,6 @@ export function createShellNavigationController({
     el.viewScripts.classList.toggle('hidden', !isScripts);
     el.viewAudio.classList.toggle('hidden', !isAudio);
     el.viewRadar?.classList.toggle('hidden', !isRadar);
-    el.viewAiRescue?.classList.toggle('hidden', !isAiRescue);
     el.viewErrorsAudit?.classList.toggle('hidden', !isErrorsAudit);
     el.viewActiveUsers?.classList.toggle('hidden', !isActiveUsers);
     el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
@@ -256,7 +242,6 @@ export function createShellNavigationController({
       scripts: el.viewScripts,
       audio: el.viewAudio,
       radar: el.viewRadar,
-      'ai-rescue': el.viewAiRescue,
       'errors-audit': el.viewErrorsAudit,
       'active-users': el.viewActiveUsers,
       subtitulos2: el.viewSubtitulos2,
@@ -302,12 +287,6 @@ export function createShellNavigationController({
       }
     } else {
       radarController.stopPolling();
-    }
-
-    if (isAiRescue) {
-      void aiRescueController.activate?.();
-    } else {
-      aiRescueController.deactivate?.();
     }
 
     if (isErrorsAudit) {

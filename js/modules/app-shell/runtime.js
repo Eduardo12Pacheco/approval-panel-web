@@ -147,7 +147,6 @@ const {
   scriptsFeature,
   videoProjectsFeature,
   radarController,
-  aiRescueController,
   errorsAuditController,
   activeUsersController,
   subtitlesController,
@@ -162,7 +161,6 @@ const {
   _ensureAudioFeature,
   _ensureSubtitlesFeature,
   _ensureRadarFeature,
-  _ensureAiRescueFeature,
   _ensureErrorsAuditFeature,
   _ensureActiveUsersFeature,
   _cssLoaded,
@@ -197,7 +195,6 @@ const navigation = createShellNavigationController({
   audioFeature,
   subtitlesController,
   radarController,
-  aiRescueController,
   errorsAuditController,
   activeUsersController,
   approvalFeature,
@@ -212,7 +209,6 @@ const navigation = createShellNavigationController({
   _ensureAudioFeature,
   _ensureSubtitlesFeature,
   _ensureRadarFeature,
-  _ensureAiRescueFeature,
   _ensureErrorsAuditFeature,
   _ensureActiveUsersFeature,
   _cssLoaded,
@@ -298,7 +294,6 @@ function bindEvents() {
       reloadPage: () => location.reload(),
     }),
     bindRadar: () => radarController.bindEvents(),
-    bindAiRescue: () => aiRescueController.bindEvents?.(),
     bindErrorsAudit: () => errorsAuditController.bindEvents?.(),
     bindActiveUsers: () => activeUsersController.bindEvents?.(),
     bindScripts: () => bindScriptEvents({
@@ -352,10 +347,6 @@ function bindViewEvents(viewName) {
   }
   if (viewName === 'radar') {
     radarController.bindEvents();
-    return;
-  }
-  if (viewName === 'ai-rescue') {
-    aiRescueController.bindEvents?.();
     return;
   }
   if (viewName === 'errors-audit') {
@@ -580,13 +571,11 @@ function legacySetView(view) {
   const isScripts = nextView === 'scripts';
   const isAudio = nextView === 'audio';
   const isRadar = nextView === 'radar';
-  const isAiRescue = nextView === 'ai-rescue';
   const isSubtitulos2 = nextView === 'subtitulos2';
   el.viewApproval.classList.toggle('hidden', !isApproval);
   el.viewScripts.classList.toggle('hidden', !isScripts);
   el.viewAudio.classList.toggle('hidden', !isAudio);
   el.viewRadar?.classList.toggle('hidden', !isRadar);
-  el.viewAiRescue?.classList.toggle('hidden', !isAiRescue);
   el.viewSubtitulos2?.classList.toggle('hidden', !isSubtitulos2);
   el.sidebarNav.querySelectorAll('.nav-item').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.view === nextView);
@@ -624,12 +613,6 @@ function legacySetView(view) {
     }
   } else {
     radarController.stopPolling();
-  }
-
-  if (isAiRescue) {
-    void aiRescueController.activate?.();
-  } else {
-    aiRescueController.deactivate?.();
   }
 
 }
