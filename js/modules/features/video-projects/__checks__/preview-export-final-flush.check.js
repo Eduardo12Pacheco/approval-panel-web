@@ -319,8 +319,8 @@ test('exportFinal persists automatic boundary transitions before renderFinal', a
       media: { kind: 'image' },
       motionPresetId: 'custom',
       motion: { fromX: 0, fromY: 0, toX: 0, toY: 0, fromScale: 1, toScale: 1 },
-      ...(rowNumber === 7 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-008', transition: 'glitch-1', transitionSource: 'auto' } : {}),
-      ...(rowNumber === 14 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-015', transition: 'glitch-2', transitionSource: 'auto' } : {}),
+      ...(rowNumber === 7 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-008', transition: 'glitch-3', transitionSource: 'auto' } : {}),
+      ...(rowNumber === 14 ? { paragraphBoundaryAfter: true, nextRowId: 'seg-015', transition: 'glitch-3', transitionSource: 'auto' } : {}),
     };
   });
   const snapshotRows = rows.map(({ transition, transitionSource, transitionConfig, sfx, ...row }) => row);
@@ -404,8 +404,8 @@ test('exportFinal persists automatic boundary transitions before renderFinal', a
   const updateCall = calls.find((call) => call.type === 'updateSnapshot');
   const boundaryOperations = updateCall.payload.operations.filter((operation) => operation.type === 'setBoundaryTransition');
   assert.deepEqual(boundaryOperations, [
-    { type: 'setBoundaryTransition', rowId: 'seg-007', nextRowId: 'seg-008', paragraphBoundaryAfter: true, transition: 'glitch-1', transitionSource: 'auto' },
-    { type: 'setBoundaryTransition', rowId: 'seg-014', nextRowId: 'seg-015', paragraphBoundaryAfter: true, transition: 'glitch-2', transitionSource: 'auto' },
+    { type: 'setBoundaryTransition', rowId: 'seg-007', nextRowId: 'seg-008', paragraphBoundaryAfter: true, transition: 'glitch-3', transitionSource: 'auto' },
+    { type: 'setBoundaryTransition', rowId: 'seg-014', nextRowId: 'seg-015', paragraphBoundaryAfter: true, transition: 'glitch-3', transitionSource: 'auto' },
   ]);
   const renderCall = calls.find((call) => call.type === 'renderFinal');
   assert.deepEqual(renderCall.payload, { snapshotHash: 'hash-after-auto-boundaries', async: true });

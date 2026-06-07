@@ -265,7 +265,7 @@ export function createRowCommands({
         }
       }
       if (isBoundaryTransitionPatch(patch)) {
-        const transition = ['whip', 'glitch-1', 'glitch-2'].includes(patch.boundaryTransition) ? patch.boundaryTransition : 'none';
+        const transition = ['whip', 'glitch-1', 'glitch-2', 'glitch-3'].includes(patch.boundaryTransition) ? patch.boundaryTransition : 'none';
         operations.push({ type: 'setBoundaryTransition', rowId, nextRowId: patch.nextRowId || rows[index]?.nextRowId, paragraphBoundaryAfter: rows[index]?.paragraphBoundaryAfter === true, transition, transitionSource: 'manual', ...(transition === 'whip' ? { direction: WHIP_TRANSITION_CONFIG.direction } : {}) });
       }
       if (patch.motion !== undefined || patch.motionPresetId !== undefined) {

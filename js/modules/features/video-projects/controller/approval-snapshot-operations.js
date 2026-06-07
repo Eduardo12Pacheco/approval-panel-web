@@ -2,7 +2,7 @@ import { normalizePreparedContractRows } from '../data/contract-pipeline-client.
 import { normalizeEditorState, normalizeGlobalAudioState } from '../domain/editor-state.js';
 import { applyPendingMotionDrafts } from './row-commands.js';
 
-const AUTOMATIC_BOUNDARY_TRANSITIONS = new Set(['glitch-1', 'glitch-2']);
+const AUTOMATIC_BOUNDARY_TRANSITIONS = new Set(['glitch-1', 'glitch-2', 'glitch-3']);
 
 function toPositiveFiniteNumber(value) {
   const number = Number(value);

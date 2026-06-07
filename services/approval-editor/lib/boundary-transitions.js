@@ -1,11 +1,12 @@
 const BOUNDARY_TRANSITION_CONFIGS = {
   "glitch-1": { type: "overlay-video", assetId: "glitch-1", src: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", renderPath: "overlays/GLITCH 1 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 1 NUEVO.mp4", blendMode: "screen", durationSeconds: 0.833333, audio: true },
   "glitch-2": { type: "overlay-video", assetId: "glitch-2", src: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", renderPath: "overlays/GLITCH 2 NUEVO.mp4", previewUrl: "./assets/boundary-transitions/GLITCH 2 NUEVO.mp4", blendMode: "screen", durationSeconds: 1.4, audio: true },
+  "glitch-3": { type: "overlay-video", assetId: "glitch-3", src: "./assets/boundary-transitions/efecto-glitch-3.mp4", renderPath: "overlays/efecto-glitch-3.mp4", previewUrl: "./assets/boundary-transitions/efecto-glitch-3.mp4", blendMode: "screen", durationSeconds: 1, audio: true },
 };
 
 const WHIP_TRANSITION_CONFIG = { type: "whip", durationSeconds: 0.5, direction: "left-to-right" };
 const WHIP_SFX = { type: "whip", assetId: "whip", src: "sfx/sound-whosh.wav" };
-const MANUAL_BOUNDARY_TRANSITIONS = new Set(["glitch-1", "glitch-2", "whip"]);
+const MANUAL_BOUNDARY_TRANSITIONS = new Set(["glitch-1", "glitch-2", "glitch-3", "whip"]);
 const TRANSITION_SOURCES = new Set(["auto", "manual"]);
 
 function normalizeTransitionName(value = "") {
@@ -41,13 +42,10 @@ function resolveBoundaryTransitionPatch(value, options = {}) {
 
 function applyAlternatingBoundaryTransitionDefaults(rows = []) {
   if (!Array.isArray(rows) || !rows.length) return [];
-  let boundaryIndex = 0;
   return rows.map((row) => {
     if (!isEligibleParagraphBoundary(row)) return row;
-    const defaultTransition = boundaryIndex % 2 === 0 ? "glitch-1" : "glitch-2";
-    boundaryIndex += 1;
     if (!shouldApplyAutomaticBoundaryDefault(row)) return row;
-    return { ...row, ...resolveBoundaryTransitionPatch(defaultTransition, { source: "auto" }) };
+    return { ...row, ...resolveBoundaryTransitionPatch("glitch-3", { source: "auto" }) };
   });
 }
 

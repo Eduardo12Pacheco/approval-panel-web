@@ -47,11 +47,12 @@ function runBoundaryConnectorMarkupCheck() {
   ];
   const markup = buildEditorRowsTable(rows, { selectedRowId: 'row-1', project: {} });
 
-  assertEqual((markup.match(/data-action="set-boundary-transition"/g) || []).length, 2, 'Expected Glitch connector actions only for eligible row with nextRowId');
+  assertEqual((markup.match(/data-action="set-boundary-transition"/g) || []).length, 3, 'Expected Glitch connector actions only for eligible row with nextRowId');
   assert(markup.includes('data-row-id="row-1"'), 'Expected connector to target the eligible outgoing row');
   assert(markup.includes('data-next-row-id="row-2"'), 'Expected connector to target the next row boundary');
   assert(markup.includes('Glitch 1'), 'Expected inactive eligible connector to offer Glitch 1 activation');
   assert(markup.includes('Glitch 2'), 'Expected inactive eligible connector to offer Glitch 2 activation');
+  assert(markup.includes('Glitch 3'), 'Expected inactive eligible connector to offer Glitch 3 activation');
   assert(!markup.includes('data-row-id="row-2" data-next-row-id="row-3"'), 'Expected ineligible row not to render connector');
   assert(!markup.includes('data-row-id="row-3" data-next-row-id'), 'Expected missing nextRowId not to render connector');
 
@@ -71,14 +72,14 @@ function runAutomaticBoundaryTransitionDefaultsCheck() {
     { id: 'row-7', paragraphBoundaryAfter: true, transition: 'none' },
   ]);
 
-  assertEqual(rows[0].transition, 'glitch-1', 'Expected first eligible boundary to default to Glitch 1');
-  assertEqual(rows[0].transitionConfig.assetId, 'glitch-1', 'Expected first eligible boundary to receive Glitch 1 config');
-  assertEqual(rows[1].transition, 'glitch-2', 'Expected second eligible boundary to default to Glitch 2');
-  assertEqual(rows[1].transitionConfig.assetId, 'glitch-2', 'Expected second eligible boundary to receive Glitch 2 config');
-  assertEqual(rows[2].transition, 'glitch-1', 'Expected third eligible boundary to default back to Glitch 1');
-  assertEqual(rows[3].transition, 'glitch-2', 'Expected unsupported default transition to receive the next alternating Glitch default');
-  assertEqual(rows[0].transitionSource, 'auto', 'Expected automatic Glitch 1 default to carry auto provenance');
-  assertEqual(rows[1].transitionSource, 'auto', 'Expected automatic Glitch 2 default to carry auto provenance');
+  assertEqual(rows[0].transition, 'glitch-3', 'Expected first eligible boundary to default to Glitch 3');
+  assertEqual(rows[0].transitionConfig.assetId, 'glitch-3', 'Expected first eligible boundary to receive Glitch 3 config');
+  assertEqual(rows[1].transition, 'glitch-3', 'Expected second eligible boundary to default to Glitch 3');
+  assertEqual(rows[1].transitionConfig.assetId, 'glitch-3', 'Expected second eligible boundary to receive Glitch 3 config');
+  assertEqual(rows[2].transition, 'glitch-3', 'Expected third eligible boundary to default to Glitch 3');
+  assertEqual(rows[3].transition, 'glitch-3', 'Expected unsupported default transition to receive Glitch 3 default');
+  assertEqual(rows[0].transitionSource, 'auto', 'Expected automatic Glitch 3 default to carry auto provenance');
+  assertEqual(rows[1].transitionSource, 'auto', 'Expected automatic Glitch 3 default to carry auto provenance');
   assertEqual(rows[4].transition, 'none', 'Expected explicit manual none to remain untouched');
   assertEqual(rows[4].transitionSource, 'manual', 'Expected explicit manual none provenance to be preserved');
   assertEqual(rows[5].transition, 'none', 'Expected non-boundary row to remain untouched');
@@ -120,7 +121,7 @@ function runHydratedRowsDeriveBoundaryMetadataFromGuionCheck() {
 
   assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected hydration to derive paragraph boundary eligibility from guion_piped');
   assertEqual(project._editorRows[0].nextRowId, 'persisted-2', 'Expected derived boundary to target the next hydrated row id');
-  assertEqual(project._editorRows[0].transition, 'glitch-1', 'Expected derived eligibility to receive the first automatic boundary transition');
+  assertEqual(project._editorRows[0].transition, 'glitch-3', 'Expected derived eligibility to receive the automatic Glitch 3 boundary transition');
   assertEqual(project._editorRows[1].paragraphBoundaryAfter, undefined, 'Expected rows without paragraph break to stay ineligible');
 }
 
@@ -140,18 +141,18 @@ function runHydratedThreeParagraphAutoBoundaryMarkupCheck() {
 
   assertEqual(project._editorRows[6].paragraphBoundaryAfter, true, 'Expected first paragraph boundary at row 7 to be derived');
   assertEqual(project._editorRows[6].nextRowId, 'seg-008', 'Expected row 7 boundary to target row 8');
-  assertEqual(project._editorRows[6].transition, 'glitch-1', 'Expected row 7 boundary to receive automatic Glitch 1');
-  assertEqual(project._editorRows[6].transitionSource, 'auto', 'Expected row 7 automatic Glitch 1 provenance');
+  assertEqual(project._editorRows[6].transition, 'glitch-3', 'Expected row 7 boundary to receive automatic Glitch 3');
+  assertEqual(project._editorRows[6].transitionSource, 'auto', 'Expected row 7 automatic Glitch 3 provenance');
   assertEqual(project._editorRows[13].paragraphBoundaryAfter, true, 'Expected second paragraph boundary at row 14 to be derived');
   assertEqual(project._editorRows[13].nextRowId, 'seg-015', 'Expected row 14 boundary to target row 15');
-  assertEqual(project._editorRows[13].transition, 'glitch-2', 'Expected row 14 boundary to receive automatic Glitch 2');
-  assertEqual(project._editorRows[13].transitionSource, 'auto', 'Expected row 14 automatic Glitch 2 provenance');
+  assertEqual(project._editorRows[13].transition, 'glitch-3', 'Expected row 14 boundary to receive automatic Glitch 3');
+  assertEqual(project._editorRows[13].transitionSource, 'auto', 'Expected row 14 automatic Glitch 3 provenance');
 
   const markup = buildEditorRowsTable(project._editorRows, { selectedRowId: 'seg-007', project });
   assert(markup.includes('data-row-id="seg-007"'), 'Expected row 7 connector controls to render');
   assert(markup.includes('data-row-id="seg-014"'), 'Expected row 14 connector controls to render');
-  assert(markup.includes('data-row-id="seg-007" data-next-row-id="seg-008" data-transition="glitch-1" aria-pressed="true"'), 'Expected automatic row 7 Glitch 1 button to be active');
-  assert(markup.includes('data-row-id="seg-014" data-next-row-id="seg-015" data-transition="glitch-2" aria-pressed="true"'), 'Expected automatic row 14 Glitch 2 button to be active');
+  assert(markup.includes('data-row-id="seg-007" data-next-row-id="seg-008" data-transition="glitch-3" aria-pressed="true"'), 'Expected automatic row 7 Glitch 3 button to be active');
+  assert(markup.includes('data-row-id="seg-014" data-next-row-id="seg-015" data-transition="glitch-3" aria-pressed="true"'), 'Expected automatic row 14 Glitch 3 button to be active');
 }
 
 function runHydratedPipeOwnLineAutoBoundaryMarkupCheck() {
@@ -168,9 +169,9 @@ function runHydratedPipeOwnLineAutoBoundaryMarkupCheck() {
   hydrateSelectedProjectState(project);
 
   assertEqual(project._editorRows[0].paragraphBoundaryAfter, true, 'Expected pipe alone on a line to derive first paragraph boundary');
-  assertEqual(project._editorRows[0].transition, 'glitch-1', 'Expected first pipe-line boundary to receive automatic Glitch 1');
+  assertEqual(project._editorRows[0].transition, 'glitch-3', 'Expected first pipe-line boundary to receive automatic Glitch 3');
   assertEqual(project._editorRows[1].paragraphBoundaryAfter, true, 'Expected second pipe alone on a line to derive second paragraph boundary');
-  assertEqual(project._editorRows[1].transition, 'glitch-2', 'Expected second pipe-line boundary to receive automatic Glitch 2');
+  assertEqual(project._editorRows[1].transition, 'glitch-3', 'Expected second pipe-line boundary to receive automatic Glitch 3');
 }
 
 async function runBoundaryConnectorHydrationCheck() {

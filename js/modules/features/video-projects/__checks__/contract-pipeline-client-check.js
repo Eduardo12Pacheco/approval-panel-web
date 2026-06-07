@@ -512,17 +512,17 @@ export async function runContractPipelineClientCheck() {
   });
 
   const preparedSnapshotRows = boundaryPrepared.approvalContractSnapshot?.rows || [];
-  if (preparedSnapshotRows[0]?.transition !== 'glitch-1' || preparedSnapshotRows[0]?.transitionSource !== 'auto') {
-    throw new Error('Expected prepared Approval snapshot row 1 to already persist automatic Glitch 1');
+  if (preparedSnapshotRows[0]?.transition !== 'glitch-3' || preparedSnapshotRows[0]?.transitionSource !== 'auto') {
+    throw new Error('Expected prepared Approval snapshot row 1 to already persist automatic Glitch 3');
   }
-  if (preparedSnapshotRows[1]?.transition !== 'glitch-2' || preparedSnapshotRows[1]?.transitionSource !== 'auto') {
-    throw new Error('Expected prepared Approval snapshot row 2 to already persist automatic Glitch 2');
+  if (preparedSnapshotRows[1]?.transition !== 'glitch-3' || preparedSnapshotRows[1]?.transitionSource !== 'auto') {
+    throw new Error('Expected prepared Approval snapshot row 2 to already persist automatic Glitch 3');
   }
-  if (preparedSnapshotRows[0]?.transitionConfig?.assetId !== 'glitch-1' || preparedSnapshotRows[1]?.transitionConfig?.assetId !== 'glitch-2') {
-    throw new Error('Expected prepared Approval snapshot rows to include full automatic Glitch configs');
+  if (preparedSnapshotRows[0]?.transitionConfig?.assetId !== 'glitch-3' || preparedSnapshotRows[1]?.transitionConfig?.assetId !== 'glitch-3') {
+    throw new Error('Expected prepared Approval snapshot rows to include full automatic Glitch 3 configs');
   }
-  if (!boundaryPrepared.approvalContractSnapshot?.assets?.['glitch-1'] || !boundaryPrepared.approvalContractSnapshot?.assets?.['glitch-2']) {
-    throw new Error('Expected prepared Approval snapshot to include automatic Glitch boundary assets');
+  if (!boundaryPrepared.approvalContractSnapshot?.assets?.['glitch-3']) {
+    throw new Error('Expected prepared Approval snapshot to include automatic Glitch 3 boundary asset');
   }
 
   const manualNoneSnapshot = {
@@ -555,8 +555,8 @@ export async function runContractPipelineClientCheck() {
   if (manualRows[0]?.transition !== 'none' || manualRows[0]?.transitionSource !== 'manual') {
     throw new Error('Expected prepared Approval snapshot to preserve explicit manual none at the first boundary');
   }
-  if (manualRows[1]?.transition !== 'glitch-2' || manualRows[1]?.transitionSource !== 'auto') {
-    throw new Error('Expected automatic boundary alternation to continue after a preserved manual none');
+  if (manualRows[1]?.transition !== 'glitch-3' || manualRows[1]?.transitionSource !== 'auto') {
+    throw new Error('Expected automatic Glitch 3 default to continue after a preserved manual none');
   }
 
   const adapterCall = calls.find((entry) => entry.type === 'adapter');
