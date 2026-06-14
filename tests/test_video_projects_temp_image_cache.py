@@ -264,21 +264,69 @@ def test_manual_video_project_form_uses_n8n_country_player_catalog_and_preserves
     assert 'type="text" placeholder="Luis Díaz"' not in html
     assert 'type="text" placeholder="Colombia"' not in html
 
-    expected_pairs = {
-        "Ecuador": ["Moisés Caicedo", "Piero Hincapié", "Willian Pacho", "Gonzalo Plata", "Kendry Páez", "Enner Valencia"],
-        "Colombia": ["James Rodríguez", "Luis Díaz", "Juan Fernando Quintero", "Jhon Arias"],
-        "Argentina": ["Lionel Messi", "Julián Álvarez", "Emiliano Martínez"],
-        "Uruguay": ["Federico Valverde"],
-        "Paraguay": ["Julio Enciso", "Miguel Almirón"],
+    # New contract: the catalog is reshaped to { players, nicknames } and adds México.
+    # Asserting the union of NEW entries (not an exact list) keeps the test stable when
+    # future maintainers add more players or nicknames.
+    required_entries = {
+        "Ecuador": ["La Tri"],
+        "Colombia": ["Los Cafeteros"],
+        "Argentina": ["La Albiceleste"],
+        "Uruguay": ["La Celeste"],
+        "Paraguay": ["La Albirroja"],
+        "México": ["Santiago Giménez", "Guillermo Ochoa", "Edson Álvarez", "El Tri"],
     }
-    for country, players in expected_pairs.items():
-        assert country in catalog
-        for player in players:
-            assert player in catalog
 
+    # Catalog source must mention every required country and entry (cheap, no-JS sanity check).
+    for country, entries in required_entries.items():
+        assert country in catalog
+        for entry in entries:
+            assert entry in catalog, f"{entry!r} missing from player-catalog.js source for {country}"
+
+    # Renderer imports the catalog map and uses two optgroups to separate players from nicknames.
+    assert "VIDEO_PROJECT_PLAYERS_BY_COUNTRY" in events
+    assert '<optgroup label="Jugadores">' in events
+    assert '<optgroup label="Selección">' in events
+
+    # Submit handler + the public helper names stay wired to the catalog.
     assert "listVideoProjectCountries" in events
     assert "listVideoProjectPlayers" in events
     assert "populateManualPlayerOptions(el.manualVideoProjectCountryInput.value)" in events
+
+    # Runtime contract: listVideoProjectPlayers(country) flattens {players, nicknames},
+    # contains every required entry, and has no duplicates per country. The Node side
+    # throws on any failure so the test can rely on returncode/stderr.
+    script = r"""
+import { listVideoProjectCountries, listVideoProjectPlayers } from './js/modules/features/video-projects/domain/player-catalog.js';
+
+const required = {
+  "Ecuador": ["La Tri"],
+  "Colombia": ["Los Cafeteros"],
+  "Argentina": ["La Albiceleste"],
+  "Uruguay": ["La Celeste"],
+  "Paraguay": ["La Albirroja"],
+  "México": ["Santiago Giménez", "Guillermo Ochoa", "Edson Álvarez", "El Tri"],
+};
+
+const countries = listVideoProjectCountries();
+for (const country of Object.keys(required)) {
+  if (!countries.includes(country)) {
+    throw new Error(`country ${country} missing from listVideoProjectCountries()`);
+  }
+}
+for (const [country, requiredEntries] of Object.entries(required)) {
+  const union = listVideoProjectPlayers(country);
+  if (union.length !== new Set(union).size) {
+    throw new Error(`duplicate entries in ${country}: ${union.join(', ')}`);
+  }
+  for (const entry of requiredEntries) {
+    if (!union.includes(entry)) {
+      throw new Error(`${entry} missing from listVideoProjectPlayers(${country})`);
+    }
+  }
+}
+"""
+    result = _run_node(script)
+    assert result.returncode == 0, result.stderr
 
 
 def test_script_event_binding_is_idempotent_for_lazy_loaded_manual_project_form():

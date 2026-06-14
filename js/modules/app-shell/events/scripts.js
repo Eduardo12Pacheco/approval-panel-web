@@ -1,5 +1,9 @@
 import { resolveScriptTitle } from '../../features/scripts/index.js';
-import { listVideoProjectCountries, listVideoProjectPlayers } from '../../features/video-projects/domain/player-catalog.js';
+import {
+  VIDEO_PROJECT_PLAYERS_BY_COUNTRY,
+  listVideoProjectCountries,
+  listVideoProjectPlayers,
+} from '../../features/video-projects/domain/player-catalog.js';
 
 const boundScriptEventKeys = new WeakMap();
 
@@ -52,9 +56,26 @@ export function bindScriptEvents({
     if (!el.manualVideoProjectPlayerInput) return;
     const players = listVideoProjectPlayers(country);
     el.manualVideoProjectPlayerInput.disabled = !players.length;
-    el.manualVideoProjectPlayerInput.innerHTML = players.length
-      ? ['<option value="">Elegí un jugador</option>', ...players.map((player) => `<option value="${player}">${player}</option>`)].join('')
-      : '<option value="">Primero elegí una selección</option>';
+    if (!players.length) {
+      el.manualVideoProjectPlayerInput.innerHTML = '<option value="">Primero elegí una selección</option>';
+      return;
+    }
+    // All interpolated strings come from the frozen player-catalog (no user input),
+    // so the innerHTML below is XSS-safe by construction.
+    const entry = VIDEO_PROJECT_PLAYERS_BY_COUNTRY[country];
+    const playerOptions = (entry?.players || []).map((player) => `<option value="${player}">${player}</option>`);
+    const nicknameOptions = (entry?.nicknames || []).map((nickname) => `<option value="${nickname}">${nickname}</option>`);
+    const groups = [];
+    if (playerOptions.length) {
+      groups.push(`<optgroup label="Jugadores">${playerOptions.join('')}</optgroup>`);
+    }
+    if (nicknameOptions.length) {
+      groups.push(`<optgroup label="Selección">${nicknameOptions.join('')}</optgroup>`);
+    }
+    el.manualVideoProjectPlayerInput.innerHTML = [
+      '<option value="">Elegí un jugador</option>',
+      ...groups,
+    ].join('');
   }
 
   function resetManualVideoProjectForm() {
