@@ -63,17 +63,10 @@ export function getVisibleMonitorCards(cards = [], { country = '', query = '', s
 }
 
 function compareMonitorCardByRecent(left, right) {
-  const leftPriority = hasChannelPriority(left.card);
-  const rightPriority = hasChannelPriority(right.card);
-  if (leftPriority !== rightPriority) return leftPriority ? -1 : 1;
   const leftTime = monitorCardTime(left.card);
   const rightTime = monitorCardTime(right.card);
   if (leftTime !== rightTime) return rightTime - leftTime;
   return left.index - right.index;
-}
-
-function hasChannelPriority(card = {}) {
-  return card.channel_priority_rank !== null && card.channel_priority_rank !== undefined && Number.isFinite(Number(card.channel_priority_rank));
 }
 
 function monitorCardTime(card = {}) {

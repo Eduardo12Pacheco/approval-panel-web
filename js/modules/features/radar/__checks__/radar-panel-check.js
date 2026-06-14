@@ -272,8 +272,8 @@ function runStateAndRenderCheck() {
       { video_id: 'priority-new', title: 'Priority new', channel_label: 'NSports', channel_priority_rank: 1, published_at: '2026-05-22T12:00:00Z' },
       { video_id: 'normal-invalid', title: 'Normal invalid', channel_label: 'Normal TV', published_at: 'not-a-date' },
     ], { sortMode: 'recent' }).map((card) => card.video_id),
-    ['priority-new', 'priority-old', 'normal-new', 'normal-invalid'],
-    'recent sort should keep priority channels first and sort each group by recency with invalid dates last',
+    ['normal-new', 'priority-new', 'priority-old', 'normal-invalid'],
+    'recent sort should be pure date desc with invalid dates last',
   );
   assertDeepEqual(
     getVisibleMonitorCards([
@@ -290,6 +290,14 @@ function runStateAndRenderCheck() {
     ], { sortMode: 'recent' }).map((card) => card.video_id),
     ['fallback-created', 'published-valid'],
     'recent sort should fall back to created_at when published_at is invalid',
+  );
+  assertDeepEqual(
+    getVisibleMonitorCards([
+      { video_id: 'priority-older', channel_label: 'Mundo Maldini', channel_priority_rank: 1, published_at: '2026-05-21T12:00:00Z' },
+      { video_id: 'normal-newer', channel_label: 'Normal TV', published_at: '2026-05-23T12:00:00Z' },
+    ], { sortMode: 'recent' }).map((card) => card.video_id),
+    ['normal-newer', 'priority-older'],
+    'recent sort must not boost priority channels above more-recent normal channels',
   );
 
   const pendingMexicoCard = mapMonitorCard({ video_id: 'mx-1', country: 'México' }, []);
