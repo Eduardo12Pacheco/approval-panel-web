@@ -101,10 +101,10 @@ function assertDefaultMusicVolumeIsEightyPercent() {
   });
 
   assertEqual(normalized.voice.volume, 1, 'Expected default voice volume to remain unchanged');
-  assertEqual(normalized.music.volume, 0.8, 'Expected default music volume to be 80%');
+  assertEqual(normalized.music.volume, 0.7, 'Expected default music volume to be 70%');
   assertEqual(detail.voiceVolumeValue, 1, 'Expected editor UI default voice slider to remain 100%');
-  assertEqual(detail.musicVolumeValue, 0.8, 'Expected editor UI default music slider to be 80%');
-  assertEqual(detail.musicVolumePercent, 80, 'Expected editor UI default music label to be 80%');
+  assertEqual(detail.musicVolumeValue, 0.7, 'Expected editor UI default music slider to be 70%');
+  assertEqual(detail.musicVolumePercent, 70, 'Expected editor UI default music label to be 70%');
 }
 
 function assertSetupUsesPelotazoMusicByDefault() {
