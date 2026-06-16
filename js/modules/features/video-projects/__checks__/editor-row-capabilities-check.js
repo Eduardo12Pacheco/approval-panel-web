@@ -96,7 +96,50 @@ function runDustApplyAllMarkupCheck() {
   assertNotIncludes(videoMarkup, 'data-action="apply-row-dust-all"', 'Expected video rows not to show image dust apply-all');
 }
 
+function runPolvoDropdownListsFourPolvoOptionsCheck() {
+  const imageRow = { id: 'row-image', mediaMode: 'image' };
+  const markup = buildEditorEffectTabs({
+    row: imageRow,
+    detail: createDetail({ dustType: 'dust-1' }),
+    activeTab: 'layers',
+  });
+
+  // Order of <option> elements matters for the UI: Sin polvo, Polvo 1, Polvo 2, Polvo 3, Polvo 4.
+  const polvoSelectMatch = markup.match(/<select[^>]*data-action="update-row-dust"[^>]*>[\s\S]*?<\/select>/);
+  if (!polvoSelectMatch) {
+    throw new Error('Expected POLVO dropdown <select> with data-action="update-row-dust" to be present');
+  }
+  const polvoSelect = polvoSelectMatch[0];
+
+  // Each polvo option must carry its dust-N value.
+  assertIncludes(polvoSelect, 'value="none"', 'Expected POLVO dropdown to include the Sin polvo option (value="none")');
+  assertIncludes(polvoSelect, 'value="dust-1"', 'Expected POLVO dropdown to include the Polvo 1 option (value="dust-1")');
+  assertIncludes(polvoSelect, 'value="dust-2"', 'Expected POLVO dropdown to include the Polvo 2 option (value="dust-2")');
+  assertIncludes(polvoSelect, 'value="dust-3"', 'Expected POLVO dropdown to include the Polvo 3 option (value="dust-3")');
+  assertIncludes(polvoSelect, 'value="dust-4"', 'Expected POLVO dropdown to include the Polvo 4 option (value="dust-4")');
+
+  // Visible labels.
+  assertIncludes(polvoSelect, '>Sin polvo<', 'Expected POLVO dropdown to render the Sin polvo label');
+  assertIncludes(polvoSelect, '>Polvo 1<', 'Expected POLVO dropdown to render the Polvo 1 label');
+  assertIncludes(polvoSelect, '>Polvo 2<', 'Expected POLVO dropdown to render the Polvo 2 label');
+  assertIncludes(polvoSelect, '>Polvo 3<', 'Expected POLVO dropdown to render the Polvo 3 label');
+  assertIncludes(polvoSelect, '>Polvo 4<', 'Expected POLVO dropdown to render the Polvo 4 label');
+
+  // Order assertion: each polvo's <option> must come after the previous one in the markup.
+  const noneIdx = polvoSelect.indexOf('value="none"');
+  const dust1Idx = polvoSelect.indexOf('value="dust-1"');
+  const dust2Idx = polvoSelect.indexOf('value="dust-2"');
+  const dust3Idx = polvoSelect.indexOf('value="dust-3"');
+  const dust4Idx = polvoSelect.indexOf('value="dust-4"');
+  if (!(noneIdx < dust1Idx && dust1Idx < dust2Idx && dust2Idx < dust3Idx && dust3Idx < dust4Idx)) {
+    throw new Error(
+      `Expected POLVO options in order none, dust-1, dust-2, dust-3, dust-4; got indices ${noneIdx}, ${dust1Idx}, ${dust2Idx}, ${dust3Idx}, ${dust4Idx}`,
+    );
+  }
+}
+
 export function runEditorRowCapabilitiesCheck() {
+  runPolvoDropdownListsFourPolvoOptionsCheck();
   runDustApplyAllMarkupCheck();
   assertDeepEqual(
     EDITOR_EFFECT_TABS.map((tab) => tab.id),

@@ -28,6 +28,28 @@ const AUTHORITATIVE_DUST_ASSETS = {
     renderPath: "overlays/dust-2.mp4",
     status: "ready",
   },
+  "dust-3": {
+    assetId: "dust-3",
+    id: "dust-3",
+    type: "dust",
+    role: "dust",
+    source: { kind: "local", bridge: "approval-panel" },
+    publicUrl: "./assets/dust-3.webm",
+    previewUrl: "./assets/dust-3.webm",
+    renderPath: "overlays/dust-3.mp4",
+    status: "ready",
+  },
+  "dust-4": {
+    assetId: "dust-4",
+    id: "dust-4",
+    type: "dust",
+    role: "dust",
+    source: { kind: "local", bridge: "approval-panel" },
+    publicUrl: "./assets/dust-4.webm",
+    previewUrl: "./assets/dust-4.webm",
+    renderPath: "overlays/dust-4.mp4",
+    status: "ready",
+  },
 };
 
 const DEFAULT_RENDER_ASSET_RETRY_DELAYS_MS = [250, 1000];
@@ -590,4 +612,4 @@ function createVideoEngineRenderAdapter({
   };
 }
 
-module.exports = { createVideoEngineRenderAdapter, persistSnapshotForVideoEngine, buildMinimalRenderScaffold };
+module.exports = { createVideoEngineRenderAdapter, persistSnapshotForVideoEngine, buildMinimalRenderScaffold, AUTHORITATIVE_DUST_ASSETS };

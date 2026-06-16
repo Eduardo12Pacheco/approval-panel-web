@@ -18,6 +18,8 @@ export const COMPOSITION_DUST_PREVIEW_URL = './assets/dust-1.webm';
 export const COMPOSITION_DUST_PREVIEW_URLS = {
   'dust-1': './assets/dust-1.webm',
   'dust-2': './assets/dust-2.webm',
+  'dust-3': './assets/dust-3.webm',
+  'dust-4': './assets/dust-4.webm',
 };
 export const COMPOSITION_LOCAL_LOGO_URL = './assets/logo-alpha.webm';
 export const COMPOSITION_LOCAL_GREEN_LOGO_URL = '../02-Video-Engine/assets/overlays/logo-green.mp4';

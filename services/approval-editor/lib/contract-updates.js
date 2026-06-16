@@ -20,8 +20,8 @@ function findRow(snapshot, rowId) {
 }
 
 function normalizeDustType(value) {
-  if (value === "dust-1" || value === "dust-2") return value;
-  throw Object.assign(new Error("dust type must be dust-1 or dust-2"), { code: "invalid_dust_type" });
+  if (value === "dust-1" || value === "dust-2" || value === "dust-3" || value === "dust-4") return value;
+  throw Object.assign(new Error("dust type must be one of: dust-1, dust-2, dust-3, dust-4"), { code: "invalid_dust_type" });
 }
 
 function rowPhraseDuration(row) {
@@ -283,4 +283,4 @@ function applyContractOperations(snapshot, operations = []) {
   return finalize(next);
 }
 
-module.exports = { applyContractOperations };
+module.exports = { applyContractOperations, normalizeDustType };

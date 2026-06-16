@@ -55,7 +55,7 @@ export const BRAND_CHANNEL_ASSETS = {
       assetId: 'brand-outro-mundial',
       previewPath: 'final-mundial.webm',
       renderPath: 'overlays/final-mundial.mp4',
-      durationSeconds: 29.3,
+      durationSeconds: 30.12,
       label: 'Final Mundial',
     },
   },
