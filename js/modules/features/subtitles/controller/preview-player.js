@@ -2,6 +2,7 @@ import {
   buildSubtitlePreviewPresentationRuntime,
   buildSubtitlePreviewTimelineMarkupRuntime,
   formatSubtitleDisplayTimeRuntime,
+  parseSubtitleTimeToMsRuntime,
   pickActiveSubtitleCueRuntime,
   resolveSubtitleTimelineSeekMsRuntime,
 } from '../runtime/index.js';
@@ -14,6 +15,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
   const resolvePreviewDurationMs = collaborators.resolvePreviewDurationMs || (() => 0);
   let subtitle2PreviewDragCleanup = null;
   let activeTableRowId = '';
+  const SUBTITLE_ROW_SCROLL_COOLDOWN_MS = 500;
 
   function revokePreviewObjectUrl() {
     const objectUrl = state.subtitles2?.previewVideoObjectUrl;
@@ -103,6 +105,49 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
       const row = findTableRowById(id);
       row?.classList.toggle('subtitle-row--active', id === nextRowId);
     }
+    scheduleActiveRowAutoScroll(nextRowId);
+  }
+
+  function isRowInViewport(rowEl, scrollContainerEl) {
+    if (!rowEl || !scrollContainerEl) return true;
+    if (typeof rowEl.getBoundingClientRect !== 'function') return true;
+    if (typeof scrollContainerEl.getBoundingClientRect !== 'function') return true;
+    const rowRect = rowEl.getBoundingClientRect();
+    const containerRect = scrollContainerEl.getBoundingClientRect();
+    return rowRect.top >= containerRect.top && rowRect.bottom <= containerRect.bottom;
+  }
+
+  function getSubtitleTableScrollContainer() {
+    return el.subtitle2RowsBody?.closest?.('.subtitle-table-scroll') || null;
+  }
+
+  function scheduleActiveRowAutoScroll(rowId) {
+    if (!rowId) return;
+    const targetRow = findTableRowById(rowId);
+    if (!targetRow) return;
+    const scrollContainer = getSubtitleTableScrollContainer();
+    if (isRowInViewport(targetRow, scrollContainer)) return;
+    const userScrolledAt = Number(state.subtitles2.userScrolledAt) || 0;
+    if (Date.now() - userScrolledAt < SUBTITLE_ROW_SCROLL_COOLDOWN_MS) return;
+    const schedule = (typeof windowRef.requestAnimationFrame === 'function')
+      ? windowRef.requestAnimationFrame.bind(windowRef)
+      : (callback) => {
+        const fallback = windowRef.setTimeout || (() => 0);
+        return fallback.call(windowRef, callback, 16);
+      };
+    schedule(() => {
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function bindUserScrollListeners() {
+    const container = getSubtitleTableScrollContainer();
+    if (!container || typeof container.addEventListener !== 'function') return;
+    const markUserScroll = () => {
+      state.subtitles2.userScrolledAt = Date.now();
+    };
+    container.addEventListener('wheel', markUserScroll, { passive: true });
+    container.addEventListener('touchmove', markUserScroll, { passive: true });
   }
 
   function findTableRowById(rowId) {
@@ -176,6 +221,18 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     renderPreviewOverlay();
   }
 
+  function seekPreviewToRow(rowId) {
+    const hasPreview = Boolean((state.subtitles2.previewVideoObjectUrl || state.subtitles2.previewVideoUrl || '').toString().trim());
+    if (!hasPreview) return;
+    const targetId = (rowId || '').toString();
+    if (!targetId) return;
+    const row = (state.subtitles2.rows || []).find((item) => item?.id === targetId);
+    if (!row) return;
+    const startMs = parseSubtitleTimeToMsRuntime(row.start);
+    seekPreviewToMs(startMs);
+    el.subtitle2PreviewVideo?.pause();
+  }
+
   function seekPreviewFromClientX(clientX) {
     const timeline = el.subtitle2PreviewTimelineTrack;
     if (!timeline) return;
@@ -214,6 +271,8 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     };
   }
 
+  bindUserScrollListeners();
+
   return {
     revokePreviewObjectUrl,
     loadPreviewVideoBlob,
@@ -229,6 +288,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     onTimelineClick,
     onTimelineDragStart,
     seekPreviewToMs,
+    seekPreviewToRow,
     seekPreviewFromClientX,
     cleanupPreviewDrag,
   };

@@ -5,6 +5,7 @@
   max-height: clamp(430px, 52vh, 540px);
   overflow: auto;
   overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 
 #viewSubtitulos2 .subtitle-table--remote {

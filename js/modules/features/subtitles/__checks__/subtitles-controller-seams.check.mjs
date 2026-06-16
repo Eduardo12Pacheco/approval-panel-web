@@ -46,6 +46,7 @@ const EXPECTED_CONTROLLER_API = [
   'onPreviewToggleClicked',
   'onPreviewTimelineClick',
   'onPreviewTimelineDragStart',
+  'seekPreviewToRow',
   'renameHistorySession',
   'deleteHistorySession',
   'reportSubtitlePresence',
@@ -376,6 +377,499 @@ test('preview player seam preserves object URL replacement and latest seek behav
   assert.equal(ctx.state.subtitles2.previewCurrentMs, 5000);
   assert.equal(video.currentTime, 5);
   assert.deepEqual(renderCalls, ['overlay']);
+});
+
+test('preview player exposes seekPreviewToRow that seeks to start and pauses for click-to-seek UX', () => {
+  let lastCurrentTime = 0;
+  let pauseCount = 0;
+  const video = {
+    currentTime: 0,
+    paused: false,
+    src: 'blob:keep',
+    attributes: new Map([['src', 'blob:keep']]),
+    getAttribute(name) { return this.attributes.get(name) || ''; },
+    removeAttribute(name) { this.attributes.delete(name); },
+    set currentTime(value) { lastCurrentTime = value; },
+    pause() { this.paused = true; pauseCount += 1; },
+    play() { this.paused = false; return Promise.resolve(); },
+  };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoObjectUrl: 'blob:keep',
+        previewVideoUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: true,
+        audioDurationMs: 10000,
+        rows: [{ id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' }],
+      },
+    },
+    el: {
+      subtitle2PreviewVideo: video,
+      subtitle2PreviewStage: { classList: createClassList() },
+      subtitle2PreviewEmpty: { classList: createClassList() },
+      subtitle2PreviewPlayBtn: { disabled: false, textContent: '', setAttribute() {} },
+    },
+  });
+  const player = createSubtitlePreviewPlayer(ctx, {
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    resolvePreviewDurationMs: () => 10000,
+  });
+
+  player.seekPreviewToRow('row-7');
+
+  assert.equal(lastCurrentTime, 5);
+  assert.equal(pauseCount, 1);
+});
+
+test('seekPreviewToRow is a no-op when the row id is not found', () => {
+  let lastCurrentTime = 0;
+  let pauseCount = 0;
+  const video = {
+    currentTime: 0,
+    paused: false,
+    src: 'blob:keep',
+    attributes: new Map([['src', 'blob:keep']]),
+    getAttribute(name) { return this.attributes.get(name) || ''; },
+    removeAttribute(name) { this.attributes.delete(name); },
+    set currentTime(value) { lastCurrentTime = value; },
+    pause() { this.paused = true; pauseCount += 1; },
+    play() { this.paused = false; return Promise.resolve(); },
+  };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoObjectUrl: 'blob:keep',
+        previewVideoUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: true,
+        audioDurationMs: 10000,
+        rows: [{ id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' }],
+      },
+    },
+    el: {
+      subtitle2PreviewVideo: video,
+      subtitle2PreviewStage: { classList: createClassList() },
+      subtitle2PreviewEmpty: { classList: createClassList() },
+      subtitle2PreviewPlayBtn: { disabled: false, textContent: '', setAttribute() {} },
+    },
+  });
+  const player = createSubtitlePreviewPlayer(ctx, {
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    resolvePreviewDurationMs: () => 10000,
+  });
+
+  player.seekPreviewToRow('row-missing');
+
+  assert.equal(lastCurrentTime, 0);
+  assert.equal(pauseCount, 0);
+});
+
+test('seekPreviewToRow is a no-op when no preview video is loaded', () => {
+  let lastCurrentTime = 0;
+  let pauseCount = 0;
+  const video = {
+    currentTime: 0,
+    paused: false,
+    src: '',
+    attributes: new Map(),
+    getAttribute(name) { return this.attributes.get(name) || ''; },
+    removeAttribute(name) { this.attributes.delete(name); },
+    set currentTime(value) { lastCurrentTime = value; },
+    pause() { this.paused = true; pauseCount += 1; },
+    play() { this.paused = false; return Promise.resolve(); },
+  };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoObjectUrl: '',
+        previewVideoUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: true,
+        audioDurationMs: 10000,
+        rows: [{ id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' }],
+      },
+    },
+    el: {
+      subtitle2PreviewVideo: video,
+      subtitle2PreviewStage: { classList: createClassList() },
+      subtitle2PreviewEmpty: { classList: createClassList() },
+      subtitle2PreviewPlayBtn: { disabled: true, textContent: '', setAttribute() {} },
+    },
+  });
+  const player = createSubtitlePreviewPlayer(ctx, {
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    resolvePreviewDurationMs: () => 10000,
+  });
+
+  player.seekPreviewToRow('row-7');
+
+  assert.equal(lastCurrentTime, 0);
+  assert.equal(pauseCount, 0);
+});
+
+test('seekPreviewToRow pauses the video even when the video was already playing', () => {
+  let lastCurrentTime = 0;
+  let pauseCount = 0;
+  const video = {
+    currentTime: 0,
+    paused: false,
+    src: 'blob:keep',
+    attributes: new Map([['src', 'blob:keep']]),
+    getAttribute(name) { return this.attributes.get(name) || ''; },
+    removeAttribute(name) { this.attributes.delete(name); },
+    set currentTime(value) { lastCurrentTime = value; },
+    pause() { this.paused = true; pauseCount += 1; },
+    play() { this.paused = false; return Promise.resolve(); },
+  };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoObjectUrl: 'blob:keep',
+        previewVideoUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: true,
+        audioDurationMs: 10000,
+        rows: [{ id: 'row-9', start: '00:03.00', end: '00:06.00', phrase: 'mundo' }],
+      },
+    },
+    el: {
+      subtitle2PreviewVideo: video,
+      subtitle2PreviewStage: { classList: createClassList() },
+      subtitle2PreviewEmpty: { classList: createClassList() },
+      subtitle2PreviewPlayBtn: { disabled: false, textContent: '', setAttribute() {} },
+    },
+  });
+  const player = createSubtitlePreviewPlayer(ctx, {
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    resolvePreviewDurationMs: () => 10000,
+  });
+
+  assert.equal(video.paused, false);
+  player.seekPreviewToRow('row-9');
+  assert.equal(video.paused, true);
+  assert.equal(pauseCount, 1);
+  assert.equal(lastCurrentTime, 3);
+});
+
+function buildClickTargetMock(rowId) {
+  return {
+    dataset: { rowId },
+    closest(selector) {
+      if (selector === 'tr[data-row-id]') return this;
+      if (selector === 'button[data-action="insert-subtitle-row"]') return null;
+      if (selector === 'button[data-action="nudge-subtitle-time"]') return null;
+      if (selector === 'button[data-action="step-subtitle-number"]') return null;
+      if (selector === 'button[data-action="delete-subtitle-row"]') return null;
+      if (selector === 'button[data-field="align"]') return null;
+      if (selector === 'input, textarea, select, button') return null;
+      return null;
+    },
+  };
+}
+
+function buildTextareaClickTarget(rowId) {
+  const textarea = {
+    dataset: { rowId, field: 'phrase' },
+    closest(selector) {
+      if (selector === 'tr[data-row-id]') return this;
+      if (selector === 'button[data-action="insert-subtitle-row"]') return null;
+      if (selector === 'button[data-action="nudge-subtitle-time"]') return null;
+      if (selector === 'button[data-action="step-subtitle-number"]') return null;
+      if (selector === 'button[data-action="delete-subtitle-row"]') return null;
+      if (selector === 'button[data-field="align"]') return null;
+      if (selector === 'input, textarea, select, button') return this;
+      return null;
+    },
+  };
+  return textarea;
+}
+
+test('table editor onTableClick row-body fallback seeks the preview to that row', () => {
+  const seekCalls = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [
+          { id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' },
+          { id: 'row-8', start: '00:08.06', end: '00:10.00', phrase: 'mundo' },
+        ],
+        previewVideoObjectUrl: 'blob:loaded',
+        previewVideoUrl: '',
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => {},
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    updateButtonsByPhase: () => {},
+    onSeekPreviewToRow: (rowId) => seekCalls.push(rowId),
+  });
+
+  editor.onTableClick({ target: buildClickTargetMock('row-7') });
+
+  assert.deepEqual(seekCalls, ['row-7']);
+});
+
+test('table editor onTableClick does not seek when the click lands inside a textarea', () => {
+  const seekCalls = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [{ id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' }],
+        previewVideoObjectUrl: 'blob:loaded',
+        previewVideoUrl: '',
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => {},
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    updateButtonsByPhase: () => {},
+    onSeekPreviewToRow: (rowId) => seekCalls.push(rowId),
+  });
+
+  editor.onTableClick({ target: buildTextareaClickTarget('row-7') });
+
+  assert.deepEqual(seekCalls, []);
+});
+
+test('table editor onTableClick does not seek when the row is a draft', () => {
+  const seekCalls = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [
+          { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno' },
+          { id: 'draft-1', start: '', end: '', phrase: '', isDraft: true },
+        ],
+        previewVideoObjectUrl: 'blob:loaded',
+        previewVideoUrl: '',
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => {},
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    updateButtonsByPhase: () => {},
+    onSeekPreviewToRow: (rowId) => seekCalls.push(rowId),
+  });
+
+  editor.onTableClick({ target: buildClickTargetMock('draft-1') });
+
+  assert.deepEqual(seekCalls, []);
+});
+
+test('table editor onTableClick does not seek when no preview video is loaded', () => {
+  const seekCalls = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [{ id: 'row-7', start: '00:05.00', end: '00:08.00', phrase: 'hola' }],
+        previewVideoObjectUrl: '',
+        previewVideoUrl: '',
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => {},
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    updateButtonsByPhase: () => {},
+    onSeekPreviewToRow: (rowId) => seekCalls.push(rowId),
+  });
+
+  assert.doesNotThrow(() => editor.onTableClick({ target: buildClickTargetMock('row-7') }));
+  assert.deepEqual(seekCalls, []);
+});
+
+function buildAutoScrollHarness({ rows, containerRect, initialUserScrolledAt = 0 } = {}) {
+  const rowMocks = new Map();
+  for (const row of rows) {
+    const classList = createClassList();
+    rowMocks.set(row.id, {
+      dataset: { rowId: row.id },
+      classList,
+      rect: row.rect,
+      scrollIntoViewCalls: [],
+      getBoundingClientRect() { return this.rect; },
+      scrollIntoView(options) { this.scrollIntoViewCalls.push(options); },
+    });
+  }
+  const rowsBody = {
+    _rowMocks: rowMocks,
+    querySelector(selector) {
+      if (selector === 'tr[data-row-id]') {
+        return rowMocks.values().next().value || null;
+      }
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === 'tr[data-row-id]') {
+        return Array.from(rowMocks.values());
+      }
+      return [];
+    },
+    closest(selector) {
+      if (selector === '.subtitle-table-scroll') {
+        return {
+          getBoundingClientRect() { return containerRect; },
+        };
+      }
+      return null;
+    },
+  };
+  const rafCallbacks = [];
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        previewVideoObjectUrl: 'blob:keep',
+        previewVideoUrl: '',
+        previewCurrentMs: 0,
+        previewPlaying: false,
+        audioDurationMs: 10000,
+        rows: rows.map((row) => ({ id: row.id, start: '00:00.00', end: '00:01.00', phrase: row.id })),
+        activeRowId: '',
+        userScrolledAt: initialUserScrolledAt,
+      },
+    },
+    el: { subtitle2RowsBody: rowsBody },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: {
+        addEventListener() {},
+        removeEventListener() {},
+        requestAnimationFrame(callback) { rafCallbacks.push(callback); return rafCallbacks.length; },
+        cancelAnimationFrame() {},
+      },
+      setTimeout() {},
+      clearTimeout() {},
+      clearInterval() {},
+    },
+  });
+  const player = createSubtitlePreviewPlayer(ctx, {
+    renderTable: () => {},
+    renderPreviewOverlay: () => {},
+    resolvePreviewDurationMs: () => 10000,
+  });
+  return { player, ctx, rowMocks, rafCallbacks };
+}
+
+test('syncActiveTableRow scrolls the active row into view when off-screen and cooldown elapsed', () => {
+  const { player, rowMocks, rafCallbacks } = buildAutoScrollHarness({
+    rows: [
+      { id: 'row-5', rect: { top: 50, bottom: 80 } },
+      { id: 'row-12', rect: { top: 800, bottom: 830 } },
+    ],
+    containerRect: { top: 0, bottom: 400 },
+  });
+
+  player.syncActiveTableRow('row-12');
+  // requestAnimationFrame callback must run to actually invoke scrollIntoView
+  for (const cb of rafCallbacks) cb();
+
+  assert.equal(rowMocks.get('row-12').scrollIntoViewCalls.length, 1);
+  assert.deepEqual(rowMocks.get('row-12').scrollIntoViewCalls[0], { behavior: 'smooth', block: 'center' });
+  assert.equal(rowMocks.get('row-5').scrollIntoViewCalls.length, 0);
+});
+
+test('syncActiveTableRow does not scroll when the active row is already inside the viewport', () => {
+  const { player, rowMocks, rafCallbacks } = buildAutoScrollHarness({
+    rows: [
+      { id: 'row-5', rect: { top: 50, bottom: 80 } },
+    ],
+    containerRect: { top: 0, bottom: 400 },
+  });
+
+  player.syncActiveTableRow('row-5');
+  for (const cb of rafCallbacks) cb();
+
+  assert.equal(rowMocks.get('row-5').scrollIntoViewCalls.length, 0);
+});
+
+test('syncActiveTableRow does not scroll within the 500ms user-scroll cooldown', () => {
+  const now = Date.now();
+  const originalNow = Date.now;
+  Date.now = () => now;
+  try {
+    const { player, rowMocks, rafCallbacks } = buildAutoScrollHarness({
+      rows: [
+        { id: 'row-12', rect: { top: 800, bottom: 830 } },
+      ],
+      containerRect: { top: 0, bottom: 400 },
+      initialUserScrolledAt: now - 200,
+    });
+
+    player.syncActiveTableRow('row-12');
+    for (const cb of rafCallbacks) cb();
+
+    assert.equal(rowMocks.get('row-12').scrollIntoViewCalls.length, 0);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('syncActiveTableRow scrolls again once the user-scroll cooldown elapses', () => {
+  const now = Date.now();
+  const originalNow = Date.now;
+  Date.now = () => now;
+  try {
+    const { player, rowMocks, rafCallbacks } = buildAutoScrollHarness({
+      rows: [
+        { id: 'row-12', rect: { top: 800, bottom: 830 } },
+      ],
+      containerRect: { top: 0, bottom: 400 },
+      initialUserScrolledAt: now - 600,
+    });
+
+    player.syncActiveTableRow('row-12');
+    for (const cb of rafCallbacks) cb();
+
+    assert.equal(rowMocks.get('row-12').scrollIntoViewCalls.length, 1);
+    assert.deepEqual(rowMocks.get('row-12').scrollIntoViewCalls[0], { behavior: 'smooth', block: 'center' });
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('syncActiveTableRow does not scroll when the active row id has not changed', () => {
+  const { player, rowMocks, rafCallbacks } = buildAutoScrollHarness({
+    rows: [
+      { id: 'row-12', rect: { top: 800, bottom: 830 } },
+    ],
+    containerRect: { top: 0, bottom: 400 },
+  });
+
+  player.syncActiveTableRow('row-12');
+  for (const cb of rafCallbacks) cb();
+  // Second call with the same id: id-equality guard kicks in
+  player.syncActiveTableRow('row-12');
+
+  assert.equal(rowMocks.get('row-12').scrollIntoViewCalls.length, 1);
 });
 
 test('root subtitles controller forwards preview video events so playhead follows playback', () => {

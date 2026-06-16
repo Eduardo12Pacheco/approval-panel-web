@@ -29,6 +29,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   const renderPreviewOverlay = callbacks.renderPreviewOverlay || (() => ctx.renderCallbacks.renderPreviewOverlay?.());
   const updateButtonsByPhase = callbacks.updateButtonsByPhase || (() => ctx.renderCallbacks.updateButtonsByPhase?.());
   const onRowsChanged = callbacks.onRowsChanged || (() => {});
+  const onSeekPreviewToRow = callbacks.onSeekPreviewToRow || (() => {});
   const resolvePreviewDurationMs = callbacks.resolvePreviewDurationMs || (() => resolveSubtitlePreviewDurationMsRuntime({
     audioDurationMs: state.subtitles2.audioDurationMs,
     rows: state.subtitles2.rows,
@@ -135,11 +136,23 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       return;
     }
     const button = closestFromEventTarget(ev.target, 'button[data-field="align"]');
-    if (!button) return;
-    const rowId = button.dataset.rowId;
-    const align = button.dataset.align;
-    if (!rowId || !align) return;
-    patchRow(rowId, { align });
+    if (button) {
+      const alignRowId = button.dataset.rowId;
+      const align = button.dataset.align;
+      if (!alignRowId || !align) return;
+      patchRow(alignRowId, { align });
+      return;
+    }
+    const rowEl = closestFromEventTarget(ev.target, 'tr[data-row-id]');
+    if (!rowEl) return;
+    if (closestFromEventTarget(ev.target, 'input, textarea, select, button')) return;
+    const rowId = rowEl.dataset.rowId;
+    if (!rowId) return;
+    const row = state.subtitles2.rows.find((item) => item.id === rowId);
+    if (!row || row.isDraft) return;
+    const hasVideo = Boolean((state.subtitles2.previewVideoObjectUrl || state.subtitles2.previewVideoUrl || '').toString().trim());
+    if (!hasVideo) return;
+    onSeekPreviewToRow(rowId);
   }
 
   function onTablePointerDown(ev) {
