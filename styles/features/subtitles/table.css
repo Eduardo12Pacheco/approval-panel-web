@@ -203,7 +203,8 @@
   line-height: 1;
 }
 
-#viewSubtitulos2 .subtitle-time-nudge button:hover:not(:disabled) {
+#viewSubtitulos2 .subtitle-time-nudge button:hover:not(:disabled),
+#viewSubtitulos2 .subtitle-time-nudge button.is-holding {
   border-color: #00E88F66;
   color: #00E88F;
 }

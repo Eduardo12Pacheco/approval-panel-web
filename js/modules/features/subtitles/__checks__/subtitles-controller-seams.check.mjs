@@ -915,7 +915,10 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
     disabled: false,
     dataset: { rowId: 'row-1', field: 'maxWidthPx', direction: 'up' },
     classList: buttonClassList,
-    closest(selector) { return selector === 'button[data-action="step-subtitle-number"]' ? this : null; },
+    closest(selector) {
+      if (selector.includes('step-subtitle-number')) return this;
+      return null;
+    },
     addEventListener(name, callback) { buttonListeners.set(name, callback); },
     removeEventListener(name) { buttonListeners.delete(name); },
     setPointerCapture(pointerId) { this.capturedPointerId = pointerId; },
@@ -965,6 +968,141 @@ test('table editor max-width stepper handles nested arrow targets and repeat hol
   assert.ok(clearedTimers.includes('timer-3'));
   assert.equal(windowListeners.has('pointerup'), false);
   assert.equal(buttonListeners.has('mouseleave'), false);
+});
+
+test('table editor time nudge button press-and-hold advances start time and silences boundary toasts', () => {
+  const timers = [];
+  const clearedTimers = [];
+  const windowListeners = new Map();
+  const buttonListeners = new Map();
+  const toasts = [];
+  const buttonClassList = createClassList();
+  const button = {
+    disabled: false,
+    dataset: { rowId: 'row-2', field: 'start', direction: 'up' },
+    classList: buttonClassList,
+    closest(selector) {
+      if (selector.includes('nudge-subtitle-time')) return this;
+      return null;
+    },
+    addEventListener(name, callback) { buttonListeners.set(name, callback); },
+    removeEventListener(name) { buttonListeners.delete(name); },
+    setPointerCapture(pointerId) { this.capturedPointerId = pointerId; },
+    releasePointerCapture(pointerId) { this.releasedPointerId = pointerId; },
+  };
+  const textNodeTarget = { parentElement: button };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [
+          { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno' },
+          { id: 'row-2', start: '00:01.20', end: '00:03.00', phrase: 'dos' },
+          { id: 'row-3', start: '00:03.20', end: '00:05.00', phrase: 'tres' },
+        ],
+        changeVersion: 0,
+        dirty: false,
+        numberHoldTimer: null,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
+    ui: { toast(message) { toasts.push(message); } },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: {
+        addEventListener(name, callback) { windowListeners.set(name, callback); },
+        removeEventListener(name) { windowListeners.delete(name); },
+      },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      clearTimeout(id) { clearedTimers.push(id); },
+      clearInterval() {},
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderPreviewOverlay() {},
+    updateButtonsByPhase() {},
+  });
+
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
+  timers.find((timer) => timer.ms === 320).callback();
+  timers.filter((timer) => timer.ms === 75).at(-1).callback();
+  windowListeners.get('pointerup')();
+  timers.filter((timer) => timer.ms === 75).at(-1).callback();
+
+  // 1 immediate nudge + 2 repeats (320ms + 75ms after pointerdown) = 3 nudges of -0.1s each.
+  // start 1200ms → 1100 → 1000 → 900 = 00:00.90. previous end compensates: 900 - 60 = 840 = 00:00.84.
+  assert.equal(ctx.state.subtitles2.rows[1].start, '00:00.90');
+  assert.equal(ctx.state.subtitles2.rows[0].end, '00:00.84');
+  assert.equal(buttonClassList.contains('is-holding'), false);
+  assert.equal(ctx.state.subtitles2.numberHoldTimer, null);
+  assert.equal(ctx.state.subtitles2.numberHoldState, null);
+  assert.equal(button.capturedPointerId, 17);
+  assert.equal(button.releasedPointerId, 17);
+  assert.deepEqual(toasts, []);
+});
+
+test('table editor time nudge press-and-hold at boundary fires only the first toast', () => {
+  const timers = [];
+  const clearedTimers = [];
+  const windowListeners = new Map();
+  const buttonListeners = new Map();
+  const toasts = [];
+  const buttonClassList = createClassList();
+  const button = {
+    disabled: false,
+    dataset: { rowId: 'row-1', field: 'start', direction: 'up' },
+    classList: buttonClassList,
+    closest(selector) {
+      if (selector.includes('nudge-subtitle-time')) return this;
+      return null;
+    },
+    addEventListener(name, callback) { buttonListeners.set(name, callback); },
+    removeEventListener(name) { buttonListeners.delete(name); },
+    setPointerCapture(pointerId) { this.capturedPointerId = pointerId; },
+    releasePointerCapture(pointerId) { this.releasedPointerId = pointerId; },
+  };
+  const textNodeTarget = { parentElement: button };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: [
+          { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno' },
+          { id: 'row-2', start: '00:01.20', end: '00:03.00', phrase: 'dos' },
+        ],
+        changeVersion: 0,
+        dirty: false,
+        numberHoldTimer: null,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
+    ui: { toast(message) { toasts.push(message); } },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: {
+        addEventListener(name, callback) { windowListeners.set(name, callback); },
+        removeEventListener(name) { windowListeners.delete(name); },
+      },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      clearTimeout(id) { clearedTimers.push(id); },
+      clearInterval() {},
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderPreviewOverlay() {},
+    updateButtonsByPhase() {},
+  });
+
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
+  timers.find((timer) => timer.ms === 320).callback();
+  timers.filter((timer) => timer.ms === 75).at(-1).callback();
+  windowListeners.get('pointerup')();
+
+  // Immediate action toasts once; repeats are silent.
+  assert.deepEqual(toasts, ['El START de la primera frase es fijo en 00:00.00']);
+  assert.equal(ctx.state.subtitles2.rows[0].start, '00:00.00');
+  assert.equal(buttonClassList.contains('is-holding'), false);
+  assert.equal(ctx.state.subtitles2.numberHoldState, null);
 });
 
 test('root subtitles controller wires renderer and preview player collaborators', async () => {

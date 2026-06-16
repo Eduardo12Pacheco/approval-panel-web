@@ -257,6 +257,8 @@ def test_subtitle2_markup_and_styles_define_custom_preview_controls_and_clean_ta
         'SUBTITLE_TIME_NUDGE_MS = 100',
         'SUBTITLE_TIMING_GAP_MS = 60',
         'SUBTITLE_DRAFT_INSERT_DURATION_MS = 1000',
+        'runFieldStep',
+        'options.silent',
         'const draftStartMs = nextStartMs',
         'const adjustedNextStartMs = draftEndMs + SUBTITLE_TIMING_GAP_MS',
         'No hay margen suficiente para mover el START',

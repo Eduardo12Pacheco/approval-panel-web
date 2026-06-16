@@ -117,7 +117,11 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     }
     const nudgeButton = closestFromEventTarget(ev.target, 'button[data-action="nudge-subtitle-time"]');
     if (nudgeButton) {
-      nudgeTimingBoundary(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
+      if (nudgeButton.dataset.pointerHandled === 'true') {
+        delete nudgeButton.dataset.pointerHandled;
+        return;
+      }
+      runFieldStep(nudgeButton.dataset.rowId, nudgeButton.dataset.field, nudgeButton.dataset.direction);
       return;
     }
     const numberStepButton = closestFromEventTarget(ev.target, 'button[data-action="step-subtitle-number"]');
@@ -126,7 +130,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
         delete numberStepButton.dataset.pointerHandled;
         return;
       }
-      stepNumberField(numberStepButton.dataset.rowId, numberStepButton.dataset.field, numberStepButton.dataset.direction);
+      runFieldStep(numberStepButton.dataset.rowId, numberStepButton.dataset.field, numberStepButton.dataset.direction);
       return;
     }
     const deleteButton = closestFromEventTarget(ev.target, 'button[data-action="delete-subtitle-row"]');
@@ -156,7 +160,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
   }
 
   function onTablePointerDown(ev) {
-    const button = closestFromEventTarget(ev.target, 'button[data-action="step-subtitle-number"]');
+    const button = closestFromEventTarget(ev.target, 'button[data-action="step-subtitle-number"], button[data-action="nudge-subtitle-time"]');
     if (!button || button.disabled) return;
     if (ev.button != null && ev.button !== 0) return;
     ev.preventDefault();
@@ -184,7 +188,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     } catch {
       // Pointer capture is best-effort; global listeners still stop the hold.
     }
-    stepNumberField(rowId, field, direction);
+    runFieldStep(rowId, field, direction);
 
     const scheduleRepeat = (delayMs) => {
       holdState.timer = timers.setTimeout(runRepeat, delayMs);
@@ -192,7 +196,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     };
     const runRepeat = () => {
       if (!holdState.active || state.subtitles2.numberHoldState !== holdState) return;
-      stepNumberField(rowId, field, direction);
+      runFieldStep(rowId, field, direction, { silent: true });
       scheduleRepeat(SUBTITLE_NUMBER_HOLD_INTERVAL_MS);
     };
 
@@ -238,6 +242,14 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     state.subtitles2.numberHoldTimer = null;
   }
 
+  function runFieldStep(rowId, field, direction, options = {}) {
+    if (field === 'start' || field === 'end') {
+      nudgeTimingBoundary(rowId, field, direction, { silent: options.silent });
+      return;
+    }
+    stepNumberField(rowId, field, direction);
+  }
+
   function stepNumberField(rowId, field, direction) {
     if (field !== 'maxWidthPx') return;
     const row = state.subtitles2.rows.find((item) => item.id === rowId);
@@ -259,12 +271,12 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     )) || null;
   }
 
-  function nudgeTimingBoundary(rowId, field, direction) {
+  function nudgeTimingBoundary(rowId, field, direction, options = {}) {
     const index = state.subtitles2.rows.findIndex((row) => row.id === rowId);
     const row = state.subtitles2.rows[index];
     if (!row || row.isDraft) return;
     if (field === 'end' && index === getLastNonDraftRowIndex()) {
-      toast('El END de la última frase debe durar hasta el final del video');
+      if (!options.silent) toast('El END de la última frase debe durar hasta el final del video');
       return;
     }
     const delta = direction === 'up' ? -SUBTITLE_TIME_NUDGE_MS : SUBTITLE_TIME_NUDGE_MS;
@@ -273,7 +285,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
 
     if (field === 'start') {
       if (index === 0) {
-        toast('El START de la primera frase es fijo en 00:00.00');
+        if (!options.silent) toast('El START de la primera frase es fijo en 00:00.00');
         return;
       }
       const previous = state.subtitles2.rows[index - 1];
@@ -281,7 +293,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       const nextStartMs = currentStartMs + delta;
       const previousEndMs = nextStartMs - SUBTITLE_TIMING_GAP_MS;
       if (previousEndMs <= previousStartMs || nextStartMs >= currentEndMs - SUBTITLE_TIMING_GAP_MS) {
-        toast('No hay margen suficiente para mover el START');
+        if (!options.silent) toast('No hay margen suficiente para mover el START');
         return;
       }
       undoHistory.captureRowsSnapshot({ coalesceKey: `timing:${field}:${rowId}` });
@@ -303,7 +315,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const nextEndBoundaryMs = currentEndMs + delta;
     const nextStartMs = nextEndBoundaryMs + SUBTITLE_TIMING_GAP_MS;
     if (nextEndBoundaryMs <= currentStartMs + SUBTITLE_TIMING_GAP_MS || (next && nextStartMs >= nextEndMs)) {
-      toast('No hay margen suficiente para mover el END');
+      if (!options.silent) toast('No hay margen suficiente para mover el END');
       return;
     }
     undoHistory.captureRowsSnapshot({ coalesceKey: `timing:${field}:${rowId}` });
