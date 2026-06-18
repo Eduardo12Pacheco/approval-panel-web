@@ -53,6 +53,18 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     updateButtonsByPhase();
   }
 
+  function patchAllRows(patch, options = {}) {
+    const rerender = options.rerender !== false;
+    if (options.captureUndo !== false) undoHistory.captureRowsSnapshot({ coalesceKey: options.coalesceKey || 'global' });
+    state.subtitles2.rows = state.subtitles2.rows.map((row) => applySubtitleRowPatch(row, patch));
+    state.subtitles2.changeVersion += 1;
+    state.subtitles2.dirty = true;
+    onRowsChanged();
+    if (rerender) renderTable();
+    renderPreviewOverlay();
+    updateButtonsByPhase();
+  }
+
   function hasDraftRows() {
     return hasSubtitleDraftRowsRuntime(state.subtitles2.rows);
   }
@@ -62,33 +74,37 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     if (!target) return;
     const rowId = target.dataset.rowId;
     if (!rowId) return;
+    const isGlobal = rowId === 'global';
+    const patchFn = isGlobal ? patchAllRows : patchRow;
 
     if (target.dataset.field === 'start' || target.dataset.field === 'end') {
+      if (isGlobal) return;
       applyTimingInput(rowId, target.dataset.field, target.value);
       return;
     }
     if (target.dataset.field === 'phrase') {
+      if (isGlobal) return;
       patchRow(rowId, { phrase: target.value }, { rerender: false, coalesceKey: `phrase:${rowId}` });
       return;
     }
     if (target.dataset.field === 'showStripes') {
-      patchRow(rowId, { showStripes: target.checked });
+      patchFn({ showStripes: target.checked }, { coalesceKey: isGlobal ? 'global:stripes' : `stripes:${rowId}` });
       return;
     }
     if (target.dataset.field === 'maxWidthPx') {
-      patchRow(rowId, { maxWidthPx: target.value });
+      patchFn({ maxWidthPx: target.value }, { coalesceKey: isGlobal ? 'global:maxWidth' : `maxWidth:${rowId}` });
       return;
     }
     if (target.dataset.field === 'size') {
-      patchRow(rowId, { size: target.value });
+      patchFn({ size: target.value }, { coalesceKey: isGlobal ? 'global:size' : `size:${rowId}` });
       return;
     }
     if (target.dataset.field === 'color') {
-      patchRow(rowId, { color: target.value });
+      patchFn({ color: target.value }, { coalesceKey: isGlobal ? 'global:color' : `color:${rowId}` });
       return;
     }
     if (target.dataset.field === 'fontFamily') {
-      patchRow(rowId, { fontFamily: target.value });
+      patchFn({ fontFamily: target.value }, { coalesceKey: isGlobal ? 'global:font' : `font:${rowId}` });
     }
   }
 
@@ -148,11 +164,13 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       const alignRowId = button.dataset.rowId;
       const align = button.dataset.align;
       if (!alignRowId || !align) return;
+      const isGlobal = alignRowId === 'global';
+      const patchFn = isGlobal ? patchAllRows : patchRow;
       const patch = { align };
       if (align === 'center') {
         patch.size = '50';
       }
-      patchRow(alignRowId, patch);
+      patchFn(patch, { coalesceKey: isGlobal ? 'global:align' : `align:${alignRowId}` });
       return;
     }
     const rowEl = closestFromEventTarget(ev.target, 'tr[data-row-id]');

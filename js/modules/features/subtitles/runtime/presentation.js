@@ -44,6 +44,61 @@ export function buildSubtitleSessionHistoryMarkupRuntime({ items = [], activeSes
   }).join('');
 }
 
+export function buildGlobalRowMarkupRuntime({
+  sizeOptions = [],
+  fontOptions = [],
+  colorOptions = [],
+  escapeHtml,
+  getAlignmentButtonState,
+  resolveFontWeight,
+  globalValues = {},
+} = {}) {
+  const escape = typeof escapeHtml === 'function' ? escapeHtml : (value) => (value ?? '').toString();
+  const alignment = typeof getAlignmentButtonState === 'function'
+    ? getAlignmentButtonState(globalValues.align || 'left')
+    : {
+      left: { className: '', selected: false },
+      center: { className: '', selected: false },
+      right: { className: '', selected: false },
+    };
+  const showStripes = globalValues.showStripes !== false;
+  return `
+    <tr data-row-id="global" class="subtitle-row--global">
+      <td colspan="2" class="subtitle-global-label">
+        <span class="subtitle-global-label__icon">🌐</span>
+        <span class="subtitle-global-label__text">GLOBAL</span>
+      </td>
+      <td><select data-row-id="global" data-field="size" name="subtitle-size-global" class="subtitle-size-select" data-custom-dropdown data-dropdown-label="Tamaño" data-dropdown-placeholder="Tamaño">${buildSubtitleSelectOptionsMarkupRuntime(sizeOptions, globalValues.size || '110', { escapeHtml: escape })}</select></td>
+      <td>
+        <div class="subtitle-number-stepper">
+          <input type="number" min="1" step="10" inputmode="numeric" data-row-id="global" data-field="maxWidthPx" value="${escape(String(globalValues.maxWidthPx || 1080))}" aria-label="Ancho máximo global" />
+          <div class="subtitle-number-stepper__buttons" aria-label="Ajustar ancho máximo global">
+            <button type="button" data-action="step-subtitle-number" data-row-id="global" data-field="maxWidthPx" data-direction="up" aria-label="Subir ancho máximo global" title="Subir ancho máximo global">⌃</button>
+            <button type="button" data-action="step-subtitle-number" data-row-id="global" data-field="maxWidthPx" data-direction="down" aria-label="Bajar ancho máximo global" title="Bajar ancho máximo global">⌄</button>
+          </div>
+        </div>
+      </td>
+      <td><select data-row-id="global" data-field="fontFamily">${buildSubtitleSelectOptionsMarkupRuntime(fontOptions, globalValues.fontFamily || 'Khand', { escapeHtml: escape })}</select></td>
+      <td><select data-row-id="global" data-field="color">${buildSubtitleSelectOptionsMarkupRuntime(colorOptions, globalValues.color || '#FFFFFF', { escapeHtml: escape })}</select></td>
+      <td>
+        <div class="subtitle-align-group subtitle-align-group--compact">
+          <button type="button" data-row-id="global" data-field="align" data-align="left" class="${alignment.left.className}" aria-label="Alinear izquierda global" aria-pressed="${alignment.left.selected}">I</button>
+          <button type="button" data-row-id="global" data-field="align" data-align="center" class="${alignment.center.className}" aria-label="Alinear centro global" aria-pressed="${alignment.center.selected}">C</button>
+          <button type="button" data-row-id="global" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha global" aria-pressed="${alignment.right.selected}">D</button>
+        </div>
+      </td>
+      <td class="subtitle-table__cell--stripes">
+        <label class="subtitle-stripes-toggle" aria-label="Mostrar rayas decorativas global">
+          <input type="checkbox" data-row-id="global" data-field="showStripes" ${showStripes ? 'checked' : ''} />
+          <span class="subtitle-stripes-toggle__icon">▬</span>
+        </label>
+      </td>
+      <td class="subtitle-table__cell--insert"></td>
+      <td class="subtitle-table__cell--delete"></td>
+    </tr>
+  `;
+}
+
 export function buildSubtitleTableRowMarkupRuntime({
   row,
   index = 0,

@@ -21,6 +21,7 @@ import {
   validateSubtitleTimingPatchRuntime,
 } from './services.js';
 import {
+  buildGlobalRowMarkupRuntime,
   buildSubtitleSelectOptionsMarkupRuntime,
   buildSubtitleSessionHistoryMarkupRuntime,
   buildSubtitleTableRowMarkupRuntime,
@@ -34,6 +35,7 @@ import {
 } from './presentation.js';
 
 export {
+  buildGlobalRowMarkupRuntime,
   buildSubtitleCueMarkersRuntime,
   buildSubtitleHealthRuntime,
   buildSubtitleInsertRowRuntime,

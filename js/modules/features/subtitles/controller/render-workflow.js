@@ -8,6 +8,7 @@ import {
   resolveSubtitleFontWeight,
 } from '../../../subtitles-workflow.mjs';
 import {
+  buildGlobalRowMarkupRuntime,
   buildSubtitleHealthRuntime,
   buildSubtitleProcessingMessageRuntime,
   buildSubtitleSessionHistoryMarkupRuntime,
@@ -180,7 +181,25 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
       { value: '#00FF5A', label: 'Verde' },
       { value: '#0CC3F2', label: 'Celeste' },
     ];
-    el.subtitle2RowsBody.innerHTML = buildSubtitlesTableRowsMarkupRuntime({
+    const firstRow = state.subtitles2.rows[0] || {};
+    const globalValues = {
+      size: firstRow.size || '110',
+      maxWidthPx: firstRow.maxWidthPx || 1080,
+      fontFamily: firstRow.fontFamily || 'Khand',
+      color: firstRow.color || '#FFFFFF',
+      align: firstRow.align || 'left',
+      showStripes: firstRow.showStripes !== false,
+    };
+    const globalRowMarkup = buildGlobalRowMarkupRuntime({
+      sizeOptions,
+      fontOptions,
+      colorOptions,
+      escapeHtml,
+      getAlignmentButtonState,
+      resolveFontWeight: resolveSubtitleFontWeight,
+      globalValues,
+    });
+    const rowsMarkup = buildSubtitlesTableRowsMarkupRuntime({
       rows: state.subtitles2.rows,
       sizeOptions,
       fontOptions,
@@ -192,6 +211,7 @@ export function createSubtitleWorkflowRenderer(ctx, collaborators = {}) {
       getAlignmentButtonState,
       resolveFontWeight: resolveSubtitleFontWeight,
     });
+    el.subtitle2RowsBody.innerHTML = globalRowMarkup + rowsMarkup;
     customDropdowns.refreshAll();
   }
 

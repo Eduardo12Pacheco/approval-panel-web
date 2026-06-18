@@ -1,6 +1,7 @@
 import { createSubtitlesRuntimeControllers } from './controllers.js';
 
 export {
+  buildGlobalRowMarkupRuntime,
   buildSubtitleCueMarkersRuntime,
   buildSubtitleHealthRuntime,
   buildSubtitleInsertRowRuntime,
