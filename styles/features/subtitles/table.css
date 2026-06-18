@@ -335,20 +335,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid #2A2A2A;
-  border-radius: 4px;
+  width: 32px;
+  height: 20px;
+  border: 2px solid #2A2A2A;
+  border-radius: 10px;
   background: #0D0D0D;
-  color: #F5F7F7;
-  font-size: 13px;
-  transition: all 0.16s ease;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle__icon::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4B4F55;
+  left: 1px;
+  top: 1px;
+  transition: all 0.2s ease;
 }
 
 #viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"]:checked + .subtitle-stripes-toggle__icon {
-  background: rgba(0, 232, 143, 0.12);
+  background: rgba(0, 232, 143, 0.2);
   border-color: #00E88F;
-  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"]:checked + .subtitle-stripes-toggle__icon::after {
+  background: #00E88F;
+  left: 15px;
 }
 
 #viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"]:focus + .subtitle-stripes-toggle__icon {
