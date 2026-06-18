@@ -278,3 +278,85 @@
   color: #4B4F55;
   opacity: 0.55;
 }
+
+/* Global row styles */
+#viewSubtitulos2 tr.subtitle-row--global {
+  background: #0A0A0A;
+  border-bottom: 2px solid #1A1A1A;
+}
+
+#viewSubtitulos2 tr.subtitle-row--global td {
+  padding: 10px 8px;
+}
+
+#viewSubtitulos2 .subtitle-global-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px;
+}
+
+#viewSubtitulos2 .subtitle-global-label__icon {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+#viewSubtitulos2 .subtitle-global-label__text {
+  color: #F7B955;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+/* Stripes toggle checkbox styles */
+#viewSubtitulos2 .subtitle-stripes-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.16s ease;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #2A2A2A;
+  border-radius: 4px;
+  background: #0D0D0D;
+  color: #F5F7F7;
+  font-size: 14px;
+  transition: all 0.16s ease;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"]:checked + .subtitle-stripes-toggle__icon {
+  background: rgba(0, 232, 143, 0.12);
+  border-color: #00E88F;
+  color: #00E88F;
+}
+
+#viewSubtitulos2 .subtitle-stripes-toggle input[type="checkbox"]:focus + .subtitle-stripes-toggle__icon {
+  outline: 2px solid #00E88F;
+  outline-offset: 2px;
+}
+
+#viewSubtitulos2 .subtitle-table__cell--stripes {
+  width: 48px;
+  text-align: center;
+}
