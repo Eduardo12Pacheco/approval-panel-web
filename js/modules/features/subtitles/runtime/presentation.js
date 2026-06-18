@@ -64,7 +64,8 @@ export function buildGlobalRowMarkupRuntime({
   const showStripes = globalValues.showStripes !== false;
   return `
     <tr data-row-id="global" class="subtitle-row--global">
-      <td colspan="2" class="subtitle-global-label">
+      <td></td>
+      <td class="subtitle-global-label">
         <span class="subtitle-global-label__icon">🌐</span>
         <span class="subtitle-global-label__text">GLOBAL</span>
       </td>
