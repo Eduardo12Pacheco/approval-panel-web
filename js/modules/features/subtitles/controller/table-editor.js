@@ -144,7 +144,11 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       const alignRowId = button.dataset.rowId;
       const align = button.dataset.align;
       if (!alignRowId || !align) return;
-      patchRow(alignRowId, { align });
+      const patch = { align };
+      if (align === 'center') {
+        patch.size = '50';
+      }
+      patchRow(alignRowId, patch);
       return;
     }
     const rowEl = closestFromEventTarget(ev.target, 'tr[data-row-id]');

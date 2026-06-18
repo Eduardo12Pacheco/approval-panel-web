@@ -76,6 +76,7 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
     });
     if (el.subtitle2PreviewOverlay) {
       el.subtitle2PreviewOverlay.style.justifyContent = presentation.justifyContent;
+      el.subtitle2PreviewOverlay.style.alignItems = presentation.alignItems || 'center';
     }
     if (!activeCue) {
       el.subtitle2PreviewCue.classList.add('hidden');

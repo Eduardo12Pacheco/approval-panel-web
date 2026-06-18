@@ -10,7 +10,7 @@ export const SUBTITLES_POLL_INTERVAL_MS = 2000;
 export const SUBTITLES_AUTOSAVE_INTERVAL_MS = 5000;
 export const SUBTITLES_RENDER_WATCHDOG_MS = 300000;
 
-export const SUBTITLE_SIZE_PRESETS = Object.freeze(['90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140', '150', '160', '170', '180', '190', '200']);
+export const SUBTITLE_SIZE_PRESETS = Object.freeze(['10', '20', '30', '40', '50', '60', '70', '80', '90', '95', '100', '105', '110', '115', '120', '125', '130', '135', '140', '150', '160', '170', '180', '190', '200']);
 export const SUBTITLE_COLOR_PRESETS = Object.freeze(['#FFFFFF', '#FFF000', '#00FF5A', '#0CC3F2']);
 export const SUBTITLE_FONT_PRESETS = Object.freeze(['Khand', 'Anton', 'Impact', 'League Gothic', 'Oswald']);
 const DEFAULT_SUBTITLE_SIZE = '110';

@@ -187,6 +187,7 @@ export function buildSubtitlePreviewPresentationRuntime({
   const scale = Math.min(widthScale || 1, heightScale || 1, 1);
   const rawAlign = (activeCue?.align || 'left').toString().trim().toLowerCase();
   const justifyContent = rawAlign === 'right' ? 'flex-end' : rawAlign === 'center' ? 'center' : 'flex-start';
+  const alignItems = rawAlign === 'center' ? 'flex-end' : 'center';
   const fontSizeBase = Number(activeCue?.size || activeCue?.font_size || 110);
   const cueWidthBase = Number(activeCue?.maxWidthPx || activeCue?.max_width_px || defaultMaxWidthPx);
   const fontFamily = (activeCue?.fontFamily || activeCue?.font_family || 'Khand').toString();
@@ -199,6 +200,7 @@ export function buildSubtitlePreviewPresentationRuntime({
     fontSizePx: Math.max(12, Math.round((Number.isFinite(fontSizeBase) ? fontSizeBase : 110) * scale)),
     cueWidthPx: Math.max(1, Math.round((Number.isFinite(cueWidthBase) && cueWidthBase > 0 ? cueWidthBase : defaultMaxWidthPx) * scale)),
     justifyContent,
+    alignItems,
     playheadPercent: safeDurationMs > 0 ? Math.round((safeCurrentMs / safeDurationMs) * 10000) / 100 : 0,
     scale,
   };
