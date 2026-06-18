@@ -203,6 +203,7 @@ export function buildSubtitlePreviewPresentationRuntime({
     alignItems,
     playheadPercent: safeDurationMs > 0 ? Math.round((safeCurrentMs / safeDurationMs) * 10000) / 100 : 0,
     scale,
+    showStripes: activeCue?.showStripes !== false,
   };
 }
 

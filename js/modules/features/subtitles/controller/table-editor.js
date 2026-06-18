@@ -71,6 +71,10 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       patchRow(rowId, { phrase: target.value }, { rerender: false, coalesceKey: `phrase:${rowId}` });
       return;
     }
+    if (target.dataset.field === 'showStripes') {
+      patchRow(rowId, { showStripes: target.checked });
+      return;
+    }
     if (target.dataset.field === 'maxWidthPx') {
       patchRow(rowId, { maxWidthPx: target.value });
       return;

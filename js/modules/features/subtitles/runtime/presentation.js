@@ -113,6 +113,12 @@ export function buildSubtitleTableRowMarkupRuntime({
             <button type="button" data-row-id="${escapedRowId}" data-field="align" data-align="right" class="${alignment.right.className}" aria-label="Alinear derecha" aria-pressed="${alignment.right.selected}">D</button>
           </div>
         </td>
+        <td class="subtitle-table__cell--stripes">
+          <label class="subtitle-stripes-toggle" aria-label="Mostrar rayas decorativas">
+            <input type="checkbox" data-row-id="${escapedRowId}" data-field="showStripes" ${row.showStripes !== false ? 'checked' : ''} />
+            <span class="subtitle-stripes-toggle__icon">▬</span>
+          </label>
+        </td>
         <td class="subtitle-table__cell--insert"><button type="button" class="subtitle-row-insert" data-action="insert-subtitle-row" data-row-id="${escapedRowId}" aria-label="Insertar subtítulo después de esta frase" title="Insertar subtítulo después" ${canInsertAfter ? '' : 'disabled'}>+</button></td>
         <td class="subtitle-table__cell--delete"><button type="button" class="subtitle-row-delete" data-action="delete-subtitle-row" data-row-id="${escapedRowId}" aria-label="Eliminar frase" ${canDelete ? '' : 'disabled'}>×</button></td>
       </tr>

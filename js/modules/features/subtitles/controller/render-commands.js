@@ -131,7 +131,7 @@ export function createSubtitleRenderCommands(ctx, callbacks = {}) {
         line_height: 1.02,
         padding_x_px: 22,
         padding_y_px: 14,
-        stripe_enabled: true,
+        stripe_enabled: row.showStripes !== false,
         stripe_thickness_px: 3,
         text_shadow: 'none',
       },

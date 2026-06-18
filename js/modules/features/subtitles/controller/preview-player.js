@@ -90,6 +90,13 @@ export function createSubtitlePreviewPlayer(ctx, collaborators = {}) {
       el.subtitle2PreviewCue.style.fontWeight = presentation.fontWeight;
       el.subtitle2PreviewCue.style.fontSize = `${presentation.fontSizePx}px`;
       el.subtitle2PreviewCue.style.width = `${presentation.cueWidthPx}px`;
+      if (presentation.showStripes) {
+        el.subtitle2PreviewCue.style.borderTop = '3px solid currentColor';
+        el.subtitle2PreviewCue.style.borderBottom = '3px solid currentColor';
+      } else {
+        el.subtitle2PreviewCue.style.borderTop = 'none';
+        el.subtitle2PreviewCue.style.borderBottom = 'none';
+      }
     }
     renderPreviewTimeline();
   }

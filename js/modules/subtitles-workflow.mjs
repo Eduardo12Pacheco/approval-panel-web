@@ -70,6 +70,7 @@ export function createEmptySubtitleRow(seed = {}) {
     fontWeight: (seed.fontWeight || seed.font_weight || resolveSubtitleFontWeight(fontFamily)).toString(),
     align: normalizeAlignment(seed.align),
     isDraft,
+    showStripes: seed.showStripes !== false,
   };
 }
 
@@ -102,6 +103,7 @@ export function applySubtitleRowPatch(row, patch = {}) {
         safeRow.fontWeight,
       ),
     align: patch.align != null ? normalizeAlignment(patch.align, safeRow.align) : safeRow.align,
+    showStripes: patch.showStripes != null ? Boolean(patch.showStripes) : safeRow.showStripes,
     isDraft: patch.isDraft != null ? Boolean(patch.isDraft) : safeRow.isDraft,
   };
 }
