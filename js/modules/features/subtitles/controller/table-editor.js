@@ -90,7 +90,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       return;
     }
     if (target.dataset.field === 'showStripes') {
-      patchFn({ showStripes: target.checked }, { rerender: false, coalesceKey: isGlobal ? 'global:stripes' : `stripes:${rowId}` });
+      patchFn({ showStripes: target.checked }, { rerender: isGlobal, coalesceKey: isGlobal ? 'global:stripes' : `stripes:${rowId}` });
       return;
     }
     if (target.dataset.field === 'maxWidthPx') {
@@ -98,15 +98,15 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       return;
     }
     if (target.dataset.field === 'size') {
-      patchFn({ size: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:size' : `size:${rowId}` });
+      patchFn({ size: target.value }, { rerender: isGlobal, coalesceKey: isGlobal ? 'global:size' : `size:${rowId}` });
       return;
     }
     if (target.dataset.field === 'color') {
-      patchFn({ color: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:color' : `color:${rowId}` });
+      patchFn({ color: target.value }, { rerender: isGlobal, coalesceKey: isGlobal ? 'global:color' : `color:${rowId}` });
       return;
     }
     if (target.dataset.field === 'fontFamily') {
-      patchFn({ fontFamily: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:font' : `font:${rowId}` });
+      patchFn({ fontFamily: target.value }, { rerender: isGlobal, coalesceKey: isGlobal ? 'global:font' : `font:${rowId}` });
       return;
     }
   }
@@ -175,7 +175,7 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       if (align === 'center') {
         patch.size = '50';
       }
-      alignPatchFn(patch, { rerender: false, coalesceKey: isGlobal ? 'global:align' : `align:${alignRowId}` });
+      alignPatchFn(patch, { rerender: isGlobal, coalesceKey: isGlobal ? 'global:align' : `align:${alignRowId}` });
       return;
     }
     const rowEl = closestFromEventTarget(ev.target, 'tr[data-row-id]');

@@ -1561,7 +1561,7 @@ function buildStepperHarness({
   };
 }
 
-function buildInputHandlerHarness({ field, value, rowId, initialRows }) {
+function buildInputHandlerHarness({ field, value, rowId, initialRows, trackedFields = [field] }) {
   const renderCalls = [];
   const liveElements = new Set();
   const target = {
@@ -1582,17 +1582,33 @@ function buildInputHandlerHarness({ field, value, rowId, initialRows }) {
     },
     el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
   });
+  // Simulated post-render DOM for individual row controls: rowId → { field: value }.
+  // Rebuilt (mutated in place) by renderTable() from ctx.state.subtitles2.rows,
+  // mirroring what the real renderTable() would produce in the table DOM for
+  // the tracked fields. The Map is mutated, not reassigned, so the reference
+  // returned to the test always reflects the latest simulated DOM state.
+  const renderedRowState = new Map();
+  const rebuildRenderedState = () => {
+    renderedRowState.clear();
+    for (const row of ctx.state.subtitles2.rows) {
+      const snapshot = {};
+      for (const tracked of trackedFields) snapshot[tracked] = row[tracked];
+      renderedRowState.set(row.id, snapshot);
+    }
+  };
+  rebuildRenderedState();
   const editor = createSubtitleTableEditor(ctx, {
     renderWorkflow: () => renderCalls.push('workflow'),
     renderTable: () => {
       // Simulate the table being torn down + rebuilt by a full re-render.
       renderCalls.push('table');
       liveElements.clear();
+      rebuildRenderedState();
     },
     renderPreviewOverlay: () => renderCalls.push('overlay'),
     updateButtonsByPhase: () => renderCalls.push('buttons'),
   });
-  return { editor, ctx, target, renderCalls, liveElements };
+  return { editor, ctx, target, renderCalls, liveElements, renderedRowState };
 }
 
 test('table editor stepper arrow on global row patches every row maxWidthPx and updates the global input value', () => {
@@ -1623,8 +1639,8 @@ test('table editor stepper arrow down on global row respects input min and step 
   }
 });
 
-test('table editor global size change patches every row without destroying the focused select', () => {
-  const { editor, ctx, target, renderCalls, liveElements } = buildInputHandlerHarness({
+test('table editor global size change patches every row and updates individual row DOM', () => {
+  const { editor, ctx, target, renderCalls, liveElements, renderedRowState } = buildInputHandlerHarness({
     field: 'size',
     value: '200',
     rowId: 'global',
@@ -1636,11 +1652,23 @@ test('table editor global size change patches every row without destroying the f
 
   editor.onTableInput({ target });
 
+  // Every row's size must be patched in the state.
   for (const row of ctx.state.subtitles2.rows) {
     assert.equal(row.size, '200', `row ${row.id} should have size 200`);
   }
-  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
-  assert.equal(liveElements.has(target), true, 'the original <select> reference must still be in the DOM');
+  // Global dropdown change MUST re-render the table so individual row DOM updates.
+  const tableRerenders = renderCalls.filter((call) => call === 'table').length;
+  assert.equal(tableRerenders, 1, 'renderTable must be called once (rerender: isGlobal → true for global size)');
+  // Every individual row's <select data-field="size"> in the rendered DOM must
+  // reflect the new value — this is the smoking gun for the original bug
+  // (global dropdown changed state but individual row DOM stayed stale).
+  for (const row of ctx.state.subtitles2.rows) {
+    const rendered = renderedRowState.get(row.id);
+    assert.ok(rendered, `row ${row.id} must have a rendered DOM entry`);
+    assert.equal(rendered.size, '200', `row ${row.id} rendered <select data-field="size"> must show 200`);
+  }
+  // The original <select> is no longer in the DOM (re-render replaced it).
+  assert.equal(liveElements.has(target), false, 'the original <select> was replaced by the re-render');
 });
 
 test('table editor individual size change patches only that row and keeps focus', () => {
@@ -1737,7 +1765,7 @@ test('table editor global and individual maxWidthPx edits use distinct coalesceK
 // passes `rerender: false` so the clicked button reference is preserved.
 // ============================================================================
 
-function buildClickHarness({ rowId, align, initialRows }) {
+function buildClickHarness({ rowId, align, initialRows, trackedFields = ['align', 'size'] }) {
   const renderCalls = [];
   const liveElements = new Set();
   const target = {
@@ -1760,17 +1788,32 @@ function buildClickHarness({ rowId, align, initialRows }) {
     },
     el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
   });
+  // Simulated post-render DOM for individual row align buttons + size dropdown:
+  // rowId → { align, size }. Rebuilt (mutated in place) by renderTable() from
+  // ctx.state.subtitles2.rows. The Map is mutated, not reassigned, so the
+  // reference returned to the test always reflects the latest simulated DOM.
+  const renderedRowState = new Map();
+  const rebuildRenderedState = () => {
+    renderedRowState.clear();
+    for (const row of ctx.state.subtitles2.rows) {
+      const snapshot = {};
+      for (const tracked of trackedFields) snapshot[tracked] = row[tracked];
+      renderedRowState.set(row.id, snapshot);
+    }
+  };
+  rebuildRenderedState();
   const editor = createSubtitleTableEditor(ctx, {
     renderWorkflow: () => renderCalls.push('workflow'),
     renderTable: () => {
       // Simulate the table being torn down + rebuilt by a full re-render.
       renderCalls.push('table');
       liveElements.clear();
+      rebuildRenderedState();
     },
     renderPreviewOverlay: () => renderCalls.push('overlay'),
     updateButtonsByPhase: () => renderCalls.push('buttons'),
   });
-  return { editor, ctx, target, renderCalls, liveElements };
+  return { editor, ctx, target, renderCalls, liveElements, renderedRowState };
 }
 
 test('table editor individual align click patches only that row and keeps focus', () => {
@@ -1798,8 +1841,8 @@ test('table editor individual align click patches only that row and keeps focus'
   assert.equal(liveElements.has(target), true, 'the original <button> reference must still be in the DOM');
 });
 
-test('table editor global align click patches every row', () => {
-  const { editor, ctx, target, renderCalls, liveElements } = buildClickHarness({
+test('table editor global align click patches every row and updates individual row DOM', () => {
+  const { editor, ctx, target, renderCalls, liveElements, renderedRowState } = buildClickHarness({
     rowId: 'global',
     align: 'center',
     initialRows: [
@@ -1814,7 +1857,60 @@ test('table editor global align click patches every row', () => {
     assert.equal(row.align, 'center', `row ${row.id} should be aligned to center`);
     assert.equal(row.size, '50', `row ${row.id} should have size 50 (C-button preset)`);
   }
-  // Global align dispatch must also avoid the table re-render (rerender: false).
-  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
-  assert.equal(liveElements.has(target), true, 'the original <button> reference must still be in the DOM');
+  // Global align click MUST re-render the table so individual row DOM updates.
+  const tableRerenders = renderCalls.filter((call) => call === 'table').length;
+  assert.equal(tableRerenders, 1, 'renderTable must be called once (rerender: isGlobal → true for global align)');
+  // Every individual row's align button + size dropdown in the rendered DOM
+  // must reflect the new values — this is the smoking gun for the original bug
+  // (global align changed state but individual row DOM stayed stale).
+  for (const row of ctx.state.subtitles2.rows) {
+    const rendered = renderedRowState.get(row.id);
+    assert.ok(rendered, `row ${row.id} must have a rendered DOM entry`);
+    assert.equal(rendered.align, 'center', `row ${row.id} rendered align button must be 'center'`);
+    assert.equal(rendered.size, '50', `row ${row.id} rendered size must be 50`);
+  }
+  // The original <button> is no longer in the DOM (re-render replaced it).
+  assert.equal(liveElements.has(target), false, 'the original <button> was replaced by the re-render');
+});
+
+// ============================================================================
+// Tests for: subtitles-global-and-individual-row-controls-fix (rerender fix)
+// One new test covering the global showStripes checkbox toggle. The previous
+// batch applied `rerender: false` uniformly, so the global showStripes toggle
+// patched every row in state but the individual row checkboxes in the rendered
+// DOM stayed stale until the next render. The fix uses `rerender: isGlobal`
+// for every dropdown/checkbox-style field (size, color, fontFamily, showStripes,
+// align) so the table re-renders when the user picks a new global value.
+// ============================================================================
+
+test('table editor global showStripes change patches every row and updates individual row checkboxes', () => {
+  const { editor, ctx, target, renderCalls, liveElements, renderedRowState } = buildInputHandlerHarness({
+    field: 'showStripes',
+    value: false, // toggle from true → false on the global checkbox
+    rowId: 'global',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', showStripes: true },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', showStripes: true },
+      { id: 'row-3', start: '00:02.06', end: '00:03.00', phrase: 'tres', showStripes: true },
+    ],
+  });
+
+  editor.onTableInput({ target });
+
+  // Every row's showStripes must be patched in the state.
+  for (const row of ctx.state.subtitles2.rows) {
+    assert.equal(row.showStripes, false, `row ${row.id} should have showStripes false`);
+  }
+  // Global showStripes toggle MUST re-render the table so individual row DOM updates.
+  const tableRerenders = renderCalls.filter((call) => call === 'table').length;
+  assert.equal(tableRerenders, 1, 'renderTable must be called once (rerender: isGlobal → true for global showStripes)');
+  // Every individual row's <input type="checkbox" data-field="showStripes"> in
+  // the rendered DOM must reflect the new checked state.
+  for (const row of ctx.state.subtitles2.rows) {
+    const rendered = renderedRowState.get(row.id);
+    assert.ok(rendered, `row ${row.id} must have a rendered DOM entry`);
+    assert.equal(rendered.showStripes, false, `row ${row.id} rendered checkbox must be unchecked`);
+  }
+  // The original <input> is no longer in the DOM (re-render replaced it).
+  assert.equal(liveElements.has(target), false, 'the original <input> was replaced by the re-render');
 });
