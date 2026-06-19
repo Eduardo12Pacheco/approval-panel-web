@@ -1478,3 +1478,343 @@ test('root subtitles controller wires table, session, and render command collabo
   assert.doesNotMatch(controllerSource, /function pollRemoteSubtitleSessionStatus\(/);
   assert.doesNotMatch(controllerSource, /function onSubtitle2ReadyClicked\(/);
 });
+
+// ============================================================================
+// Tests for: subtitles-global-and-individual-row-controls-fix
+// Seven new tests covering (1) the global stepper patch path that previously
+// returned early because the global row is virtual, and (2) the rerender:
+// false fix on the input handlers for maxWidthPx / size / color / fontFamily /
+// showStripes that previously destroyed the focused input/select mid-edit.
+// ============================================================================
+
+function buildStepperHarness({
+  rowId = 'global',
+  direction = 'up',
+  inputValue = '1080',
+  inputMin = '1',
+  inputStep = '10',
+  initialRows = [
+    { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 },
+    { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', maxWidthPx: 1080 },
+  ],
+} = {}) {
+  const timers = [];
+  const clearedTimers = [];
+  const windowListeners = new Map();
+  const input = {
+    value: inputValue,
+    min: inputMin,
+    step: inputStep,
+    dataset: { rowId, field: 'maxWidthPx' },
+  };
+  const buttonClassList = createClassList();
+  const button = {
+    disabled: false,
+    dataset: { rowId, field: 'maxWidthPx', direction },
+    classList: buttonClassList,
+    closest(selector) {
+      if (selector.includes('step-subtitle-number')) return this;
+      return null;
+    },
+    addEventListener() {},
+    removeEventListener() {},
+    setPointerCapture() {},
+    releasePointerCapture() {},
+  };
+  const textNodeTarget = { parentElement: button };
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: initialRows.map((row) => ({ ...row })),
+        changeVersion: 0,
+        dirty: false,
+        numberHoldTimer: null,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [input] } },
+    browser: {
+      URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      window: {
+        addEventListener(name, callback) { windowListeners.set(name, callback); },
+        removeEventListener(name) { windowListeners.delete(name); },
+      },
+      setTimeout(callback, ms) { timers.push({ callback, ms }); return `timer-${timers.length}`; },
+      clearTimeout(id) { clearedTimers.push(id); },
+      clearInterval() {},
+    },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderPreviewOverlay() {},
+    updateButtonsByPhase() {},
+  });
+  return {
+    editor,
+    ctx,
+    input,
+    button,
+    buttonClassList,
+    textNodeTarget,
+    windowListeners,
+    timers,
+    clearedTimers,
+  };
+}
+
+function buildInputHandlerHarness({ field, value, rowId, initialRows }) {
+  const renderCalls = [];
+  const liveElements = new Set();
+  const target = {
+    dataset: { rowId, field },
+    value: typeof value === 'boolean' ? undefined : value,
+    checked: typeof value === 'boolean' ? value : undefined,
+  };
+  // Simulate the focused <input>/<select> being attached to the table DOM.
+  liveElements.add(target);
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: initialRows.map((row) => ({ ...row })),
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => renderCalls.push('workflow'),
+    renderTable: () => {
+      // Simulate the table being torn down + rebuilt by a full re-render.
+      renderCalls.push('table');
+      liveElements.clear();
+    },
+    renderPreviewOverlay: () => renderCalls.push('overlay'),
+    updateButtonsByPhase: () => renderCalls.push('buttons'),
+  });
+  return { editor, ctx, target, renderCalls, liveElements };
+}
+
+test('table editor stepper arrow on global row patches every row maxWidthPx and updates the global input value', () => {
+  const { editor, ctx, input, textNodeTarget } = buildStepperHarness({ direction: 'up' });
+
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
+
+  assert.equal(input.value, '1090');
+  for (const row of ctx.state.subtitles2.rows) {
+    assert.equal(row.maxWidthPx, 1090, `row ${row.id} should be patched to 1090`);
+  }
+});
+
+test('table editor stepper arrow down on global row respects input min and step attributes', () => {
+  const { editor, ctx, input, textNodeTarget } = buildStepperHarness({
+    direction: 'down',
+    inputValue: '50',
+    inputMin: '50',
+    inputStep: '5',
+  });
+
+  editor.onTablePointerDown({ target: textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
+
+  // Already at min: a down step of 5 must clamp to 50.
+  assert.equal(input.value, '50');
+  for (const row of ctx.state.subtitles2.rows) {
+    assert.equal(row.maxWidthPx, 50, `row ${row.id} should stay at min 50`);
+  }
+});
+
+test('table editor global size change patches every row without destroying the focused select', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildInputHandlerHarness({
+    field: 'size',
+    value: '200',
+    rowId: 'global',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', size: '110' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', size: '110' },
+    ],
+  });
+
+  editor.onTableInput({ target });
+
+  for (const row of ctx.state.subtitles2.rows) {
+    assert.equal(row.size, '200', `row ${row.id} should have size 200`);
+  }
+  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
+  assert.equal(liveElements.has(target), true, 'the original <select> reference must still be in the DOM');
+});
+
+test('table editor individual size change patches only that row and keeps focus', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildInputHandlerHarness({
+    field: 'size',
+    value: '180',
+    rowId: 'row-2',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', size: '110' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', size: '110' },
+      { id: 'row-3', start: '00:02.06', end: '00:03.00', phrase: 'tres', size: '110' },
+    ],
+  });
+
+  editor.onTableInput({ target });
+
+  assert.equal(ctx.state.subtitles2.rows[0].size, '110');
+  assert.equal(ctx.state.subtitles2.rows[1].size, '180');
+  assert.equal(ctx.state.subtitles2.rows[2].size, '110');
+  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
+  assert.equal(liveElements.has(target), true, 'the original <select> reference must still be in the DOM');
+});
+
+test('table editor individual color change patches only that row and keeps focus', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildInputHandlerHarness({
+    field: 'color',
+    value: '#FFF000',
+    rowId: 'row-2',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', color: '#FFFFFF' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', color: '#FFFFFF' },
+    ],
+  });
+
+  editor.onTableInput({ target });
+
+  assert.equal(ctx.state.subtitles2.rows[0].color, '#FFFFFF');
+  assert.equal(ctx.state.subtitles2.rows[1].color, '#FFF000');
+  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
+  assert.equal(liveElements.has(target), true, 'the original <select> reference must still be in the DOM');
+});
+
+test('table editor individual maxWidthPx typing keeps the focused input across keystrokes', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildInputHandlerHarness({
+    field: 'maxWidthPx',
+    value: '1',
+    rowId: 'row-1',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 },
+    ],
+  });
+
+  for (const value of ['1', '12', '120', '1200']) {
+    target.value = value;
+    editor.onTableInput({ target });
+    assert.equal(liveElements.has(target), true, `input must survive after typing ${value}`);
+  }
+  assert.equal(ctx.state.subtitles2.rows[0].maxWidthPx, 1200);
+  assert.equal(renderCalls.includes('table'), false, 'table must not be re-rendered across keystrokes');
+});
+
+test('table editor global and individual maxWidthPx edits use distinct coalesceKeys so undo does not merge them', () => {
+  // Global stepper edit.
+  const g = buildStepperHarness({
+    direction: 'up',
+    initialRows: [{ id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 }],
+  });
+  g.editor.onTablePointerDown({ target: g.textNodeTarget, button: 0, pointerId: 17, preventDefault() {} });
+  const globalKey = g.ctx.state.subtitles2.undoCoalesce?.key;
+
+  // Individual stepper edit on row-1.
+  const i = buildStepperHarness({
+    rowId: 'row-1',
+    direction: 'up',
+    initialRows: [{ id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', maxWidthPx: 1080 }],
+  });
+  i.editor.onTablePointerDown({ target: i.textNodeTarget, button: 0, pointerId: 18, preventDefault() {} });
+  const individualKey = i.ctx.state.subtitles2.undoCoalesce?.key;
+
+  assert.ok(globalKey, 'global coalesce key should be set');
+  assert.ok(individualKey, 'individual coalesce key should be set');
+  assert.ok(globalKey.startsWith('global:'), `global key should start with 'global:', got ${globalKey}`);
+  assert.ok(!individualKey.startsWith('global:'), `individual key should not start with 'global:', got ${individualKey}`);
+  assert.notEqual(globalKey, individualKey);
+});
+
+// ============================================================================
+// Tests for: subtitles-global-and-individual-row-controls-fix (align follow-up)
+// Two new tests covering the align (I·C·D) button in `onTableClick` that
+// previously dispatched the patch through a `patchFn` closure with the wrong
+// argument order. The individual path therefore never matched `row.id ===
+// rowId` and silently no-op'd, while both paths also re-rendered the table
+// unnecessarily. The fix normalizes the closure to a 2-arg signature and
+// passes `rerender: false` so the clicked button reference is preserved.
+// ============================================================================
+
+function buildClickHarness({ rowId, align, initialRows }) {
+  const renderCalls = [];
+  const liveElements = new Set();
+  const target = {
+    dataset: { rowId, align, field: 'align' },
+    closest(selector) {
+      if (selector === 'button[data-field="align"]') return this;
+      return null;
+    },
+  };
+  // Simulate the clicked <button> being attached to the table DOM.
+  liveElements.add(target);
+  const ctx = buildSubtitleControllerContext({
+    ...createMinimalDependencies(),
+    state: {
+      subtitles2: {
+        rows: initialRows.map((row) => ({ ...row })),
+        changeVersion: 0,
+        dirty: false,
+      },
+    },
+    el: { subtitle2RowsBody: { querySelectorAll: () => [] } },
+  });
+  const editor = createSubtitleTableEditor(ctx, {
+    renderWorkflow: () => renderCalls.push('workflow'),
+    renderTable: () => {
+      // Simulate the table being torn down + rebuilt by a full re-render.
+      renderCalls.push('table');
+      liveElements.clear();
+    },
+    renderPreviewOverlay: () => renderCalls.push('overlay'),
+    updateButtonsByPhase: () => renderCalls.push('buttons'),
+  });
+  return { editor, ctx, target, renderCalls, liveElements };
+}
+
+test('table editor individual align click patches only that row and keeps focus', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildClickHarness({
+    rowId: 'row-2',
+    align: 'center',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', align: 'left', size: '110' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', align: 'left', size: '110' },
+      { id: 'row-3', start: '00:02.06', end: '00:03.00', phrase: 'tres', align: 'left', size: '110' },
+    ],
+  });
+
+  editor.onTableClick({ target });
+
+  // Only row-2 should have been patched: align=center, size=50 (C-button preset).
+  assert.equal(ctx.state.subtitles2.rows[0].align, 'left', 'row-1 align should be unchanged');
+  assert.equal(ctx.state.subtitles2.rows[0].size, '110', 'row-1 size should be unchanged');
+  assert.equal(ctx.state.subtitles2.rows[1].align, 'center', 'row-2 align should be patched to center');
+  assert.equal(ctx.state.subtitles2.rows[1].size, '50', 'row-2 size should be patched to 50 (C-button preset)');
+  assert.equal(ctx.state.subtitles2.rows[2].align, 'left', 'row-3 align should be unchanged');
+  assert.equal(ctx.state.subtitles2.rows[2].size, '110', 'row-3 size should be unchanged');
+  // The clicked button reference must survive the dispatch (rerender: false).
+  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
+  assert.equal(liveElements.has(target), true, 'the original <button> reference must still be in the DOM');
+});
+
+test('table editor global align click patches every row', () => {
+  const { editor, ctx, target, renderCalls, liveElements } = buildClickHarness({
+    rowId: 'global',
+    align: 'center',
+    initialRows: [
+      { id: 'row-1', start: '00:00.00', end: '00:01.00', phrase: 'uno', align: 'left', size: '110' },
+      { id: 'row-2', start: '00:01.06', end: '00:02.00', phrase: 'dos', align: 'left', size: '110' },
+    ],
+  });
+
+  editor.onTableClick({ target });
+
+  for (const row of ctx.state.subtitles2.rows) {
+    assert.equal(row.align, 'center', `row ${row.id} should be aligned to center`);
+    assert.equal(row.size, '50', `row ${row.id} should have size 50 (C-button preset)`);
+  }
+  // Global align dispatch must also avoid the table re-render (rerender: false).
+  assert.equal(renderCalls.includes('table'), false, 'renderTable must not be called (rerender: false)');
+  assert.equal(liveElements.has(target), true, 'the original <button> reference must still be in the DOM');
+});

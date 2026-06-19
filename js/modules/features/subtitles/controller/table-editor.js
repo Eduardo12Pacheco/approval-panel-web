@@ -75,7 +75,9 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
     const rowId = target.dataset.rowId;
     if (!rowId) return;
     const isGlobal = rowId === 'global';
-    const patchFn = isGlobal ? patchAllRows : patchRow;
+    const patchFn = isGlobal
+      ? (patch, options) => patchAllRows(patch, options)
+      : (patch, options) => patchRow(rowId, patch, options);
 
     if (target.dataset.field === 'start' || target.dataset.field === 'end') {
       if (isGlobal) return;
@@ -88,23 +90,24 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       return;
     }
     if (target.dataset.field === 'showStripes') {
-      patchFn({ showStripes: target.checked }, { coalesceKey: isGlobal ? 'global:stripes' : `stripes:${rowId}` });
+      patchFn({ showStripes: target.checked }, { rerender: false, coalesceKey: isGlobal ? 'global:stripes' : `stripes:${rowId}` });
       return;
     }
     if (target.dataset.field === 'maxWidthPx') {
-      patchFn({ maxWidthPx: target.value }, { coalesceKey: isGlobal ? 'global:maxWidth' : `maxWidth:${rowId}` });
+      patchFn({ maxWidthPx: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:maxWidth' : `maxWidth:${rowId}` });
       return;
     }
     if (target.dataset.field === 'size') {
-      patchFn({ size: target.value }, { coalesceKey: isGlobal ? 'global:size' : `size:${rowId}` });
+      patchFn({ size: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:size' : `size:${rowId}` });
       return;
     }
     if (target.dataset.field === 'color') {
-      patchFn({ color: target.value }, { coalesceKey: isGlobal ? 'global:color' : `color:${rowId}` });
+      patchFn({ color: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:color' : `color:${rowId}` });
       return;
     }
     if (target.dataset.field === 'fontFamily') {
-      patchFn({ fontFamily: target.value }, { coalesceKey: isGlobal ? 'global:font' : `font:${rowId}` });
+      patchFn({ fontFamily: target.value }, { rerender: false, coalesceKey: isGlobal ? 'global:font' : `font:${rowId}` });
+      return;
     }
   }
 
@@ -165,12 +168,14 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
       const align = button.dataset.align;
       if (!alignRowId || !align) return;
       const isGlobal = alignRowId === 'global';
-      const patchFn = isGlobal ? patchAllRows : patchRow;
+      const alignPatchFn = isGlobal
+        ? (p, options) => patchAllRows(p, options)
+        : (p, options) => patchRow(alignRowId, p, options);
       const patch = { align };
       if (align === 'center') {
         patch.size = '50';
       }
-      patchFn(patch, { coalesceKey: isGlobal ? 'global:align' : `align:${alignRowId}` });
+      alignPatchFn(patch, { rerender: false, coalesceKey: isGlobal ? 'global:align' : `align:${alignRowId}` });
       return;
     }
     const rowEl = closestFromEventTarget(ev.target, 'tr[data-row-id]');
@@ -278,16 +283,25 @@ export function createSubtitleTableEditor(ctx, callbacks = {}) {
 
   function stepNumberField(rowId, field, direction) {
     if (field !== 'maxWidthPx') return;
-    const row = state.subtitles2.rows.find((item) => item.id === rowId);
-    if (!row) return;
+    const isGlobal = rowId === 'global';
     const input = findRowInput(rowId, field);
     const step = Math.max(1, Number(input?.step || 10) || 10);
     const min = Number(input?.min || 1) || 1;
-    const current = Number(input?.value || row.maxWidthPx || 1080);
-    const base = Number.isFinite(current) ? current : Number(row.maxWidthPx || 1080);
+    const individualRow = isGlobal ? null : state.subtitles2.rows.find((row) => row.id === rowId);
+    const fallbackValue = isGlobal
+      ? (state.subtitles2.rows[0]?.maxWidthPx ?? 1080)
+      : (individualRow?.maxWidthPx ?? 1080);
+    const currentRaw = input?.value ?? fallbackValue;
+    const current = Number(currentRaw);
+    const base = Number.isFinite(current) ? current : Number(fallbackValue || 1080);
     const next = Math.max(min, Math.round(base + (direction === 'down' ? -step : step)));
     if (input) input.value = String(next);
-    patchRow(rowId, { [field]: next }, { rerender: false, coalesceKey: `${field}:${rowId}` });
+    const patch = { [field]: next };
+    if (isGlobal) {
+      patchAllRows(patch, { rerender: false, coalesceKey: 'global:maxWidth' });
+    } else {
+      patchRow(rowId, patch, { rerender: false, coalesceKey: `${field}:${rowId}` });
+    }
   }
 
   function findRowInput(rowId, field) {
